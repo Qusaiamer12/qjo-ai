@@ -485,7 +485,7 @@ const qcodeProviderRouter = createQcodeProviderRouter({
 });
 
 const qcodeAgent = createQcodeAgent({
-  callQcodeRouter: qcodeProviderRouter.callQcodeRouter,
+  /* removed router deps */
   qcodeWorkspaceSummary: qcodeWorkspace.qcodeWorkspaceSummary,
   projectKnowledgeContext: QCODE_PROJECT_KNOWLEDGE_CONTEXT,
   usage: qcodeUsage,
@@ -498,6 +498,7 @@ const qcodeAgent = createQcodeAgent({
 });
 
 registerQcodeRoutes(app, {
+  routingEngine,
   fs,
   path,
   http,
@@ -508,7 +509,7 @@ registerQcodeRoutes(app, {
   usage: qcodeUsage,
   agent: qcodeAgent,
   verifyFirebaseRequest,
-  keysConfigured: qcodeProviderRouter.keysConfigured,
+  /* replaced by keys obj */
   tools: qcodeWorkspace,
   learning: qcodeLearning
 });
@@ -526,7 +527,10 @@ const qSparkProviderRouter = createQSparkProviderRouter({
   nvidiaModel: QSPARK_NVIDIA_MODEL,
   callOpenAICompatibleProvider
 });
-registerQSparkRoutes(app, { router: qSparkProviderRouter, cleanMessages, fullSystemPrompt: QJO_FULL_TRAINING_PROMPT, verifyFirebaseRequest, uploadMiddleware: qSparkUpload });
+registerQSparkRoutes(app, {
+  routingEngine,
+  keys: { groq: QSPARK_GROQ_API_KEYS.length, kimi: QSPARK_KIMI_API_KEYS.length, qwen: QSPARK_QWEN_API_KEYS.length, nvidia: QSPARK_NVIDIA_API_KEYS.length },
+  models: { groq: QSPARK_GROQ_MODEL, kimi: QSPARK_KIMI_MODEL, qwen: QSPARK_QWEN_MODEL, nvidia: QSPARK_NVIDIA_MODEL }, /* router handled dynamically */ cleanMessages, fullSystemPrompt: QJO_FULL_TRAINING_PROMPT, verifyFirebaseRequest, uploadMiddleware: qSparkUpload });
 
 registerFeedbackRoutes(app, { feedbackService, verifyAdminRequest });
 
@@ -791,9 +795,10 @@ registerChatRoutes(app, {
   defaultModel: GROQ_TEXT_MODEL,
   flashModel: GROQ_FLASH_MODEL,
   cleanMessages,
-  containsImageContent,
-  callAIRouter,
-  completeIfTruncated,
+  containsImageContent: () => false, // No longer used locally
+  routingEngine,
+  
+  
   fullSystemPrompt: QJO_FULL_TRAINING_PROMPT,
   defaultMaxTokens: 2600
 });

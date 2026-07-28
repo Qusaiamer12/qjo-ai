@@ -41,7 +41,7 @@ async function extractFileText(file) {
 }
 
 function registerQSparkRoutes(app, deps) {
-  if (!deps?.router) throw new Error('registerQSparkRoutes missing router');
+  if (!deps?.routingEngine) throw new Error('registerQSparkRoutes missing router');
   if (!deps?.cleanMessages) throw new Error('registerQSparkRoutes missing cleanMessages');
   if (!deps?.uploadMiddleware) throw new Error('registerQSparkRoutes missing uploadMiddleware');
 
@@ -51,8 +51,8 @@ function registerQSparkRoutes(app, deps) {
       ok: true,
       separateKeys: true,
       note: 'Q-Spark uses QSPARK_* environment variables only. It does not fall back to Qjo provider keys.',
-      keysConfigured: deps.router.keysConfigured(),
-      models: deps.router.models()
+      keysConfigured: deps.keys,
+      models: deps.models
     });
   });
 
@@ -110,7 +110,7 @@ function registerQSparkRoutes(app, deps) {
       // Groq reject the call with a 400 instead of returning more text, so
       // we keep the ceiling here at the safe shared maximum.
       const max_tokens = clampNumber(req.body.max_tokens || 3000, 3000, 128, 7992);
-      const result = await deps.router.callQSparkRouter(messages, {
+      const result = await deps.routingEngine.callAgent({ agentType: 'qspark', qsparkProvider: provider, messages,
         provider: req.body.provider || 'nvidia',
         temperature,
         max_tokens

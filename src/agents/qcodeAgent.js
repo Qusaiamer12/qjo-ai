@@ -22,7 +22,7 @@ const REPAIR_JSON_MAX_TOKENS = SAFE_MAX_TOKENS;
 
 function createQcodeAgent(deps) {
   const required = [
-    'callQcodeRouter',
+    
     'qcodeWorkspaceSummary',
     'projectKnowledgeContext',
     'usage',
@@ -65,7 +65,7 @@ ${deps.projectKnowledgeContext}`;
   }
 
   async function callModelAsJson(conversation, maxTokens, temperature, res) {
-    const ai = await deps.callQcodeRouter(conversation, { max_tokens: maxTokens, temperature });
+    const ai = await deps.routingEngine.callAgent({ agentType: 'qcode', messages: conversation, temperature, max_tokens: maxTokens });
     if (!ai.ok) return { ai, parsed: null };
 
     let parsed = deps.extractJsonObject(ai.answer);
@@ -75,7 +75,7 @@ ${deps.projectKnowledgeContext}`;
       // giving up and treating the reply as plain prose with zero actions.
       if (res) sseWrite(res, 'phase', { phase: 'reformat' });
       const reformatPrompt = `Your previous reply was not valid JSON, or was cut off. Re-send ONLY a single STRICT JSON object matching the required shape (no prose, no code fences, no explanation outside the JSON). If your previous answer was too long, write fewer/smaller files this step and set "continue": true.\n\nYour previous reply was:\n${String(ai.answer || '').slice(-4000)}`;
-      const retryAi = await deps.callQcodeRouter([...conversation, { role: 'assistant', content: String(ai.answer || '').slice(-4000) }, { role: 'user', content: reformatPrompt }], { max_tokens: maxTokens, temperature: Math.min(temperature, 0.1) });
+      const retryAi = await deps.routingEngine.callAgent({ agentType: 'qcode', messages: [...conversation, { role: 'assistant', content: String(ai.answer || '').slice(-4000) }, { role: 'user', content: reformatPrompt }], max_tokens: maxTokens, temperature: Math.min(temperature, 0.1) });
       if (retryAi.ok) {
         const retryParsed = deps.extractJsonObject(retryAi.answer);
         if (retryParsed && typeof retryParsed === 'object') return { ai: retryAi, parsed: retryParsed };

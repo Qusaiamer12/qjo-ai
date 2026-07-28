@@ -1,5 +1,5 @@
 const { addContextContinuitySystemHint } = require('../agents/contextContinuity');
-const { routeUserRequestDeterministic, addRouterSystemHint } = require('../agents/routerAgent');
+const { addRouterSystemHint } = require('../agents/RoutingEngine');
 const { addCalculatorSystemHint } = require('../tools/calculatorTool');
 const { sanitizeMathNotation } = require('../services/textSanitizer');
 
@@ -13,8 +13,8 @@ function requireDeps(deps) {
     'flashModel',
     'cleanMessages',
     'containsImageContent',
-    'callAIRouter',
-    'completeIfTruncated',
+    
+    
     'fullSystemPrompt'
   ];
   for (const key of required) {
@@ -117,7 +117,7 @@ function registerChatRoutes(app, deps) {
       builtMessages = addCalculatorSystemHint(builtMessages);
       if (routingDecision) builtMessages = addRouterSystemHint(builtMessages, routingDecision);
 
-      const ai = await deps.callAIRouter({
+      const ai = await deps.routingEngine.callAgent({
         model,
         messages: builtMessages,
         temperature,
@@ -133,7 +133,7 @@ function registerChatRoutes(app, deps) {
       }
 
       // Complete if truncated
-      const finalAi = await deps.completeIfTruncated({ ai, model, messages: builtMessages, temperature, max_tokens: maxTokens, useTools, mode });
+      const finalAi = await deps.routingEngine.completeIfTruncated({ ai, model, messages: builtMessages, temperature, max_tokens: maxTokens, useTools, mode });
       const cleanAnswer = sanitizeMathNotation(String(finalAi.answer || ''));
 
       if (useStreaming) {
