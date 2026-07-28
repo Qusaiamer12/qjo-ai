@@ -737,7 +737,6 @@ const modelProviders = createModelProviders({
 });
 const callGeminiChat = modelProviders.callGeminiChat;
 const callQwenChat = modelProviders.callQwenChat;
-const callGeminiChat = modelProviders.callGeminiChat;
 const callGroqChat = modelProviders.callGroqChat;
 const callKimiChat = modelProviders.callKimiChat;
 const callNvidiaChat = modelProviders.callNvidiaChat;
