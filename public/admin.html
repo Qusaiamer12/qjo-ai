@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Qjo Admin</title>
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="theme-color" content="#123B7A" />
+  <link rel="stylesheet" href="/styles.css?v=qjo-huggingface-embeddings-2026-07-21-54" />
+  <style>
+    body { overflow: auto; }
+    .admin-page { min-height: 100vh; padding: 32px; background: var(--bg); color: var(--text); }
+    .admin-shell { max-width: 980px; margin: 0 auto; display: grid; gap: 18px; }
+    .admin-header { display:flex; justify-content:space-between; gap:16px; align-items:center; }
+    .admin-title h1 { margin:0; font-size:32px; letter-spacing:-1px; }
+    .admin-title p { margin:8px 0 0; color:var(--muted); }
+    .admin-card { border:1px solid var(--border); background:var(--panel); border-radius:22px; padding:20px; box-shadow:var(--shadow-sm); }
+    .admin-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .admin-field { display:grid; gap:7px; }
+    .admin-field label { color:var(--muted); font-size:13px; font-weight:700; }
+    .admin-field input, .admin-field textarea { width:100%; border:1px solid var(--border); border-radius:14px; background:var(--panel-2); color:var(--text); padding:12px; outline:0; }
+    .admin-field textarea { min-height:130px; resize:vertical; direction:rtl; }
+    .admin-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; }
+    .admin-status { color:var(--muted); font-size:13px; margin-top:10px; white-space:pre-wrap; }
+    .admin-diagnostics { direction:ltr; text-align:left; max-height:320px; overflow:auto; background:#020617; color:#dbeafe; border:1px solid var(--border); border-radius:16px; padding:12px; font-size:12px; }
+    .login-box { max-width:420px; margin:12vh auto; text-align:center; }
+    @media(max-width:700px){ .admin-grid{grid-template-columns:1fr;} .admin-page{padding:18px;} }
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js" defer></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js" defer></script>
+  <script src="/admin.js?v=qjo-huggingface-embeddings-2026-07-21-54" defer></script>
+</head>
+<body>
+  <main class="admin-page">
+    <section class="admin-shell" id="adminApp" hidden>
+      <div class="admin-header">
+        <div class="admin-title">
+          <h1>Qjo Admin</h1>
+          <p>إدارة محتوى وهوية Qjo بدون اختصارات مخفية.</p>
+        </div>
+        <div class="admin-actions">
+          <a class="plain-btn" href="/">العودة للموقع</a>
+          <button class="danger-btn" id="logoutBtn" type="button">خروج</button>
+        </div>
+      </div>
+
+      <div class="admin-card">
+        <div class="admin-grid">
+          <div class="admin-field">
+            <label>اسم المساعد</label>
+            <input id="assistantName" maxlength="40" />
+          </div>
+          <div class="admin-field">
+            <label>الوصف المختصر</label>
+            <input id="tagline" maxlength="140" />
+          </div>
+          <div class="admin-field">
+            <label>عنوان الترحيب</label>
+            <input id="welcomeTitle" maxlength="120" />
+          </div>
+          <div class="admin-field">
+            <label>نص الترحيب</label>
+            <input id="welcomeText" maxlength="320" />
+          </div>
+        </div>
+      </div>
+
+      <div class="admin-card">
+        <h3>اقتراحات البداية</h3>
+        <div class="admin-grid" id="suggestionsFields"></div>
+      </div>
+
+
+      <div class="admin-card">
+        <h3>تشخيص النظام</h3>
+        <div class="admin-actions">
+          <button class="plain-btn" id="diagnosticsBtn" type="button">فحص النظام</button>
+          <a class="plain-btn" href="/qjo-diagnostic.html" target="_blank" rel="noopener">فتح Diagnostic Page</a>
+        </div>
+        <pre class="admin-diagnostics" id="diagnosticsBox">اضغط فحص النظام لعرض الحالة.</pre>
+      </div>
+      <div class="admin-card">
+        <div class="admin-field">
+          <label>Global Training Prompt</label>
+          <textarea id="globalTraining" placeholder="تعليمات عامة إضافية لـ Qjo..."></textarea>
+        </div>
+        <div class="admin-actions">
+          <button class="primary-btn" id="saveBtn" type="button">حفظ التعديلات</button>
+          <button class="plain-btn" id="reloadBtn" type="button">إعادة تحميل</button>
+        </div>
+        <div class="admin-status" id="status"></div>
+      </div>
+    </section>
+
+    <section class="admin-card login-box" id="loginBox">
+      <h1>Qjo Admin</h1>
+      <p>سجّل دخولك بحساب الأدمن للوصول للوحة الإدارة.</p>
+      <button class="primary-btn" id="googleLoginBtn" type="button">الدخول باستخدام Google</button>
+      <div class="admin-status" id="loginStatus"></div>
+      <p style="color:var(--muted);font-size:12px;margin-top:14px">يجب ضبط ADMIN_EMAILS و Firebase Admin على السيرفر.</p>
+    </section>
+  </main>
+</body>
+</html>

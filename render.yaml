@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: qjo-ai
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: GROQ_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: DAILY_USER_LIMIT
+        value: 0
+      - key: REQUIRE_FIREBASE_AUTH
+        value: false
+
+# Optional: set to 0 to disable IP rate limiting, or e.g. 300
+# IP_RATE_LIMIT_PER_MINUTE=0
