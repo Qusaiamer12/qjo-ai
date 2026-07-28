@@ -176,9 +176,19 @@ function createRoutingEngine(deps) {
     // --- 1. Lite Prompt Fast Track ---
     if (agentType === 'chat' && isLiteRequest(messages)) {
       const liteMessages = [{ role: 'system', content: 'You are Qjo, a helpful AI. Reply briefly and warmly.' }, ...messages.filter(m => m.role !== 'system')];
-      if (keys.gemini > 0) return await llmService.callGeminiChat({ model: 'gemini-2.5-flash', messages: liteMessages, temperature, max_tokens });
-      if (keys.groq > 0) return await llmService.callGroqChat({ model: models.groqFlash || 'llama-3.3-70b-versatile', messages: liteMessages, temperature, max_tokens });
-      if (keys.qwen > 0) return await llmService.callQwenChat({ model: models.qwenFlash || 'qwen-plus', messages: liteMessages, temperature, max_tokens });
+      if (keys.gemini > 0) {
+        const g = await llmService.callGeminiChat({ model: 'gemini-2.5-flash-preview-05-20', messages: liteMessages, temperature, max_tokens });
+        if (g.ok) return g;
+      }
+      if (keys.groq > 0) {
+        const g = await llmService.callGroqChat({ model: models.groqFlash || 'llama-3.3-70b-versatile', messages: liteMessages, temperature, max_tokens });
+        if (g.ok) return g;
+      }
+      if (keys.qwen > 0) {
+        const q = await llmService.callQwenChat({ model: models.qwenFlash || 'qwen-plus', messages: liteMessages, temperature, max_tokens });
+        if (q.ok) return q;
+      }
+      // If all lite providers fail, fall through to full routing below
     }
 
     // --- 2. Qcode Mode Routing ---
@@ -216,7 +226,7 @@ function createRoutingEngine(deps) {
 
     // Gemini First Priority (Best General & Free Tier)
     if (keys.gemini > 0) {
-      const geminiModel = (route.intent === 'reasoning' || route.mathIntent) ? (models.geminiPro || 'gemini-2.5-pro') : (models.geminiText || 'gemini-2.5-flash');
+      const geminiModel = (route.intent === 'reasoning' || route.mathIntent) ? (models.geminiPro || 'gemini-2.5-pro') : (models.geminiText || 'gemini-2.5-flash-preview-05-20');
       const gemini = await llmService.callGeminiChat({ model: geminiModel, messages, temperature, max_tokens });
       if (gemini.ok) return gemini;
     }
