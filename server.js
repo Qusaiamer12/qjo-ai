@@ -505,7 +505,7 @@ const routingEngine = createRoutingEngine({
     kimiCode: KIMI_CODE_MODEL,
     nvidiaFlash: NVIDIA_FLASH_MODEL,
     nvidiaText: NVIDIA_TEXT_MODEL,
-    geminiPro: 'gemini-2.5-pro'
+    geminiPro: 'gemini-1.5-pro'
   }
 });
 

@@ -226,7 +226,7 @@ function createRoutingEngine(deps) {
 
     // Gemini First Priority (Best General & Free Tier)
     if (keys.gemini > 0) {
-      const geminiModel = (route.intent === 'reasoning' || route.mathIntent) ? (models.geminiPro || 'gemini-2.5-pro') : (models.geminiText || 'gemini-3.6-flash');
+      const geminiModel = (route.intent === 'reasoning' || route.mathIntent) ? (models.geminiPro || 'gemini-1.5-pro') : (models.geminiText || 'gemini-3.6-flash');
       const gemini = await llmService.callGeminiChat({ model: geminiModel, messages, temperature, max_tokens });
       if (gemini.ok) return gemini;
     }
