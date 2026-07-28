@@ -55,7 +55,7 @@ function classifyQjoRequest({ messages, mode, routingDecision }) {
 }
 
 function createModelRouter(deps) {
-  const required = ['callGroqChat','callQwenChat','callKimiChat','callNvidiaChat','callOpenRouterFreeChat','callAgnesChat','normalizeProviderFinishReason','safeCalculate','models','keys'];
+  const required = ['callGroqChat','callGeminiChat','callQwenChat','callKimiChat','callNvidiaChat','callOpenRouterFreeChat','callAgnesChat','normalizeProviderFinishReason','safeCalculate','models','keys'];
   for (const key of required) if (!deps[key]) throw new Error(`createModelRouter missing dependency: ${key}`);
 
   function formatSearchResultsForTool(payload) {
@@ -126,8 +126,17 @@ function createModelRouter(deps) {
     const codeMode = mode === 'code';
     const route = classifyQjoRequest({ messages, mode, routingDecision });
     const { models, keys } = deps;
+    // gemini key count check
+    const geminiAvailable = (keys.gemini || 0) > 0;
     const originalQuestion = combinedUserText(messages);
     const tools = buildTools(useTools && !hasImages, route.hasSearchContext);
+
+    // ── Gemini first: highest quality, free tier with key rotation ──
+    if (keys.gemini) {
+      const geminiModel = models.geminiText || 'gemini-2.5-flash';
+      const gemini = await deps.callGeminiChat({ model: geminiModel, messages, temperature, max_tokens });
+      if (gemini.ok) return gemini;
+    }
 
     if (codeMode && !hasImages && keys.qwen) {
       const qwen = await deps.callQwenChat({ model: models.qwenCode, messages, temperature, max_tokens });
