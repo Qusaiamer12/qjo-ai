@@ -457,6 +457,10 @@ async function lookupClientGeo(ip) {
 
 
 
+const { createQcodeLearning } = require('./src/services/qcodeLearning');
+const QCODE_LEARNING_DIR = path.join(__dirname, '.qcode-learning');
+const qcodeLearning = createQcodeLearning({ dir: QCODE_LEARNING_DIR });
+
 const qcodeWorkspace = createQcodeWorkspaceService({
   workspaceDir: QCODE_WORKSPACE_DIR,
   snapshotDir: QCODE_SNAPSHOT_DIR,
@@ -510,7 +514,8 @@ registerQcodeRoutes(app, {
   verifyFirebaseRequest,
   learning: qcodeLearning,
   keysConfigured: qcodeProviderRouter.keysConfigured,
-  tools: qcodeWorkspace
+  tools: qcodeWorkspace,
+  learning: qcodeLearning
 });
 
 const qSparkProviderRouter = createQSparkProviderRouter({
@@ -735,6 +740,7 @@ const modelProviders = createModelProviders({
   agnesModel: AGNES_MODEL,
   callOpenAICompatibleProvider
 });
+const callGeminiChat = modelProviders.callGeminiChat;
 const callQwenChat = modelProviders.callQwenChat;
 const callGeminiChat = modelProviders.callGeminiChat;
 const callGroqChat = modelProviders.callGroqChat;
@@ -749,6 +755,7 @@ const modelRouter = createModelRouter({
   callQwenChat,
   callKimiChat,
   callNvidiaChat,
+  callGeminiChat,
   callOpenRouterFreeChat,
   callAgnesChat,
   normalizeProviderFinishReason,
@@ -757,6 +764,7 @@ const modelRouter = createModelRouter({
   agnesBaseUrl: AGNES_BASE_URL,
   keys: {
     groq: GROQ_API_KEYS.length,
+    gemini: GEMINI_API_KEYS.length,
     qwen: QWEN_API_KEYS.length,
     kimi: KIMI_API_KEYS.length,
     nvidia: NVIDIA_API_KEYS.length,
@@ -765,6 +773,8 @@ const modelRouter = createModelRouter({
   },
   models: {
     groqFlash: GROQ_FLASH_MODEL,
+    geminiText: GEMINI_TEXT_MODEL,
+    geminiFlash: GEMINI_FLASH_MODEL,
     qwenFlash: QWEN_FLASH_MODEL,
     qwenText: QWEN_TEXT_MODEL,
     qwenCode: QWEN_CODE_MODEL,
