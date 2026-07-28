@@ -4,7 +4,7 @@ function registerSystemRoutes(app, deps) {
   // 🧪 TEMPORARY DIAGNOSTIC ROUTE
   app.get('/api/test-providers', async (_, res) => {
     res.setHeader('Cache-Control', 'no-store');
-    const results = { gemini: null, nvidia: null, geminiModels: [] };
+    const results = { gemini: null, nvidia: null };
     
     // Test Gemini
     const geminiKeys = String(process.env.GEMINI_API_KEYS || '').split(',').map(k => k.trim()).filter(Boolean);
@@ -12,21 +12,13 @@ function registerSystemRoutes(app, deps) {
       results.gemini = { ok: false, error: 'No keys configured in GEMINI_API_KEYS' };
     } else {
       const key = geminiKeys[0];
-      const model = process.env.GEMINI_TEXT_MODEL || 'gemini-1.5-flash';
+      // We will try gemini-3.5-flash which is the current stable standard model in 2026
+      const model = process.env.GEMINI_TEXT_MODEL || 'gemini-3.5-flash';
       const body = {
-        contents: [{ role: 'user', parts: [{ text: 'hello' }] }]
+        contents: [{ role: 'user', parts: [{ text: 'ping' }] }],
+        generationConfig: { maxOutputTokens: 10 }
       };
       try {
-        // First try to list available models to see if key works and what models exist
-        const listResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
-        const listData = await listResponse.json().catch(() => ({}));
-        if (listResponse.ok && listData.models) {
-          results.geminiModels = listData.models.map(m => m.name);
-        } else {
-          results.geminiModels = [ 'Failed to list models: ' + (listData?.error?.message || listResponse.status) ];
-        }
-
-        // Test the direct generateContent call
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -43,18 +35,17 @@ function registerSystemRoutes(app, deps) {
       }
     }
 
-    // Test NVIDIA with a correct model name and correct endpoint
+    // Test NVIDIA
     const nvidiaKeys = String(process.env.NVIDIA_API_KEYS || '').split(',').map(k => k.trim()).filter(Boolean);
     if (nvidiaKeys.length === 0) {
       results.nvidia = { ok: false, error: 'No keys configured in NVIDIA_API_KEYS' };
     } else {
       const key = nvidiaKeys[0];
-      // On NVIDIA API Catalog, models are prefixed or named differently. Let's try meta/llama-3.3-70b-instruct or deepseek-ai/deepseek-r1
       const model = process.env.NVIDIA_MODEL || 'meta/llama-3.3-70b-instruct';
       const body = {
         model,
-        messages: [{ role: 'user', content: 'hello' }],
-        max_tokens: 16
+        messages: [{ role: 'user', content: 'ping' }],
+        max_tokens: 10
       };
       try {
         const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
@@ -69,7 +60,7 @@ function registerSystemRoutes(app, deps) {
         if (response.ok) {
           results.nvidia = { ok: true, answer: data?.choices?.[0]?.message?.content?.trim() || 'No text response' };
         } else {
-          results.nvidia = { ok: false, status: response.status, error: data?.error?.message || data || 'HTTP error' };
+          results.nvidia = { ok: false, status: response.status, error: data?.error?.message || 'HTTP error' };
         }
       } catch (e) {
         results.nvidia = { ok: false, error: e.message };
