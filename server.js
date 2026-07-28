@@ -536,7 +536,6 @@ registerQcodeRoutes(app, {
   usage: qcodeUsage,
   agent: qcodeAgent,
   verifyFirebaseRequest,
-  keysConfigured: /* handled internally */ null,
   tools: qcodeWorkspace,
   learning: qcodeLearning
 });

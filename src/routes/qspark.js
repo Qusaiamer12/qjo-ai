@@ -110,8 +110,7 @@ function registerQSparkRoutes(app, deps) {
       // Groq reject the call with a 400 instead of returning more text, so
       // we keep the ceiling here at the safe shared maximum.
       const max_tokens = clampNumber(req.body.max_tokens || 3000, 3000, 128, 7992);
-      const result = await deps.routingEngine.callAgent({ agentType: 'qspark', qsparkProvider: provider, messages,
-        provider: req.body.provider || 'nvidia',
+      const result = await deps.routingEngine.callAgent({ agentType: 'qspark', qsparkProvider: req.body.provider || 'nvidia', messages,
         temperature,
         max_tokens
       });

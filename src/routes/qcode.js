@@ -1,6 +1,6 @@
 function registerQcodeRoutes(app, deps) {
   const required = [
-    'ensureQcodeWorkspace', 'workspaceDir', 'keysConfigured', 'tools', 'uploadMiddleware', 'usage', 'agent', 'verifyFirebaseRequest', 'http', 'learning'
+    'ensureQcodeWorkspace', 'workspaceDir', 'tools', 'uploadMiddleware', 'usage', 'agent', 'verifyFirebaseRequest', 'http', 'learning'
   ];
   for (const key of required) if (deps[key] === undefined || deps[key] === null) throw new Error(`registerQcodeRoutes missing dependency: ${key}`);
   const t = deps.tools;
@@ -16,7 +16,7 @@ function registerQcodeRoutes(app, deps) {
   });
 
   app.get('/api/qcode/health', (_, res) => {
-    res.json({ ok: true, separateKeys: true, keysConfigured: deps.keysConfigured(), workspaceReady: true });
+    res.json({ ok: true, separateKeys: true, keysConfigured: { routingEngine: true }, workspaceReady: true });
   });
 
   app.get('/api/qcode/files', (_, res) => {

@@ -1,8 +1,29 @@
 const { CALCULATOR_TOOL } = require('../tools/calculatorTool');
 const { WEB_SEARCH_TOOL } = require('../tools/searchTool');
+const { z } = require('zod');
 
-// Utility to extract text from messages
+// ── Zod Schema ──
+const RoutingDecisionSchema = z.object({
+  targetAgent: z.enum(['qcode', 'qspark', 'general']),
+  confidence: z.number().min(0).max(100),
+  reason: z.string().min(1).max(180)
+});
 
+// ── Text Utilities ──
+function textFromMessageContent(content) {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    return content
+      .map(part => {
+        if (!part) return '';
+        if (typeof part === 'string') return part;
+        if (part.type === 'text') return part.text || '';
+        return '';
+      })
+      .join('\n');
+  }
+  return '';
+}
 
 function combinedUserText(messages) {
   return (messages || [])
@@ -13,6 +34,21 @@ function combinedUserText(messages) {
     .slice(-90000);
 }
 
+function combinedRecentUserText(messages) {
+  return (messages || [])
+    .filter(m => m && m.role === 'user')
+    .slice(-3)
+    .map(m => textFromMessageContent(m.content))
+    .join('\n\n')
+    .slice(-12000);
+}
+
+function lastUserText(messagesOrText) {
+  if (typeof messagesOrText === 'string') return messagesOrText;
+  const last = [...(messagesOrText || [])].reverse().find(m => m?.role === 'user');
+  return textFromMessageContent(last?.content || '');
+}
+
 function containsImageContent(messages) {
   return (messages || []).some(m => Array.isArray(m.content) && m.content.some(part => part?.type === 'image_url'));
 }
@@ -21,6 +57,17 @@ function isTruncatedProviderResponse(ai) {
   if (!ai || !ai.ok) return false;
   const finish = String(ai.finish_reason || ai.finishReason || '').toLowerCase();
   return finish === 'length' || finish === 'max_tokens' || finish === 'max_output_tokens';
+}
+
+// ── Routing Decision Validation ──
+function validateRoutingDecision(raw) {
+  const parsed = RoutingDecisionSchema.safeParse(raw);
+  if (parsed.success) return parsed.data;
+  return {
+    targetAgent: 'general',
+    confidence: 0,
+    reason: 'Invalid routing shape fallback'
+  };
 }
 
 // ── Smart Intent Classifier ──
@@ -52,15 +99,13 @@ function classifyQjoRequest({ messages, mode, routingDecision }) {
 }
 
 // ── Lite Request Detector ──
-// Detects simple conversation like "Hello", "How are you", "مرحبا" to bypass heavy processing
 function isLiteRequest(messages) {
   const userMessages = (messages || []).filter(m => m.role === 'user');
-  if (userMessages.length !== 1) return false; // Only for fresh or simple queries
+  if (userMessages.length !== 1) return false;
   
   const text = textFromMessageContent(userMessages[0].content).trim();
   const wordCount = text.split(/\s+/).length;
   
-  // If it has code blocks, files, long text, or special math characters, it's not lite
   if (wordCount > 12) return false;
   if (containsImageContent(messages)) return false;
   if (/(```|{|}|function|class|calculate|احسب|search|بحث|https?:\/\/)/i.test(text)) return false;
@@ -70,7 +115,8 @@ function isLiteRequest(messages) {
 
 // ── Unified Routing Engine ──
 function createRoutingEngine(deps) {
-  const { llmService, safeCalculate, searchService, models, keys } = deps;
+  const { llmService, safeCalculate, models, keys } = deps;
+  let searchService = deps.searchService;
   if (!llmService || !models || !keys) throw new Error('createRoutingEngine missing core deps: llmService, models, or keys');
 
   function formatSearchResultsForTool(payload) {
@@ -129,7 +175,6 @@ function createRoutingEngine(deps) {
     
     // --- 1. Lite Prompt Fast Track ---
     if (agentType === 'chat' && isLiteRequest(messages)) {
-      // Very simple request -> Bypass heavy routing, use fastest available model
       const liteMessages = [{ role: 'system', content: 'You are Qjo, a helpful AI. Reply briefly and warmly.' }, ...messages.filter(m => m.role !== 'system')];
       if (keys.gemini > 0) return await llmService.callGeminiChat({ model: 'gemini-2.5-flash', messages: liteMessages, temperature, max_tokens });
       if (keys.groq > 0) return await llmService.callGroqChat({ model: models.groqFlash || 'llama-3.3-70b-versatile', messages: liteMessages, temperature, max_tokens });
@@ -222,60 +267,16 @@ function createRoutingEngine(deps) {
     return { ...ai, answer: combined, continued: true, finish_reason: 'continued_but_may_be_truncated' };
   }
 
-  return { callAgent, completeIfTruncated, classifyQjoRequest, isLiteRequest };
+  // Allow dynamic attachment of searchService after initialization
+  const engine = { callAgent, completeIfTruncated, classifyQjoRequest, isLiteRequest };
+  Object.defineProperty(engine, 'searchService', {
+    set(svc) { searchService = svc; },
+    get() { return searchService; }
+  });
+  return engine;
 }
 
-
-
-
-const { z } = require('zod');
-
-const RoutingDecisionSchema = z.object({
-  targetAgent: z.enum(['qcode', 'qspark', 'general']),
-  confidence: z.number().min(0).max(100),
-  reason: z.string().min(1).max(180)
-});
-
-function textFromMessageContent(content) {
-  if (typeof content === 'string') return content;
-  if (Array.isArray(content)) {
-    return content
-      .map(part => {
-        if (!part) return '';
-        if (typeof part === 'string') return part;
-        if (part.type === 'text') return part.text || '';
-        return '';
-      })
-      .join('\n');
-  }
-  return '';
-}
-
-function combinedRecentUserText(messages) {
-  return (messages || [])
-    .filter(m => m && m.role === 'user')
-    .slice(-3)
-    .map(m => textFromMessageContent(m.content))
-    .join('\n\n')
-    .slice(-12000);
-}
-
-function lastUserText(messagesOrText) {
-  if (typeof messagesOrText === 'string') return messagesOrText;
-  const last = [...(messagesOrText || [])].reverse().find(m => m?.role === 'user');
-  return textFromMessageContent(last?.content || '');
-}
-
-function validateRoutingDecision(raw) {
-  const parsed = RoutingDecisionSchema.safeParse(raw);
-  if (parsed.success) return parsed.data;
-  return {
-    targetAgent: 'general',
-    confidence: 0,
-    reason: 'Invalid routing shape fallback'
-  };
-}
-
+// ── Deterministic Router (used by client-side routing) ──
 function routeUserRequestDeterministic(messagesOrText) {
   const latest = lastUserText(messagesOrText);
   const recent = typeof messagesOrText === 'string' ? latest : combinedRecentUserText(messagesOrText);
@@ -321,6 +322,7 @@ function routeUserRequestDeterministic(messagesOrText) {
   });
 }
 
+// ── Router System Hints ──
 function buildRouterSystemHint(decision) {
   const d = validateRoutingDecision(decision);
   if (d.targetAgent === 'qcode') {
@@ -339,6 +341,7 @@ function addRouterSystemHint(messages, decision) {
 }
 
 module.exports = {
+  createRoutingEngine,
   RoutingDecisionSchema,
   validateRoutingDecision,
   routeUserRequestDeterministic,
