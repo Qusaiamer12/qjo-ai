@@ -29,6 +29,53 @@ function createModelProviders(config = {}) {
     return out;
   }
 
+  async function callGeminiChat({ model, messages, temperature, max_tokens }) {
+    const keys = rotate(geminiKeys, 'gemini');
+    if (!keys.length) return { ok: false, status: 501, error: 'Gemini is not configured.' };
+    const geminiModel = String(model || 'gemini-2.5-flash').replace(/^gemini-/, '').includes('/') ? model : model;
+    const systemMsg = (messages || []).find(m => m.role === 'system');
+    const chatMessages = (messages || []).filter(m => m.role !== 'system');
+    const contents = chatMessages.map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: typeof m.content === 'string' ? m.content : (Array.isArray(m.content) ? m.content.map(p => p.text || '').join('\n') : '') }]
+    })).filter(m => m.parts[0].text.trim());
+    if (!contents.length) return { ok: false, status: 400, error: 'No valid messages for Gemini.' };
+    const body = {
+      contents,
+      generationConfig: { temperature: temperature ?? 0.7, maxOutputTokens: Math.min(max_tokens || 8192, 65536) }
+    };
+    if (systemMsg) body.systemInstruction = { parts: [{ text: typeof systemMsg.content === 'string' ? systemMsg.content : '' }] };
+    let lastError = null;
+    for (const key of keys) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 45000);
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${key}`,
+          { method: 'POST', signal: controller.signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+        );
+        clearTimeout(timeout);
+        const data = await response.json().catch(() => ({}));
+        if (response.ok) {
+          const candidate = data?.candidates?.[0];
+          const text = candidate?.content?.parts?.[0]?.text || '';
+          const finishReason = candidate?.finishReason || '';
+          return { ok: true, answer: text, finish_reason: finishReason, raw: data, provider: 'gemini', model: geminiModel };
+        }
+        const errMsg = data?.error?.message || `Gemini HTTP ${response.status}`;
+        lastError = { status: response.status, error: errMsg };
+        const limited = response.status === 429 || /quota|rate|limit/i.test(errMsg);
+        if (limited) continue;
+        return { ok: false, status: response.status, error: errMsg };
+      } catch (error) {
+        clearTimeout(timeout);
+        if (error.name === 'AbortError') { lastError = { status: 504, error: 'Gemini timeout.' }; continue; }
+        lastError = { status: 502, error: error.message || 'Gemini request failed.' };
+      }
+    }
+    return { ok: false, status: lastError?.status || 429, error: lastError?.error || 'All Gemini keys failed.' };
+  }
+
   async function callQwenChat({ model, messages, temperature, max_tokens, tools }) {
     const keys = rotate(qwenKeys, 'qwen');
     if (!keys.length) return { ok: false, status: 501, error: 'Qwen is not configured.' };
@@ -238,7 +285,7 @@ function createModelProviders(config = {}) {
   }
 
 
-  return { callQwenChat, callGeminiChat, callGroqChat, callKimiChat, callNvidiaChat, callOpenRouterFreeChat, callAgnesChat, normalizeProviderFinishReason };
+  return { callGeminiChat, callQwenChat, callGeminiChat, callGroqChat, callKimiChat, callNvidiaChat, callOpenRouterFreeChat, callAgnesChat, normalizeProviderFinishReason };
 }
 
 module.exports = { createModelProviders, normalizeProviderFinishReason };
