@@ -177,7 +177,7 @@ function createRoutingEngine(deps) {
     if (agentType === 'chat' && isLiteRequest(messages)) {
       const liteMessages = [{ role: 'system', content: 'You are Qjo, a helpful AI. Reply briefly and warmly.' }, ...messages.filter(m => m.role !== 'system')];
       if (keys.gemini > 0) {
-        const g = await llmService.callGeminiChat({ model: 'gemini-1.5-flash', messages: liteMessages, temperature, max_tokens });
+        const g = await llmService.callGeminiChat({ model: 'gemini-3.6-flash', messages: liteMessages, temperature, max_tokens });
         if (g.ok) return g;
       }
       if (keys.groq > 0) {
@@ -226,7 +226,7 @@ function createRoutingEngine(deps) {
 
     // Gemini First Priority (Best General & Free Tier)
     if (keys.gemini > 0) {
-      const geminiModel = (route.intent === 'reasoning' || route.mathIntent) ? (models.geminiPro || 'gemini-2.5-pro') : (models.geminiText || 'gemini-1.5-flash');
+      const geminiModel = (route.intent === 'reasoning' || route.mathIntent) ? (models.geminiPro || 'gemini-2.5-pro') : (models.geminiText || 'gemini-3.6-flash');
       const gemini = await llmService.callGeminiChat({ model: geminiModel, messages, temperature, max_tokens });
       if (gemini.ok) return gemini;
     }
