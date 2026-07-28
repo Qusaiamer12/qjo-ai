@@ -19,17 +19,13 @@ const { createFeedbackService } = require('./src/services/feedbackService');
 const { registerFeedbackRoutes } = require('./src/routes/feedback');
 const { registerAdminRoutes } = require('./src/routes/admin');
 const { registerSystemRoutes } = require('./src/routes/system');
-const { createOpenAICompatibleProviderService } = require('./src/services/aiProviders');
-const { createModelProviders } = require('./src/services/modelProviders');
+const { createLlmService } = require('./src/services/llmService');
+const { createRoutingEngine } = require('./src/agents/RoutingEngine');
 const { registerSearchRoutes } = require('./src/routes/search');
 const { createQcodeAgent } = require('./src/agents/qcodeAgent');
-const { createQcodeProviderRouter } = require('./src/agents/qcodeProviderRouter');
 const { registerQcodeRoutes } = require('./src/routes/qcode');
-const { createQSparkProviderRouter } = require('./src/agents/qsparkProviderRouter');
-const { createModelRouter } = require('./src/agents/modelRouter');
 const { registerQSparkRoutes } = require('./src/routes/qspark');
 const { createQcodeWorkspaceService } = require('./src/services/qcodeWorkspace');
-const { validateRoutingDecision } = require('./src/agents/routerAgent');
 const { CALCULATOR_TOOL, createSafeCalculate } = require('./src/tools/calculatorTool');
 const { registerChatRoutes } = require('./src/routes/chat');
 
@@ -468,21 +464,52 @@ const qcodeWorkspace = createQcodeWorkspaceService({
   allowNetworkCommands: QCODE_ALLOW_NETWORK_COMMANDS
 });
 
-const openAICompatibleProviderService = createOpenAICompatibleProviderService();
-const callOpenAICompatibleProvider = openAICompatibleProviderService.callOpenAICompatibleProvider;
 
-const qcodeProviderRouter = createQcodeProviderRouter({
-  qwenKeys: QCODE_QWEN_API_KEYS,
-  groqKeys: QCODE_GROQ_API_KEYS,
-  kimiKeys: QCODE_KIMI_API_KEYS,
-  nvidiaKeys: QCODE_NVIDIA_API_KEYS,
-  qwenModel: QCODE_QWEN_MODEL,
-  groqModel: QCODE_GROQ_MODEL,
-  kimiBaseUrl: QCODE_KIMI_BASE_URL,
-  kimiModel: QCODE_KIMI_MODEL,
-  nvidiaModel: QCODE_NVIDIA_MODEL,
-  callOpenAICompatibleProvider
+const llmService = createLlmService({
+  groqKeys: GROQ_API_KEYS,
+  qwenKeys: QWEN_API_KEYS,
+  geminiKeys: GEMINI_API_KEYS,
+  kimiKeys: KIMI_API_KEYS,
+  nvidiaKeys: NVIDIA_API_KEYS,
+  openRouterKeys: OPENROUTER_API_KEYS,
+  agnesKeys: AGNES_API_KEYS,
+  kimiBaseUrl: KIMI_BASE_URL,
+  openRouterFreeModels: OPENROUTER_FREE_MODELS,
+  agnesBaseUrl: AGNES_BASE_URL,
+  agnesModel: AGNES_MODEL
 });
+
+const routingEngine = createRoutingEngine({
+  llmService,
+  safeCalculate,
+  searchService: null,
+  keys: {
+    groq: GROQ_API_KEYS.length,
+    gemini: GEMINI_API_KEYS.length,
+    qwen: QWEN_API_KEYS.length,
+    kimi: KIMI_API_KEYS.length,
+    nvidia: NVIDIA_API_KEYS.length,
+    openRouter: OPENROUTER_API_KEYS.length,
+    agnes: AGNES_API_KEYS.length
+  },
+  models: {
+    groqFlash: GROQ_FLASH_MODEL,
+    groqText: GROQ_TEXT_MODEL,
+    geminiText: GEMINI_TEXT_MODEL,
+    geminiFlash: GEMINI_FLASH_MODEL,
+    qwenFlash: QWEN_FLASH_MODEL,
+    qwenText: QWEN_TEXT_MODEL,
+    qwenCode: QWEN_CODE_MODEL,
+    kimiFlash: KIMI_FLASH_MODEL,
+    kimiText: KIMI_TEXT_MODEL,
+    kimiCode: KIMI_CODE_MODEL,
+    nvidiaFlash: NVIDIA_FLASH_MODEL,
+    nvidiaText: NVIDIA_TEXT_MODEL,
+    geminiPro: 'gemini-2.5-pro'
+  }
+});
+
+
 
 const qcodeAgent = createQcodeAgent({
   /* removed router deps */
@@ -509,28 +536,20 @@ registerQcodeRoutes(app, {
   usage: qcodeUsage,
   agent: qcodeAgent,
   verifyFirebaseRequest,
-  /* replaced by keys obj */
+  keysConfigured: /* handled internally */ null,
   tools: qcodeWorkspace,
   learning: qcodeLearning
 });
 
-const qSparkProviderRouter = createQSparkProviderRouter({
-  groqKeys: QSPARK_GROQ_API_KEYS,
-  kimiKeys: QSPARK_KIMI_API_KEYS,
-  qwenKeys: QSPARK_QWEN_API_KEYS,
-  nvidiaKeys: QSPARK_NVIDIA_API_KEYS,
-  groqModel: QSPARK_GROQ_MODEL,
-  kimiBaseUrl: QSPARK_KIMI_BASE_URL,
-  kimiModel: QSPARK_KIMI_MODEL,
-  qwenBaseUrl: QSPARK_QWEN_BASE_URL,
-  qwenModel: QSPARK_QWEN_MODEL,
-  nvidiaModel: QSPARK_NVIDIA_MODEL,
-  callOpenAICompatibleProvider
-});
 registerQSparkRoutes(app, {
   routingEngine,
   keys: { groq: QSPARK_GROQ_API_KEYS.length, kimi: QSPARK_KIMI_API_KEYS.length, qwen: QSPARK_QWEN_API_KEYS.length, nvidia: QSPARK_NVIDIA_API_KEYS.length },
-  models: { groq: QSPARK_GROQ_MODEL, kimi: QSPARK_KIMI_MODEL, qwen: QSPARK_QWEN_MODEL, nvidia: QSPARK_NVIDIA_MODEL }, /* router handled dynamically */ cleanMessages, fullSystemPrompt: QJO_FULL_TRAINING_PROMPT, verifyFirebaseRequest, uploadMiddleware: qSparkUpload });
+  models: { groq: QSPARK_GROQ_MODEL, kimi: QSPARK_KIMI_MODEL, qwen: QSPARK_QWEN_MODEL, nvidia: QSPARK_NVIDIA_MODEL },
+  cleanMessages,
+  fullSystemPrompt: QJO_FULL_TRAINING_PROMPT,
+  verifyFirebaseRequest,
+  uploadMiddleware: qSparkUpload
+});
 
 registerFeedbackRoutes(app, { feedbackService, verifyAdminRequest });
 
@@ -725,67 +744,9 @@ const searchService = createSearchService({
 });
 registerSearchRoutes(app, { verifyFirebaseRequest, searchService });
 
-const modelProviders = createModelProviders({
-  groqKeys: GROQ_API_KEYS,
-  qwenKeys: QWEN_API_KEYS,
-  geminiKeys: GEMINI_API_KEYS,
-  kimiKeys: KIMI_API_KEYS,
-  nvidiaKeys: NVIDIA_API_KEYS,
-  openRouterKeys: OPENROUTER_API_KEYS,
-  agnesKeys: AGNES_API_KEYS,
-  kimiBaseUrl: KIMI_BASE_URL,
-  openRouterFreeModels: OPENROUTER_FREE_MODELS,
-  agnesBaseUrl: AGNES_BASE_URL,
-  agnesModel: AGNES_MODEL,
-  callOpenAICompatibleProvider
-});
-const callGeminiChat = modelProviders.callGeminiChat;
-const callQwenChat = modelProviders.callQwenChat;
-const callGroqChat = modelProviders.callGroqChat;
-const callKimiChat = modelProviders.callKimiChat;
-const callNvidiaChat = modelProviders.callNvidiaChat;
-const callOpenRouterFreeChat = modelProviders.callOpenRouterFreeChat;
-const callAgnesChat = modelProviders.callAgnesChat;
-const normalizeProviderFinishReason = modelProviders.normalizeProviderFinishReason;
+routingEngine.searchService = searchService;
 
-const modelRouter = createModelRouter({
-  callGroqChat,
-  callQwenChat,
-  callKimiChat,
-  callNvidiaChat,
-  callGeminiChat,
-  callOpenRouterFreeChat,
-  callAgnesChat,
-  normalizeProviderFinishReason,
-  safeCalculate,
-  searchService,
-  agnesBaseUrl: AGNES_BASE_URL,
-  keys: {
-    groq: GROQ_API_KEYS.length,
-    gemini: GEMINI_API_KEYS.length,
-    qwen: QWEN_API_KEYS.length,
-    kimi: KIMI_API_KEYS.length,
-    nvidia: NVIDIA_API_KEYS.length,
-    openRouter: OPENROUTER_API_KEYS.length,
-    agnes: AGNES_API_KEYS.length
-  },
-  models: {
-    groqFlash: GROQ_FLASH_MODEL,
-    geminiText: GEMINI_TEXT_MODEL,
-    geminiFlash: GEMINI_FLASH_MODEL,
-    qwenFlash: QWEN_FLASH_MODEL,
-    qwenText: QWEN_TEXT_MODEL,
-    qwenCode: QWEN_CODE_MODEL,
-    kimiFlash: KIMI_FLASH_MODEL,
-    kimiText: KIMI_TEXT_MODEL,
-    kimiCode: KIMI_CODE_MODEL,
-    nvidiaFlash: NVIDIA_FLASH_MODEL,
-    nvidiaText: NVIDIA_TEXT_MODEL
-  }
-});
-const callAIRouter = modelRouter.callAIRouter;
-const completeIfTruncated = modelRouter.completeIfTruncated;
-const containsImageContent = modelRouter.containsImageContent;
+
 
 registerChatRoutes(app, {
   hasAnyAiProvider: () => Boolean(GEMINI_API_KEYS.length || GROQ_API_KEYS.length || QWEN_API_KEYS.length || KIMI_API_KEYS.length || NVIDIA_API_KEYS.length || OPENROUTER_API_KEYS.length || AGNES_API_KEYS.length),
@@ -795,10 +756,8 @@ registerChatRoutes(app, {
   defaultModel: GROQ_TEXT_MODEL,
   flashModel: GROQ_FLASH_MODEL,
   cleanMessages,
-  containsImageContent: () => false, // No longer used locally
+  containsImageContent: () => false,
   routingEngine,
-  
-  
   fullSystemPrompt: QJO_FULL_TRAINING_PROMPT,
   defaultMaxTokens: 2600
 });
