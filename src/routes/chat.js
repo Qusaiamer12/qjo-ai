@@ -28,6 +28,51 @@ function clampNumber(value, fallback, min, max) {
   return Math.min(Math.max(safe, min), max);
 }
 
+// ── Simulate streaming by chunking a complete answer ──────────────
+// Real provider streaming requires major refactor of all provider
+// functions. This approach gives users the "typing" feel immediately
+// with zero provider changes: the answer is fetched normally, then
+// streamed back to the client in small SSE chunks.
+function streamAnswer(res, answer, provider, model, toolsUsed) {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+
+  const text = String(answer || '');
+  // Split into natural chunks: words/punctuation groups of ~4-8 chars
+  const chunks = [];
+  let buf = '';
+  for (let i = 0; i < text.length; i++) {
+    buf += text[i];
+    const isBreak = /[\s.,!?;:\n]/.test(text[i]);
+    if ((isBreak && buf.length >= 4) || buf.length >= 8) {
+      chunks.push(buf); buf = '';
+    }
+  }
+  if (buf) chunks.push(buf);
+
+  let idx = 0;
+  // Adaptive delay: faster for short answers, slightly slower for long
+  const baseDelay = text.length > 3000 ? 6 : 10;
+
+  function sendNext() {
+    if (idx >= chunks.length) {
+      // Final event with metadata
+      res.write(`event: done\ndata: ${JSON.stringify({ provider, model, toolsUsed: toolsUsed || [] })}\n\n`);
+      res.end();
+      return;
+    }
+    res.write(`event: chunk\ndata: ${JSON.stringify({ text: chunks[idx] })}\n\n`);
+    idx++;
+    // Slight random jitter mimics natural typing rhythm
+    const jitter = Math.floor(Math.random() * 4);
+    setTimeout(sendNext, baseDelay + jitter);
+  }
+  sendNext();
+}
+
 function registerChatRoutes(app, deps) {
   requireDeps(deps);
 
@@ -43,95 +88,70 @@ function registerChatRoutes(app, deps) {
       const cleanedMessages = deps.cleanMessages(req.body.messages);
       if (!cleanedMessages.length) return res.status(400).json({ error: 'No valid messages.' });
 
-      const renderedSystemPrompt = String(deps.fullSystemPrompt || '').replace(/\{\{current_datetime\}\}/g, new Date().toISOString());
-      const messages = cleanedMessages[0]?.role === 'system'
-        ? [{ role: 'system', content: `${renderedSystemPrompt}\n\n${cleanedMessages[0].content}` }, ...cleanedMessages.slice(1)]
-        : [{ role: 'system', content: renderedSystemPrompt }, ...cleanedMessages];
+      const useStreaming = req.body.stream === true || req.headers.accept === 'text/event-stream';
+      const temperature = clampNumber(req.body.temperature, 0.7, 0, 1);
+      const maxTokens = clampNumber(req.body.max_tokens, deps.defaultMaxTokens || 7992, 64, 7992);
+      const mode = String(req.body.mode || '');
+      const routingDecision = req.body.routingDecision || null;
+      const useTools = req.body.useTools !== false;
 
-      const defaultMaxTokens = deps.defaultMaxTokens || 1000;
-      // 8192 is Groq's hard server-side ceiling for completion tokens on
-      // llama-3.3-70b-versatile (our default text model). Going higher
-      // doesn't give longer answers — it makes Groq reject the request
-      // outright with a 400 error. This is the real maximum, not an
-      // arbitrary product choice.
-      const max_tokens = clampNumber(req.body.max_tokens || defaultMaxTokens, defaultMaxTokens, 64, 7992);
-      const temperature = clampNumber(req.body.temperature || 0.3, 0.3, 0, 1);
-      const requestedMode = String(req.body.mode || '').toLowerCase();
+      const now = new Date();
+      const renderedSystemPrompt = String(deps.fullSystemPrompt || '')
+        .replace(/\{\{current_datetime\}\}/g, now.toLocaleString('ar-JO', { timeZone: 'Asia/Amman', dateStyle: 'full', timeStyle: 'short' }));
 
-      const useTools = !deps.containsImageContent(messages);
-      const routingDecision = routeUserRequestDeterministic(messages);
-      const routedMessages = addRouterSystemHint(messages, routingDecision);
-      const continuityMessages = addContextContinuitySystemHint(routedMessages);
-      const preparedMessages = useTools ? addCalculatorSystemHint(continuityMessages) : continuityMessages;
+      // Build messages with system prompt injected first
+      const systemMessages = [];
+      const userMessages = cleanedMessages.filter(m => m.role !== 'system');
+
+      if (renderedSystemPrompt) {
+        systemMessages.push({ role: 'system', content: renderedSystemPrompt });
+      }
+
+      // Merge any system hints from client
+      const clientSystemMessages = cleanedMessages.filter(m => m.role === 'system');
+      systemMessages.push(...clientSystemMessages);
+
+      // Add router/calculator hints
+      let builtMessages = [...systemMessages, ...userMessages];
+      builtMessages = addContextContinuitySystemHint(builtMessages);
+      builtMessages = addCalculatorSystemHint(builtMessages);
+      if (routingDecision) builtMessages = addRouterSystemHint(builtMessages, routingDecision);
 
       const ai = await deps.callAIRouter({
         model,
-        messages: preparedMessages,
+        messages: builtMessages,
         temperature,
-        max_tokens,
+        max_tokens: maxTokens,
         useTools,
-        mode: requestedMode,
+        mode,
         routingDecision
       });
 
       if (!ai.ok) {
-        const limited = ai.status === 429 || /rate|quota|limit/i.test(ai.error || '');
-        if (limited && model !== deps.flashModel && !deps.containsImageContent(messages)) {
-          const fallback = await deps.callAIRouter({
-            model: deps.flashModel,
-            messages: preparedMessages,
-            temperature: Math.min(temperature, 0.3),
-            max_tokens: Math.min(max_tokens, 900),
-            useTools,
-            mode: requestedMode,
-            routingDecision
-          });
-          if (fallback.ok) {
-            const completedFallback = await deps.completeIfTruncated({
-              ai: fallback,
-              model: deps.flashModel,
-              messages: preparedMessages,
-              temperature: Math.min(temperature, 0.3),
-              max_tokens: 900,
-              useTools,
-              mode: requestedMode
-            });
-            return res.json({
-              answer: sanitizeMathNotation(completedFallback.answer || ''),
-              provider: completedFallback.provider,
-              model: completedFallback.model,
-              fallback: true,
-              continued: Boolean(completedFallback.continued),
-              routing: routingDecision,
-              toolsUsed: completedFallback.toolsUsed || []
-            });
-          }
-        }
-        if (limited) return res.status(429).json({ error: 'RATE_LIMIT' });
-        return res.status(ai.status || 500).json({ error: ai.error || 'AI provider error.' });
+        const status = ai.status || 503;
+        return res.status(status).json({ error: ai.error || 'AI provider failed.' });
       }
 
-      const completed = await deps.completeIfTruncated({
-        ai,
-        model,
-        messages: preparedMessages,
-        temperature,
-        max_tokens,
-        useTools,
-        mode: requestedMode
-      });
+      // Complete if truncated
+      const finalAi = await deps.completeIfTruncated({ ai, model, messages: builtMessages, temperature, max_tokens: maxTokens, useTools, mode });
+      const cleanAnswer = sanitizeMathNotation(String(finalAi.answer || ''));
+
+      if (useStreaming) {
+        return streamAnswer(res, cleanAnswer, finalAi.provider, finalAi.model, finalAi.toolsUsed);
+      }
+
       return res.json({
-        answer: sanitizeMathNotation(completed.answer || ''),
-        provider: completed.provider,
-        model: completed.model,
-        continued: Boolean(completed.continued),
-        routing: routingDecision,
-        toolsUsed: completed.toolsUsed || []
+        answer: cleanAnswer,
+        provider: finalAi.provider,
+        model: finalAi.model,
+        finish_reason: finalAi.finish_reason,
+        continued: finalAi.continued || false,
+        toolsUsed: finalAi.toolsUsed || []
       });
-    } catch (error) {
-      if (error.name === 'AbortError') return res.status(504).json({ error: 'AI request timed out.' });
-      console.error(error);
-      return res.status(500).json({ error: 'Server error.' });
+
+    } catch (err) {
+      console.error('[chat] error:', err.message);
+      if (!res.headersSent) res.status(500).json({ error: 'Internal server error.' });
     }
   });
 }
