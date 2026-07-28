@@ -512,7 +512,7 @@ const routingEngine = createRoutingEngine({
 
 
 const qcodeAgent = createQcodeAgent({
-  /* removed router deps */
+  routingEngine,
   qcodeWorkspaceSummary: qcodeWorkspace.qcodeWorkspaceSummary,
   projectKnowledgeContext: QCODE_PROJECT_KNOWLEDGE_CONTEXT,
   usage: qcodeUsage,

@@ -22,7 +22,7 @@ const REPAIR_JSON_MAX_TOKENS = SAFE_MAX_TOKENS;
 
 function createQcodeAgent(deps) {
   const required = [
-    
+    'routingEngine',
     'qcodeWorkspaceSummary',
     'projectKnowledgeContext',
     'usage',
