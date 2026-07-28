@@ -126,7 +126,7 @@ function createLlmService(config = {}) {
     const keys = rotateKeys('gemini');
     if (!keys.length) return { ok: false, status: 501, error: 'Gemini is not configured.' };
     
-    const geminiModel = String(model || 'gemini-2.5-flash').replace(/^gemini-/, '').includes('/') ? model : model;
+    const geminiModel = String(model || 'gemini-2.0-flash').replace(/^gemini-/, '').includes('/') ? model : model;
     const geminiPayload = openAiMessagesToGemini(messages);
     if (!geminiPayload.contents.length) return { ok: false, status: 400, error: 'No Gemini-compatible content.' };
     
@@ -152,7 +152,7 @@ function createLlmService(config = {}) {
         
         const errMsg = data?.error?.message || data?.message || `Gemini HTTP ${response.status}`;
         lastError = { status: response.status, error: errMsg };
-        const limited = response.status === 429 || /rate|quota|limit/i.test(errMsg);
+        const limited = response.status === 429 || response.status === 404 || /rate|quota|limit|no longer available|not found|deprecated/i.test(errMsg);
         if (limited) continue;
         
         return { ok: false, status: response.status, error: errMsg };
