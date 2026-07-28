@@ -484,10 +484,6 @@ const qcodeProviderRouter = createQcodeProviderRouter({
   callOpenAICompatibleProvider
 });
 
-const { createQcodeLearning } = require('./src/services/qcodeLearning');
-const QCODE_LEARNING_DIR = path.join(__dirname, '.qcode-learning');
-const qcodeLearning = createQcodeLearning({ dir: QCODE_LEARNING_DIR });
-
 const qcodeAgent = createQcodeAgent({
   callQcodeRouter: qcodeProviderRouter.callQcodeRouter,
   qcodeWorkspaceSummary: qcodeWorkspace.qcodeWorkspaceSummary,
@@ -512,7 +508,6 @@ registerQcodeRoutes(app, {
   usage: qcodeUsage,
   agent: qcodeAgent,
   verifyFirebaseRequest,
-  learning: qcodeLearning,
   keysConfigured: qcodeProviderRouter.keysConfigured,
   tools: qcodeWorkspace,
   learning: qcodeLearning
