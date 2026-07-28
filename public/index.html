@@ -17,9 +17,12 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js" defer></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js" defer></script>
   <script>window.QJO_INDEX_VERSION='qjo-required-fixes-v1-2026-07-26-117';console.info('Qjo index version:', window.QJO_INDEX_VERSION);</script>
+  <script type="module" src="https://unpkg.com/@splinetool/viewer@1.9.0/build/spline-viewer.js" defer></script>
 </head>
 <body>
   <div class="drawer-backdrop" id="drawerBackdrop"></div>
+    </div>
+  </div>
 
   <div class="app">
     <aside class="sidebar" aria-label="Qjo sidebar">
@@ -214,7 +217,11 @@
   </div>
 
   <div class="auth-overlay" id="authOverlay">
-    <div class="auth-card">
+    <div class="auth-container">
+      <div class="auth-3d-side">
+        <spline-viewer url="https://prod.spline.design/3ff7b617-2fe9-46c7-8e06-b6d7c382f4db/scene.splinecode"></spline-viewer>
+      </div>
+      <div class="auth-card">
       <div class="auth-logo"><img id="authLogoImg" alt="Qjo" /></div>
       <h2>مرحبًا بك في Qjo</h2>
       <p>سجّل دخولك حتى تُحفظ محادثاتك وتقدر ترجع لها لاحقًا.</p>
