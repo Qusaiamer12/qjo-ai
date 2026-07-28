@@ -1,86 +1,6 @@
 function registerSystemRoutes(app, deps) {
   if (!deps?.adminConfigService) throw new Error('registerSystemRoutes missing adminConfigService');
 
-  // 🧪 TEMPORARY DIAGNOSTIC ROUTE (WITH STRICT 4-SECOND TIMEOUTS)
-  app.get('/api/test-providers', async (_, res) => {
-    res.setHeader('Cache-Control', 'no-store');
-    const results = { gemini: null, nvidia: null };
-    
-    // Test Gemini
-    const geminiKeys = String(process.env.GEMINI_API_KEYS || '').split(',').map(k => k.trim()).filter(Boolean);
-    if (geminiKeys.length === 0) {
-      results.gemini = { ok: false, error: 'No keys configured in GEMINI_API_KEYS' };
-    } else {
-      const key = geminiKeys[0];
-      const model = process.env.GEMINI_TEXT_MODEL || 'gemini-3.5-flash';
-      const body = {
-        contents: [{ role: 'user', parts: [{ text: 'ping' }] }],
-        generationConfig: { maxOutputTokens: 10 }
-      };
-      
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 4000);
-      try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
-          method: 'POST',
-          signal: controller.signal,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
-        });
-        clearTimeout(timeout);
-        const data = await response.json().catch(() => ({}));
-        if (response.ok) {
-          results.gemini = { ok: true, answer: data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'No text response' };
-        } else {
-          results.gemini = { ok: false, status: response.status, error: data?.error?.message || 'HTTP error' };
-        }
-      } catch (e) {
-        clearTimeout(timeout);
-        results.gemini = { ok: false, error: e.name === 'AbortError' ? 'Gemini timeout (4s)' : e.message };
-      }
-    }
-
-    // Test NVIDIA
-    const nvidiaKeys = String(process.env.NVIDIA_API_KEYS || '').split(',').map(k => k.trim()).filter(Boolean);
-    if (nvidiaKeys.length === 0) {
-      results.nvidia = { ok: false, error: 'No keys configured in NVIDIA_API_KEYS' };
-    } else {
-      const key = nvidiaKeys[0];
-      const model = process.env.NVIDIA_MODEL || 'meta/llama-3.3-70b-instruct';
-      const body = {
-        model,
-        messages: [{ role: 'user', content: 'ping' }],
-        max_tokens: 10
-      };
-      
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 4000);
-      try {
-        const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
-          method: 'POST',
-          signal: controller.signal,
-          headers: { 
-            'Authorization': `Bearer ${key}`,
-            'Content-Type': 'application/json' 
-          },
-          body: JSON.stringify(body)
-        });
-        clearTimeout(timeout);
-        const data = await response.json().catch(() => ({}));
-        if (response.ok) {
-          results.nvidia = { ok: true, answer: data?.choices?.[0]?.message?.content?.trim() || 'No text response' };
-        } else {
-          results.nvidia = { ok: false, status: response.status, error: data?.error?.message || 'HTTP error' };
-        }
-      } catch (e) {
-        clearTimeout(timeout);
-        results.nvidia = { ok: false, error: e.name === 'AbortError' ? 'NVIDIA timeout (4s)' : e.message };
-      }
-    }
-
-    res.json({ ok: true, results });
-  });
-
   app.get('/api/public-config', (_, res) => {
     res.setHeader('Cache-Control', 'no-store');
     res.json(deps.adminConfigService.readAdminConfig());
@@ -101,10 +21,7 @@ function registerSystemRoutes(app, deps) {
         embeddings: deps.embeddingsService.configuredCount() > 0,
         admin: deps.hasFirebaseAdmin() && deps.adminEmailsSize() > 0
       },
-      providers: {
-        ...qjoProviders,
-        gemini: String(process.env.GEMINI_API_KEYS || '').split(',').map(k => k.trim()).filter(Boolean).length > 0
-      },
+      providers: qjoProviders,
       qSparkProviders,
       publicMessage: 'Qjo status endpoint. No secrets are exposed.'
     });
