@@ -6081,78 +6081,149 @@ body.mode-menu-open::after {
   }
 }
 
-/* ── Spline 3D Login Page Layout ── */
-.auth-container {
+
+/* ── modern Spline 3D Login Layout ── */
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 220 !important;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #060913; /* Deep dark cosmic background */
+}
+
+.auth-overlay.show {
   display: flex;
-  width: min(960px, 95vw);
-  height: min(600px, 85vh);
-  background: rgba(255, 255, 255, 0.45);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 32px;
-  overflow: hidden;
-  box-shadow: 0 30px 60px rgba(0,0,0,0.15);
-  transition: all 0.3s ease;
-  z-index: 121;
 }
 
-body.dark .auth-container {
-  background: rgba(13, 22, 42, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+/* Full screen 3D background */
+.auth-3d-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: auto; /* Allow mouse interaction with the 3D model */
 }
 
-.auth-3d-side {
-  flex: 1.3;
-  position: relative;
-  background: #090e1a; /* Dark sleek background for the 3D scene */
-  display: block;
-  overflow: hidden;
-}
-
-.auth-3d-side spline-viewer {
+.auth-3d-bg spline-viewer {
   width: 100%;
   height: 100%;
   border: none;
 }
 
+/* Floating Glassmorphism Login Card */
 .auth-card {
-  flex: 1;
-  width: auto !important;
-  height: 100%;
-  border: none !important;
-  border-radius: 0 !important;
-  background: var(--panel) !important;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  position: relative;
+  z-index: 10;
+  width: min(440px, 90vw);
+  max-height: 90vh;
   overflow-y: auto;
-  box-shadow: none !important;
-  padding: 32px !important;
+  padding: 36px !important;
+  border-radius: 28px !important;
+  background: rgba(10, 18, 36, 0.45) !important; /* Extremely clean transparent dark */
+  backdrop-filter: blur(28px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.6), 
+              inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+  text-align: center;
+  animation: authFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Smooth fade-in for overlay elements */
-.auth-overlay.show .auth-container {
-  animation: authContainerFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+body.dark .auth-card {
+  background: rgba(7, 13, 26, 0.5) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.8),
+              inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
 }
 
-@keyframes authContainerFade {
-  from { opacity: 0; transform: scale(0.95) translateY(10px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
+/* Logo container style */
+.auth-logo {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 20px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: grid;
+  place-items: center;
+  padding: 10px;
+  backdrop-filter: blur(5px);
 }
 
-@media (max-width: 768px) {
-  .auth-container {
-    flex-direction: column;
-    width: min(420px, 90vw);
-    height: auto;
-    max-height: 90vh;
-    border-radius: 24px;
-  }
-  .auth-3d-side {
-    display: none; /* Disabled on mobile for smooth performance */
-  }
+.auth-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+}
+
+.auth-card h2 {
+  font-size: 28px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 8px;
+  letter-spacing: -0.5px;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+}
+
+.auth-card p {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 28px;
+}
+
+.auth-divider {
+  margin: 24px 0;
+  display: flex;
+  align-items: center;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 12px;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.auth-divider:not(:empty)::before {
+  margin-right: .25em;
+}
+
+.auth-divider:not(:empty)::after {
+  margin-left: .25em;
+}
+
+.auth-fields input {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: #fff !important;
+  border-radius: 14px !important;
+  height: 48px;
+  transition: all 0.2s;
+}
+
+.auth-fields input:focus {
+  border-color: rgba(69, 207, 227, 0.5) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 0 0 4px rgba(69, 207, 227, 0.15) !important;
+}
+
+@keyframes authFadeUp {
+  from { opacity: 0; transform: translateY(20px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 480px) {
   .auth-card {
-    padding: 24px !important;
+    width: 92vw;
+    padding: 24px 20px !important;
   }
 }
