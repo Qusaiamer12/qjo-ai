@@ -73,6 +73,31 @@ function registerSystemRoutes(app, deps) {
       features: deps.featuresHealth()
     });
   });
+  app.get('/api/diagnostics', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    if (!deps.llmService) return res.status(500).json({ error: 'llmService not injected to system routes' });
+    
+    const results = {};
+    const testMessages = [{ role: 'user', content: 'Say "hello" and nothing else.' }];
+    
+    // Test Gemini
+    const gemini = await deps.llmService.callGeminiChat({ model: 'gemini-1.5-flash', messages: testMessages, temperature: 0.1, max_tokens: 10 });
+    results.gemini = { ok: gemini.ok, error: gemini.error, status: gemini.status };
+    
+    // Test Nvidia
+    const nvidia = await deps.llmService.callNvidiaChat({ model: 'meta/llama-3.1-8b-instruct', messages: testMessages, temperature: 0.1, max_tokens: 10 });
+    results.nvidia = { ok: nvidia.ok, error: nvidia.error, status: nvidia.status };
+    
+    // Test Groq
+    const groq = await deps.llmService.callGroqChat({ model: 'llama-3.1-8b-instant', messages: testMessages, temperature: 0.1, max_tokens: 10 });
+    results.groq = { ok: groq.ok, error: groq.error, status: groq.status };
+
+    res.json({
+      ok: true,
+      note: 'Diagnostic test of AI providers.',
+      results
+    });
+  });
 }
 
 module.exports = { registerSystemRoutes };

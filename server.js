@@ -642,6 +642,7 @@ registerJobRoutes(app, { verifyFirebaseRequest, jobQueue });
 
 registerSystemRoutes(app, {
   adminConfigService,
+  llmService,
   version: QJO_VERSION,
   authRequired: REQUIRE_FIREBASE_AUTH,
   dailyUserLimit: DAILY_USER_LIMIT,
