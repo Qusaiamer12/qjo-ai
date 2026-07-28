@@ -790,7 +790,7 @@ const completeIfTruncated = modelRouter.completeIfTruncated;
 const containsImageContent = modelRouter.containsImageContent;
 
 registerChatRoutes(app, {
-  hasAnyAiProvider: () => Boolean(GROQ_API_KEYS.length || QWEN_API_KEYS.length || KIMI_API_KEYS.length || NVIDIA_API_KEYS.length || OPENROUTER_API_KEYS.length || AGNES_API_KEYS.length),
+  hasAnyAiProvider: () => Boolean(GEMINI_API_KEYS.length || GROQ_API_KEYS.length || QWEN_API_KEYS.length || KIMI_API_KEYS.length || NVIDIA_API_KEYS.length || OPENROUTER_API_KEYS.length || AGNES_API_KEYS.length),
   verifyFirebaseRequest,
   enforceDailyUsage,
   allowedModels: ALLOWED_MODELS,
