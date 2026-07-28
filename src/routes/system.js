@@ -1,7 +1,7 @@
 function registerSystemRoutes(app, deps) {
   if (!deps?.adminConfigService) throw new Error('registerSystemRoutes missing adminConfigService');
 
-  // 🧪 TEMPORARY DIAGNOSTIC ROUTE
+  // 🧪 TEMPORARY DIAGNOSTIC ROUTE (WITH STRICT 4-SECOND TIMEOUTS)
   app.get('/api/test-providers', async (_, res) => {
     res.setHeader('Cache-Control', 'no-store');
     const results = { gemini: null, nvidia: null };
@@ -12,18 +12,22 @@ function registerSystemRoutes(app, deps) {
       results.gemini = { ok: false, error: 'No keys configured in GEMINI_API_KEYS' };
     } else {
       const key = geminiKeys[0];
-      // We will try gemini-3.5-flash which is the current stable standard model in 2026
       const model = process.env.GEMINI_TEXT_MODEL || 'gemini-3.5-flash';
       const body = {
         contents: [{ role: 'user', parts: [{ text: 'ping' }] }],
         generationConfig: { maxOutputTokens: 10 }
       };
+      
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 4000);
       try {
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
           method: 'POST',
+          signal: controller.signal,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body)
         });
+        clearTimeout(timeout);
         const data = await response.json().catch(() => ({}));
         if (response.ok) {
           results.gemini = { ok: true, answer: data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'No text response' };
@@ -31,7 +35,8 @@ function registerSystemRoutes(app, deps) {
           results.gemini = { ok: false, status: response.status, error: data?.error?.message || 'HTTP error' };
         }
       } catch (e) {
-        results.gemini = { ok: false, error: e.message };
+        clearTimeout(timeout);
+        results.gemini = { ok: false, error: e.name === 'AbortError' ? 'Gemini timeout (4s)' : e.message };
       }
     }
 
@@ -47,15 +52,20 @@ function registerSystemRoutes(app, deps) {
         messages: [{ role: 'user', content: 'ping' }],
         max_tokens: 10
       };
+      
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 4000);
       try {
         const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
           method: 'POST',
+          signal: controller.signal,
           headers: { 
             'Authorization': `Bearer ${key}`,
             'Content-Type': 'application/json' 
           },
           body: JSON.stringify(body)
         });
+        clearTimeout(timeout);
         const data = await response.json().catch(() => ({}));
         if (response.ok) {
           results.nvidia = { ok: true, answer: data?.choices?.[0]?.message?.content?.trim() || 'No text response' };
@@ -63,7 +73,8 @@ function registerSystemRoutes(app, deps) {
           results.nvidia = { ok: false, status: response.status, error: data?.error?.message || 'HTTP error' };
         }
       } catch (e) {
-        results.nvidia = { ok: false, error: e.message };
+        clearTimeout(timeout);
+        results.nvidia = { ok: false, error: e.name === 'AbortError' ? 'NVIDIA timeout (4s)' : e.message };
       }
     }
 
