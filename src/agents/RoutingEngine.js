@@ -176,6 +176,10 @@ function createRoutingEngine(deps) {
     // --- 1. Lite Prompt Fast Track ---
     if (agentType === 'chat' && isLiteRequest(messages)) {
       const liteMessages = [{ role: 'system', content: 'You are Qjo, a helpful AI. Reply briefly and warmly.' }, ...messages.filter(m => m.role !== 'system')];
+      if (keys.nvidia > 0) {
+        const n = await llmService.callNvidiaChat({ model: models.nvidiaFlash || 'meta/llama-3.1-8b-instruct', messages: liteMessages, temperature, max_tokens });
+        if (n.ok) return n;
+      }
       if (keys.gemini > 0) {
         const g = await llmService.callGeminiChat({ model: 'gemini-3.6-flash', messages: liteMessages, temperature, max_tokens });
         if (g.ok) return g;
@@ -193,7 +197,7 @@ function createRoutingEngine(deps) {
 
     // --- 2. Qcode Mode Routing ---
     if (agentType === 'qcode') {
-      const order = ['groq', 'qwen', 'nvidia', 'kimi'];
+      const order = ['nvidia', 'groq', 'qwen', 'kimi'];
       for (const p of order) {
         if (!keys[p] || keys[p] === 0) continue;
         const result = await (p === 'groq' ? llmService.callGroqChat : p === 'qwen' ? llmService.callQwenChat : p === 'nvidia' ? llmService.callNvidiaChat : llmService.callKimiChat)({
@@ -224,7 +228,14 @@ function createRoutingEngine(deps) {
     const route = classifyQjoRequest({ messages, mode, routingDecision });
     const tools = buildTools(useTools && !hasImages, route.hasSearchContext);
 
-    // Gemini First Priority (Best General & Free Tier)
+    // Nvidia First Priority
+    if (keys.nvidia > 0) {
+      const nvidiaModel = (route.intent === 'reasoning' || route.mathIntent) ? (models.nvidiaText || 'meta/llama-3.1-70b-instruct') : (models.nvidiaFlash || 'meta/llama-3.1-8b-instruct');
+      const nvidia = await llmService.callNvidiaChat({ model: nvidiaModel, messages, temperature, max_tokens });
+      if (nvidia.ok) return nvidia;
+    }
+
+    // Gemini Second Priority (Best General & Free Tier)
     if (keys.gemini > 0) {
       const geminiModel = (route.intent === 'reasoning' || route.mathIntent) ? (models.geminiPro || 'gemini-1.5-pro') : (models.geminiText || 'gemini-3.6-flash');
       const gemini = await llmService.callGeminiChat({ model: geminiModel, messages, temperature, max_tokens });
