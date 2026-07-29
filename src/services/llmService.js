@@ -177,7 +177,11 @@ function createLlmService(config = {}) {
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent?key=${encodeURIComponent(key)}`, {
           method: 'POST',
           signal: controller.signal,
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': key,
+            'Authorization': key.startsWith('AQ.') ? `Bearer ${key}` : undefined
+          },
           body: JSON.stringify({ ...geminiPayload, generationConfig: { maxOutputTokens: max_tokens } })
         });
         clearTimeout(timeout);
