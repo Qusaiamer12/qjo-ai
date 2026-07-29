@@ -171,7 +171,7 @@ function createRoutingEngine(deps) {
   }
 
   // Unified router for Chat, Qcode, and Qspark modes
-  async function callAgent({ agentType = 'chat', mode, messages, temperature = 0.7, max_tokens = 4000, useTools, routingDecision, qsparkProvider }) {
+  async function callAgent({ agentType = 'chat', mode, messages, temperature = 0.7, max_tokens = 4000, useTools, routingDecision, qsparkProvider, onChunk }) {
     
     // --- 1. Lite Prompt Fast Track ---
     if (agentType === 'chat' && isLiteRequest(messages)) {
@@ -231,7 +231,7 @@ function createRoutingEngine(deps) {
     // Nvidia First Priority
     if (keys.nvidia > 0) {
       const nvidiaModel = (route.intent === 'reasoning' || route.mathIntent) ? (models.nvidiaText || 'meta/llama-3.1-70b-instruct') : (models.nvidiaFlash || 'meta/llama-3.1-8b-instruct');
-      const nvidia = await llmService.callNvidiaChat({ model: nvidiaModel, messages, temperature, max_tokens });
+      const nvidia = await llmService.callNvidiaChat({ model: nvidiaModel, messages, temperature, max_tokens, onChunk });
       if (nvidia.ok) return nvidia;
     }
 
@@ -244,16 +244,16 @@ function createRoutingEngine(deps) {
 
     // Fallbacks based on intent
     if (keys.qwen > 0 && (mode === 'code' || route.intent === 'reasoning')) {
-      const qwen = await callWithTools(llmService.callQwenChat, { model: models.qwenCode, messages, temperature, max_tokens, tools }, originalQuestion);
+      const qwen = await callWithTools(llmService.callQwenChat, { model: models.qwenCode, messages, temperature, max_tokens, tools, onChunk }, originalQuestion);
       if (qwen.ok) return qwen;
     }
 
     if (keys.groq > 0) {
-      const groq = await llmService.callGroqChat({ model: models.groqText, messages, temperature, max_tokens, tools });
+      const groq = await llmService.callGroqChat({ model: models.groqText, messages, temperature, max_tokens, tools, onChunk });
       if (groq.ok) {
         if (groq.toolCalls?.length) {
           const { toolMessages, used } = await executeToolCalls(groq.toolCalls, originalQuestion);
-          const second = await llmService.callGroqChat({ model: models.groqText, messages: [...messages, groq.message, ...toolMessages], temperature, max_tokens });
+          const second = await llmService.callGroqChat({ model: models.groqText, messages: [...messages, groq.message, ...toolMessages], temperature, max_tokens, onChunk });
           if (second.ok) return { ...second, toolsUsed: used };
         } else {
           return groq;

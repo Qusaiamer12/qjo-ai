@@ -205,7 +205,8 @@ const memoryCaches = {
   search: new Map(),
   deepSearch: new Map(),
   firecrawl: new Map(),
-  embeddings: new Map()
+  embeddings: new Map(),
+  completions: new Map()
 };
 
 function cacheGet(cache, key) {
@@ -734,7 +735,7 @@ registerSystemRoutes(app, {
   })
 });
 
-registerExportRoutes(app, { verifyFirebaseRequest });
+registerExportRoutes(app, { verifyFirebaseRequest, uploadMiddleware: qcodeUpload });
 
 const searchService = createSearchService({
   tavilyApiKey: TAVILY_API_KEY,
@@ -761,7 +762,13 @@ registerChatRoutes(app, {
   containsImageContent: () => false,
   routingEngine,
   fullSystemPrompt: QJO_FULL_TRAINING_PROMPT,
-  defaultMaxTokens: 2600
+  defaultMaxTokens: 2600,
+  getClientIp,
+  lookupClientGeo,
+  stableCacheKey,
+  cacheGet,
+  cacheSet,
+  memoryCaches
 });
 
 app.get('*', (_, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));

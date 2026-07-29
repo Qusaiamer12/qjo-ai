@@ -11,6 +11,8 @@
   <meta name="theme-color" content="#123B7A" />
   <link rel="stylesheet" href="/styles.css?v=qjo-required-fixes-v1-2026-07-26-117" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js" defer></script>
@@ -199,7 +201,6 @@
                 <div class="mode-dropdown" id="modeDropdown">
                   <button class="mode-option mode-flash active" id="normalModeBtn" type="button" data-mode="normal"><span class="mode-dot">⚡</span><span id="normalModeText">Flash</span></button>
                   <button class="mode-option mode-pro" id="advancedModeBtn" type="button" data-mode="advanced"><span class="mode-dot">◆</span><span id="advancedModeText">Max</span></button>
-                  <button class="mode-option mode-code" id="codeModeBtn" type="button" data-mode="code"><span class="mode-dot">⌘</span><span id="codeModeText">Code</span></button>
                 </div>
               </div>
               <button class="send-btn" id="sendBtn" type="button" title="إرسال" aria-label="إرسال">

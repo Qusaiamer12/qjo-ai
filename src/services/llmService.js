@@ -65,17 +65,18 @@ function createLlmService(config = {}) {
     return ordered;
   }
 
-  async function callOpenAICompatible({ provider, baseUrl, model, messages, temperature, max_tokens, tools, extraHeaders = {} }) {
+  async function callOpenAICompatible({ provider, baseUrl, model, messages, temperature, max_tokens, tools, extraHeaders = {}, onChunk }) {
     const keys = rotateKeys(provider);
     if (!keys.length || !baseUrl || !model) return { ok: false, status: 501, error: `${provider} is not configured.` };
 
     let lastError = null;
     for (const key of keys) {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 45000);
+      const timeout = setTimeout(() => controller.abort(), 15000);
       try {
         const body = { model, messages, temperature, max_tokens };
         if (tools) { body.tools = tools; body.tool_choice = 'auto'; }
+        if (onChunk && !tools) { body.stream = true; } // Enable streaming if onChunk is passed and no tools
         
         const response = await fetch(`${baseUrl.replace(/\/$/, '')}/chat/completions`, {
           method: 'POST',
@@ -89,23 +90,61 @@ function createLlmService(config = {}) {
         });
         clearTimeout(timeout);
         
-        const data = await response.json().catch(() => ({}));
-        
-        // Special mapping for Groq to match previous behavior shape if needed, but we unify it here:
         if (response.ok) {
-          const message = data?.choices?.[0]?.message || {};
-          return {
-            ok: true,
-            answer: message.content || '',
-            message,
-            toolCalls: message.tool_calls || [],
-            provider,
-            model,
-            finish_reason: normalizeProviderFinishReason(provider, data),
-            raw: data // Keep raw data just in case
-          };
+          if (onChunk && !tools) {
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            let fullText = '';
+            
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split('\n');
+              buffer = lines.pop();
+              
+              for (const line of lines) {
+                const cleanedLine = line.trim();
+                if (!cleanedLine) continue;
+                if (cleanedLine === 'data: [DONE]') continue;
+                if (cleanedLine.startsWith('data: ')) {
+                  try {
+                    const data = JSON.parse(cleanedLine.slice(6));
+                    const chunkText = data.choices?.[0]?.delta?.content || '';
+                    if (chunkText) {
+                      fullText += chunkText;
+                      onChunk(chunkText);
+                    }
+                  } catch (_) {}
+                }
+              }
+            }
+            return {
+              ok: true,
+              answer: fullText,
+              message: { role: 'assistant', content: fullText },
+              provider,
+              model,
+              finish_reason: 'stop'
+            };
+          } else {
+            const data = await response.json().catch(() => ({}));
+            const message = data?.choices?.[0]?.message || {};
+            return {
+              ok: true,
+              answer: message.content || '',
+              message,
+              toolCalls: message.tool_calls || [],
+              provider,
+              model,
+              finish_reason: normalizeProviderFinishReason(provider, data),
+              raw: data
+            };
+          }
         }
         
+        const data = await response.json().catch(() => ({}));
         const errorMsg = data?.error?.message || data?.message || `${provider} HTTP ${response.status}`;
         lastError = { status: response.status, error: errorMsg };
         const limited = response.status === 429 || response.status === 402 || /rate|quota|limit|balance|insufficient/i.test(errorMsg);
@@ -133,7 +172,7 @@ function createLlmService(config = {}) {
     let lastError = null;
     for (const key of keys) {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 45000);
+      const timeout = setTimeout(() => controller.abort(), 15000);
       try {
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent?key=${encodeURIComponent(key)}`, {
           method: 'POST',

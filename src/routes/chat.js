@@ -95,9 +95,45 @@ function registerChatRoutes(app, deps) {
       const routingDecision = req.body.routingDecision || null;
       const useTools = req.body.useTools !== false;
 
+      // Check cache first (0ms response for identical repeat queries!)
+      const cacheKey = (deps.stableCacheKey && deps.memoryCaches?.completions)
+        ? deps.stableCacheKey('chat', model + '|' + mode + '|' + JSON.stringify(cleanedMessages.slice(-3)))
+        : null;
+      if (cacheKey && deps.cacheGet) {
+        const cachedAnswer = deps.cacheGet(deps.memoryCaches.completions, cacheKey);
+        if (cachedAnswer) {
+          if (useStreaming) {
+            return streamAnswer(res, cachedAnswer.answer, cachedAnswer.provider, cachedAnswer.model, cachedAnswer.toolsUsed);
+          }
+          return res.json({
+            answer: cachedAnswer.answer,
+            provider: cachedAnswer.provider,
+            model: cachedAnswer.model,
+            finish_reason: 'cached',
+            continued: cachedAnswer.continued || false,
+            toolsUsed: cachedAnswer.toolsUsed || [],
+            cached: true
+          });
+        }
+      }
+
+      const ip = deps.getClientIp ? deps.getClientIp(req) : '';
+      let timeZone = 'Asia/Amman';
+      let locationText = 'Amman, Jordan';
+      if (ip && deps.lookupClientGeo) {
+        try {
+          const geo = await deps.lookupClientGeo(ip);
+          if (geo && geo.timezone) {
+            timeZone = geo.timezone;
+            locationText = `${geo.city || ''}, ${geo.country || ''}`.trim() || locationText;
+          }
+        } catch (_) {}
+      }
+
       const now = new Date();
+      const localTimeString = now.toLocaleString('ar-JO', { timeZone, dateStyle: 'full', timeStyle: 'short' });
       const renderedSystemPrompt = String(deps.fullSystemPrompt || '')
-        .replace(/\{\{current_datetime\}\}/g, now.toLocaleString('ar-JO', { timeZone: 'Asia/Amman', dateStyle: 'full', timeStyle: 'short' }));
+        .replace(/\{\{current_datetime\}\}/g, `${localTimeString} (الموقع الجغرافي: ${locationText}, المنطقة الزمنية: ${timeZone})`);
 
       // Build messages with system prompt injected first
       const systemMessages = [];
@@ -117,6 +153,14 @@ function registerChatRoutes(app, deps) {
       builtMessages = addCalculatorSystemHint(builtMessages);
       if (routingDecision) builtMessages = addRouterSystemHint(builtMessages, routingDecision);
 
+      if (useStreaming) {
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.setHeader('X-Accel-Buffering', 'no');
+        res.flushHeaders();
+      }
+
       const ai = await deps.routingEngine.callAgent({
         model,
         messages: builtMessages,
@@ -124,10 +168,18 @@ function registerChatRoutes(app, deps) {
         max_tokens: maxTokens,
         useTools,
         mode,
-        routingDecision
+        routingDecision,
+        onChunk: useStreaming ? (text) => {
+          res.write(`event: chunk\ndata: ${JSON.stringify({ text })}\n\n`);
+        } : undefined
       });
 
       if (!ai.ok) {
+        if (useStreaming) {
+          res.write(`event: error\ndata: ${JSON.stringify({ error: ai.error || 'AI provider failed.' })}\n\n`);
+          res.end();
+          return;
+        }
         const status = ai.status || 503;
         return res.status(status).json({ error: ai.error || 'AI provider failed.' });
       }
@@ -136,8 +188,21 @@ function registerChatRoutes(app, deps) {
       const finalAi = await deps.routingEngine.completeIfTruncated({ ai, model, messages: builtMessages, temperature, max_tokens: maxTokens, useTools, mode });
       const cleanAnswer = sanitizeMathNotation(String(finalAi.answer || ''));
 
+      // Write results to cache
+      if (cacheKey && deps.cacheSet) {
+        deps.cacheSet(deps.memoryCaches.completions, cacheKey, {
+          answer: cleanAnswer,
+          provider: finalAi.provider,
+          model: finalAi.model,
+          continued: finalAi.continued || false,
+          toolsUsed: finalAi.toolsUsed || []
+        }, 15 * 60 * 1000, 120); // 15 minutes cache, max 120 items
+      }
+
       if (useStreaming) {
-        return streamAnswer(res, cleanAnswer, finalAi.provider, finalAi.model, finalAi.toolsUsed);
+        res.write(`event: done\ndata: ${JSON.stringify({ provider: finalAi.provider, model: finalAi.model, toolsUsed: finalAi.toolsUsed || [] })}\n\n`);
+        res.end();
+        return;
       }
 
       return res.json({

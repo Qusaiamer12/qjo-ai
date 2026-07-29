@@ -396,7 +396,7 @@
         </div>
 
         <button onclick="App.triggerFilePicker()" class="btn-lift w-full h-[46px] rounded-2xl bg-[#0f172a] text-white font-black text-[12px] flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"><i class="fa-solid fa-plus"></i> إضافة مصدر</button>
-        <input type="file" id="file-input" accept=".pdf,.txt,.md,.json,.csv,.xlsx,.xls,.png,.jpg,.jpeg,.bmp,.docx" multiple class="hidden" onchange="App.handleFiles(event)" style="position:fixed;left:-9999px;top:-9999px;opacity:0;pointer-events:none;width:1px;height:1px;">
+        <input type="file" id="file-input" accept=".pdf,.txt,.md,.json,.csv,.xlsx,.xls,.png,.jpg,.jpeg,.bmp,.docx" multiple class="hidden" style="position:fixed;left:-9999px;top:-9999px;opacity:0;pointer-events:none;width:1px;height:1px;">
         <div id="drop-zone" class="mt-3 p-4 rounded-2xl bg-[#fbfcfe] dark:bg-slate-800/40 border-2 border-dashed hover:border-violet-500 text-center cursor-pointer btn-lift">
           <div class="flex justify-center gap-2 text-[14px] mb-1"><i class="fa-solid fa-file-pdf text-rose-500"></i><i class="fa-solid fa-cubes-stacked text-violet-500"></i><i class="fa-solid fa-magnifying-glass text-emerald-500"></i></div>
           <p class="text-[11px] font-black">اسحب الملف هنا</p><p class="text-[10px] text-slate-500 mt-0.5">PDF، Word، نصوص، صور وأكثر</p>
@@ -1741,10 +1741,10 @@ const App={
     const pages = src.pageCount || Math.max(1, Math.ceil((src.content||'').length/2000));
     const ctx = this.buildContext(src, '');
     const sys = SYSTEM_DIRECTIVE;
-    const user = `المصدر: "${src.title}" (${pages} صفحة تقريباً)\n\n${ctx}\n\nالمطلوب: حلل هذا المصدر تحليلاً عميقاً حقيقياً وأرجع JSON بهذا الشكل بالضبط:\n{\n  "summary": "تلخيص عميق شامل بصيغة Markdown (## عناوين)، 400-700 كلمة، يغطي الأفكار المحورية والبنية والاستنتاجات، مع استشهاد بالمصدر عند اللزوم",\n  "concepts": [ {"term":"المصطلح","definition":"تعريف دقيق من المصدر فعلياً 15-30 كلمة","type":"نوع المفهوم","strength":"أساسي جداً|محوري|داعم","globalRelevance": رقم 0-100} ],  // 8 إلى 14 مفهوم حقيقي من المحتوى الفعلي، ليس عد كلمات\n  "matrix": [ {"concept":"نفس أحد المفاهيم أعلاه","definition":"تعريف مختصر 10-15 كلمة","connection":"يرتبط بـ..."} ], // 8-10 صفوف\n  "formulas": [ {"formula":"LaTeX إن وجد", "name":"اسم القانون", "note":"ملاحظة قصيرة"} ], // فقط إن كانت المادة تقنية، وإلا []\n  "causalChains": ["علاقة سببية 1: X يؤدي إلى Y", "..."], // 3-6\n  "assumptions": ["فرضية ضمنية أو خطر 1", "..."], // 3-5\n  "gaps": ["فجوة أو نقطة غامضة 1", "..."], // 2-4\n  "mindmapOutline": {"root":"العنوان المركزي المختصر", "branches":[ {"label":"فرع 1","children":["فرعية 1","فرعية 2"]} ]} // 4-6 فروع رئيسية\n}\nكل حقل نص يجب أن يُبنى فعلياً من محتوى المصدر أعلاه، لا تخترع معلومات غير موجودة فيه.`;
+    const user = `المصدر: "${src.title}" (${pages} صفحة تقريباً)\n\n${ctx}\n\nالمطلوب: حلل هذا المصدر تحليلاً أكاديمياً فائق العمق والتحري الإستراتيجي، وأرجع JSON بهذا الشكل بالضبط:\n{\n  "summary": "تحليل وتلخيص إستراتيجي فائق العمق بصيغة Markdown بأسلوب أكاديمي ناصع. يجب ألا يكون تلخيصاً سطحياً؛ بل يجب أن يشرح الأطروحة المركزية للمستند (The Core Thesis)، والمنهجية الفكرية أو العلمية، والروابط السببية والأدلة الجوهرية، وينتهي بفحص الفجوات المعرفية والافتراضات الضمنية للمادة. استخدم جداول المقارنة والعناوين المتسلسلة ليكون التقرير غاية في الاحترافية والأناقة المعرفية. الطول: 500-900 كلمة.",\n  "concepts": [ {"term":"المصطلح المحوري","definition":"تعريف دقيق وشامل من صلب المادة فعلياً 20-35 كلمة","type":"نوع المفهوم (علمي|إحصائي|فلسفي|إداري|تقني)","strength":"أساسي جداً|محوري|داعم","globalRelevance": رقم 0-100} ],  // 8 إلى 14 مفهوم حقيقي من صلب المحتوى الفعلي\n  "formulas": [ {"formula":"LaTeX إن وجد", "name":"اسم القانون", "note":"ملاحظة قصيرة ودقيقة"} ], // فقط إن كانت المادة تقنية، وإلا []\n  "causalChains": ["علاقة سببية 1: X يؤدي إلى Y بناءً على دليل Z في المادة", "..."], // 3-6 علاقات تفصيلية موثقة\n  "assumptions": ["فرضية ضمنية أو خطر غير معلن في المادة 1", "..."], // 3-5\n  "gaps": ["فجوة منهجية أو نقطة غامضة تحتاج لمزيد من الدراسة 1", "..."], // 2-4\n  "mindmapOutline": {"root":"العنوان المركزي الإستراتيجي للمادة", "branches":[ {"label":"فرع رئيسي 1","children":["فرعية 1","فرعية 2"]} ]} // 4-6 فروع رئيسية متكاملة\n}\nكل حقل نص يجب أن يُبنى بيقينية مطلقة من محتوى المصدر أعلاه، لا تخترع أو تهلوس بأي معلومات غير موجودة فيه.`;
     const j = await this.callLLMJSON(sys, user, 4500, 20000);
     const concepts = (j.concepts||[]).map((c,i)=>({id:i+1, term:c.term||'مفهوم', definition:c.definition||'', type:c.type||'مفهوم', strength:c.strength||'محوري', count:0, globalRelevance:typeof c.globalRelevance==='number'?c.globalRelevance:60}));
-    const matrix = (j.matrix||[]).map((m,i)=>({num:i+1, concept:m.concept||'', definition:m.definition||'', quote:`${(concepts.find(c=>c.term===m.concept)?.globalRelevance)||60}% صلة`, connection:m.connection||''}));
+    const matrix = concepts.map((c,i)=>({num:i+1, concept:c.term, definition:c.definition, quote:`${c.globalRelevance}% صلة`, connection: (j.causalChains && j.causalChains[i % Math.max(1, j.causalChains.length)]) || 'يرتبط بالبنية المعرفية للمادة ككل' }));
     const causalChains = (j.causalChains||[]).map(t=>({full:t, marker:'←', effect:t}));
     const assumptions = (j.assumptions||[]).map(t=>({text:t, risk:t}));
     const gaps = j.gaps||[];
@@ -1789,7 +1789,7 @@ const App={
     const ctx = this.buildContext(src, topic||'');
     const diffMap = {easy:'تذكر وفهم أساسي (سهل)', medium:'تطبيق وتحليل (متوسط)', hard:'تحليل عميق وتقييم ونقد (صعب)'};
     const sys = SYSTEM_DIRECTIVE;
-    const user = `${ctx}\n\nالمطلوب: أنشئ ${count} سؤال اختيار من متعدد حقيقي من المحتوى أعلاه فقط، بمستوى صعوبة "${diffMap[diff]||diff}"${topic?` مع تركيز خاص على: ${topic}`:''}.\nأرجع JSON array بهذا الشكل بالضبط (بدون أي نص إضافي):\n[ {"q":"نص السؤال","options":["خيار أ","خيار ب","خيار ج","خيار د"],"correctIndex":0-3,"explanation":"شرح لماذا الإجابة صحيحة مع استشهاد بالمصدر، ولماذا الخيارات الأخرى خاطئة","bloom":"تذكر|فهم|تطبيق|تحليل|تقييم|ابتكار","type":"نوع السؤال"} ]\nنوّع موضع الإجابة الصحيحة عشوائياً بين 0 و3 عبر الأسئلة، لا تجعلها دائماً 0. كل سؤال يجب أن يكون قابلاً للإجابة فعلياً من المحتوى أعلاه فقط.`;
+    const user = `${ctx}\n\nالمطلوب: أنشئ ${count} سؤال اختيار من متعدد حقيقي وصارم من المحتوى أعلاه فقط، بمستوى صعوبة عالية جداً للتقييم الأكاديمي والتحليل العميق "${diffMap[diff]||diff}"${topic?` مع تركيز خاص على: ${topic}`:''}.\nتجنب الأسئلة السطحية أو أسئلة الحفظ الحرفي؛ صمم أسئلة سيناريوهات ومسائل وحالات تطبيقية وتفكير نقدي تجبر المستخدم على الفهم المعمق (استهدف مستويات بلوم العليا: التطبيق، التحليل، التقييم).\nأرجع JSON array بهذا الشكل بالضبط (بدون أي نص إضافي أو كود خارجي):\n[ {"q":"نص السؤال الاستقصائي السيناريوهي العميق","options":["خيار أ","خيار ب","خيار ج","خيار د"],"correctIndex":0-3,"explanation":"تحليل أكاديمي مذهل يشرح بالتفصيل الدقيق وبناءً على المصدر لماذا الخيار المختار هو الصحيح مع استشهاد بالمكان، ولماذا الخيارات الثلاثة الأخرى غير صحيحة ووجه الخطأ فيها لدعم التعلم الفعال","bloom":"تطبيق|تحليل|تقييم|ابتكار","type":"سيناريو|مسألة|تفكير نقدي"} ]\nنوّع موضع الإجابة الصحيحة عشوائياً بين 0 و3 عبر الأسئلة، لا تجعلها دائماً 0. كل سؤال يجب أن يكون قابلاً للإجابة بيقينية تامة من المحتوى المرفق فقط.`;
     const arr = await this.callLLMJSON(sys, user, Math.min(6000, 300*count+800), 20000);
     let quiz = (Array.isArray(arr)?arr:[]).filter(q=>q && q.options && q.options.length===4).map(q=>({
       q:q.q||'', options:q.options, correctIndex: Math.min(3,Math.max(0, q.correctIndex||0)),
@@ -1975,10 +1975,26 @@ const App={
       chunks.push({text:text.slice(i,i+chunkSize), start:i, relevance:0});
       if(chunks.length>150) break;
     }
+    const normalizeArabicTextForRag = (t) => {
+      return String(t || '')
+        .toLowerCase()
+        .replace(/[\u064B-\u0652]/g, '') // Remove diacritics
+        .replace(/[\u0622\u0623\u0625]/g, '\u0627') // Normalize Alif (أ, إ, آ -> ا)
+        .replace(/\u0629/g, '\u0647') // Normalize Teh Marbuta (ة -> ه)
+        .replace(/\u0649/g, '\u064A') // Normalize Yeh / Alef Maksura (ى -> ي)
+        .trim();
+    };
+
     chunks.forEach(chunk=>{
-      const lower=chunk.text.toLowerCase();
+      const textVal = String(chunk.text || '');
+      const lower=textVal.toLowerCase();
+      const normText=normalizeArabicTextForRag(textVal);
       let score=0;
-      queryTokens.forEach(tok=>{ if(lower.includes(tok)) score++; });
+      queryTokens.forEach(tok=>{
+        const tokLower = tok.toLowerCase();
+        const tokNorm = normalizeArabicTextForRag(tok);
+        if(lower.includes(tokLower) || normText.includes(tokNorm)) score++;
+      });
       chunk.relevance=score/queryTokens.length;
     });
     const topK = isMegaLarge?10 : isVeryLarge?8 : 5;
@@ -2164,7 +2180,30 @@ const App={
     const latest=this.getLatest(); if(!latest) return this.toast('أضف مصدر أولاً','error');
     const active=this.getActiveSources();
     const ctx=this.buildMultiSourceContext(active.length?active:[latest], 'audio overview Arabic study review chapters');
-    const prompt=`${ctx}\n\nالمطلوب: أنشئ Audio Overview عربي منظم كمراجعة صوتية للطالب.\nاكتب بصيغة فصول واضحة بهذا الشكل الحرفي:\n[CHAPTER 1: افتتاحية وفكرة رئيسية]\nنص الفصل...\n[CHAPTER 2: أهم النقاط]\nنص الفصل...\n[CHAPTER 3: العلاقات بين المفاهيم]\nنص الفصل...\n[CHAPTER 4: أسئلة مراجعة]\nنص الفصل...\n[CHAPTER 5: أخطاء شائعة ونقاط انتباه]\nنص الفصل...\n\nالشروط:\n- عربي واضح ودافئ، مناسب للقراءة الصوتية.\n- مدة 3-5 دقائق.\n- لا Markdown ثقيل.\n- استخدم الاستشهادات [S1:C1] عند ذكر معلومات من المصادر.\n- لا تخترع خارج المصادر؛ إذا في نقص قل ذلك.`;
+    const prompt=`${ctx}
+
+المطلوب: أنشئ مراجعة صوتية تفاعلية (Audio Overview Podcast) باللغة العربية على شكل حوار إذاعي ثنائي بين شخصيتين:
+1. **فارس (Faris)**: طالب ذكي وفضولي يسأل بلغة عربية عامية لطيفة ومبسطة، يقاطع بأدب لتبسيط النظريات الصعبة، ويبسط المصطلحات العلمية.
+2. **أمل (Amal)**: خبيرة وباحثة متمكنة، تجيب بلغة فصحى رصينة ومبسطة، مستندة بالكامل للمصادر فقط وبأعلى مستويات الدقة.
+
+قالب البث الصوتي يجب أن يُكتب على شكل فصول حوارية متتابعة بهذا الشكل الحرفي:
+[CHAPTER 1: الافتتاحية والمحور المركزي / Intro & Central Theme]
+فارس: [نص الحوار]
+أمل: [نص الحوار]
+...
+[CHAPTER 2: فك شفرات المفاهيم والأرقام / Core Concepts & Data]
+...
+[CHAPTER 3: العلاقات غير المرئية والتفاعلات / Connections & Relationships]
+...
+[CHAPTER 4: الأسئلة الساخنة والمراجعة / Quiz & Review]
+...
+[CHAPTER 5: الأخطاء الشائعة والختام / Pitfalls & Outro]
+
+الشروط والضوابط الصارمة:
+- حوار تفاعلي دافئ وممتع ومناسب تماماً للمستمع، تجنب الرتابة أو المونولوجات الطويلة لأي طرف.
+- استند بدقة يقينية 100% للمصادر المرفقة فقط، واستعمل الاستشهادات البرمجية مثل [S1:C1] أو [S1:C2] فور ذكر أي حقيقة علمية لتسهيل المرجعية.
+- لا تبتكر أو تخترع أي معلومات أو إحصائيات خارج السياق؛ إذا كان هناك نقص في المعطيات، دع أمل تذكر ذلك صراحة لفارس.
+- مدة العرض من 3 إلى 5 دقائق تقريباً عند القراءة الصوتية.`;
     this.toast('🎧 يتم إنشاء Audio Overview v2 بفصول...');
     try{
       const script=await this.callLLM(SYSTEM_DIRECTIVE,prompt,9000);
@@ -2485,7 +2524,11 @@ const App={
             <p style="font-size:10px; color:#94a3b8; margin-top:12px; text-align:center;">معاينة سريعة - الملف الكامل يحتوي على التلخيص والكويز والفلاش كاردز</p>
           </div>
           <button onclick="App.exportGorgeousPDF()" class="btn-lift w-full h-[56px] rounded-2xl bg-gradient-to-r from-[#0f172a] to-violet-700 text-white font-black text-[14px] flex items-center justify-center gap-3 shadow-lg"><i class="fa-solid fa-file-pdf text-[18px]"></i> تصدير PDF 📄</button>
-          <div class="bg-violet-50 border border-violet-200 rounded-xl p-3 flex gap-2.5"><i class="fa-solid fa-circle-info text-violet-600 mt-0.5 text-[12px]"></i><p class="text-[11px] leading-relaxed text-violet-900"><b>PDF حقيقي وقوي:</b> بدون MD، بتصميم احترافي مع هيدر، جداول مفاهيم، كويز 10 أسئلة حقيقية مع إجابات، وفلاش كارد، وفوتر. جاهز للطباعة.</p></div>
+          <div class="grid grid-cols-2 gap-2 mt-2">
+            <button onclick="App.downloadFileBackend('docx', App.getLatest().title, App.getLatest().analysis.summary)" class="btn-lift h-11 rounded-xl bg-[#123B7A] text-white font-black text-[12px] flex items-center justify-center gap-2"><i class="fa-solid fa-file-word"></i> تصدير Word (DOCX)</button>
+            <button onclick="App.downloadFileBackend('xlsx', App.getLatest().title, App.getLatest().analysis.summary)" class="btn-lift h-11 rounded-xl bg-[#15803d] text-white font-black text-[12px] flex items-center justify-center gap-2"><i class="fa-solid fa-file-excel"></i> تصدير Excel (XLSX)</button>
+          </div>
+          <div class="bg-violet-50 border border-violet-200 rounded-xl p-3 flex gap-2.5"><i class="fa-solid fa-circle-info text-violet-600 mt-0.5 text-[12px]"></i><p class="text-[11px] leading-relaxed text-violet-900"><b>ملفات حقيقية وقوية:</b> تصدير متكامل ومحسّن ثنائي اللغة للمقالات والجداول بصيغ PDF و Word و Excel حقيقية وموثوقة.</p></div>
         </div>
       `;
     } else if(this.activeTab==='summary'){
@@ -2604,6 +2647,33 @@ const App={
   toggleHint(){
     const b=document.getElementById('quiz-hint'); if(b) b.classList.toggle('hidden');
     const fsHint=document.getElementById('fs-content')?.querySelector('#quiz-hint'); if(fsHint) fsHint.classList.toggle('hidden');
+  },
+
+  async downloadFileBackend(format, title, contentText) {
+    this.toast('📥 جاري معالجة وتصدير الملف بالباك اند...', 'info');
+    try {
+      const token = firebase.auth().currentUser ? await firebase.auth().currentUser.getIdToken() : '';
+      const res = await fetch(`/api/export/${format}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ title, content: contentText })
+      });
+      if (!res.ok) throw new Error(`خادم التصدير رد بـ ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${title}.${format}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      this.toast(`✅ تم تحميل ملف ${format.toUpperCase()} بنجاح!`, 'success');
+    } catch (e) {
+      this.toast(`❌ فشل التصدير: ${e.message}`, 'error');
+    }
   },
 
   exportGorgeousPDF(){

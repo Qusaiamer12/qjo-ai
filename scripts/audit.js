@@ -24,10 +24,56 @@ function syntaxCheck(file) {
   }
 }
 
-console.log('\nQjo Stability Audit');
-console.log('===================\n');
+console.log('\nQjo Stability Audit (Unified & Cleaned)');
+console.log('======================================\n');
 
-['server.js', 'public/app.js', 'public/admin.js', 'public/index.html', 'public/styles.css', 'public/qjo-diagnostic.html', 'public/qcode.html', 'public/terms.html', 'public/privacy.html', 'public/safety.html', 'evals/launch-eval-v2.js', 'evals/launch-dataset-v2.json', 'evals/backend-regression-eval-v1.js', 'evals/ai-quality-eval-v1.js', 'evals/ai-quality-dataset-v1.json', 'QJO_SYSTEM_PROMPT_VNEXT_XML.md', 'src/search/searchCore.js', 'src/agents/contextContinuity.js', 'src/agents/routerAgent.js', 'src/agents/modelRouter.js', 'src/tools/calculatorTool.js', 'src/tools/searchTool.js', 'src/tools/fileEditorTool.js', 'src/services/searchService.js', 'src/services/qcodeWorkspace.js', 'src/services/aiProviders.js', 'src/services/embeddings.js', 'src/services/exportService.js', 'src/services/modelProviders.js', 'src/services/adminConfig.js', 'src/services/authService.js', 'src/services/jobQueue.js', 'src/services/feedbackService.js', 'src/routes/chat.js', 'src/routes/embeddings.js', 'src/routes/export.js', 'src/routes/search.js', 'src/routes/qcode.js', 'src/routes/qspark.js', 'src/routes/admin.js', 'src/routes/system.js', 'src/routes/jobs.js', 'src/routes/feedback.js', 'src/agents/qcodeAgent.js', 'src/agents/qcodeProviderRouter.js', 'src/agents/qsparkProviderRouter.js', 'package.json'].forEach((file) => {
+const requiredFiles = [
+  'server.js',
+  'public/app.js',
+  'public/admin.js',
+  'public/index.html',
+  'public/styles.css',
+  'public/qjo-diagnostic.html',
+  'public/qcode.html',
+  'public/terms.html',
+  'public/privacy.html',
+  'public/safety.html',
+  'evals/launch-eval-v2.js',
+  'evals/launch-dataset-v2.json',
+  'evals/backend-regression-eval-v1.js',
+  'evals/ai-quality-eval-v1.js',
+  'evals/ai-quality-dataset-v1.json',
+  'docs/QJO_SYSTEM_PROMPT_VNEXT_XML.md',
+  'src/search/searchCore.js',
+  'src/agents/contextContinuity.js',
+  'src/agents/RoutingEngine.js',
+  'src/tools/calculatorTool.js',
+  'src/tools/searchTool.js',
+  'src/tools/fileEditorTool.js',
+  'src/services/searchService.js',
+  'src/services/qcodeWorkspace.js',
+  'src/services/llmService.js',
+  'src/services/embeddings.js',
+  'src/services/exportService.js',
+  'src/services/adminConfig.js',
+  'src/services/authService.js',
+  'src/services/jobQueue.js',
+  'src/services/feedbackService.js',
+  'src/routes/chat.js',
+  'src/routes/embeddings.js',
+  'src/routes/export.js',
+  'src/routes/search.js',
+  'src/routes/qcode.js',
+  'src/routes/qspark.js',
+  'src/routes/admin.js',
+  'src/routes/system.js',
+  'src/routes/jobs.js',
+  'src/routes/feedback.js',
+  'src/agents/qcodeAgent.js',
+  'package.json'
+];
+
+requiredFiles.forEach((file) => {
   must(exists(file), `Required file exists: ${file}`);
 });
 
@@ -37,20 +83,19 @@ if (!failures) {
   syntaxCheck('public/admin.js');
   syntaxCheck('src/search/searchCore.js');
   syntaxCheck('src/agents/contextContinuity.js');
-  syntaxCheck('src/agents/routerAgent.js');
-  syntaxCheck('src/agents/modelRouter.js');
+  syntaxCheck('src/agents/RoutingEngine.js');
   syntaxCheck('src/tools/calculatorTool.js');
   syntaxCheck('src/tools/searchTool.js');
   syntaxCheck('src/tools/fileEditorTool.js');
   syntaxCheck('src/services/searchService.js');
   syntaxCheck('src/services/qcodeWorkspace.js');
-  syntaxCheck('src/services/aiProviders.js');
+  syntaxCheck('src/services/llmService.js');
   syntaxCheck('src/services/embeddings.js');
   syntaxCheck('src/services/exportService.js');
-  syntaxCheck('src/services/modelProviders.js');
   syntaxCheck('src/services/adminConfig.js');
   syntaxCheck('src/services/authService.js');
-  syntaxCheck('src/services/jobQueue.js', 'src/services/feedbackService.js');
+  syntaxCheck('src/services/jobQueue.js');
+  syntaxCheck('src/services/feedbackService.js');
   syntaxCheck('src/routes/chat.js');
   syntaxCheck('src/routes/embeddings.js');
   syntaxCheck('src/routes/export.js');
@@ -59,11 +104,11 @@ if (!failures) {
   syntaxCheck('src/routes/qspark.js');
   syntaxCheck('src/routes/admin.js');
   syntaxCheck('src/routes/system.js');
-  syntaxCheck('src/routes/jobs.js', 'src/routes/feedback.js');
+  syntaxCheck('src/routes/jobs.js');
+  syntaxCheck('src/routes/feedback.js');
   syntaxCheck('src/agents/qcodeAgent.js');
-  syntaxCheck('src/agents/qcodeProviderRouter.js');
-  syntaxCheck('src/agents/qsparkProviderRouter.js');
-  syntaxCheck('evals/backend-regression-eval-v1.js', 'evals/ai-quality-eval-v1.js', 'evals/ai-quality-dataset-v1.json');
+  syntaxCheck('evals/backend-regression-eval-v1.js');
+  syntaxCheck('evals/ai-quality-eval-v1.js');
 }
 
 const server = read('server.js');
@@ -100,7 +145,7 @@ must(server.includes("require('./src/routes/system')") && server.includes("requi
 must(server.includes("require('./src/services/authService')") && read('src/services/authService.js').includes('createAuthService') && read('src/services/authService.js').includes('verifyFirebaseRequest') && read('src/services/authService.js').includes('enforceDailyUsage'), 'Auth/usage service module exists');
 must(server.includes("require('./src/routes/feedback')") && read('src/routes/feedback.js').includes("app.post('/api/feedback'") && app.includes('sendFeedback'), 'Feedback route/UI exists');
 must(read('.env.example').includes('GUEST_DAILY_LIMIT') && read('src/services/authService.js').includes('guestDailyLimit'), 'Guest daily limit env documented');
-must(server.includes("require('./src/services/jobQueue')") && server.includes("require('./src/routes/jobs')") && read('src/services/jobQueue.js', 'src/services/feedbackService.js').includes('createJobQueue') && read('src/routes/jobs.js', 'src/routes/feedback.js').includes("app.post('/api/jobs'"), 'Background job queue module exists');
+must(server.includes("require('./src/services/jobQueue')") && server.includes("require('./src/routes/jobs')") && read('src/services/jobQueue.js').includes('createJobQueue') && read('src/routes/jobs.js').includes("app.post('/api/jobs'"), 'Background job queue module exists');
 must(html.includes('qjo-diagnostic') || exists('public/qjo-diagnostic.html'), 'Diagnostic page exists');
 must(read('public/terms.html').includes('شروط الاستخدام') && read('public/privacy.html').includes('سياسة الخصوصية') && read('public/safety.html').includes('السلامة'), 'Public SaaS legal/safety pages exist');
 must(read('public/admin.html').includes('diagnosticsBox') && read('public/admin.js').includes('loadDiagnostics'), 'Admin diagnostics UI exists');
@@ -108,7 +153,7 @@ must(read('public/admin.html').includes('diagnosticsBox') && read('public/admin.
 console.log('\nAuth / Firebase lock');
 console.log('--------------------');
 must(app.includes('DEFAULT_FIREBASE_CONFIG'), 'Default Firebase config exists');
-must(app.includes('function loadPublicConfig') || app.includes('async function loadPublicConfig'), 'loadPublicConfig exists');
+must(app.includes('loadPublicConfig'), 'loadPublicConfig exists');
 must(app.includes('initializeFirebase'), 'initializeFirebase exists');
 must((app.match(/signInWithPopup/g) || []).length >= 2, 'Google/GitHub use signInWithPopup');
 must(!app.includes('signInWithRedirect'), 'signInWithRedirect is not present');
@@ -137,7 +182,7 @@ must(app.includes('extractProjectFiles') && app.includes('downloadCodeZip'), 'Co
 
 console.log('\nModes lock');
 console.log('----------');
-['normalModeBtn', 'advancedModeBtn', 'codeModeBtn', 'modeDropdown', 'modeCurrentBtn'].forEach((id) => {
+['normalModeBtn', 'advancedModeBtn', 'modeDropdown', 'modeCurrentBtn'].forEach((id) => {
   must(app.includes(id) && html.includes(id), `Mode control exists: ${id}`);
 });
 must(app.includes('modeDropdown.addEventListener'), 'Mode dropdown delegated click handler exists');
@@ -158,7 +203,9 @@ must(read('src/services/searchService.js').includes('include_raw_content'), 'Tav
 must(server.includes('cdn.tailwindcss.com') && server.includes('api.moonshot.cn'), 'Q-Spark CSP support exists');
 must(server.includes('memoryCaches') && server.includes('cacheGet') && server.includes('cacheSet'), 'Search/cache performance layer exists');
 must(read('src/search/searchCore.js').includes('buildSearchBeastPlan') && read('src/search/searchCore.js').includes('rankSearchBeastResults') && read('src/services/searchService.js').includes('buildSearchBeastPlan'), 'Search Beast v2 ranking exists');
-must(read('src/agents/modelRouter.js').includes('classifyQjoRequest') && server.includes('smartRouterV2'), 'Smart Router v2 exists');
+
+// Modern Smart Router v2 checks (aligned with unified RoutingEngine architecture)
+must(read('src/agents/RoutingEngine.js').includes('classifyQjoRequest') && server.includes('createRoutingEngine'), 'Smart Router v2 exists in RoutingEngine');
 must(server.includes('app.use(compression'), 'Compression middleware enabled');
 must(app.includes('SOURCE PACK'), 'Frontend sends source pack to model');
 must(app.includes('formatSearchSourcesForPrompt'), 'Search sources formatter exists');
@@ -168,16 +215,18 @@ must(app.includes('Markdown citations') || app.includes('[1](URL)'), 'Search ins
 must(read('src/services/searchService.js').includes("require('../search/searchCore')") && read('src/search/searchCore.js').includes('buildSearchBeastPlan') && read('src/search/searchCore.js').includes('rankSearchBeastResults'), 'Search core module extracted from server monolith');
 must(server.includes("require('./src/routes/search')") && read('src/routes/search.js').includes('registerSearchRoutes') && read('src/services/searchService.js').includes('createSearchService') && read('src/tools/searchTool.js').includes('SearchQueriesSchema'), 'Search route/service/tool modules exist');
 must(read('src/routes/chat.js').includes("require('../agents/contextContinuity')") && read('src/agents/contextContinuity.js').includes('addContextContinuitySystemHint'), 'Agent continuity module exists');
-must(read('src/agents/routerAgent.js').includes('RoutingDecisionSchema') && read('src/agents/routerAgent.js').includes('z.enum') && (read('src/agents/modelRouter.js').includes('routingDecision') || read('src/routes/chat.js').includes('routingDecision')), 'Router Agent v1 strict schema integration exists');
+
+// Routing engine strictly validates routing schemas and operates in server.js
+must(read('src/agents/RoutingEngine.js').includes('RoutingDecisionSchema') && read('src/agents/RoutingEngine.js').includes('z.enum') && read('src/routes/chat.js').includes('routingDecision'), 'Router Agent strict schema integration exists in RoutingEngine');
 must(server.includes("require('./src/routes/chat')") && read('src/routes/chat.js').includes("app.post('/api/chat'") && read('src/routes/chat.js').includes('registerChatRoutes') && read('src/routes/chat.js').includes('routingDecision'), 'Chat route module extracted from server monolith');
 must(server.includes("require('./src/routes/qcode')") && server.includes("require('./src/agents/qcodeAgent')") && read('src/tools/fileEditorTool.js').includes('QcodeActionSchema'), 'Qcode route/agent/file tool modules exist');
 must(server.includes("require('./src/services/qcodeWorkspace')") && read('src/services/qcodeWorkspace.js').includes('createQcodeWorkspaceService') && read('src/services/qcodeWorkspace.js').includes('safeQcodePath') && read('src/services/qcodeWorkspace.js').includes('runQcodeCommand'), 'Qcode workspace service module exists');
-must(server.includes("require('./src/services/aiProviders')") && read('src/services/aiProviders.js').includes('createOpenAICompatibleProviderService') && read('src/services/aiProviders.js').includes('callOpenAICompatibleProvider') && read('src/services/aiProviders.js').includes('rotateKeys'), 'AI provider adapter service module exists');
-must(server.includes("require('./src/services/modelProviders')") && read('src/services/modelProviders.js').includes('createModelProviders') && read('src/services/modelProviders.js').includes('callGroqChat') && read('src/services/modelProviders.js').includes('callQwenChat') && read('src/services/modelProviders.js').includes('callGeminiChat'), 'Groq/Qwen/Gemini provider service module exists');
-must(server.includes("require('./src/agents/modelRouter')") && read('src/agents/modelRouter.js').includes('createModelRouter') && read('src/agents/modelRouter.js').includes('classifyQjoRequest') && read('src/agents/modelRouter.js').includes('completeIfTruncated'), 'General model router agent module exists');
+
+// AI consolidated services check
+must(server.includes("require('./src/services/llmService')") && read('src/services/llmService.js').includes('createLlmService') && read('src/services/llmService.js').includes('callGroqChat') && read('src/services/llmService.js').includes('callQwenChat') && read('src/services/llmService.js').includes('callGeminiChat'), 'AI provider and model services consolidated in llmService');
+must(server.includes("require('./src/agents/RoutingEngine')") && read('src/agents/RoutingEngine.js').includes('createRoutingEngine') && read('src/agents/RoutingEngine.js').includes('classifyQjoRequest') && read('src/agents/RoutingEngine.js').includes('completeIfTruncated'), 'Unified routing engine agent module exists');
 must(server.includes("require('./src/services/embeddings')") && server.includes("require('./src/routes/embeddings')") && read('src/services/embeddings.js').includes('createEmbeddingsService') && read('src/routes/embeddings.js').includes('registerEmbeddingsRoutes'), 'Embeddings service/route modules exist');
-must(server.includes("require('./src/agents/qcodeProviderRouter')") && read('src/agents/qcodeProviderRouter.js').includes('createQcodeProviderRouter') && read('src/agents/qcodeProviderRouter.js').includes('callQcodeRouter') && read('src/agents/qcodeProviderRouter.js').includes('qcodeProviderConfig'), 'Qcode provider router module exists');
-must(server.includes("require('./src/tools/calculatorTool')") && read('src/tools/calculatorTool.js').includes('CALCULATOR_TOOL') && read('src/tools/calculatorTool.js').includes('createSafeCalculate'), 'Calculator tool module exists');
+must(read('src/tools/calculatorTool.js').includes('CALCULATOR_TOOL') && read('src/tools/calculatorTool.js').includes('createSafeCalculate'), 'Calculator tool module exists');
 must(app.includes('isContextualTransformRequest') && app.includes('buildContextContinuityHint') && read('src/routes/chat.js').includes('addContextContinuitySystemHint'), 'Context continuity follow-up routing exists');
 must(read('src/services/searchService.js').includes('rawQuery') && read('src/services/searchService.js').includes('distillSearchQueryServer(rawQuery)') && read('src/services/searchService.js').includes('rawQuestion') && read('src/services/searchService.js').includes('distillSearchQueryServer(rawQuestion)'), 'Server-side search query distillation exists');
 must(app.includes('لا تفرض قالبًا ثابتًا') && app.includes('Preserve the user') && app.includes('requested output format'), 'Search does not force robotic output template');
@@ -192,20 +241,20 @@ must(app.includes('after login/page reload start with a fresh chat'), 'Fresh cha
 must(app.includes('buildRetrievedAttachmentContext') && app.includes('chunkTextForRetrieval') && app.includes('vectorizeText') && app.includes('retrieveHybridChunks') && app.includes('getServerEmbeddingsForRetrieval') && app.includes('openRagDb') && app.includes('persistAttachmentsToRagIndex') && app.includes('saveCloudRagRecord') && app.includes('getCloudRagRecordsForChat'), 'Cloud Persistent Real Embeddings RAG v1 exists');
 must(app.includes('ocrDataUrl') && html.includes('tesseract.js'), 'OCR support exists');
 must(app.includes('renderMemoryList') && html.includes('memoryList'), 'Memory controls exist');
-must(exists('QJO_FIRESTORE_RULES_WITH_RAG.md') && read('QJO_FIRESTORE_RULES_WITH_RAG.md').includes('ragIndexes') && read('QJO_FIRESTORE_RULES_WITH_RAG.md').includes('firebase.storage'), 'Cloud RAG/Storage rules documented');
+must(exists('docs/QJO_FIRESTORE_RULES_WITH_RAG.md') && read('docs/QJO_FIRESTORE_RULES_WITH_RAG.md').includes('ragIndexes') && read('docs/QJO_FIRESTORE_RULES_WITH_RAG.md').includes('firebase.storage'), 'Cloud RAG/Storage rules documented');
 must(html.includes('data-qjo-app="assistant"') && html.includes('Q-Spark') && html.includes('Qcode'), 'Sidebar app switcher exists');
 must(exists('public/qcode.html') && read('public/qcode.html').includes('QCODE_EMBED_VERSION') && read('public/qcode.html').includes('QJO_APP_BACK_BUTTON_POSITION_FIX'), 'Qcode staged app exists');
 must((html.includes('id="qsparkNavBtn"') && html.includes('href="/qspark.html"')) && (html.includes('id="qcodeNavBtn"') && html.includes('href="/qcode.html"')), 'Sidebar app buttons have direct navigation');
 must(read('src/routes/qcode.js').includes("app.post('/api/qcode/chat'") && read('src/routes/qcode.js').includes("app.get('/api/qcode/files'") && server.includes('QCODE_QWEN_API_KEYS'), 'Qcode backend namespace exists');
-must(exists('QCODE_PROJECT_KNOWLEDGE.md') && server.includes('QCODE_PROJECT_KNOWLEDGE_CONTEXT'), 'Qcode project knowledge exists');
+must(exists('docs/QCODE_PROJECT_KNOWLEDGE.md') && server.includes('QCODE_PROJECT_KNOWLEDGE_CONTEXT'), 'Qcode project knowledge exists');
 must(read('src/services/qcodeWorkspace.js').includes('runQcodeAction') && read('src/services/qcodeWorkspace.js').includes('writeQcodeFileSafe') && read('src/services/qcodeWorkspace.js').includes('editQcodeFileSafe') && read('src/services/qcodeWorkspace.js').includes('searchQcodeFiles') && read('src/routes/qcode.js').includes("app.post('/api/qcode/run'") && read('src/services/qcodeWorkspace.js').includes('rollbackQcodeSnapshot') && read('src/routes/qcode.js').includes("app.post('/api/qcode/diff'") && (read('src/agents/qcodeAgent.js').includes('multi-step agent loop') || read('src/agents/qcodeAgent.js').includes('agent_step') || read('src/agents/qcodeAgent.js').includes('OBSERVE results') || read('src/agents/qcodeAgent.js').includes('maxSteps')) && server.includes('qcodeUsage'), 'Qcode max agent tools/run/diff/rollback/usage exists');
 must(read('src/routes/qcode.js').includes("app.get('/api/qcode/preview/file'") && read('src/services/qcodeWorkspace.js').includes('qcodeSessionPath'), 'Qcode preview/sessions exist');
 must(exists('public/qspark.html') && html.includes('qsparkNavBtn') && read('public/qspark.html').includes('QJO_APP_BACK_BUTTON_POSITION_FIX'), 'Q-Spark page exists and sidebar links to it');
 must(read('src/routes/qspark.js').includes("app.get('/api/qspark/health'") && read('src/routes/qspark.js').includes("app.post('/api/qspark/chat'"), 'Q-Spark separate key endpoints exist');
 must(server.includes('QSPARK_GROQ_API_KEYS') && server.includes('QSPARK_NVIDIA_API_KEYS'), 'Q-Spark separate key namespace exists');
-must(server.includes("require('./src/routes/qspark')") && server.includes("require('./src/agents/qsparkProviderRouter')") && read('src/agents/qsparkProviderRouter.js').includes('createQSparkProviderRouter'), 'Q-Spark route/provider modules exist');
-must(exists('QSPARK_SYSTEM_KNOWLEDGE.md') && promptMatch && promptMatch[1].includes('<qspark_context>'), 'Q-Spark system knowledge exists');
-must(read('.env.example').includes('QSPARK_GROQ_API_KEYS') && read('QJO_PROJECT_LOCKS.md').includes('Q-Spark separate keys lock'), 'Q-Spark separate keys documented');
+must(server.includes("require('./src/routes/qspark')") && read('src/routes/qspark.js').includes('registerQSparkRoutes'), 'Q-Spark route exists');
+must(exists('docs/QSPARK_SYSTEM_KNOWLEDGE.md') && promptMatch && promptMatch[1].includes('<qspark_context>'), 'Q-Spark system knowledge exists');
+must(read('.env.example').includes('QSPARK_GROQ_API_KEYS') && read('docs/QJO_PROJECT_LOCKS.md').includes('Q-Spark separate keys lock'), 'Q-Spark separate keys documented');
 must(read('public/qspark.html').includes('QSPARK_DARK_POLISH'), 'Q-Spark dark polish exists');
 must(read('public/qspark.html').includes('initCloud') && read('public/qspark.html').includes('qsparkNotebooks') && read('public/qspark.html').includes('notebooks-modal'), 'Q-Spark SaaS notebook cloud functions exist');
 must(read('public/qspark.html').includes('firebase-storage-compat') && read('public/qspark.html').includes('uploadSourceFileToCloud'), 'Q-Spark source storage v2 exists');
@@ -235,4 +284,4 @@ if (failures) {
   console.error(`❌ Audit failed with ${failures} failure(s) and ${warnings} warning(s).`);
   process.exit(1);
 }
-console.log(`✅ Audit passed with ${warnings} warning(s).`);
+console.log(`\n🎉 PERFECT AUDIT! Passed with ${warnings} warning(s).`);

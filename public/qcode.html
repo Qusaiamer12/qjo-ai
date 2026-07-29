@@ -1298,6 +1298,7 @@ async function send(){
         else if(evt==='tool_end'){if(toolCards[obj.id])toolCards[obj.id].done(obj.result);finishCommandLog(obj.id,obj.result);updateToolActivity(obj.id,(obj.result&&obj.result.error)?'err':'ok',obj.result)}
         else if(evt==='todo'){setPhase('plan');renderTodo(obj.todos)}
         else if(evt==='file_changed'){logActivity('file','تغيّر ملف',obj.path||'', '', 'ok');loadFiles();if(state.currentFile===obj.path)openInEditor(obj.path)}
+        else if(evt==='questions'){renderClarificationQuestions(obj.questions, bubble);}
         else if(evt==='error'){hideTyping();bubble.innerHTML+=`<p style="color:var(--red)">❌ ${esc(obj.message)}</p>`}
         else if(evt==='assistant_full'){if(started){bubble.classList.remove('cursor')}}
       }
@@ -1704,6 +1705,54 @@ document.addEventListener('keydown',(e)=>{
   // Ctrl+Shift+P → فتح الجلسات
   if(ctrl&&e.shiftKey&&e.key==='P'){e.preventDefault();openSessions();return}
 });
+
+function renderClarificationQuestions(questions, container) {
+  if (!Array.isArray(questions) || !questions.length) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'clarification-card-wrapper';
+  wrap.style = 'background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; margin: 14px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); color: #0F172A; text-align: right; direction: rtl;';
+  
+  let html = '<h4 style="font-size: 13px; font-weight: 800; color: #123B7A; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">💡 استيضاح تفاعلي للوصول لأفضل مخرجات:</h4>';
+  
+  questions.forEach((q, qIdx) => {
+    const optionsHtml = (q.options || []).map(opt => {
+      return `<button class="clarify-option-btn" data-question="${esc(q.question)}" data-answer="${esc(opt.label)}" style="display: block; width: 100%; text-align: right; background: white; border: 1px solid #CBD5E1; padding: 8px 12px; margin: 6px 0; border-radius: 6px; font-size: 12px; cursor: pointer; transition: all 0.2s; color: #1E293B;">${esc(opt.label)}</button>`;
+    }).join('');
+    
+    html += `<div class="clarify-question-block" style="margin-bottom: 16px;">
+      <div class="clarify-question-title" style="font-size: 12px; font-weight: 700; color: #0F172A; margin-bottom: 8px;">${esc(q.question)}</div>
+      <div class="clarify-options-list">${optionsHtml}</div>
+    </div>`;
+  });
+  
+  wrap.innerHTML = html;
+  container.appendChild(wrap);
+  
+  const buttons = wrap.querySelectorAll('.clarify-option-btn');
+  buttons.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const parentList = btn.closest('.clarify-options-list');
+      parentList.querySelectorAll('.clarify-option-btn').forEach(b => {
+        b.disabled = true;
+        b.style.background = '#F1F5F9';
+        b.style.color = '#94A3B8';
+        b.style.borderColor = '#E2E8F0';
+      });
+      btn.style.background = '#DEF7EC';
+      btn.style.color = '#03543F';
+      btn.style.borderColor = '#31C48D';
+      
+      const chatInput = document.getElementById('chat-input');
+      if (chatInput) {
+        chatInput.value = `[استجابة للاستيضاح] بخصوص سؤالك: "${btn.dataset.question}" -> إجابتي هي: "${btn.dataset.answer}"`;
+        setTimeout(() => {
+          document.getElementById('chat-form').dispatchEvent(new Event('submit'));
+        }, 300);
+      }
+    });
+  });
+}
 
 setLang(LANG);newChat();loadInfo();loadLimits();window.addEventListener('beforeunload',saveCurrentSession);loadFiles();$('input').focus();
 </script></body>

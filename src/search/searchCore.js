@@ -25,7 +25,12 @@ function distillSearchQueryServer(text) {
   q = q.replace(/(ignore previous instructions|system prompt|developer message|you are no longer|act as|jailbreak|تجاهل\s+كل\s+التعليمات|أنت\s+لست|اكشف\s+البرومبت|تعليمات\s+النظام)/ig, ' ');
   // Remove task boilerplate that hurts search engines; preserve domain terms, entities, versions, and nouns.
   q = q.replace(/(اكتب\s+لي|أريد|اريد|اعطني|سوي|اعمل|قم\s+ب|اشرح\s+لي|مع\s+التركيز|بشكل\s+صارم|الكود\s+الأساسي|خطوات\s+مفصلة|please|write|build|create|explain|focus on|step by step|detailed steps)/ig, ' ');
-  const stop = new Set(['the','and','for','with','from','that','this','into','using','use','how','what','why','when','where','please','في','من','على','الى','إلى','عن','مع','هذا','هذه','التي','الذي','كيف','متى','لماذا','ما','هل','كل','فقط','بشكل','طريقة','ممكن']);
+  const stop = new Set([
+    'the','and','for','with','from','that','this','into','using','use','how','what','why','when','where','please',
+    'في','من','على','الى','إلى','عن','مع','هذا','هذه','التي','الذي','كيف','متى','لماذا','ما','هل','كل','فقط','بشكل','طريقة','ممكن',
+    'بدي','بديش','هسا','هسة','شو','مين','وين','ليش','حالي','ابحثلي','دبرلي','زبطلي','جيبلي','بسرعة','عادي','مثلا','كأنو','كانو',
+    'الي','إلي','عشان','عشن','هيك','هاد','هادي','هادا','برضه','برضو','كمان','طيب','يلا'
+  ]);
   const tokens = q
     .replace(/[^A-Za-z0-9\u0600-\u06FF.+#/-]+/g, ' ')
     .split(/\s+/)
@@ -61,9 +66,11 @@ function scoreSource(result, mode) {
   const govEduSignals = ['.gov', '.edu', '.org'];
   const newsSignals = ['reuters.com', 'apnews.com', 'bbc.com', 'aljazeera.com', 'techcrunch.com', 'theverge.com', 'wired.com', 'bloomberg.com', 'ft.com'];
   const lowSignals = ['reddit.com', 'quora.com', 'medium.com', 'forum', 'stackoverflow.com', 'facebook.com', 'x.com', 'twitter.com'];
+  const arabJordanSignals = ['.jo', '.gov.jo', '.edu.jo', '.sa', '.eg', '.ae', 'amman.jo', 'jordan.gov.jo', 'moi.gov.jo', 'customs.gov.jo', 'ssc.gov.jo', 'mfa.gov.jo'];
 
   if (officialSignals.some(x => domain.includes(x))) score += 0.35;
   if (govEduSignals.some(x => domain.includes(x))) score += 0.18;
+  if (arabJordanSignals.some(x => domain.endsWith(x) || domain.includes(x))) score += 0.30;
   if (mode === 'academic' && academicSignals.some(x => domain.includes(x))) score += 0.45;
   if (mode === 'news' && newsSignals.some(x => domain.includes(x))) score += 0.25;
   if (mode === 'technical' && (domain.includes('github.com') || domain.includes('docs.') || domain.includes('developer'))) score += 0.35;
@@ -153,39 +160,71 @@ function buildSearchBeastPlan(question, deep = false) {
   const mode = inferSearchMode(originalQuestion + ' ' + q);
   const isArabic = /[؀-ۿ]/.test(q);
   const queries = new Set();
+  
   if (q) queries.add(q);
-  const add = (ar, en) => queries.add(isArabic ? `${q} ${ar}` : `${q} ${en}`);
+
+  // Helper to extract English words from mixed queries to run parallel English queries (Extremely powerful!)
+  const englishWords = (q.match(/[A-Za-z0-9+#/-]+/g) || []).join(' ').trim();
+  if (isArabic && englishWords.length >= 3) {
+    queries.add(englishWords);
+  }
+
+  const add = (ar, en) => {
+    if (isArabic) {
+      queries.add(`${q} ${ar}`);
+      // Cross-lingual search bridge: add English queries for better source coverage
+      if (englishWords) {
+        queries.add(`${englishWords} ${en}`);
+      } else {
+        // Fallback English keyword expansion
+        const simpleEng = q.replace(/[\u0600-\u06FF]/g, '').trim();
+        if (simpleEng.length >= 3) {
+          queries.add(`${simpleEng} ${en}`);
+        }
+      }
+    } else {
+      queries.add(`${q} ${en}`);
+    }
+  };
 
   if (mode === 'technical') {
-    add('توثيق رسمي GitHub مثال', 'official documentation GitHub example');
-    if (deep) add('حل المشكلة شرح سبب الخطأ', 'troubleshooting root cause fix');
+    add('توثيق رسمي مثال', 'official documentation GitHub example');
+    add('حل المشكلة خطأ', 'troubleshooting error root cause fix');
+    if (deep) {
+      add('شرح ومراجعة', 'benchmark performance review');
+      add('npm library package github', 'npm library package github');
+    }
   } else if (mode === 'pricing') {
-    add('السعر الرسمي الخطط الحدود', 'official pricing plans limits');
-    if (deep) add('مقارنة الأسعار البدائل', 'pricing comparison alternatives');
+    add('السعر رسمي خطط حدود', 'official pricing plans limits subscription');
+    add('مقارنة الأسعار بديل', 'price comparison alternatives');
   } else if (mode === 'news') {
-    add('آخر الأخبار مصادر موثوقة', 'latest reliable news Reuters AP BBC');
-    if (deep) add('تحليل خلفية تداعيات', 'analysis background implications');
+    add('آخر الأخبار تفاصيل اليوم', 'latest breaking news today update');
+    add('Reuters AP BBC Aljazeera', 'Reuters AP BBC Bloomberg Aljazeera');
   } else if (mode === 'comparison') {
-    add('مقارنة رسمية المزايا العيوب', 'comparison official pros cons');
-    add('بدائل مراجعة معايير', 'alternatives review benchmarks');
+    add('مقارنة المزايا والعيوب الفرق', 'comparison vs review pros cons');
+    add('الفرق بين بدائل', 'difference between alternatives benchmarks');
   } else if (mode === 'academic') {
-    add('دراسة بحث منهجية نتائج', 'research paper methodology results');
-    if (deep) add('systematic review academic sources', 'systematic review academic sources');
+    add('دراسة بحثية ورقة علمية نتائج', 'research paper methodology results findings');
+    add('arxiv PubMed Scholar IEEE', 'arxiv PubMed IEEE DOI Springer');
   } else if (/كأس العالم|world cup|نهائي|مباراة|fixture|schedule|final/i.test(q)) {
-    add('مصدر رسمي موعد', 'official source date time');
-    add('FIFA official', 'FIFA official');
+    add('مصدر رسمي موعد توقيت', 'official schedule dates fixtures');
   } else {
-    add('مصدر موثوق', 'reliable source');
-    if (deep) add('مصادر متعددة', 'multiple reliable sources');
+    add('تقرير رسمي مصادر موثوقة', 'official report reliable sources analysis');
+    if (deep) {
+      add('أحدث دراسة إحصائيات', 'current trends statistics 2026 data');
+    }
   }
+
+  // Ensure queries are completely diverse and limited to maximum 6 for Deep, 3 for Basic
+  const finalQueries = Array.from(queries).filter(Boolean).slice(0, deep ? 6 : 3);
 
   return {
     mode,
     depth: deep ? 'advanced' : 'basic',
-    queries: Array.from(queries).filter(Boolean).slice(0, deep ? 6 : 3),
-    maxResultsPerQuery: deep ? 7 : 6,
-    keepResults: deep ? 14 : 7,
-    enrichPages: deep ? (mode === 'academic' || mode === 'technical' ? 3 : 2) : 1
+    queries: finalQueries,
+    maxResultsPerQuery: deep ? 8 : 6,
+    keepResults: deep ? 16 : 7,
+    enrichPages: deep ? (mode === 'academic' || mode === 'technical' ? 4 : 3) : 1
   };
 }
 
@@ -200,13 +239,38 @@ function rankSearchBeastResults(results, mode, question) {
       reliabilityScore: scoreSource(result, mode),
       relevanceScore: searchBeastRelevance(result, question)
     };
-    source.finalScore = (source.reliabilityScore || 0) * 1.25 + (source.relevanceScore || 0) * 0.9 + (source.firecrawl ? 0.15 : 0);
+    
+    let baseScore = (source.reliabilityScore || 0) * 1.25 + (source.relevanceScore || 0) * 0.9 + (source.firecrawl ? 0.15 : 0);
+    
+    // Spam / Access Block / empty content penalty
+    const contentLower = String(result.content || '').toLowerCase();
+    const titleLower = String(result.title || '').toLowerCase();
+    const isSpam = /(enable javascript|access denied|ddos prevention|cloudflare|captcha|just a moment|security check|forbidden|block user|unsupported browser)/i.test(contentLower + ' ' + titleLower);
+    if (isSpam) {
+      baseScore -= 0.65;
+    }
+    
+    source.finalScore = baseScore;
     const existing = byUrl.get(key);
     if (!existing || source.finalScore > existing.finalScore) byUrl.set(key, source);
   }
-  return Array.from(byUrl.values())
+  
+  const sorted = Array.from(byUrl.values())
     .filter(r => (r.relevanceScore || 0) > 0 || /official|docs|government|academic|code\/repository/.test(r.sourceKind || '') || byUrl.size <= 3)
     .sort((a, b) => (b.finalScore || 0) - (a.finalScore || 0));
+    
+  // Domain Diversification Guard - maximum 2 sources from the exact same domain
+  const domainCounts = new Map();
+  const diversified = [];
+  for (const item of sorted) {
+    const dom = domainOf(item.url);
+    const count = domainCounts.get(dom) || 0;
+    if (count < 2 || sorted.length < 5) {
+      domainCounts.set(dom, count + 1);
+      diversified.push(item);
+    }
+  }
+  return diversified;
 }
 
 module.exports = {
