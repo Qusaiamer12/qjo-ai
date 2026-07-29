@@ -177,15 +177,15 @@ function createRoutingEngine(deps) {
     if (agentType === 'chat' && isLiteRequest(messages)) {
       const liteMessages = [{ role: 'system', content: 'You are Qjo, a helpful AI. Reply briefly and warmly.' }, ...messages.filter(m => m.role !== 'system')];
       if (keys.nvidia > 0) {
-        const n = await llmService.callNvidiaChat({ model: models.nvidiaFlash || 'meta/llama-3.1-8b-instruct', messages: liteMessages, temperature, max_tokens });
+        const n = await llmService.callNvidiaChat({ model: models.nvidiaFlash || 'meta/llama-3.1-8b-instruct', messages: liteMessages, temperature, max_tokens, onChunk });
         if (n.ok) return n;
       }
       if (keys.groq > 0) {
-        const g = await llmService.callGroqChat({ model: models.groqFlash || 'llama-3.3-70b-versatile', messages: liteMessages, temperature, max_tokens });
+        const g = await llmService.callGroqChat({ model: models.groqFlash || 'llama-3.3-70b-versatile', messages: liteMessages, temperature, max_tokens, onChunk });
         if (g.ok) return g;
       }
       if (keys.qwen > 0) {
-        const q = await llmService.callQwenChat({ model: models.qwenFlash || 'qwen-plus', messages: liteMessages, temperature, max_tokens });
+        const q = await llmService.callQwenChat({ model: models.qwenFlash || 'qwen-plus', messages: liteMessages, temperature, max_tokens, onChunk });
         if (q.ok) return q;
       }
       // If all lite providers fail, fall through to full routing below
