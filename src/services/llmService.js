@@ -178,9 +178,7 @@ function createLlmService(config = {}) {
           method: 'POST',
           signal: controller.signal,
           headers: {
-            'Content-Type': 'application/json',
-            'x-goog-api-key': key,
-            'Authorization': key.startsWith('AQ.') ? `Bearer ${key}` : undefined
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({ ...geminiPayload, generationConfig: { maxOutputTokens: max_tokens } })
         });
