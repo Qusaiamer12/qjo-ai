@@ -189,7 +189,7 @@ function createQcodeAgent(deps) {
     try {
       const inputMessages = Array.isArray(req.body.messages) ? req.body.messages.slice(-16) : [];
       const toolNames = qcodeToolNames();
-      sseWrite(res, 'routing', { provider_order: ['groq','qwen','nvidia','kimi'], separateKeys: true, tools: toolNames });
+      sseWrite(res, 'routing', { provider_order: ['groq','qwen','kimi','nvidia'], separateKeys: true, tools: toolNames });
 
       let conversation = [{ role: 'system', content: buildSystemPrompt(deps.qcodeWorkspaceSummary()) }, ...inputMessages];
       let finalAnswer = '';

@@ -193,7 +193,7 @@ function createRoutingEngine(deps) {
 
     // --- 2. Qcode Mode Routing ---
     if (agentType === 'qcode') {
-      const order = ['nvidia', 'groq', 'qwen', 'kimi'];
+      const order = ['groq', 'qwen', 'kimi', 'nvidia'];
       for (const p of order) {
         if (!keys[p] || keys[p] === 0) continue;
         const result = await (p === 'groq' ? llmService.callGroqChat : p === 'qwen' ? llmService.callQwenChat : p === 'nvidia' ? llmService.callNvidiaChat : llmService.callKimiChat)({
