@@ -82,10 +82,9 @@ const QSPARK_QWEN_API_KEYS = String(process.env.QSPARK_QWEN_API_KEYS || process.
   .split(',')
   .map(k => k.trim())
   .filter(Boolean);
-const QSPARK_NVIDIA_API_KEYS = String(process.env.QSPARK_NVIDIA_API_KEYS || process.env.QSPARK_NVIDIA_API_KEY || '')
-  .split(',')
-  .map(k => k.trim())
-  .filter(Boolean);
+const QSPARK_NVIDIA_API_KEYS = (process.env.QSPARK_NVIDIA_API_KEYS || process.env.QSPARK_NVIDIA_API_KEY)
+  ? String(process.env.QSPARK_NVIDIA_API_KEYS || process.env.QSPARK_NVIDIA_API_KEY).split(',').map(k => k.trim()).filter(Boolean)
+  : NVIDIA_API_KEYS;
 const QSPARK_GROQ_MODEL = process.env.QSPARK_GROQ_MODEL || 'llama-3.3-70b-versatile';
 const QSPARK_KIMI_BASE_URL = String(process.env.QSPARK_KIMI_BASE_URL || 'https://api.moonshot.ai/v1').replace(/\/$/, '');
 const QSPARK_KIMI_MODEL = process.env.QSPARK_KIMI_MODEL || 'moonshot-v1-128k';
@@ -118,8 +117,9 @@ const QCODE_QWEN_API_KEYS = String(process.env.QCODE_QWEN_API_KEYS || process.en
   .split(',').map(k => k.trim()).filter(Boolean);
 const QCODE_KIMI_API_KEYS = String(process.env.QCODE_KIMI_API_KEYS || process.env.QCODE_KIMI_API_KEY || '')
   .split(',').map(k => k.trim()).filter(Boolean);
-const QCODE_NVIDIA_API_KEYS = String(process.env.QCODE_NVIDIA_API_KEYS || process.env.QCODE_NVIDIA_API_KEY || '')
-  .split(',').map(k => k.trim()).filter(Boolean);
+const QCODE_NVIDIA_API_KEYS = (process.env.QCODE_NVIDIA_API_KEYS || process.env.QCODE_NVIDIA_API_KEY) 
+  ? String(process.env.QCODE_NVIDIA_API_KEYS || process.env.QCODE_NVIDIA_API_KEY).split(',').map(k => k.trim()).filter(Boolean)
+  : NVIDIA_API_KEYS;
 const QCODE_GROQ_MODEL = process.env.QCODE_GROQ_MODEL || 'llama-3.3-70b-versatile';
 const QCODE_QWEN_MODEL = process.env.QCODE_QWEN_MODEL || 'qwen-plus';
 const QCODE_KIMI_BASE_URL = String(process.env.QCODE_KIMI_BASE_URL || 'https://api.moonshot.ai/v1').replace(/\/$/, '');
