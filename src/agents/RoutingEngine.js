@@ -206,8 +206,9 @@ function createRoutingEngine(deps) {
 
     // --- 3. Qspark Mode Routing ---
     if (agentType === 'qspark') {
-      const requested = String(qsparkProvider || 'nvidia').toLowerCase();
-      const order = requested === 'auto' ? ['nvidia', 'kimi', 'qwen', 'groq'] : [requested];
+      const requested = String(qsparkProvider || 'groq').toLowerCase();
+      const fallbackList = ['groq', 'qwen', 'nvidia', 'kimi'];
+      const order = Array.from(new Set([requested, ...fallbackList]));
       for (const p of order) {
         if (!keys[p] || keys[p] === 0) continue;
         const result = await (p === 'groq' ? llmService.callGroqChat : p === 'qwen' ? llmService.callQwenChat : p === 'nvidia' ? llmService.callNvidiaChat : llmService.callKimiChat)({
@@ -248,6 +249,11 @@ function createRoutingEngine(deps) {
           return groq;
         }
       }
+    }
+
+    if (keys.kimi > 0) {
+      const kimi = await llmService.callKimiChat({ model: models.kimiText, messages, temperature, max_tokens, onChunk });
+      if (kimi.ok) return kimi;
     }
 
     if (keys.openRouter > 0) {
