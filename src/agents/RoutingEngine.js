@@ -180,10 +180,6 @@ function createRoutingEngine(deps) {
         const n = await llmService.callNvidiaChat({ model: models.nvidiaFlash || 'meta/llama-3.1-8b-instruct', messages: liteMessages, temperature, max_tokens });
         if (n.ok) return n;
       }
-      if (keys.gemini > 0) {
-        const g = await llmService.callGeminiChat({ model: 'gemini-2.0-flash', messages: liteMessages, temperature, max_tokens });
-        if (g.ok) return g;
-      }
       if (keys.groq > 0) {
         const g = await llmService.callGroqChat({ model: models.groqFlash || 'llama-3.3-70b-versatile', messages: liteMessages, temperature, max_tokens });
         if (g.ok) return g;
@@ -228,18 +224,11 @@ function createRoutingEngine(deps) {
     const route = classifyQjoRequest({ messages, mode, routingDecision });
     const tools = buildTools(useTools && !hasImages, route.hasSearchContext);
 
-    // Nvidia First Priority
+    // Nvidia First Priority (Primary Provider)
     if (keys.nvidia > 0) {
       const nvidiaModel = (route.intent === 'reasoning' || route.mathIntent) ? (models.nvidiaText || 'meta/llama-3.1-70b-instruct') : (models.nvidiaFlash || 'meta/llama-3.1-8b-instruct');
       const nvidia = await llmService.callNvidiaChat({ model: nvidiaModel, messages, temperature, max_tokens, onChunk });
       if (nvidia.ok) return nvidia;
-    }
-
-    // Gemini Second Priority (Best General & Free Tier)
-    if (keys.gemini > 0) {
-      const geminiModel = (route.intent === 'reasoning' || route.mathIntent) ? (models.geminiPro || 'gemini-2.5-pro') : (models.geminiText || 'gemini-2.0-flash');
-      const gemini = await llmService.callGeminiChat({ model: geminiModel, messages, temperature, max_tokens });
-      if (gemini.ok) return gemini;
     }
 
     // Fallbacks based on intent
