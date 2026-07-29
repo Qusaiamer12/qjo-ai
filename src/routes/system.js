@@ -81,7 +81,7 @@ function registerSystemRoutes(app, deps) {
     const testMessages = [{ role: 'user', content: 'Say "hello" and nothing else.' }];
     
     // Test Gemini
-    const gemini = await deps.llmService.callGeminiChat({ model: 'gemini-1.5-pro', messages: testMessages, temperature: 0.1, max_tokens: 10 });
+    const gemini = await deps.llmService.callGeminiChat({ model: 'gemini-2.0-flash', messages: testMessages, temperature: 0.1, max_tokens: 10 });
     results.gemini = { ok: gemini.ok, error: gemini.error, status: gemini.status };
     
     // Test Nvidia

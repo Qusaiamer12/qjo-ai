@@ -181,7 +181,7 @@ function createRoutingEngine(deps) {
         if (n.ok) return n;
       }
       if (keys.gemini > 0) {
-        const g = await llmService.callGeminiChat({ model: 'gemini-3.6-flash', messages: liteMessages, temperature, max_tokens });
+        const g = await llmService.callGeminiChat({ model: 'gemini-2.0-flash', messages: liteMessages, temperature, max_tokens });
         if (g.ok) return g;
       }
       if (keys.groq > 0) {
@@ -237,7 +237,7 @@ function createRoutingEngine(deps) {
 
     // Gemini Second Priority (Best General & Free Tier)
     if (keys.gemini > 0) {
-      const geminiModel = (route.intent === 'reasoning' || route.mathIntent) ? (models.geminiPro || 'gemini-1.5-pro') : (models.geminiText || 'gemini-3.6-flash');
+      const geminiModel = (route.intent === 'reasoning' || route.mathIntent) ? (models.geminiPro || 'gemini-2.5-pro') : (models.geminiText || 'gemini-2.0-flash');
       const gemini = await llmService.callGeminiChat({ model: geminiModel, messages, temperature, max_tokens });
       if (gemini.ok) return gemini;
     }

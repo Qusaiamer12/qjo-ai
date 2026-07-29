@@ -160,8 +160,8 @@ const IP_RATE_LIMIT_PER_MINUTE = Number(process.env.IP_RATE_LIMIT_PER_MINUTE || 
 const GROQ_FLASH_MODEL = process.env.GROQ_FLASH_MODEL || 'llama-3.1-8b-instant';
 const GROQ_TEXT_MODEL = process.env.GROQ_TEXT_MODEL || 'llama-3.3-70b-versatile';
 const GROQ_VISION_MODEL = process.env.GROQ_VISION_MODEL || 'meta-llama/llama-4-scout-17b-16e-instruct';
-const GEMINI_FLASH_MODEL = process.env.GEMINI_FLASH_MODEL || 'gemini-3.6-flash';
-const GEMINI_TEXT_MODEL = process.env.GEMINI_TEXT_MODEL || 'gemini-3.6-flash';
+const GEMINI_FLASH_MODEL = process.env.GEMINI_FLASH_MODEL || 'gemini-2.0-flash';
+const GEMINI_TEXT_MODEL = process.env.GEMINI_TEXT_MODEL || 'gemini-2.0-flash';
 const GEMINI_VISION_MODEL = process.env.GEMINI_VISION_MODEL || GEMINI_TEXT_MODEL;
 const QWEN_FLASH_MODEL = process.env.QWEN_FLASH_MODEL || 'qwen-plus';
 const QWEN_TEXT_MODEL = process.env.QWEN_TEXT_MODEL || 'qwen-plus';
@@ -506,7 +506,7 @@ const routingEngine = createRoutingEngine({
     kimiCode: KIMI_CODE_MODEL,
     nvidiaFlash: NVIDIA_FLASH_MODEL,
     nvidiaText: NVIDIA_TEXT_MODEL,
-    geminiPro: 'gemini-1.5-pro'
+    geminiPro: 'gemini-2.5-pro'
   }
 });
 
