@@ -70,18 +70,9 @@ const AGNES_API_KEYS = String(process.env.AGNES_API_KEYS || process.env.AGNES_AP
   .filter(Boolean);
 
 // Q-Spark uses a completely separate key namespace. Do not fall back to Qjo keys.
-const QSPARK_GROQ_API_KEYS = String(process.env.QSPARK_GROQ_API_KEYS || process.env.QSPARK_GROQ_API_KEY || '')
-  .split(',')
-  .map(k => k.trim())
-  .filter(Boolean);
-const QSPARK_KIMI_API_KEYS = String(process.env.QSPARK_KIMI_API_KEYS || process.env.QSPARK_KIMI_API_KEY || '')
-  .split(',')
-  .map(k => k.trim())
-  .filter(Boolean);
-const QSPARK_QWEN_API_KEYS = String(process.env.QSPARK_QWEN_API_KEYS || process.env.QSPARK_QWEN_API_KEY || '')
-  .split(',')
-  .map(k => k.trim())
-  .filter(Boolean);
+const QSPARK_GROQ_API_KEYS = (process.env.QSPARK_GROQ_API_KEYS || process.env.QSPARK_GROQ_API_KEY) ? String(process.env.QSPARK_GROQ_API_KEYS || process.env.QSPARK_GROQ_API_KEY).split(',').map(k => k.trim()).filter(Boolean) : GROQ_API_KEYS;
+const QSPARK_KIMI_API_KEYS = (process.env.QSPARK_KIMI_API_KEYS || process.env.QSPARK_KIMI_API_KEY) ? String(process.env.QSPARK_KIMI_API_KEYS || process.env.QSPARK_KIMI_API_KEY).split(',').map(k => k.trim()).filter(Boolean) : KIMI_API_KEYS;
+const QSPARK_QWEN_API_KEYS = (process.env.QSPARK_QWEN_API_KEYS || process.env.QSPARK_QWEN_API_KEY) ? String(process.env.QSPARK_QWEN_API_KEYS || process.env.QSPARK_QWEN_API_KEY).split(',').map(k => k.trim()).filter(Boolean) : QWEN_API_KEYS;
 const QSPARK_NVIDIA_API_KEYS = (process.env.QSPARK_NVIDIA_API_KEYS || process.env.QSPARK_NVIDIA_API_KEY)
   ? String(process.env.QSPARK_NVIDIA_API_KEYS || process.env.QSPARK_NVIDIA_API_KEY).split(',').map(k => k.trim()).filter(Boolean)
   : NVIDIA_API_KEYS;
@@ -111,12 +102,9 @@ let qSparkQwenCursor = 0;
 let qSparkNvidiaCursor = 0;
 
 // Qcode uses a separate provider namespace and isolated workspace.
-const QCODE_GROQ_API_KEYS = String(process.env.QCODE_GROQ_API_KEYS || process.env.QCODE_GROQ_API_KEY || '')
-  .split(',').map(k => k.trim()).filter(Boolean);
-const QCODE_QWEN_API_KEYS = String(process.env.QCODE_QWEN_API_KEYS || process.env.QCODE_QWEN_API_KEY || '')
-  .split(',').map(k => k.trim()).filter(Boolean);
-const QCODE_KIMI_API_KEYS = String(process.env.QCODE_KIMI_API_KEYS || process.env.QCODE_KIMI_API_KEY || '')
-  .split(',').map(k => k.trim()).filter(Boolean);
+const QCODE_GROQ_API_KEYS = (process.env.QCODE_GROQ_API_KEYS || process.env.QCODE_GROQ_API_KEY) ? String(process.env.QCODE_GROQ_API_KEYS || process.env.QCODE_GROQ_API_KEY).split(',').map(k => k.trim()).filter(Boolean) : GROQ_API_KEYS;
+const QCODE_QWEN_API_KEYS = (process.env.QCODE_QWEN_API_KEYS || process.env.QCODE_QWEN_API_KEY) ? String(process.env.QCODE_QWEN_API_KEYS || process.env.QCODE_QWEN_API_KEY).split(',').map(k => k.trim()).filter(Boolean) : QWEN_API_KEYS;
+const QCODE_KIMI_API_KEYS = (process.env.QCODE_KIMI_API_KEYS || process.env.QCODE_KIMI_API_KEY) ? String(process.env.QCODE_KIMI_API_KEYS || process.env.QCODE_KIMI_API_KEY).split(',').map(k => k.trim()).filter(Boolean) : KIMI_API_KEYS;
 const QCODE_NVIDIA_API_KEYS = (process.env.QCODE_NVIDIA_API_KEYS || process.env.QCODE_NVIDIA_API_KEY) 
   ? String(process.env.QCODE_NVIDIA_API_KEYS || process.env.QCODE_NVIDIA_API_KEY).split(',').map(k => k.trim()).filter(Boolean)
   : NVIDIA_API_KEYS;
