@@ -95,8 +95,62 @@ function createSearchService(deps) {
     }));
   }
 
-  // Last resort only: DDG Instant Answer (weak, but better than nothing).
-  async function duckDuckGoSearch(query, maxResults = 5) {
+  // Last resort, key-free: DuckDuckGo. The old Instant Answer API almost
+  // never returns web results, so we now scrape the public HTML results page
+  // first (real web search, no key) and only then fall back to Instant Answer.
+  function decodeDdgEntities(text) {
+    return String(text || '')
+      .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"').replace(/&#x27;|&#39;/g, "'").replace(/&#x2F;/g, '/');
+  }
+
+  function unwrapDdgUrl(href) {
+    const raw = decodeDdgEntities(href || '');
+    const match = raw.match(/uddg=([^&]+)/);
+    if (match) { try { return decodeURIComponent(match[1]); } catch (_) { return raw; } }
+    if (raw.startsWith('//')) return 'https:' + raw;
+    return raw;
+  }
+
+  function stripHtml(text) {
+    return decodeDdgEntities(String(text || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim());
+  }
+
+  async function duckDuckGoHtmlSearch(query, maxResults = 5) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    try {
+      const response = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`, {
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml'
+        }
+      });
+      clearTimeout(timeout);
+      if (!response.ok) return [];
+      const html = await response.text();
+      const results = [];
+      const blocks = html.match(/<div class="result results_links[^"]*"[\s\S]*?(?=<div class="result results_links|<div id="links" class="results_links_end|$)/g) || [];
+      for (const block of blocks.slice(0, Math.max(1, maxResults) + 2)) {
+        const linkMatch = block.match(/<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/i);
+        if (!linkMatch) continue;
+        const url = unwrapDdgUrl(linkMatch[1]).slice(0, 700);
+        const title = stripHtml(linkMatch[2]).slice(0, 180);
+        if (!url || !title || !/^https?:\/\//i.test(url)) continue;
+        const snippetMatch = block.match(/class="result__snippet"[^>]*>([\s\S]*?)<\/a>/i) || block.match(/class="result__snippet"[^>]*>([\s\S]*?)<\/div>/i);
+        const content = snippetMatch ? stripHtml(snippetMatch[1]).slice(0, 900) : '';
+        results.push({ title, url, content, score: Math.max(0.2, 0.6 - results.length * 0.05), query });
+        if (results.length >= maxResults) break;
+      }
+      return results;
+    } catch (_) {
+      clearTimeout(timeout);
+      return [];
+    }
+  }
+
+  async function duckDuckGoInstantAnswers(query, maxResults = 5) {
     const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
     const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
     const data = await response.json().catch(() => ({}));
@@ -112,8 +166,15 @@ function createSearchService(deps) {
       }
     }
     flatten(data.RelatedTopics);
-    if (!results.length) results.push({ title: 'DuckDuckGo search', url: 'https://duckduckgo.com/?q=' + encodeURIComponent(query), content: 'No instant answer was returned. Use the linked search page for manual verification.', score: 0.1, query });
     return results.slice(0, maxResults);
+  }
+
+  async function duckDuckGoSearch(query, maxResults = 5) {
+    const htmlResults = await duckDuckGoHtmlSearch(query, maxResults);
+    if (htmlResults.length) return htmlResults;
+    const instant = await duckDuckGoInstantAnswers(query, maxResults);
+    if (instant.length) return instant;
+    return [{ title: 'DuckDuckGo search', url: 'https://duckduckgo.com/?q=' + encodeURIComponent(query), content: 'No instant answer was returned. Use the linked search page for manual verification.', score: 0.1, query }];
   }
 
   async function searchProvider(query, maxResults = 5, depth = 'basic', mode = 'general') {
