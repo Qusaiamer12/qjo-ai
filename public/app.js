@@ -635,8 +635,8 @@ const QJO_FRONTEND_VERSION = 'qjo-required-fixes-v1-2026-07-26-117';
       measurementId: "G-J5RGLP3EG5"
     };
 
-    const GROQ_FLASH_MODEL = 'llama-3.1-8b-instant';
-    const GROQ_MODEL = 'llama-3.3-70b-versatile'; // Max/Code reasoning model; Flash remains 8B for speed
+    const GROQ_FLASH_MODEL = 'openai/gpt-oss-20b'; // Groq's replacement for llama-3.1-8b-instant (deprecated, shuts 2026-08-16)
+    const GROQ_MODEL = 'openai/gpt-oss-120b'; // Groq's replacement for llama-3.3-70b-versatile (deprecated, shuts 2026-08-16)
     const GROQ_VISION_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
     const TEXT_MAX_TOKENS = 2600;
     const VISION_MAX_TOKENS = 1000;

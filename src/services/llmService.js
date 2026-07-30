@@ -63,6 +63,25 @@ function clientAbortError() {
   return err;
 }
 
+// ── Model migration map ──
+// Groq deprecates model IDs over time (llama-3.1-8b-instant and
+// llama-3.3-70b-versatile shut down 2026-08-16 per console.groq.com/docs/
+// deprecations). If a provider answers "model decommissioned", we swap to the
+// recommended replacement ONCE and retry instead of failing the whole chain —
+// this keeps old env values (e.g. GROQ_FLASH_MODEL pinned long ago) working.
+const MODEL_MIGRATIONS = {
+  'llama-3.1-8b-instant': 'openai/gpt-oss-20b',
+  'llama-3.3-70b-versatile': 'openai/gpt-oss-120b',
+  'llama3-70b-8192': 'openai/gpt-oss-120b',
+  'llama3-8b-8192': 'openai/gpt-oss-20b',
+  'gemma2-9b-it': 'openai/gpt-oss-20b',
+  'mixtral-8x7b-32768': 'openai/gpt-oss-120b'
+};
+
+function migratedModel(model) {
+  return MODEL_MIGRATIONS[model] || null;
+}
+
 function createLlmService(config = {}) {
   const cursors = new Map();
 
@@ -153,7 +172,16 @@ function createLlmService(config = {}) {
     return { fullText, toolCalls, finishReason: finishReason || 'stop' };
   }
 
-  async function callOpenAICompatible({ provider, baseUrl, model, messages, temperature, max_tokens, tools, extraHeaders = {}, onChunk, timeoutMs, signal }) {
+  async function callOpenAICompatible({ provider, baseUrl, model, messages, temperature, max_tokens, tools, extraHeaders = {}, onChunk, timeoutMs, signal, _migrated = false }) {
+    // Proactive migration for known-deprecated Groq IDs (shutdown 2026-08-16);
+    // the reactive retry below catches anything unknown/non-Groq.
+    if (provider === 'groq') {
+      const mig = migratedModel(model);
+      if (mig) {
+        console.warn(`[llmService] model "${model}" is deprecated by Groq — using "${mig}" instead.`);
+        model = mig;
+      }
+    }
     const keys = rotateKeys(provider);
     if (!keys.length || !baseUrl || !model) return { ok: false, status: 501, error: `${provider} is not configured.` };
 
@@ -212,6 +240,15 @@ function createLlmService(config = {}) {
         const data = await response.json().catch(() => ({}));
         attempt.done();
         const errorMsg = data?.error?.message || data?.message || `${provider} HTTP ${response.status}`;
+
+        // Reactive migration: provider says this exact model is gone.
+        if (!_migrated && (response.status === 400 || response.status === 404)) {
+          const mig = migratedModel(model);
+          if (mig && /decommissioned|no longer supported|not found|does not exist|invalid model/i.test(errorMsg)) {
+            return callOpenAICompatible({ provider, baseUrl, model: mig, messages, temperature, max_tokens, tools, extraHeaders, onChunk, timeoutMs, signal, _migrated: true });
+          }
+        }
+
         lastError = { status: response.status, error: errorMsg };
         const limited = response.status === 429 || response.status === 402 || /rate|quota|limit|balance|insufficient/i.test(errorMsg);
         if (limited) continue;

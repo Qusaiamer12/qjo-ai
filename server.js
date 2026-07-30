@@ -146,8 +146,11 @@ let nvidiaKeyCursor = 0;
 let openRouterKeyCursor = 0;
 let agnesKeyCursor = 0;
 const IP_RATE_LIMIT_PER_MINUTE = Number(process.env.IP_RATE_LIMIT_PER_MINUTE || 0); // 0 = disabled
-const GROQ_FLASH_MODEL = process.env.GROQ_FLASH_MODEL || 'llama-3.1-8b-instant';
-const GROQ_TEXT_MODEL = process.env.GROQ_TEXT_MODEL || 'llama-3.3-70b-versatile';
+// Groq's official replacements for the llama-3.1/3.3 line (shutting down
+// 2026-08-16 — see console.groq.com/docs/deprecations). llmService also
+// auto-migrates any stale values coming from old envs.
+const GROQ_FLASH_MODEL = process.env.GROQ_FLASH_MODEL || 'openai/gpt-oss-20b';
+const GROQ_TEXT_MODEL = process.env.GROQ_TEXT_MODEL || 'openai/gpt-oss-120b';
 const GROQ_VISION_MODEL = process.env.GROQ_VISION_MODEL || 'meta-llama/llama-4-scout-17b-16e-instruct';
 const GEMINI_FLASH_MODEL = process.env.GEMINI_FLASH_MODEL || 'gemini-2.0-flash';
 const GEMINI_TEXT_MODEL = process.env.GEMINI_TEXT_MODEL || 'gemini-2.0-flash';
@@ -243,6 +246,9 @@ const ALLOWED_MODELS = new Set([
   GROQ_FLASH_MODEL,
   GROQ_TEXT_MODEL,
   GROQ_VISION_MODEL,
+  'openai/gpt-oss-20b',
+  'openai/gpt-oss-120b',
+  // Legacy IDs still accepted from old clients; llmService migrates them.
   'llama-3.1-8b-instant',
   'llama-3.3-70b-versatile',
   'meta-llama/llama-4-scout-17b-16e-instruct'

@@ -356,6 +356,8 @@ function createRoutingEngine(deps) {
 
     // 3) Explicit client model choice is honoured FIRST (Max-mode users get
     //    the 70B they asked for), then the pipeline takes over on failure.
+    //    Note: filter only the EXACT [provider,slot] pair — dropping the whole
+    //    provider here used to leave single-key users with zero fallbacks.
     const explicit = locateExplicitModel(model);
     const wantCode = route.intent === 'code' || normMode === 'code';
     const pipeline = wantCode
@@ -363,7 +365,7 @@ function createRoutingEngine(deps) {
       : (normMode === 'max' ? (arabicHeavy ? PIPELINES.maxAr : PIPELINES.maxEn) : PIPELINES.flash);
 
     const chain = explicit && !hasImages
-      ? [explicit, ...pipeline.filter(([p]) => p !== explicit[0])]
+      ? [explicit, ...pipeline.filter(([p, s]) => !(p === explicit[0] && s === explicit[1]))]
       : pipeline;
 
     return runChain(chain, {
