@@ -241,7 +241,17 @@ function rankSearchBeastResults(results, mode, question) {
     };
     
     let baseScore = (source.reliabilityScore || 0) * 1.25 + (source.relevanceScore || 0) * 0.9 + (source.firecrawl ? 0.15 : 0);
-    
+
+    // Freshness boost for time-sensitive modes: same-day sources get up to
+    // +0.6, decaying over ~30 days. Previously fresh and stale ranked equal.
+    if (mode === 'news' || mode === 'pricing' || mode === 'market') {
+      const ts = Date.parse(result.publishedDate || result.published_date || '');
+      if (Number.isFinite(ts)) {
+        const ageDays = Math.max(0, (Date.now() - ts) / 86400000);
+        baseScore += Math.max(0, 0.6 - ageDays * 0.02);
+      }
+    }
+
     // Spam / Access Block / empty content penalty
     const contentLower = String(result.content || '').toLowerCase();
     const titleLower = String(result.title || '').toLowerCase();

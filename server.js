@@ -21,6 +21,7 @@ const { registerAdminRoutes } = require('./src/routes/admin');
 const { registerSystemRoutes } = require('./src/routes/system');
 const { createLlmService } = require('./src/services/llmService');
 const { createRoutingEngine } = require('./src/agents/RoutingEngine');
+const { createChatPromptBuilder } = require('./src/services/systemPrompt');
 const { registerSearchRoutes } = require('./src/routes/search');
 const { createQcodeAgent } = require('./src/agents/qcodeAgent');
 const { registerQcodeRoutes } = require('./src/routes/qcode');
@@ -160,6 +161,10 @@ const KIMI_TEXT_MODEL = process.env.KIMI_TEXT_MODEL || process.env.KIMI_MODEL ||
 const KIMI_CODE_MODEL = process.env.KIMI_CODE_MODEL || KIMI_TEXT_MODEL;
 const NVIDIA_FLASH_MODEL = process.env.NVIDIA_FLASH_MODEL || 'meta/llama-3.1-8b-instruct';
 const NVIDIA_TEXT_MODEL = process.env.NVIDIA_TEXT_MODEL || 'meta/llama-3.1-70b-instruct';
+// Vision-capable slots (image requests route here FIRST now — previously they
+// marched through text-only models and died). Leave empty to disable a slot.
+const QWEN_VISION_MODEL = process.env.QWEN_VISION_MODEL || 'qwen-vl-plus';
+const NVIDIA_VISION_MODEL = process.env.NVIDIA_VISION_MODEL || '';
 const OPENROUTER_FREE_MODELS = String(process.env.OPENROUTER_FREE_MODELS || 'qwen/qwen3-235b-a22b:free,meta-llama/llama-3.3-70b-instruct:free,mistralai/mistral-7b-instruct:free')
   .split(',')
   .map(m => m.trim())
@@ -484,17 +489,22 @@ const routingEngine = createRoutingEngine({
   models: {
     groqFlash: GROQ_FLASH_MODEL,
     groqText: GROQ_TEXT_MODEL,
+    groqCode: GROQ_TEXT_MODEL,
+    groqVision: GROQ_VISION_MODEL,
     geminiText: GEMINI_TEXT_MODEL,
     geminiFlash: GEMINI_FLASH_MODEL,
+    geminiVision: GEMINI_VISION_MODEL,
     qwenFlash: QWEN_FLASH_MODEL,
     qwenText: QWEN_TEXT_MODEL,
     qwenCode: QWEN_CODE_MODEL,
+    qwenVision: QWEN_VISION_MODEL,
     kimiFlash: KIMI_FLASH_MODEL,
     kimiText: KIMI_TEXT_MODEL,
     kimiCode: KIMI_CODE_MODEL,
     nvidiaFlash: NVIDIA_FLASH_MODEL,
     nvidiaText: NVIDIA_TEXT_MODEL,
-    geminiPro: 'gemini-2.5-pro'
+    nvidiaCode: NVIDIA_TEXT_MODEL,
+    nvidiaVision: NVIDIA_VISION_MODEL
   }
 });
 
@@ -564,14 +574,19 @@ registerAdminRoutes(app, {
     groqFlash: GROQ_FLASH_MODEL,
     groqText: GROQ_TEXT_MODEL,
     groqVision: GROQ_VISION_MODEL,
+    geminiFlash: GEMINI_FLASH_MODEL,
+    geminiText: GEMINI_TEXT_MODEL,
+    geminiVision: GEMINI_VISION_MODEL,
     qwenFlash: QWEN_FLASH_MODEL,
     qwenText: QWEN_TEXT_MODEL,
     qwenCode: QWEN_CODE_MODEL,
+    qwenVision: QWEN_VISION_MODEL,
     kimiFlash: KIMI_FLASH_MODEL,
     kimiText: KIMI_TEXT_MODEL,
     kimiCode: KIMI_CODE_MODEL,
     nvidiaFlash: NVIDIA_FLASH_MODEL,
-    nvidiaText: NVIDIA_TEXT_MODEL
+    nvidiaText: NVIDIA_TEXT_MODEL,
+    nvidiaVision: NVIDIA_VISION_MODEL
   }),
   featuresDiagnostics: () => ({
     publicConfig: true,
@@ -686,7 +701,15 @@ registerSystemRoutes(app, {
       kimi: QCODE_KIMI_API_KEYS.length,
       nvidia: QCODE_NVIDIA_API_KEYS.length
     },
-    routerOrder: ['gemini', 'groq', 'qwen', 'kimi', 'nvidia', 'openrouter-free-only', 'agnes'],
+    routerVersion: 'pipelines-v2',
+    chatPipelines: {
+      lite: ['groq:flash', 'gemini:flash', 'qwen:flash', 'kimi:flash', 'nvidia:flash'],
+      flash: ['gemini:flash', 'qwen:flash', 'groq:text', 'kimi:flash', 'nvidia:text', 'openrouter:free'],
+      maxAr: ['qwen:text', 'kimi:text', 'groq:text', 'gemini:text', 'nvidia:text', 'openrouter:free'],
+      maxEn: ['groq:text', 'qwen:text', 'kimi:text', 'gemini:text', 'nvidia:text', 'openrouter:free'],
+      code: ['kimi:code', 'qwen:code', 'groq:text', 'nvidia:text', 'gemini:text', 'openrouter:free'],
+      vision: ['groq:vision', 'gemini:vision', 'qwen:vision', 'nvidia:vision']
+    },
     models: {
       flash: GROQ_FLASH_MODEL,
       text: GROQ_TEXT_MODEL,
@@ -725,9 +748,23 @@ registerSystemRoutes(app, {
 
 registerExportRoutes(app, { verifyFirebaseRequest, uploadMiddleware: qcodeUpload });
 
+// Picks the fastest available provider for the search query rewriter
+// (a tiny 150-token call that massively improves Arabic/dialect queries).
+function pickQueryRewriter() {
+  if (GROQ_API_KEYS.length) return { provider: 'groq', model: GROQ_FLASH_MODEL };
+  if (GEMINI_API_KEYS.length) return { provider: 'gemini', model: GEMINI_FLASH_MODEL };
+  if (QWEN_API_KEYS.length) return { provider: 'qwen', model: QWEN_FLASH_MODEL };
+  if (KIMI_API_KEYS.length) return { provider: 'kimi', model: KIMI_FLASH_MODEL };
+  if (NVIDIA_API_KEYS.length) return { provider: 'nvidia', model: NVIDIA_FLASH_MODEL };
+  return null; // regex distillation fallback handles it
+}
+
 const searchService = createSearchService({
   tavilyApiKey: TAVILY_API_KEY,
   firecrawlApiKey: FIRECRAWL_API_KEY,
+  braveApiKey: process.env.BRAVE_API_KEY,
+  llmService,
+  queryRewriter: pickQueryRewriter(),
   stableCacheKey,
   cacheGet,
   cacheSet,
@@ -739,6 +776,8 @@ routingEngine.searchService = searchService;
 
 
 
+const chatPromptBuilder = createChatPromptBuilder();
+
 registerChatRoutes(app, {
   hasAnyAiProvider: () => Boolean(GEMINI_API_KEYS.length || GROQ_API_KEYS.length || QWEN_API_KEYS.length || KIMI_API_KEYS.length || NVIDIA_API_KEYS.length || OPENROUTER_API_KEYS.length || AGNES_API_KEYS.length),
   verifyFirebaseRequest,
@@ -747,9 +786,10 @@ registerChatRoutes(app, {
   defaultModel: GROQ_TEXT_MODEL,
   flashModel: GROQ_FLASH_MODEL,
   cleanMessages,
-  containsImageContent: () => false,
+  containsImageContent: (messages) => (messages || []).some(m => Array.isArray(m.content) && m.content.some(p => p?.type === 'image_url')),
   routingEngine,
   fullSystemPrompt: QJO_FULL_TRAINING_PROMPT,
+  buildChatSystemPrompt: chatPromptBuilder.buildChatSystemPrompt,
   defaultMaxTokens: 2600,
   getClientIp,
   lookupClientGeo,

@@ -59,6 +59,21 @@ function isTruncatedProviderResponse(ai) {
   return finish === 'length' || finish === 'max_tokens' || finish === 'max_output_tokens';
 }
 
+// Arabic-heavy detection: used to prefer providers with stronger Arabic
+// (Qwen/Kimi) on long-form quality pipelines.
+function isArabicHeavyText(text) {
+  const t = String(text || '').slice(-4000);
+  if (!t.trim()) return false;
+  const arabicChars = (t.match(/[؀-ۿ]/g) || []).length;
+  return arabicChars > 60 && arabicChars > t.length * 0.05;
+}
+
+// Does this message plausibly need fresh/current info? Decides whether the
+// web_search tool schema is worth attaching (the model itself then decides).
+function mightNeedFreshness(text) {
+  return /(اليوم|الآن|حالياً|حالي|آخر|اخر|سعر|أسعار|نتيجة|مباراة|طقس|خبر|أخبار|صار|صارت|موعد| متى |latest|current|today|price|score|weather|news|happened)/i.test(String(text || ''));
+}
+
 // ── Routing Decision Validation ──
 function validateRoutingDecision(raw) {
   const parsed = RoutingDecisionSchema.safeParse(raw);
@@ -81,7 +96,7 @@ function classifyQjoRequest({ messages, mode, routingDecision }) {
   const longContext = text.length > 18000;
   const researchIntent = hasSearchContext || /(بحث|مصادر|دراسة|تقرير|قارن|مقارنة|تحليل سوق|research|sources|compare|report|market analysis|literature)/i.test(text);
   const puzzleReasoningIntent = /(لغز|صناديق|ملصقات خاطئة|تفاح|برتقال|فاكهة واحدة|منطق|استنتاج|logic puzzle|riddle|boxes|labels|apples|oranges)/i.test(text);
-  const advancedIntent = mode === 'advanced';
+  const advancedIntent = mode === 'advanced' || mode === 'max';
 
   let intent = 'general';
   if (hasSearchContext) intent = 'search';
@@ -102,15 +117,40 @@ function classifyQjoRequest({ messages, mode, routingDecision }) {
 function isLiteRequest(messages) {
   const userMessages = (messages || []).filter(m => m.role === 'user');
   if (userMessages.length !== 1) return false;
-  
+
   const text = textFromMessageContent(userMessages[0].content).trim();
   const wordCount = text.split(/\s+/).length;
-  
+
   if (wordCount > 12) return false;
   if (containsImageContent(messages)) return false;
   if (/(```|{|}|function|class|calculate|احسب|search|بحث|https?:\/\/)/i.test(text)) return false;
-  
+
   return true;
+}
+
+// ── Pipeline definitions ──
+// Order = quality × fit for the pipeline's job. Providers without keys (or
+// without a model configured for the requested slot) are skipped at runtime.
+const PIPELINES = {
+  // Lite track: tiny casual messages. Fast/cheap models only.
+  lite: [['groq', 'flash'], ['gemini', 'flash'], ['qwen', 'flash'], ['kimi', 'flash'], ['nvidia', 'flash']],
+  // Flash mode: high velocity, still competent. No 8B-class models first.
+  flash: [['gemini', 'flash'], ['qwen', 'flash'], ['groq', 'text'], ['kimi', 'flash'], ['nvidia', 'text'], ['openrouter', 'text']],
+  // Max mode (Arabic-heavy): strongest Arabic models first.
+  maxAr: [['qwen', 'text'], ['kimi', 'text'], ['groq', 'text'], ['gemini', 'text'], ['nvidia', 'text'], ['openrouter', 'text']],
+  // Max mode (English / mixed): strongest general models first.
+  maxEn: [['groq', 'text'], ['qwen', 'text'], ['kimi', 'text'], ['gemini', 'text'], ['nvidia', 'text'], ['openrouter', 'text']],
+  // Code mode: code-first models.
+  code: [['kimi', 'code'], ['qwen', 'code'], ['groq', 'text'], ['nvidia', 'text'], ['gemini', 'text'], ['openrouter', 'text']],
+  // Vision requests: only vision-capable slots survive the filters.
+  vision: [['groq', 'vision'], ['gemini', 'vision'], ['qwen', 'vision'], ['nvidia', 'vision']]
+};
+
+function normalizeMode(mode) {
+  const m = String(mode || '').toLowerCase();
+  if (m === 'code') return 'code';
+  if (m === 'advanced' || m === 'max') return 'max';
+  return 'flash'; // 'normal' / 'flash' / ''
 }
 
 // ── Unified Routing Engine ──
@@ -122,7 +162,7 @@ function createRoutingEngine(deps) {
   function formatSearchResultsForTool(payload) {
     const results = (payload?.results || []).slice(0, 6);
     if (!results.length) return `No web results found for "${payload?.query || ''}".`;
-    return results.map(r => `[${r.id}] ${r.title || 'untitled'} (${r.url})\n${String(r.content || '').slice(0, 500)}`).join('\n\n');
+    return results.map(r => `[${r.id}] ${r.title || 'untitled'} (${r.url})\n${String(r.content || '').slice(0, 900)}`).join('\n\n');
   }
 
   async function executeToolCalls(toolCalls, originalQuestion) {
@@ -151,121 +191,191 @@ function createRoutingEngine(deps) {
     return { toolMessages, used };
   }
 
-  function buildTools(useTools, skipWebSearch) {
-    if (!useTools) return undefined;
+  // ── Provider plumbing ──
+  const hasKeys = (provider) => (keys[provider] || 0) > 0;
+
+  function slotModel(provider, slot) {
+    if (slot === 'vision') {
+      // Vision must never silently fall back to a text-only model — that is
+      // exactly what used to kill every image request.
+      return models[`${provider}Vision`] || null;
+    }
+    const cap = slot[0].toUpperCase() + slot.slice(1);
+    return models[`${provider}${cap}`] || models[`${provider}Text`] || models[`${provider}Flash`] || null;
+  }
+
+  function attempts(chain) {
+    return chain.filter(([provider, slot]) => {
+      if (!hasKeys(provider)) return false;
+      if (provider === 'openrouter') return slot !== 'vision'; // free models are text-only
+      return Boolean(slotModel(provider, slot));
+    });
+  }
+
+  async function tryProvider(provider, slot, params) {
+    if (provider === 'openrouter') return llmService.callOpenRouterFreeChat(params);
+    const model = slotModel(provider, slot);
+    if (!model) return { ok: false, status: 501, error: `No ${slot} model for ${provider}.` };
+    return llmService.dispatch(provider, { model, ...params });
+  }
+
+  // Runs a chain of [provider, slot] attempts with a shared deadline. A
+  // provider failure (including timeout) simply advances the chain.
+  async function runChain(chain, params, { withTools = false, originalQuestion = '' } = {}) {
+    const list = attempts(chain);
+    if (!list.length) return { ok: false, status: 501, error: 'No provider configured.' };
+    let last = null;
+    for (const [provider, slot] of list) {
+      if (params.deadlineMs) {
+        const remaining = params.deadlineMs - Date.now();
+        if (remaining < 2500) break;
+        params.timeoutMs = Math.min(params.maxPerProviderMs || 12000, remaining - 1000);
+      }
+      const res = await tryProvider(provider, slot, params);
+      if (!res.ok) { last = res; continue; }
+
+      // Non-streaming providers (e.g. Gemini path): deliver the whole answer
+      // as one instant chunk so SSE clients never stare at an empty bubble.
+      if (res.ok && params.onChunk && res.answer && !res.streamed) params.onChunk(res.answer);
+
+      const toolCalls = res.toolCalls || [];
+      if (!withTools || !toolCalls.length) return res;
+
+      // First pass asked for tools: execute, then continue on the SAME provider.
+      const { toolMessages, used } = await executeToolCalls(toolCalls, originalQuestion);
+      if (!toolMessages.length) return res;
+      if (params.deadlineMs && params.deadlineMs - Date.now() < 2500) return res;
+      const second = await tryProvider(provider, slot, {
+        ...params,
+        messages: [...params.messages, res.message, ...toolMessages],
+        tools: undefined
+      });
+      if (second.ok) return { ...second, toolsUsed: used };
+      return res; // better a tool-less first answer than a failed second call
+    }
+    return last || { ok: false, status: 503, error: 'All providers failed.' };
+  }
+
+  // Locates which provider/slot an explicit client-chosen model maps to.
+  function locateExplicitModel(modelName) {
+    const target = String(modelName || '').trim();
+    if (!target) return null;
+    for (const provider of ['groq', 'gemini', 'qwen', 'kimi', 'nvidia']) {
+      if (!hasKeys(provider)) continue;
+      for (const slot of ['flash', 'text', 'code', 'vision']) {
+        const cap = slot[0].toUpperCase() + slot.slice(1);
+        if (models[`${provider}${cap}`] === target) return [provider, slot];
+      }
+    }
+    return null;
+  }
+
+  function buildTools({ attach }) {
+    if (!attach.length) return undefined;
     const tools = [];
-    if (safeCalculate) tools.push(CALCULATOR_TOOL);
-    if (searchService && !skipWebSearch) tools.push(WEB_SEARCH_TOOL);
+    if (attach.includes('calculate') && safeCalculate) tools.push(CALCULATOR_TOOL);
+    if (attach.includes('web_search') && searchService) tools.push(WEB_SEARCH_TOOL);
     return tools.length ? tools : undefined;
   }
 
-  async function callWithTools(callFn, params, originalQuestion) {
-    const first = await callFn(params);
-    if (!first.ok) return first;
-    const toolCalls = first.toolCalls || [];
-    if (!toolCalls.length) return first;
-    const { toolMessages, used } = await executeToolCalls(toolCalls, originalQuestion);
-    if (!toolMessages.length) return first;
-    const second = await callFn({ ...params, messages: [...params.messages, first.message, ...toolMessages], tools: undefined });
-    return second.ok ? { ...second, toolsUsed: used } : first;
-  }
-
   // Unified router for Chat, Qcode, and Qspark modes
-  async function callAgent({ agentType = 'chat', mode, messages, temperature = 0.7, max_tokens = 4000, useTools, routingDecision, qsparkProvider, onChunk }) {
-    
-    // --- 1. Lite Prompt Fast Track ---
-    if (agentType === 'chat' && isLiteRequest(messages)) {
-      const liteMessages = [{ role: 'system', content: 'You are Qjo, a helpful AI. Reply briefly and warmly.' }, ...messages.filter(m => m.role !== 'system')];
-      if (keys.nvidia > 0) {
-        const n = await llmService.callNvidiaChat({ model: models.nvidiaFlash || 'meta/llama-3.1-8b-instruct', messages: liteMessages, temperature, max_tokens, onChunk });
-        if (n.ok) return n;
-      }
-      if (keys.groq > 0) {
-        const g = await llmService.callGroqChat({ model: models.groqFlash || 'llama-3.3-70b-versatile', messages: liteMessages, temperature, max_tokens, onChunk });
-        if (g.ok) return g;
-      }
-      if (keys.qwen > 0) {
-        const q = await llmService.callQwenChat({ model: models.qwenFlash || 'qwen-plus', messages: liteMessages, temperature, max_tokens, onChunk });
-        if (q.ok) return q;
-      }
-      // If all lite providers fail, fall through to full routing below
+  async function callAgent({
+    agentType = 'chat', mode, messages, temperature = 0.7, max_tokens = 4000,
+    useTools, routingDecision, qsparkProvider, onChunk, model,
+    deadlineMs, budgetMs, signal
+  } = {}) {
+    if (!deadlineMs) {
+      const defaultBudget = agentType === 'qcode' ? 120000 : agentType === 'qspark' ? 60000 : (budgetMs || 40000);
+      deadlineMs = Date.now() + defaultBudget;
     }
+    const base = { messages, temperature, max_tokens, onChunk, deadlineMs, signal };
 
-    // --- 2. Qcode Mode Routing ---
+    // ── Qcode Mode ──
     if (agentType === 'qcode') {
-      const order = ['groq', 'qwen', 'kimi', 'nvidia'];
-      for (const p of order) {
-        if (!keys[p] || keys[p] === 0) continue;
-        const result = await (p === 'groq' ? llmService.callGroqChat : p === 'qwen' ? llmService.callQwenChat : p === 'nvidia' ? llmService.callNvidiaChat : llmService.callKimiChat)({
-          model: models[`${p}Code`] || models[`${p}Text`], messages, temperature: temperature || 0.14, max_tokens: max_tokens || 4200
-        });
-        if (result.ok) return result;
-      }
-      return { ok: false, status: 503, error: 'No Qcode provider is working.' };
+      const chain = [['groq', 'code'], ['qwen', 'code'], ['kimi', 'code'], ['nvidia', 'code']];
+      const res = await runChain(chain, {
+        ...base,
+        temperature: temperature ?? 0.14,
+        max_tokens: max_tokens || 4200,
+        maxPerProviderMs: 30000
+      });
+      return res.ok ? res : { ok: false, status: res.status || 503, error: res.error || 'No Qcode provider is working.' };
     }
 
-    // --- 3. Qspark Mode Routing ---
+    // ── Qspark Mode ──
     if (agentType === 'qspark') {
       const requested = String(qsparkProvider || 'groq').toLowerCase();
-      const fallbackList = ['groq', 'qwen', 'nvidia', 'kimi'];
-      const order = Array.from(new Set([requested, ...fallbackList]));
-      for (const p of order) {
-        if (!keys[p] || keys[p] === 0) continue;
-        const result = await (p === 'groq' ? llmService.callGroqChat : p === 'qwen' ? llmService.callQwenChat : p === 'nvidia' ? llmService.callNvidiaChat : llmService.callKimiChat)({
-          model: models[`${p}Text`], messages, temperature: temperature || 0.15, max_tokens: max_tokens || 3000
-        });
-        if (result.ok) return result;
-      }
-      return { ok: false, status: 503, error: 'No Q-Spark provider is working.' };
+      const order = Array.from(new Set([requested, 'groq', 'qwen', 'nvidia', 'kimi']));
+      const chain = order.map(p => [p, 'text']);
+      const res = await runChain(chain, {
+        ...base,
+        temperature: temperature ?? 0.15,
+        max_tokens: max_tokens || 3000,
+        maxPerProviderMs: 20000
+      });
+      return res.ok ? res : { ok: false, status: res.status || 503, error: res.error || 'No Q-Spark provider is working.' };
     }
 
-    // --- 4. Chat/General Smart Routing ---
+    // ── Chat/General Smart Routing ──
     const originalQuestion = combinedUserText(messages);
     const hasImages = containsImageContent(messages);
     const route = classifyQjoRequest({ messages, mode, routingDecision });
-    const tools = buildTools(useTools && !hasImages, route.hasSearchContext);
+    const normMode = normalizeMode(mode);
+    const arabicHeavy = isArabicHeavyText(originalQuestion);
 
-    // Nvidia First Priority (Primary Provider)
-    if (keys.nvidia > 0) {
-      const nvidiaModel = (route.intent === 'reasoning' || route.mathIntent) ? (models.nvidiaText || 'meta/llama-3.1-70b-instruct') : (models.nvidiaFlash || 'meta/llama-3.1-8b-instruct');
-      const nvidia = await llmService.callNvidiaChat({ model: nvidiaModel, messages, temperature, max_tokens, onChunk });
-      if (nvidia.ok) return nvidia;
+    // Tool attachment policy:
+    //  • calculator whenever math is plausible (never for images)
+    //  • web_search when the question might need freshness AND the client has
+    //    not already injected a source pack (avoids double searching)
+    const attach = [];
+    if (useTools !== false && !hasImages) {
+      if (route.mathIntent) attach.push('calculate');
+      if (searchService && !route.hasSearchContext && (normMode === 'max' || mightNeedFreshness(originalQuestion))) attach.push('web_search');
+    }
+    const tools = buildTools({ attach });
+
+    // 1) Images: they only ever work on vision-capable slots. Previously every
+    //    image request marched through text-only models and died.
+    if (hasImages) {
+      const res = await runChain(PIPELINES.vision, { ...base, maxPerProviderMs: 16000 });
+      if (res.ok) return res;
+      // fall through to the normal chain; text models will at least answer
+      // from any extracted/attached text instead of hard failing.
     }
 
-    // Fallbacks based on intent
-    if (keys.qwen > 0 && (mode === 'code' || route.intent === 'reasoning')) {
-      const qwen = await callWithTools(llmService.callQwenChat, { model: models.qwenCode, messages, temperature, max_tokens, tools, onChunk }, originalQuestion);
-      if (qwen.ok) return qwen;
+    // 2) Lite fast track — single short casual message.
+    if (isLiteRequest(messages)) {
+      const liteMessages = [
+        { role: 'system', content: 'You are Qjo, a helpful Arabic-first AI assistant. Reply briefly and warmly in the user\'s language.' },
+        ...messages.filter(m => m.role !== 'system')
+      ];
+      const res = await runChain(PIPELINES.lite, { ...base, messages: liteMessages, tools: undefined, maxPerProviderMs: 8000 });
+      if (res.ok) return res;
+      // fall through to full routing
     }
 
-    if (keys.groq > 0) {
-      const groq = await llmService.callGroqChat({ model: models.groqText, messages, temperature, max_tokens, tools, onChunk });
-      if (groq.ok) {
-        if (groq.toolCalls?.length) {
-          const { toolMessages, used } = await executeToolCalls(groq.toolCalls, originalQuestion);
-          const second = await llmService.callGroqChat({ model: models.groqText, messages: [...messages, groq.message, ...toolMessages], temperature, max_tokens, onChunk });
-          if (second.ok) return { ...second, toolsUsed: used };
-        } else {
-          return groq;
-        }
-      }
-    }
+    // 3) Explicit client model choice is honoured FIRST (Max-mode users get
+    //    the 70B they asked for), then the pipeline takes over on failure.
+    const explicit = locateExplicitModel(model);
+    const wantCode = route.intent === 'code' || normMode === 'code';
+    const pipeline = wantCode
+      ? PIPELINES.code
+      : (normMode === 'max' ? (arabicHeavy ? PIPELINES.maxAr : PIPELINES.maxEn) : PIPELINES.flash);
 
-    if (keys.kimi > 0) {
-      const kimi = await llmService.callKimiChat({ model: models.kimiText, messages, temperature, max_tokens, onChunk });
-      if (kimi.ok) return kimi;
-    }
+    const chain = explicit && !hasImages
+      ? [explicit, ...pipeline.filter(([p]) => p !== explicit[0])]
+      : pipeline;
 
-    if (keys.openRouter > 0) {
-      const or = await llmService.callOpenRouterFreeChat({ messages, temperature, max_tokens });
-      if (or.ok) return or;
-    }
-
-    return { ok: false, status: 503, error: 'All configured AI providers failed.' };
+    return runChain(chain, {
+      ...base,
+      tools: hasImages ? undefined : tools,
+      maxPerProviderMs: normMode === 'flash' ? 10000 : 14000
+    }, { withTools: Boolean(tools), originalQuestion });
   }
 
   async function completeIfTruncated(params) {
     const { ai, messages, temperature, max_tokens } = params;
+    const maxPasses = Math.max(1, Math.min(Number(params.maxPasses ?? 1), 2));
     if (!isTruncatedProviderResponse(ai)) return ai;
     let combined = ai.answer || '';
     let workingMessages = [
@@ -273,7 +383,7 @@ function createRoutingEngine(deps) {
       { role: 'assistant', content: combined },
       { role: 'user', content: 'تابع من حيث توقفت بالضبط. لا تعِد البداية، ولا تضف مقدمة جديدة. أكمل الجملة أو الفقرة الناقصة فقط ثم أكمل باقي الإجابة.' }
     ];
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < maxPasses; i++) {
       const next = await callAgent({ ...params, messages: workingMessages, temperature: Math.min(temperature, 0.3), max_tokens: Math.min(max_tokens, 1800) });
       if (!next.ok || !next.answer) break;
       combined += (combined.endsWith('\n') ? '' : '\n') + next.answer;
@@ -362,5 +472,6 @@ module.exports = {
   validateRoutingDecision,
   routeUserRequestDeterministic,
   buildRouterSystemHint,
-  addRouterSystemHint
+  addRouterSystemHint,
+  PIPELINES
 };

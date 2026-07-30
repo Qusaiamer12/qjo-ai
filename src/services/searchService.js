@@ -1,5 +1,6 @@
 const {
   distillSearchQueryServer,
+  inferSearchMode,
   buildSearchBeastPlan,
   rankSearchBeastResults
 } = require('../search/searchCore');
@@ -16,25 +17,35 @@ function createSearchService(deps) {
   requireDeps(deps);
   const tavilyApiKey = () => String(deps.tavilyApiKey || '').trim();
   const firecrawlApiKey = () => String(deps.firecrawlApiKey || '').trim();
+  const braveApiKey = () => String(deps.braveApiKey || '').trim();
 
-  async function tavilySearch(query, maxResults = 5, depth = 'basic') {
+  // ── Providers ────────────────────────────────────────────────────────────
+
+  async function tavilySearch(query, maxResults = 5, depth = 'basic', mode = 'general') {
     const key = tavilyApiKey();
     if (!key) throw new Error('Tavily is not configured.');
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), depth === 'advanced' ? 18000 : 9000);
+    const timeout = setTimeout(() => controller.abort(), depth === 'advanced' ? 18000 : 8000);
+    const body = {
+      query,
+      search_depth: depth === 'advanced' ? 'advanced' : 'basic',
+      max_results: maxResults,
+      include_answer: true,
+      include_raw_content: depth === 'advanced',
+      include_images: false,
+      // Mode-aware retrieval: news goes through the news topic with a
+      // freshness window; pricing/market get a wider one. Previously
+      // everything went out as topic:'general' with no date window.
+      topic: mode === 'news' ? 'news' : 'general',
+      country: 'jo'
+    };
+    if (mode === 'news') body.days = depth === 'advanced' ? 30 : 7;
+    else if (mode === 'pricing' || mode === 'market') body.days = 30;
     const upstream = await fetch('https://api.tavily.com/search', {
       method: 'POST',
       signal: controller.signal,
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
-      body: JSON.stringify({
-        query,
-        search_depth: depth === 'advanced' ? 'advanced' : 'basic',
-        max_results: maxResults,
-        include_answer: true,
-        include_raw_content: depth === 'advanced',
-        include_images: false,
-        topic: 'general'
-      })
+      body: JSON.stringify(body)
     });
     clearTimeout(timeout);
     const data = await upstream.json().catch(() => ({}));
@@ -48,12 +59,43 @@ function createSearchService(deps) {
       url: String(r.url || '').slice(0, 700),
       content: String(r.content || '').slice(0, depth === 'advanced' ? 1800 : 1200),
       rawContent: String(r.raw_content || '').slice(0, depth === 'advanced' ? 3000 : 0),
+      publishedDate: String(r.published_date || r.publishedDate || '').slice(0, 40),
       score: Number(r.score || 0),
       query,
       providerAnswer: data.answer ? String(data.answer).slice(0, 1200) : ''
     }));
   }
 
+  // Brave Search API — real web search fallback (set BRAVE_API_KEY).
+  async function braveSearch(query, maxResults = 5) {
+    const key = braveApiKey();
+    if (!key) throw new Error('Brave is not configured.');
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const url = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=${Math.min(Math.max(maxResults, 1), 20)}&safesearch=moderate&text_decorations=false`;
+    const upstream = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'Accept': 'application/json', 'X-Subscription-Token': key }
+    });
+    clearTimeout(timeout);
+    const data = await upstream.json().catch(() => ({}));
+    if (!upstream.ok) {
+      const err = new Error('Brave search provider error.');
+      err.statusCode = upstream.status;
+      throw err;
+    }
+    return ((data.web && data.web.results) || []).map((r, i) => ({
+      title: String(r.title || '').slice(0, 180),
+      url: String(r.url || '').slice(0, 700),
+      content: String(r.description || '').slice(0, 900),
+      publishedDate: String(r.page_age || r.age || '').slice(0, 40),
+      score: Math.max(0.05, 0.5 - i * 0.04),
+      query,
+      providerAnswer: ''
+    }));
+  }
+
+  // Last resort only: DDG Instant Answer (weak, but better than nothing).
   async function duckDuckGoSearch(query, maxResults = 5) {
     const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
     const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
@@ -74,9 +116,52 @@ function createSearchService(deps) {
     return results.slice(0, maxResults);
   }
 
-  async function searchProvider(query, maxResults = 5, depth = 'basic') {
-    if (tavilyApiKey()) return tavilySearch(query, maxResults, depth);
+  async function searchProvider(query, maxResults = 5, depth = 'basic', mode = 'general') {
+    if (tavilyApiKey()) return tavilySearch(query, maxResults, depth, mode);
+    if (braveApiKey()) return braveSearch(query, maxResults);
     return duckDuckGoSearch(query, maxResults);
+  }
+
+  function activeProviderName() {
+    if (tavilyApiKey()) return 'tavily';
+    if (braveApiKey()) return 'brave';
+    return 'duckduckgo-fallback';
+  }
+
+  // ── LLM query rewriter (the single biggest quality lever for Arabic) ─────
+  // One tiny call to a fast model turns the raw question (any dialect) into
+  // clean native + English search queries. Cached 24h; regex distillation is
+  // the automatic fallback when no fast provider is configured.
+  async function rewriteQueryWithLLM(original) {
+    const rewriter = deps.queryRewriter;
+    if (!deps.llmService || !rewriter?.provider || !rewriter?.model) return null;
+    const cacheKey = deps.stableCacheKey('rewrite', String(original || '').slice(0, 300));
+    const cached = deps.cacheGet(deps.memoryCaches.search, cacheKey);
+    if (cached) return cached;
+    try {
+      const res = await deps.llmService.dispatch(rewriter.provider, {
+        model: rewriter.model,
+        timeoutMs: 4500,
+        messages: [
+          { role: 'system', content: 'Convert the user question (any language or dialect) into two precise web search queries. Reply with STRICT JSON only: {"native":"query in the user\'s language","english":"same query in English"}. Keep named entities, versions and places EXACTLY intact. If time-sensitive, add the current year or date words. No explanation, no markdown.' },
+          { role: 'user', content: String(original || '').slice(0, 600) }
+        ],
+        temperature: 0,
+        max_tokens: 150
+      });
+      if (!res.ok) return null;
+      const jsonMatch = String(res.answer || '').match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return null;
+      const parsed = JSON.parse(jsonMatch[0]);
+      const out = {
+        native: String(parsed.native || '').trim().slice(0, 160),
+        english: String(parsed.english || '').trim().slice(0, 160)
+      };
+      if (!out.native && !out.english) return null;
+      return deps.cacheSet(deps.memoryCaches.search, cacheKey, out, 24 * 60 * 60 * 1000, 200);
+    } catch (_) {
+      return null;
+    }
   }
 
   async function firecrawlScrape(url) {
@@ -122,6 +207,23 @@ function createSearchService(deps) {
     return enriched;
   }
 
+  // Builds the final query set: LLM-rewritten queries first (when available),
+  // then the heuristic plan for coverage and diversity.
+  async function buildQuerySet(rawOriginal, baseQuery, plan, maxQueries) {
+    const queries = [];
+    const original = String(rawOriginal || '').trim();
+    if (original) {
+      const rewritten = await rewriteQueryWithLLM(original);
+      if (rewritten) {
+        if (rewritten.native) queries.push(rewritten.native);
+        if (rewritten.english && rewritten.english.toLowerCase() !== rewritten.native.toLowerCase()) queries.push(rewritten.english);
+      }
+    }
+    if (baseQuery) queries.push(baseQuery);
+    for (const q of plan.queries || []) queries.push(q);
+    return [...new Set(queries.filter(Boolean))].slice(0, maxQueries);
+  }
+
   async function performSearch({ rawQuery, originalQuestion }) {
     const query = distillSearchQueryServer(rawQuery);
     if (!query) { const err = new Error('Missing search query.'); err.statusCode = 400; throw err; }
@@ -130,14 +232,15 @@ function createSearchService(deps) {
     const cached = deps.cacheGet(deps.memoryCaches.search, cacheKey);
     if (cached) return { ...cached, cached: true };
     const plan = buildSearchBeastPlan(query, false);
-    validateSearchQueries(plan.queries.slice(0, 3));
-    const batches = await Promise.allSettled(plan.queries.map(q => searchProvider(q, plan.maxResultsPerQuery, plan.depth)));
+    const queries = validateSearchQueriesRefined(await buildQuerySet(original, query, plan, 3));
+    // The query set runs in parallel; per-query mode steers topic/freshness.
+    const batches = await Promise.allSettled(queries.map(q => searchProvider(q, plan.maxResultsPerQuery, plan.depth, plan.mode)));
     const merged = [];
     for (const batch of batches) if (batch.status === 'fulfilled') merged.push(...batch.value);
     let results = rankSearchBeastResults(merged, plan.mode, original || query).slice(0, plan.keepResults);
     results = await enrichResultsWithFirecrawl(results, plan.enrichPages);
     results = rankSearchBeastResults(results, plan.mode, original || query).slice(0, plan.keepResults).map((r, index) => ({ id: index + 1, ...r }));
-    const payload = { query, originalQuestion: original, mode: plan.mode, plan: { queries: plan.queries, depth: plan.depth, enrichPages: plan.enrichPages }, provider: tavilyApiKey() ? 'tavily' : 'duckduckgo-fallback', extractionProvider: firecrawlApiKey() ? 'firecrawl' : null, results, generatedAt: new Date().toISOString(), cached: false };
+    const payload = { query, queries, originalQuestion: original, mode: plan.mode, plan: { queries: plan.queries, depth: plan.depth, enrichPages: plan.enrichPages }, provider: activeProviderName(), extractionProvider: firecrawlApiKey() ? 'firecrawl' : null, results, generatedAt: new Date().toISOString(), cached: false };
     return deps.cacheSet(deps.memoryCaches.search, cacheKey, payload, 10 * 60 * 1000, 180);
   }
 
@@ -149,18 +252,33 @@ function createSearchService(deps) {
     const cached = deps.cacheGet(deps.memoryCaches.deepSearch, cacheKey);
     if (cached) return { ...cached, cached: true };
     const planned = buildSearchBeastPlan(question, true);
-    const queries = validateSearchQueries(planned.queries.slice(0, 3));
-    const batches = await Promise.allSettled(queries.map(q => searchProvider(q, planned.maxResultsPerQuery, planned.depth)));
+    const queries = validateSearchQueriesRefined(await buildQuerySet(original, question, planned, 6));
+    const batches = await Promise.allSettled(queries.map(q => searchProvider(q, planned.maxResultsPerQuery, planned.depth, planned.mode)));
     const merged = [];
     for (const batch of batches) if (batch.status === 'fulfilled') merged.push(...batch.value);
     let results = rankSearchBeastResults(merged, planned.mode, original || question).slice(0, planned.keepResults);
     results = await enrichResultsWithFirecrawl(results, planned.enrichPages);
     results = rankSearchBeastResults(results, planned.mode, original || question).slice(0, planned.keepResults).map((r, index) => ({ id: index + 1, ...r }));
-    const payload = { question, originalQuestion: original, mode: planned.mode, queries, plan: { depth: planned.depth, enrichPages: planned.enrichPages, maxResultsPerQuery: planned.maxResultsPerQuery }, searchProvider: tavilyApiKey() ? 'tavily' : 'duckduckgo-fallback', extractionProvider: firecrawlApiKey() ? 'firecrawl' : null, results, generatedAt: new Date().toISOString(), cached: false };
+    const payload = { question, queries, originalQuestion: original, mode: planned.mode, plan: { depth: planned.depth, enrichPages: planned.enrichPages, maxResultsPerQuery: planned.maxResultsPerQuery }, searchProvider: activeProviderName(), extractionProvider: firecrawlApiKey() ? 'firecrawl' : null, results, generatedAt: new Date().toISOString(), cached: false };
     return deps.cacheSet(deps.memoryCaches.deepSearch, cacheKey, payload, 10 * 60 * 1000, 120);
   }
 
-  return { performSearch, performDeepSearch, searchProvider, enrichResultsWithFirecrawl };
+  // Same validation as validateSearchQueries but tolerant: drops bad entries
+  // instead of killing the whole request when one query is malformed.
+  function validateSearchQueriesRefined(queries) {
+    try {
+      return validateSearchQueries(queries.slice(0, 6));
+    } catch (_) {
+      const cleaned = queries
+        .map(q => String(q || '').replace(/(ignore previous instructions|system prompt|developer message|تجاهل\s+كل\s+التعليمات|تعليمات\s+النظام)/gi, ' ').trim().slice(0, 180))
+        .filter(q => q.length >= 2)
+        .slice(0, 3);
+      if (!cleaned.length) { const err = new Error('Invalid search queries.'); err.statusCode = 400; throw err; }
+      return cleaned;
+    }
+  }
+
+  return { performSearch, performDeepSearch, searchProvider, enrichResultsWithFirecrawl, rewriteQueryWithLLM };
 }
 
 module.exports = { createSearchService };

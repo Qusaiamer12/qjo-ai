@@ -2709,7 +2709,7 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
         const content = String(r.extractedContent || r.rawContent || r.content || '')
           .replace(/\s+/g, ' ')
           .trim()
-          .slice(0, deep ? 950 : 650);
+          .slice(0, deep ? 2000 : 1400); // richer evidence per source → deeper answers
         return {
           id,
           title,
@@ -2717,11 +2717,12 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
           domain,
           kind: r.sourceKind || 'web',
           reliability: r.reliabilityScore ?? 'n/a',
+          date: r.publishedDate || '',
           query: r.query || data.query || originalText,
           excerpt: content
         };
       });
-      const lines = sourceCards.map(r => `[${r.id}] ${r.title}\nURL: ${r.url}\nDomain: ${r.domain}\nKind: ${r.kind}\nReliability: ${r.reliability}\nFound via query: ${r.query}\nEvidence excerpt: ${r.excerpt}`).join('\n\n');
+      const lines = sourceCards.map(r => `[${r.id}] ${r.title}\nURL: ${r.url}\nDomain: ${r.domain}\nKind: ${r.kind}\nReliability: ${r.reliability}${r.date ? `\nPublished: ${r.date}` : ''}\nFound via query: ${r.query}\nEvidence excerpt: ${r.excerpt}`).join('\n\n');
 
       const quickAnswer = data.answer || selected.find(r => r.providerAnswer)?.providerAnswer || '';
       const wantsTable = /(جدول|table|مقارنة|compare)/i.test(String(originalText || ''));
@@ -2985,7 +2986,7 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
             messages: [
               { role: 'system', content: buildSystemPrompt() },
               ...(continuityHint ? [{ role: 'system', content: continuityHint }] : []),
-              ...history.slice(-20, -1),
+              ...history.slice(-12, -1), // lean payloads; older context lives in Firestore
               { role: 'user', content: apiUserContent }
             ],
             temperature: generationConfig.temperature,

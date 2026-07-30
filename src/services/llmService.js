@@ -1,3 +1,21 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Qjo LLM Service — unified provider client layer
+//
+// Improvements in this revision:
+//  1. Timeouts no longer kill the whole fallback chain. A provider timeout is
+//     treated as "this key/provider failed" and the caller moves on (previously
+//     AbortError was re-thrown and the entire request died with a 500).
+//  2. Per-attempt deadline aware timeouts (timeoutMs passed from the router's
+//     global request budget).
+//  3. Real streaming everywhere: content chunks, streamed tool_calls (indexed
+//     deltas) and the provider's real finish_reason are all captured. This
+//     re-enables truncation continuation for streamed answers.
+//  4. Client disconnect abort: pass `signal` and any in-flight provider call is
+//     cancelled immediately (saves tokens nobody will read). A distinct
+//     ClientAbortError is thrown so routes can end silently.
+//  5. hasAnyProvider() is computed from config (was always false at boot).
+// ─────────────────────────────────────────────────────────────────────────────
+
 function normalizeProviderFinishReason(provider, raw) {
   if (!raw) return '';
   if (provider === 'gemini') return raw?.candidates?.[0]?.finishReason || '';
@@ -39,6 +57,12 @@ function openAiMessagesToGemini(messages) {
   return { systemInstruction: systemParts.length ? { parts: systemParts } : undefined, contents };
 }
 
+function clientAbortError() {
+  const err = new Error('Client disconnected.');
+  err.name = 'ClientAbortError';
+  return err;
+}
+
 function createLlmService(config = {}) {
   const cursors = new Map();
 
@@ -65,22 +89,86 @@ function createLlmService(config = {}) {
     return ordered;
   }
 
-  async function callOpenAICompatible({ provider, baseUrl, model, messages, temperature, max_tokens, tools, extraHeaders = {}, onChunk }) {
+  // Builds an abort controller per attempt that is cancelled by either the
+  // per-attempt timeout OR the external (client disconnect) signal.
+  function wireAttemptSignal({ timeoutMs, signal }) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), Math.max(1000, timeoutMs || 12000));
+    let externalAborted = false;
+    if (signal) {
+      if (signal.aborted) externalAborted = true;
+      else signal.addEventListener('abort', () => { externalAborted = true; controller.abort(); }, { once: true });
+    }
+    return {
+      signal: controller.signal,
+      wasExternal: () => externalAborted,
+      done: () => clearTimeout(timeout)
+    };
+  }
+
+  // Parses an SSE stream from any OpenAI-compatible provider. Captures text
+  // content, indexed tool_call deltas and the real finish_reason.
+  async function consumeStream(response, onChunk) {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let fullText = '';
+    let finishReason = '';
+    const toolAcc = new Map();
+
+    function feedLine(cleanedLine) {
+      if (!cleanedLine || cleanedLine === 'data: [DONE]' || !cleanedLine.startsWith('data: ')) return;
+      let data;
+      try { data = JSON.parse(cleanedLine.slice(6)); } catch (_) { return; }
+      const choice = data?.choices?.[0] || {};
+      const delta = choice.delta || {};
+      if (delta.content) {
+        fullText += delta.content;
+        if (onChunk) onChunk(delta.content);
+      }
+      for (const tc of (delta.tool_calls || [])) {
+        const idx = tc.index ?? 0;
+        const cur = toolAcc.get(idx) || { id: '', name: '', arguments: '' };
+        if (tc.id) cur.id += tc.id;
+        if (tc.function?.name) cur.name += tc.function.name;
+        if (tc.function?.arguments) cur.arguments += tc.function.arguments;
+        toolAcc.set(idx, cur);
+      }
+      if (choice.finish_reason) finishReason = choice.finish_reason;
+    }
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) feedLine(line.trim());
+    }
+    if (buffer.trim()) feedLine(buffer.trim());
+
+    const toolCalls = [...toolAcc.values()]
+      .filter(t => t.name)
+      .map((t, i) => ({ id: t.id || `call_stream_${i}`, type: 'function', function: { name: t.name, arguments: t.arguments || '{}' } }));
+    return { fullText, toolCalls, finishReason: finishReason || 'stop' };
+  }
+
+  async function callOpenAICompatible({ provider, baseUrl, model, messages, temperature, max_tokens, tools, extraHeaders = {}, onChunk, timeoutMs, signal }) {
     const keys = rotateKeys(provider);
     if (!keys.length || !baseUrl || !model) return { ok: false, status: 501, error: `${provider} is not configured.` };
 
     let lastError = null;
     for (const key of keys) {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 15000);
+      const attempt = wireAttemptSignal({ timeoutMs, signal });
       try {
+        if (signal?.aborted) throw clientAbortError();
         const body = { model, messages, temperature, max_tokens };
         if (tools) { body.tools = tools; body.tool_choice = 'auto'; }
-        if (onChunk && !tools) { body.stream = true; } // Enable streaming if onChunk is passed and no tools
-        
+        if (onChunk) body.stream = true; // stream even when tools are attached; deltas are parsed
+
         const response = await fetch(`${baseUrl.replace(/\/$/, '')}/chat/completions`, {
           method: 'POST',
-          signal: controller.signal,
+          signal: attempt.signal,
           headers: {
             Authorization: `Bearer ${key}`,
             'Content-Type': 'application/json',
@@ -88,134 +176,118 @@ function createLlmService(config = {}) {
           },
           body: JSON.stringify(body)
         });
-        clearTimeout(timeout);
-        
+
         if (response.ok) {
-          if (onChunk && !tools) {
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let buffer = '';
-            let fullText = '';
-            
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split('\n');
-              buffer = lines.pop();
-              
-              for (const line of lines) {
-                const cleanedLine = line.trim();
-                if (!cleanedLine) continue;
-                if (cleanedLine === 'data: [DONE]') continue;
-                if (cleanedLine.startsWith('data: ')) {
-                  try {
-                    const data = JSON.parse(cleanedLine.slice(6));
-                    const chunkText = data.choices?.[0]?.delta?.content || '';
-                    if (chunkText) {
-                      fullText += chunkText;
-                      onChunk(chunkText);
-                    }
-                  } catch (_) {}
-                }
-              }
-            }
+          if (onChunk) {
+            const streamed = await consumeStream(response, onChunk);
+            attempt.done();
+            const message = { role: 'assistant', content: streamed.fullText || null };
+            if (streamed.toolCalls.length) message.tool_calls = streamed.toolCalls;
             return {
               ok: true,
-              answer: fullText,
-              message: { role: 'assistant', content: fullText },
-              provider,
-              model,
-              finish_reason: 'stop'
-            };
-          } else {
-            const data = await response.json().catch(() => ({}));
-            const message = data?.choices?.[0]?.message || {};
-            return {
-              ok: true,
-              answer: message.content || '',
+              answer: streamed.fullText,
               message,
-              toolCalls: message.tool_calls || [],
+              toolCalls: streamed.toolCalls,
               provider,
               model,
-              finish_reason: normalizeProviderFinishReason(provider, data),
-              raw: data
+              finish_reason: streamed.finishReason,
+              streamed: true
             };
           }
+          const data = await response.json().catch(() => ({}));
+          attempt.done();
+          const message = data?.choices?.[0]?.message || {};
+          return {
+            ok: true,
+            answer: message.content || '',
+            message,
+            toolCalls: message.tool_calls || [],
+            provider,
+            model,
+            finish_reason: normalizeProviderFinishReason(provider, data),
+            raw: data
+          };
         }
-        
+
         const data = await response.json().catch(() => ({}));
+        attempt.done();
         const errorMsg = data?.error?.message || data?.message || `${provider} HTTP ${response.status}`;
         lastError = { status: response.status, error: errorMsg };
         const limited = response.status === 429 || response.status === 402 || /rate|quota|limit|balance|insufficient/i.test(errorMsg);
         if (limited) continue;
-        
+
         return { ok: false, status: response.status, error: errorMsg };
       } catch (error) {
-        clearTimeout(timeout);
-        if (error.name === 'AbortError') throw error;
-        lastError = { status: 502, error: error.message || `${provider} request failed.` };
+        attempt.done();
+        if (attempt.wasExternal() || error.name === 'ClientAbortError') throw clientAbortError();
+        // Timeout / network error on a single key: mark it and CONTINUE to the
+        // next key; the router will then fall through to the next provider.
+        lastError = {
+          status: error.name === 'AbortError' ? 504 : 502,
+          error: error.name === 'AbortError' ? `${provider} timeout.` : (error.message || `${provider} request failed.`)
+        };
         continue;
       }
     }
     return { ok: false, status: lastError?.status || 429, error: lastError?.error || `All ${provider} keys failed.` };
   }
 
-  async function callGeminiChat({ model, messages, temperature, max_tokens }) {
+  async function callGeminiChat({ model, messages, temperature, max_tokens, timeoutMs, signal }) {
     const keys = rotateKeys('gemini');
     if (!keys.length) return { ok: false, status: 501, error: 'Gemini is not configured.' };
-    
-    const geminiModel = String(model || 'gemini-2.0-flash').replace(/^gemini-/, '').includes('/') ? model : model;
+
+    const geminiModel = model || 'gemini-2.0-flash';
     const geminiPayload = openAiMessagesToGemini(messages);
     if (!geminiPayload.contents.length) return { ok: false, status: 400, error: 'No Gemini-compatible content.' };
-    
+
     let lastError = null;
     for (const key of keys) {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 15000);
+      const attempt = wireAttemptSignal({ timeoutMs, signal });
       try {
+        if (signal?.aborted) throw clientAbortError();
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent?key=${encodeURIComponent(key)}`, {
           method: 'POST',
-          signal: controller.signal,
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ ...geminiPayload, generationConfig: { maxOutputTokens: max_tokens } })
+          signal: attempt.signal,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...geminiPayload,
+            generationConfig: { maxOutputTokens: max_tokens, ...(typeof temperature === 'number' ? { temperature } : {}) }
+          })
         });
-        clearTimeout(timeout);
-        
+        attempt.done();
+
         const data = await response.json().catch(() => ({}));
         if (response.ok) {
           const candidate = data?.candidates?.[0];
           const text = (candidate?.content?.parts || []).map(p => p.text || '').join('').trim();
           return { ok: true, answer: text, provider: 'gemini', model: geminiModel, finish_reason: normalizeProviderFinishReason('gemini', data), raw: data };
         }
-        
+
         const errMsg = data?.error?.message || data?.message || `Gemini HTTP ${response.status}`;
         lastError = { status: response.status, error: errMsg };
         const limited = response.status === 429 || response.status === 404 || /rate|quota|limit|no longer available|not found|deprecated/i.test(errMsg);
         if (limited) continue;
-        
+
         return { ok: false, status: response.status, error: errMsg };
       } catch (error) {
-        clearTimeout(timeout);
-        if (error.name === 'AbortError') { lastError = { status: 504, error: 'Gemini timeout.' }; continue; }
-        lastError = { status: 502, error: error.message || 'Gemini request failed.' };
+        attempt.done();
+        if (attempt.wasExternal() || error.name === 'ClientAbortError') throw clientAbortError();
+        lastError = {
+          status: error.name === 'AbortError' ? 504 : 502,
+          error: error.name === 'AbortError' ? 'Gemini timeout.' : (error.message || 'Gemini request failed.')
+        };
+        continue;
       }
     }
     return { ok: false, status: lastError?.status || 429, error: lastError?.error || 'All Gemini keys failed or rate limited.' };
   }
 
-  // Facade methods mapping to unified OpenAI-compatible caller
+  // Facade methods mapping to the unified OpenAI-compatible caller
   async function callQwenChat(opts) { return callOpenAICompatible({ provider: 'qwen', baseUrl: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1', ...opts }); }
   async function callGroqChat(opts) {
     const res = await callOpenAICompatible({ provider: 'groq', baseUrl: 'https://api.groq.com/openai/v1', ...opts });
-    // Keep backward compatibility for code expecting { upstream: { ok }, data: {...} } shape specifically for Groq in old routers.
-    // However, since we are unifying the routers, the new router will use `res.ok`, `res.answer`, `res.toolCalls`.
-    // We add the old properties just in case temporarily:
-    if (res.ok) {
-        return { ok: true, upstream: { ok: true }, data: res.raw, ...res };
-    }
+    // Backward-compatible shape for any legacy consumer.
+    if (res.ok) return { ok: true, upstream: { ok: true }, data: res.raw, ...res };
     return { ok: false, upstream: { ok: false, status: res.status }, data: { error: { message: res.error } }, ...res };
   }
   async function callKimiChat(opts) { return callOpenAICompatible({ provider: 'kimi', baseUrl: config.kimiBaseUrl || 'https://api.moonshot.cn/v1', ...opts }); }
@@ -240,6 +312,23 @@ function createLlmService(config = {}) {
     return last || { ok: false, status: 501, error: 'OpenRouter free fallback failed.' };
   }
 
+  // Generic dispatcher by provider name (used by the router and by services
+  // like the search query rewriter that just need "some fast provider").
+  const PROVIDER_METHODS = {
+    groq: callGroqChat,
+    gemini: callGeminiChat,
+    qwen: callQwenChat,
+    kimi: callKimiChat,
+    nvidia: callNvidiaChat,
+    agnes: callAgnesChat,
+    openrouter: callOpenRouterFreeChat
+  };
+  async function dispatch(provider, opts) {
+    const fn = PROVIDER_METHODS[provider];
+    if (!fn) return { ok: false, status: 501, error: `Unknown provider: ${provider}` };
+    return fn(opts);
+  }
+
   return {
     callGeminiChat,
     callQwenChat,
@@ -248,8 +337,10 @@ function createLlmService(config = {}) {
     callNvidiaChat,
     callAgnesChat,
     callOpenRouterFreeChat,
+    dispatch,
+    hasKeys: (provider) => getKeys(provider).length > 0,
     normalizeProviderFinishReason,
-    hasAnyProvider: () => Array.from(cursors.keys()).some(k => getKeys(k).length > 0)
+    hasAnyProvider: () => ['gemini', 'groq', 'qwen', 'kimi', 'nvidia', 'openrouter', 'agnes'].some(p => getKeys(p).length > 0)
   };
 }
 
