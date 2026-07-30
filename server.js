@@ -663,7 +663,6 @@ registerSystemRoutes(app, {
   tavilyApiKey: TAVILY_API_KEY,
   firecrawlApiKey: FIRECRAWL_API_KEY,
   serperApiKey: process.env.SERPER_API_KEY,
-  braveApiKey: process.env.BRAVE_API_KEY,
   embeddingsService,
   getLimitConfig: authService.getLimitConfig,
   getUsageSnapshot: authService.getUsageSnapshot,
@@ -770,7 +769,6 @@ function pickQueryRewriter() {
 const searchService = createSearchService({
   tavilyApiKey: TAVILY_API_KEY,
   firecrawlApiKey: FIRECRAWL_API_KEY,
-  braveApiKey: process.env.BRAVE_API_KEY,
   serperApiKey: process.env.SERPER_API_KEY,
   llmService,
   queryRewriter: pickQueryRewriter(),

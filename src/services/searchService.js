@@ -17,7 +17,6 @@ function createSearchService(deps) {
   requireDeps(deps);
   const tavilyApiKey = () => String(deps.tavilyApiKey || '').trim();
   const firecrawlApiKey = () => String(deps.firecrawlApiKey || '').trim();
-  const braveApiKey = () => String(deps.braveApiKey || '').trim();
   const serperApiKey = () => String(deps.serperApiKey || '').trim();
 
   // ── Providers ────────────────────────────────────────────────────────────
@@ -112,35 +111,6 @@ function createSearchService(deps) {
     })).filter(r => r.url);
   }
 
-  // Brave Search API — real web search fallback (set BRAVE_API_KEY).
-  async function braveSearch(query, maxResults = 5) {
-    const key = braveApiKey();
-    if (!key) throw new Error('Brave is not configured.');
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
-    const url = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=${Math.min(Math.max(maxResults, 1), 20)}&safesearch=moderate&text_decorations=false`;
-    const upstream = await fetch(url, {
-      signal: controller.signal,
-      headers: { 'Accept': 'application/json', 'X-Subscription-Token': key }
-    });
-    clearTimeout(timeout);
-    const data = await upstream.json().catch(() => ({}));
-    if (!upstream.ok) {
-      const err = new Error('Brave search provider error.');
-      err.statusCode = upstream.status;
-      throw err;
-    }
-    return ((data.web && data.web.results) || []).map((r, i) => ({
-      title: String(r.title || '').slice(0, 180),
-      url: String(r.url || '').slice(0, 700),
-      content: String(r.description || '').slice(0, 900),
-      publishedDate: String(r.page_age || r.age || '').slice(0, 40),
-      score: Math.max(0.05, 0.5 - i * 0.04),
-      query,
-      providerAnswer: ''
-    }));
-  }
-
   // Last resort, key-free: DuckDuckGo. The old Instant Answer API almost
   // never returns web results, so we now scrape the public HTML results page
   // first (real web search, no key) and only then fall back to Instant Answer.
@@ -223,7 +193,7 @@ function createSearchService(deps) {
     return [{ title: 'DuckDuckGo search', url: 'https://duckduckgo.com/?q=' + encodeURIComponent(query), content: 'No instant answer was returned. Use the linked search page for manual verification.', score: 0.1, query }];
   }
 
-  // Per-query resilient chain: Tavily → Serper → Brave → key-free DDG.
+  // Per-query resilient chain: Tavily → Serper → key-free DDG.
   // If a configured provider fails (exhausted credits, outage, bad key), the
   // SAME query transparently retries on the next provider — no dead searches
   // just because a key hit its monthly cap.
@@ -231,7 +201,6 @@ function createSearchService(deps) {
     const chain = [];
     if (tavilyApiKey()) chain.push(() => tavilySearch(query, maxResults, depth, mode));
     if (serperApiKey()) chain.push(() => serperSearch(query, maxResults, mode));
-    if (braveApiKey()) chain.push(() => braveSearch(query, maxResults));
     chain.push(() => duckDuckGoSearch(query, maxResults));
     let lastErr = null;
     for (const step of chain) {
@@ -247,7 +216,6 @@ function createSearchService(deps) {
   function activeProviderName() {
     if (tavilyApiKey()) return 'tavily';
     if (serperApiKey()) return 'serper';
-    if (braveApiKey()) return 'brave';
     return 'duckduckgo-fallback';
   }
 
