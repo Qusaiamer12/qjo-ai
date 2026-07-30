@@ -15,7 +15,8 @@ function registerSystemRoutes(app, deps) {
       version: deps.version,
       ready: {
         ai: Object.values(qjoProviders).some(Boolean),
-        search: Boolean(deps.tavilyApiKey),
+        search: Boolean(deps.tavilyApiKey || deps.serperApiKey || deps.braveApiKey),
+        searchFallbackWithoutKeys: true,
         deepSearchExtraction: Boolean(deps.firecrawlApiKey),
         qSpark: Object.values(qSparkProviders).some(Boolean),
         embeddings: deps.embeddingsService.configuredCount() > 0,

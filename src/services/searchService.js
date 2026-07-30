@@ -18,6 +18,7 @@ function createSearchService(deps) {
   const tavilyApiKey = () => String(deps.tavilyApiKey || '').trim();
   const firecrawlApiKey = () => String(deps.firecrawlApiKey || '').trim();
   const braveApiKey = () => String(deps.braveApiKey || '').trim();
+  const serperApiKey = () => String(deps.serperApiKey || '').trim();
 
   // ── Providers ────────────────────────────────────────────────────────────
 
@@ -64,6 +65,51 @@ function createSearchService(deps) {
       query,
       providerAnswer: data.answer ? String(data.answer).slice(0, 1200) : ''
     }));
+  }
+
+  // Serper.dev — Google Search results via API (great Arabic/local coverage).
+  // Free tier: 2,500 one-time credits. We map mode→time window (tbs) and
+  // always pin gl:jo + query-language hl for the Jordan-first product.
+  async function serperSearch(query, maxResults = 5, mode = 'general') {
+    const key = serperApiKey();
+    if (!key) throw new Error('Serper is not configured.');
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 7000);
+    const isArabic = /[؀-ۿ]/.test(query);
+    const body = {
+      q: query,
+      num: Math.min(Math.max(maxResults, 1), 10),
+      gl: 'jo',
+      hl: isArabic ? 'ar' : 'en'
+    };
+    if (mode === 'news') body.tbs = 'qdr:w';
+    else if (mode === 'pricing' || mode === 'market') body.tbs = 'qdr:m';
+    const upstream = await fetch('https://google.serper.dev/search', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    clearTimeout(timeout);
+    const data = await upstream.json().catch(() => ({}));
+    if (!upstream.ok) {
+      const err = new Error('Serper search provider error.');
+      err.statusCode = upstream.status;
+      throw err;
+    }
+    const answerText = String(
+      data.answerBox?.answer || data.answerBox?.snippet ||
+      (Array.isArray(data.answerBox?.snippetHighlighted) ? data.answerBox.snippetHighlighted.join(' ') : '') || ''
+    ).slice(0, 1200);
+    return ((data.organic) || []).map((r, i) => ({
+      title: String(r.title || '').slice(0, 180),
+      url: String(r.link || '').slice(0, 700),
+      content: String(r.snippet || '').slice(0, 1200),
+      publishedDate: String(r.date || '').slice(0, 40),
+      score: Math.max(0.05, 0.85 - i * 0.05),
+      query,
+      providerAnswer: answerText
+    })).filter(r => r.url);
   }
 
   // Brave Search API — real web search fallback (set BRAVE_API_KEY).
@@ -177,14 +223,30 @@ function createSearchService(deps) {
     return [{ title: 'DuckDuckGo search', url: 'https://duckduckgo.com/?q=' + encodeURIComponent(query), content: 'No instant answer was returned. Use the linked search page for manual verification.', score: 0.1, query }];
   }
 
+  // Per-query resilient chain: Tavily → Serper → Brave → key-free DDG.
+  // If a configured provider fails (exhausted credits, outage, bad key), the
+  // SAME query transparently retries on the next provider — no dead searches
+  // just because a key hit its monthly cap.
   async function searchProvider(query, maxResults = 5, depth = 'basic', mode = 'general') {
-    if (tavilyApiKey()) return tavilySearch(query, maxResults, depth, mode);
-    if (braveApiKey()) return braveSearch(query, maxResults);
-    return duckDuckGoSearch(query, maxResults);
+    const chain = [];
+    if (tavilyApiKey()) chain.push(() => tavilySearch(query, maxResults, depth, mode));
+    if (serperApiKey()) chain.push(() => serperSearch(query, maxResults, mode));
+    if (braveApiKey()) chain.push(() => braveSearch(query, maxResults));
+    chain.push(() => duckDuckGoSearch(query, maxResults));
+    let lastErr = null;
+    for (const step of chain) {
+      try {
+        const r = await step();
+        if (r && r.length) return r;
+      } catch (e) { lastErr = e; }
+    }
+    if (lastErr) throw lastErr;
+    return [];
   }
 
   function activeProviderName() {
     if (tavilyApiKey()) return 'tavily';
+    if (serperApiKey()) return 'serper';
     if (braveApiKey()) return 'brave';
     return 'duckduckgo-fallback';
   }
