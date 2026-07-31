@@ -94,3 +94,14 @@ TAVILY_API_KEY=...           # primary search (topic/news/days now active)
 - Q-Spark routes still call the router with shared Qjo models (the `QSPARK_*_MODEL` values remain unused — latent bug to fix in the Q-Spark phase).
 - Client-side `buildSystemPrompt()` still sends its own small prompt; making the server the single source of truth is a follow-up cleanup.
 - Per-user Qcode workspace isolation + child-process env scrub (security) — from previous security review, still pending.
+
+## v2.1 additions (post-incident hardening)
+- **Freshness trigger widened**: comparisons (قارن), trophies (بطولات), prices (بكم/قديش), device names (ايفون/سامسونج), versions and recent years (2024+) now attach `web_search`. Previously "قارنلي بطولات…" got confident-but-stale memory answers.
+- **Stale-fact honesty rule**: CORE prompt now requires a visible "may be outdated" caveat whenever a dynamic claim is answered without fresh sources — no more presenting 2023 trophy counts as current fact.
+- **Diagnosable failures**: when the whole provider chain fails, the error now says *rate-limited (429)* vs *failed* plus a per-provider status trail (`groq:429, gemini:net…`). The web client shows a distinct "providers under pressure, retry in ~1 min" message instead of the opaque generic one.
+
+## How to verify the new backend is LIVE on Render
+1. Render dashboard → your service → **Events**: latest deploy must show the newest commit hash (compare with GitHub `main`).
+2. Open `https://<your-app>.onrender.com/api/health` → expect `"routerVersion": "pipelines-v2"` and a `chatPipelines` map.
+3. Open `https://<your-app>.onrender.com/api/status` → `ready.search: true` only if Tavily **or** Serper key is set (`SERPER_API_KEY`).
+4. If answers still fail: Render → **Logs**, copy the lines printed at the failure minute (`[chat] error:` / provider statuses).

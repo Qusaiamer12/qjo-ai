@@ -70,8 +70,11 @@ function isArabicHeavyText(text) {
 
 // Does this message plausibly need fresh/current info? Decides whether the
 // web_search tool schema is worth attaching (the model itself then decides).
+// Wide net: comparisons, trophies/scores, prices, device/product names,
+// versions and recent years — these are exactly the questions that used to
+// get confident-but-stale memory answers (e.g. trophy counts from 2023).
 function mightNeedFreshness(text) {
-  return /(اليوم|الآن|حالياً|حالي|آخر|اخر|سعر|أسعار|نتيجة|مباراة|طقس|خبر|أخبار|صار|صارت|موعد| متى |latest|current|today|price|score|weather|news|happened)/i.test(String(text || ''));
+  return /(اليوم|الآن|هلأ|هلق|حالياً|حالي|آخر|اخر|أحدث|احدث|سعر|أسعار|اسعار|بكم|قديش|تكلفة|كم مرة|كم بطولة|نتيجة|نتائج|مباراة|مباريات|بطول|دوري|ابطال|البطا|كأس|كاس|فاز|فائز|توج|ترتيب|طقس|خبر|أخبار|اخبار|صار|صارت|موعد| متى |قارن|قارني|مقارن|مواصفات|عيوب|مميزات|إصدار|اصدار|نسخة|موديل|طراز|ايفون|آيفون|سامسونج|سامسنوج|شاومي|جوال|موبايل|هاتف|لابتوب| latest|current|today|price|cost|score|standings|champion|league|cup|news|weather|happened|release|specs|compare|comparison|\bvs\b|iphone|samsung|galaxy|pixel|20(2[4-9]|3\d))/i.test(String(text || ''));
 }
 
 // ── Routing Decision Validation ──
@@ -225,6 +228,7 @@ function createRoutingEngine(deps) {
     const list = attempts(chain);
     if (!list.length) return { ok: false, status: 501, error: 'No provider configured.' };
     let last = null;
+    const failures = [];
     for (const [provider, slot] of list) {
       if (params.deadlineMs) {
         const remaining = params.deadlineMs - Date.now();
@@ -232,7 +236,7 @@ function createRoutingEngine(deps) {
         params.timeoutMs = Math.min(params.maxPerProviderMs || 12000, remaining - 1000);
       }
       const res = await tryProvider(provider, slot, params);
-      if (!res.ok) { last = res; continue; }
+      if (!res.ok) { last = res; failures.push({ provider, status: res.status }); continue; }
 
       // Non-streaming providers (e.g. Gemini path): deliver the whole answer
       // as one instant chunk so SSE clients never stare at an empty bubble.
@@ -253,7 +257,16 @@ function createRoutingEngine(deps) {
       if (second.ok) return { ...second, toolsUsed: used };
       return res; // better a tool-less first answer than a failed second call
     }
-    return last || { ok: false, status: 503, error: 'All providers failed.' };
+    // Aggregate diagnostics: if every attempt was throttled, say so clearly —
+    // a generic opaque error used to hide the (very common) free-tier
+    // rate-limit wall behind "service unavailable".
+    const allLimited = failures.length > 0 && failures.every(f => f.status === 429 || f.status === 402);
+    const status = allLimited ? 429 : (last?.status || 503);
+    const detail = failures.map(f => `${f.provider}:${f.status || 'net'}`).join(', ');
+    const error = allLimited
+      ? `All AI providers rate-limited (429). Retry in ~1 minute. [${detail}]`
+      : `All AI providers failed. Last: ${String(last?.error || 'unknown').slice(0, 160)} [${detail}]`;
+    return last ? { ...last, status, error } : { ok: false, status: 503, error };
   }
 
   // Locates which provider/slot an explicit client-chosen model maps to.

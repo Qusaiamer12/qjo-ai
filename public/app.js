@@ -3086,6 +3086,7 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
         else if (error.message === 'AI_BACKEND_MISSING') failMessage = 'خدمة الذكاء غير متصلة في هذه النسخة. شغّل نسخة الإنتاج عبر Node.js بدل فتح HTML فقط.';
         else if (error.message === 'AUTH_REQUIRED') failMessage = 'يجب تسجيل الدخول قبل استخدام Qjo.';
         else if (error.message === 'RATE_LIMIT') failMessage = 'وصلنا لحد مزوّد الذكاء مؤقتًا. جرّب بعد قليل، أو استخدم رسالة أقصر.';
+        else if (/rate.?limit|429|too many requests/i.test(error.message || '')) failMessage = 'مزودات الذكاء تحت ضغط حاليًا (وصلنا الحد المؤقت للطلبات). جرّب مرة أخرى بعد دقيقة تقريبًا.';
         else if (/No AI provider|not configured|provider|configured|service/i.test(error.message || '')) failMessage = 'مزودات الذكاء غير مضبوطة أو فشلت مؤقتًا. افحص Environment Variables أو جرّب بعد قليل.';
         else if (error.status >= 500) failMessage = 'حدث خطأ من الخادم أثناء توليد الرد. جرّب إعادة المحاولة، وإذا تكررت المشكلة افتح صفحة التشخيص.';
         addMessage('assistant', failMessage, 'error');
