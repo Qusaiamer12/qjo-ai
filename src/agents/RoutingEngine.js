@@ -138,7 +138,7 @@ const PIPELINES = {
   // Lite track: tiny casual messages. Fast/cheap models only.
   lite: [['groq', 'flash'], ['gemini', 'flash'], ['qwen', 'flash'], ['kimi', 'flash'], ['nvidia', 'flash']],
   // Flash mode: high velocity, still competent. No 8B-class models first.
-  flash: [['gemini', 'flash'], ['qwen', 'flash'], ['groq', 'text'], ['kimi', 'flash'], ['nvidia', 'text'], ['openrouter', 'text']],
+  flash: [['groq', 'flash'], ['nvidia', 'flash'], ['qwen', 'flash'], ['kimi', 'flash'], ['openrouter', 'text']],
   // Max mode (Arabic-heavy): strongest Arabic models first.
   maxAr: [['qwen', 'text'], ['kimi', 'text'], ['groq', 'text'], ['gemini', 'text'], ['nvidia', 'text'], ['openrouter', 'text']],
   // Max mode (English / mixed): strongest general models first.
@@ -383,7 +383,7 @@ function createRoutingEngine(deps) {
 
     return runChain(chain, {
       ...base,
-      tools: hasImages ? undefined : tools,
+      tools: (hasImages || normMode === 'normal') ? undefined : tools,
       maxPerProviderMs: normMode === 'flash' ? 10000 : 14000
     }, { withTools: Boolean(tools), originalQuestion });
   }
