@@ -58,7 +58,7 @@
     }
 
     .app {
-      height: 100vh;
+      height: 100dvh;
       display: grid;
       grid-template-columns: var(--sidebar) 1fr;
       grid-template-areas: "sidebar main";
@@ -202,7 +202,7 @@
     .main {
       grid-area: main;
       min-width: 0;
-      height: 100vh;
+      height: 100dvh;
       display: grid;
       grid-template-rows: auto 1fr auto;
       background: var(--bg);
@@ -751,7 +751,7 @@
         top: 0;
         right: 0;
         width: min(310px, 86vw);
-        height: 100vh;
+        height: 100dvh;
         transform: translateX(105%);
         transition: transform .22s ease;
         box-shadow: var(--shadow-lg);
@@ -6225,5 +6225,44 @@ body.dark .auth-card {
   .auth-card {
     width: 92vw;
     padding: 24px 20px !important;
+  }
+}
+
+
+
+
+/* =========================================================
+   Qjo Final Mobile UX Overhaul
+   ========================================================= */
+@media (max-width: 768px) {
+  /* 1. Glassmorphism Header */
+  .topbar {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 100 !important;
+    background: rgba(251, 251, 251, 0.75) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border-bottom: 1px solid rgba(0,0,0,0.05) !important;
+  }
+  body.dark .topbar {
+    background: rgba(13, 15, 20, 0.75) !important;
+    border-bottom: 1px solid rgba(255,255,255,0.05) !important;
+  }
+
+  /* 2. Drawer Backdrop Blur */
+  .drawer-backdrop {
+    background: rgba(0,0,0,0.4) !important;
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+  }
+
+  /* 3. Tap Targets (Apple HIG 44x44px minimum) */
+  .send-btn, .attach-btn, .icon-btn, .mobile-menu {
+    min-width: 44px !important;
+    min-height: 44px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 }
