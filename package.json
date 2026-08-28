@@ -5,6 +5,9 @@
   "type": "commonjs",
   "scripts": {
     "start": "node server.js",
+    "lint": "eslint .",
+    "test": "node scripts/smoke-test.js",
+    "smoke": "node scripts/smoke-test.js",
     "audit": "node scripts/audit.js",
     "eval": "node evals/run-eval.js",
     "launch-eval": "node evals/launch-eval-v2.js",
@@ -32,5 +35,8 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.5"
   }
 }

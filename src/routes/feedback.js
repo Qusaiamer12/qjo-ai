@@ -1,9 +1,21 @@
+const rateLimit = require('express-rate-limit');
+
 function registerFeedbackRoutes(app, deps) {
   if (!deps?.feedbackService) throw new Error('registerFeedbackRoutes missing feedbackService');
   if (!deps?.verifyAdminRequest) throw new Error('registerFeedbackRoutes missing verifyAdminRequest');
 
+  // This endpoint is public and writes to disk, so it gets its own limiter
+  // regardless of IP_RATE_LIMIT_PER_MINUTE (which defaults to 0 = disabled).
+  const feedbackLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many feedback submissions. Try again in a minute.' }
+  });
+
   // Public: the widget in public/app.js posts { rating, answer, question, mode, route } here.
-  app.post('/api/feedback', (req, res) => {
+  app.post('/api/feedback', feedbackLimiter, (req, res) => {
     try {
       const record = deps.feedbackService.addFeedback(req.body || {});
       res.json({ ok: true, id: record.id });

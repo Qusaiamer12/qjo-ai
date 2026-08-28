@@ -34,11 +34,21 @@ let admin = null;
 try { admin = require('firebase-admin'); } catch (_) { admin = null; }
 
 const app = express();
-// Render (and any reverse proxy) terminates TLS and forwards the real client
-// IP in X-Forwarded-For. Without this, express-rate-limit keys every request
-// to the proxy's IP (making the limiter useless) and req.ip is the proxy.
-// '1' = trust exactly one hop, so a client cannot forge the header itself.
-app.set('trust proxy', 1);
+// X-Forwarded-For is only trustworthy when a proxy we control actually
+// rewrites it. Trusting it unconditionally lets a direct client forge its own
+// IP and reset the guest quota; not trusting it on Render collapses every
+// visitor onto the proxy's IP and breaks rate limiting. So: trust exactly as
+// many hops as the deployment really has.
+//   TRUST_PROXY=<n>  explicit hop count (Cloudflare in front of Render => 2)
+//   TRUST_PROXY=false / 0  direct exposure, ignore the header entirely
+//   unset  => 1 on Render (RENDER is set by the platform), 0 locally
+const TRUST_PROXY_SETTING = (() => {
+  const raw = String(process.env.TRUST_PROXY ?? '').trim().toLowerCase();
+  if (raw === 'false') return false;
+  if (raw && Number.isFinite(Number(raw))) return Number(raw);
+  return process.env.RENDER ? 1 : 0;
+})();
+app.set('trust proxy', TRUST_PROXY_SETTING);
 const PORT = process.env.PORT || 3000;
 const QJO_VERSION = 'qjo-required-fixes-v1-2026-07-26-117';
 const QJO_FULL_TRAINING_PROMPT = (() => {
@@ -82,7 +92,10 @@ const QSPARK_QWEN_API_KEYS = (process.env.QSPARK_QWEN_API_KEYS || process.env.QS
 const QSPARK_NVIDIA_API_KEYS = (process.env.QSPARK_NVIDIA_API_KEYS || process.env.QSPARK_NVIDIA_API_KEY)
   ? String(process.env.QSPARK_NVIDIA_API_KEYS || process.env.QSPARK_NVIDIA_API_KEY).split(',').map(k => k.trim()).filter(Boolean)
   : NVIDIA_API_KEYS;
-const QSPARK_GROQ_MODEL = process.env.QSPARK_GROQ_MODEL || 'llama-3.3-70b-versatile';
+// llama-3.3-70b-versatile was shut down by Groq on 2026-08-16. llmService's
+// MODEL_MIGRATIONS still rescues stale env values, but defaulting to a dead ID
+// wasted a full failed provider round-trip on every request.
+const QSPARK_GROQ_MODEL = process.env.QSPARK_GROQ_MODEL || 'openai/gpt-oss-120b';
 const QSPARK_KIMI_BASE_URL = String(process.env.QSPARK_KIMI_BASE_URL || 'https://api.moonshot.ai/v1').replace(/\/$/, '');
 const QSPARK_KIMI_MODEL = process.env.QSPARK_KIMI_MODEL || 'moonshot-v1-128k';
 const QSPARK_QWEN_BASE_URL = String(process.env.QSPARK_QWEN_BASE_URL || 'https://openrouter.ai/api/v1').replace(/\/$/, '');
@@ -102,10 +115,6 @@ const HUGGINGFACE_EMBEDDING_MODEL = process.env.HUGGINGFACE_EMBEDDING_MODEL || '
 const HUGGINGFACE_EMBEDDING_URL = String(process.env.HUGGINGFACE_EMBEDDING_URL || '').replace(/\/$/, '');
 
 const QSPARK_NVIDIA_MODEL = process.env.QSPARK_NVIDIA_MODEL || 'deepseek-ai/deepseek-v4-flash';
-let qSparkGroqCursor = 0;
-let qSparkKimiCursor = 0;
-let qSparkQwenCursor = 0;
-let qSparkNvidiaCursor = 0;
 
 // Qcode uses a separate provider namespace and isolated workspace.
 const QCODE_GROQ_API_KEYS = (process.env.QCODE_GROQ_API_KEYS || process.env.QCODE_GROQ_API_KEY) ? String(process.env.QCODE_GROQ_API_KEYS || process.env.QCODE_GROQ_API_KEY).split(',').map(k => k.trim()).filter(Boolean) : GROQ_API_KEYS;
@@ -114,15 +123,12 @@ const QCODE_KIMI_API_KEYS = (process.env.QCODE_KIMI_API_KEYS || process.env.QCOD
 const QCODE_NVIDIA_API_KEYS = (process.env.QCODE_NVIDIA_API_KEYS || process.env.QCODE_NVIDIA_API_KEY) 
   ? String(process.env.QCODE_NVIDIA_API_KEYS || process.env.QCODE_NVIDIA_API_KEY).split(',').map(k => k.trim()).filter(Boolean)
   : NVIDIA_API_KEYS;
-const QCODE_GROQ_MODEL = process.env.QCODE_GROQ_MODEL || 'llama-3.3-70b-versatile';
+// Same Groq deprecation as QSPARK_GROQ_MODEL above.
+const QCODE_GROQ_MODEL = process.env.QCODE_GROQ_MODEL || 'openai/gpt-oss-120b';
 const QCODE_QWEN_MODEL = process.env.QCODE_QWEN_MODEL || 'qwen-plus';
 const QCODE_KIMI_BASE_URL = String(process.env.QCODE_KIMI_BASE_URL || 'https://api.moonshot.ai/v1').replace(/\/$/, '');
 const QCODE_KIMI_MODEL = process.env.QCODE_KIMI_MODEL || 'moonshot-v1-32k';
 const QCODE_NVIDIA_MODEL = process.env.QCODE_NVIDIA_MODEL || 'meta/llama-3.1-70b-instruct';
-let qCodeGroqCursor = 0;
-let qCodeQwenCursor = 0;
-let qCodeKimiCursor = 0;
-let qCodeNvidiaCursor = 0;
 
 const QCODE_PROJECT_KNOWLEDGE_CONTEXT = `
 QCODE PROJECT KNOWLEDGE CONTEXT:
@@ -146,10 +152,6 @@ const QCODE_ALLOW_NETWORK_COMMANDS = process.env.QCODE_ALLOW_NETWORK_COMMANDS ==
 const qcodeUsage = { total_tokens: 0, total_cost_usd: 0, by_provider: {}, calls: 0 };
 const qcodeUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: Math.max(1, QCODE_MAX_UPLOAD_MB) * 1024 * 1024, files: Math.max(1, QCODE_MAX_UPLOAD_FILES) } });
 const qSparkUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: Math.max(1, QSPARK_MAX_FILE_MB || 25) * 1024 * 1024, files: 8 } });
-let kimiKeyCursor = 0;
-let nvidiaKeyCursor = 0;
-let openRouterKeyCursor = 0;
-let agnesKeyCursor = 0;
 const IP_RATE_LIMIT_PER_MINUTE = Number(process.env.IP_RATE_LIMIT_PER_MINUTE || 0); // 0 = disabled
 // Groq's official replacements for the llama-3.1/3.3 line (shutting down
 // 2026-08-16 — see console.groq.com/docs/deprecations). llmService also
@@ -817,6 +819,27 @@ registerChatRoutes(app, {
   memoryCaches
 });
 
+// Unknown /api/* must NOT fall through to the SPA catch-all below. It used to,
+// so a typo'd endpoint returned 200 + index.html and the client blew up with
+// "Unexpected token '<'" instead of seeing a clean 404.
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: 'Endpoint not found.', path: req.originalUrl.split('?')[0] });
+});
+
 app.get('*', (_, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+
+// Last-resort error handler: never leak a stack trace to the client, and make
+// multer's upload-limit rejections readable instead of a generic 500.
+app.use((error, req, res, _next) => {
+  const status = error?.status || error?.statusCode || (error?.code === 'LIMIT_FILE_SIZE' ? 413 : 500);
+  const message = error?.code === 'LIMIT_FILE_SIZE'
+    ? 'File is too large.'
+    : error?.code === 'LIMIT_FILE_COUNT'
+      ? 'Too many files.'
+      : status === 500 ? 'Internal server error.' : String(error?.message || 'Request failed.');
+  if (status >= 500) console.error('Unhandled route error:', error?.message || error);
+  if (res.headersSent) return;
+  res.status(status).json({ error: message });
+});
 
 app.listen(PORT, () => console.log(`Qjo production server running on ${PORT}`));

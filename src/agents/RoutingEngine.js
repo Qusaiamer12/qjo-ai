@@ -421,7 +421,7 @@ function createRoutingEngine(deps) {
 function routeUserRequestDeterministic(messagesOrText) {
   const latest = lastUserText(messagesOrText);
   const recent = typeof messagesOrText === 'string' ? latest : combinedRecentUserText(messagesOrText);
-  const q = String(`${recent}\n${latest}` || '').toLowerCase();
+  const q = `${recent}\n${latest}`.toLowerCase();
 
   const explicitQcode = /(qcode|q-code|code lab|كيو\s*كود|كيوكود)/i.test(q);
   const codingIntent = /(كود|برمج|برمجة|موقع|تطبيق|api|sdk|debug|bug|stack trace|error|exception|react|next\.js|vue|node|express|fastapi|python|javascript|typescript|firebase|render|deploy|github|git|terminal|npm|package\.json|docker|sql|database|backend|frontend|full[- ]?stack|هندسة\s+برمجيات|تصحيح\s+خطأ|اكتب\s+دالة|اكتب\s+كلاس|اكتب\s+برنامج)/i.test(q);

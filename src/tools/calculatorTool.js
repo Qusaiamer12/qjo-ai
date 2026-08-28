@@ -29,7 +29,7 @@ function createSafeCalculate(math, evaluateFn) {
     const expr = String(expression || '').trim();
     if (!expr) throw new Error('Missing expression.');
     if (expr.length > 500) throw new Error('Expression is too long.');
-    if (/[^0-9a-zA-Z_+\-*/%^().,\s\[\]{}:<>!=|&]/.test(expr)) {
+    if (/[^0-9a-zA-Z_+\-*/%^().,\s[\]{}:<>!=|&]/.test(expr)) {
       throw new Error('Expression contains unsupported characters.');
     }
     const result = evaluate(expr, {});

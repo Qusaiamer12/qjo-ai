@@ -7,6 +7,28 @@ function createAuthService({ admin, hasFirebaseAdmin, adminEmails, requireFireba
   const admins = adminEmails instanceof Set ? adminEmails : new Set();
   const inMemoryDailyUsage = new Map();
 
+  // Keys are `${scope}:${id}:${YYYY-MM-DD}` and were never removed, so the map
+  // grew by one entry per unique visitor per day for the life of the process.
+  // Drop everything that isn't for today; also hard-cap the map so a burst of
+  // unique guest IPs in a single day can't exhaust memory either.
+  const MAX_USAGE_ENTRIES = 50000;
+
+  function pruneUsage() {
+    const today = todayKey();
+    for (const key of inMemoryDailyUsage.keys()) {
+      if (!key.endsWith(`:${today}`)) inMemoryDailyUsage.delete(key);
+    }
+    while (inMemoryDailyUsage.size > MAX_USAGE_ENTRIES) {
+      const oldest = inMemoryDailyUsage.keys().next().value;
+      if (oldest === undefined) break;
+      inMemoryDailyUsage.delete(oldest);
+    }
+  }
+
+  // Hourly sweep. unref() so this timer never keeps the process alive.
+  const pruneTimer = setInterval(pruneUsage, 60 * 60 * 1000);
+  if (typeof pruneTimer.unref === 'function') pruneTimer.unref();
+
   function getClientIp(req) {
     // See server.js: trust proxy is configured, so req.ip is the real client
     // IP. The previous X-Forwarded-For[0] read was client-spoofable, which
@@ -30,6 +52,9 @@ function createAuthService({ admin, hasFirebaseAdmin, adminEmails, requireFireba
       return false;
     }
     inMemoryDailyUsage.set(key, current + 1);
+    // Cheap opportunistic prune so a long-lived process doesn't wait an hour
+    // for the timer while entries pile up.
+    if (inMemoryDailyUsage.size > MAX_USAGE_ENTRIES) pruneUsage();
     return true;
   }
 

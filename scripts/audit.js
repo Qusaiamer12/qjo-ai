@@ -188,7 +188,10 @@ console.log('----------');
 must(app.includes('modeDropdown.addEventListener'), 'Mode dropdown delegated click handler exists');
 must(app.includes('mode-menu-open'), 'Mode dropdown overlap state exists');
 must(css.includes('Mode Power + Dropdown Overlap Fix'), 'Mode overlap CSS patch exists');
-must(app.includes("const GROQ_MODEL = 'llama-3.3-70b-versatile'"), 'Max/Code frontend model requests 70B');
+// The frontend used to pin llama-3.3-70b-versatile, which Groq shut down on
+// 2026-08-16. app.js now pins the official replacement, so this lock tracks
+// that instead of asserting a dead model ID.
+must(app.includes("const GROQ_MODEL = 'openai/gpt-oss-120b'"), 'Max/Code frontend model is the current Groq flagship');
 
 console.log('\nSearch lock');
 console.log('-----------');
