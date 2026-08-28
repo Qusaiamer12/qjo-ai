@@ -112,12 +112,20 @@ async function main() {
       check(`${page} no longer serves the old app`, !body.includes('QCODE_EMBED_VERSION') && !body.includes('qsparkNotebooks'), `${res.status}`);
     }
 
+    // Design system must be served and referenced by the shell.
+    const dsRes = await get(base, '/design-system.css');
+    const dsBody = await dsRes.text();
+    check('design-system.css is served', dsRes.status === 200 && (dsRes.headers.get('content-type') || '').includes('text/css'));
+    check('design system defines its tokens', dsBody.includes('--ds-ink') && dsBody.includes('--ds-accent'));
+
     // The sidebar keeps both entries as inert "Soon" teasers.
     const home = await (await get(base, '/')).text();
     check('sidebar still shows Q-Spark and Qcode', home.includes('Q-Spark') && home.includes('Qcode'));
     check('sidebar entries carry a Soon badge', (home.match(/qjo-app-soon-badge/g) || []).length >= 2);
     check('sidebar entries are not links', !home.includes('href="/qspark.html"') && !home.includes('href="/qcode.html"'));
     check('sidebar entries are aria-disabled', (home.match(/aria-disabled="true"/g) || []).length >= 2);
+    check('shell links the design system after styles.css', home.indexOf('design-system.css') > home.indexOf('styles.css'));
+    check('hero headline carries the accent phrase', /<h1 id="welcomeTitle">[^<]*<em>/.test(home));
   });
 
   // ── Group 2: auth enforced ────────────────────────────────────────────────

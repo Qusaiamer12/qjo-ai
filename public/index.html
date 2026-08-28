@@ -10,6 +10,11 @@
   <link rel="manifest" href="/manifest.webmanifest" />
   <meta name="theme-color" content="#123B7A" />
   <link rel="stylesheet" href="/styles.css?v=qjo-required-fixes-v1-2026-07-26-117" />
+  <!-- Design system layer. Must load AFTER styles.css so it wins the cascade. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" />
+  <link rel="stylesheet" href="/design-system.css?v=qjo-ds-2026-08-28" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js" defer></script>
@@ -150,7 +155,7 @@
         <div class="messages-inner" id="messagesInner">
           <section class="welcome" id="welcome">
             <div class="welcome-kicker"><span class="kicker-dot"></span> <span id="welcomeKicker">Qjo Assistant</span></div>
-            <h1 id="welcomeTitle">كيف يمكنني مساعدتك اليوم؟</h1>
+            <h1 id="welcomeTitle">كيف يمكنني <em>مساعدتك</em> اليوم؟</h1>
             <p id="welcomeText">اسأل، اكتب، خطط، تعلّم، أو ابنِ شيئًا جديدًا. Qjo مصمم ليعطيك إجابات واضحة وعملية بدون تعقيد.</p>
 
             <div class="suggestions">

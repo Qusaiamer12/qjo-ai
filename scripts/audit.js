@@ -253,6 +253,17 @@ must(app.includes('renameChat') && html.includes('chatSearchInput') && html.incl
 const braceDiff = (css.match(/{/g) || []).length - (css.match(/}/g) || []).length;
 must(braceDiff === 0, `CSS brace balance is OK (${braceDiff})`);
 
+// Design system layer (qjo-ds-2026-08-28). It only works if it loads AFTER
+// styles.css, so the order is locked here rather than left to chance.
+const ds = exists('public/design-system.css') ? read('public/design-system.css') : '';
+must(Boolean(ds), 'Design system stylesheet exists');
+let dsBrace = 0;
+for (const ch of ds) { if (ch === '{') dsBrace++; if (ch === '}') dsBrace--; }
+must(dsBrace === 0, `Design system brace balance is OK (${dsBrace})`);
+must(html.indexOf('design-system.css') > html.indexOf('styles.css'), 'Design system loads after styles.css');
+must(ds.includes('body.dark') && !ds.includes('data-theme'), 'Design system targets the theme class the app actually sets');
+must(app.includes('RICH_TEXT_IDS'), 'Hero headline supports the accented phrase');
+
 console.log('\nLocal context lock');
 console.log('------------------');
 must(read('src/routes/system.js').includes("app.get('/api/limits'"), '/api/limits exists');
