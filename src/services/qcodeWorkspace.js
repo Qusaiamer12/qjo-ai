@@ -3,8 +3,44 @@ const path = require('path');
 const { spawn, execFileSync } = require('child_process');
 const { validateQcodeActions } = require('../tools/fileEditorTool');
 
-function createQcodeWorkspaceService({ workspaceDir, snapshotDir, sessionsDir }) {
+function createQcodeWorkspaceService({ workspaceDir, snapshotDir, sessionsDir, allowNetworkCommands = false }) {
   if (!workspaceDir || !snapshotDir || !sessionsDir) throw new Error('createQcodeWorkspaceService requires workspaceDir, snapshotDir, sessionsDir');
+
+  const networkCommandsAllowed = allowNetworkCommands === true;
+
+  // Child processes get a MINIMAL environment. Spreading process.env here used
+  // to hand every provider API key (GROQ_*, QWEN_*, FIREBASE_SERVICE_ACCOUNT_JSON,
+  // ...) to any code the agent runs via `node`/`python`, which made the
+  // `cat .env` / `printenv` blocks in isDangerousCommand purely cosmetic.
+  function buildChildEnv() {
+    return {
+      PATH: process.env.PATH || '/usr/local/bin:/usr/bin:/bin',
+      HOME: process.env.HOME || workspaceDir,
+      LANG: process.env.LANG || 'en_US.UTF-8',
+      TMPDIR: process.env.TMPDIR || '/tmp',
+      NODE_ENV: 'development'
+    };
+  }
+
+  // Commands that reach the network (package installs, remote npx fetches).
+  // Gated by QCODE_ALLOW_NETWORK_COMMANDS, which server.js already advertises
+  // through /api/health and /api/diagnostics but which was silently dropped
+  // by this factory's destructuring until now.
+  function isNetworkCommand(args) {
+    const bin = String(args[0] || '').toLowerCase();
+    const sub = String(args[1] || '').toLowerCase();
+    if (bin === 'npx') return true;
+    if (bin === 'npm') return ['install', 'i', 'ci', 'add', 'update', 'up', 'exec', 'publish', 'audit'].includes(sub);
+    if (bin === 'pip' || bin === 'pip3') return sub === 'install' || sub === 'download';
+    if ((bin === 'python' || bin === 'python3') && sub === '-m' && String(args[2] || '').toLowerCase() === 'pip') return true;
+    return false;
+  }
+
+  function assertNetworkAllowed(args) {
+    if (!networkCommandsAllowed && isNetworkCommand(args)) {
+      throw new Error('Network commands are disabled. Set QCODE_ALLOW_NETWORK_COMMANDS=true to enable them.');
+    }
+  }
 
   function ensureQcodeWorkspace() {
     fs.mkdirSync(workspaceDir, { recursive: true });
@@ -93,13 +129,14 @@ function createQcodeWorkspaceService({ workspaceDir, snapshotDir, sessionsDir })
     const allowed = new Set(['npm','node','python','python3','pytest','npx','ls','pwd','cat']);
     if (!allowed.has(bin)) throw new Error(`Command not allowed: ${bin}`);
     if (isDangerousCommand(command)) throw new Error('Command blocked by Qcode safety policy.');
+    assertNetworkAllowed(args);
     if (bin === 'cat') {
       const target = args[1] || '';
       if (!target || target.includes('.env')) throw new Error('cat target blocked.');
       return Promise.resolve({ command, code: 0, stdout: readQcodeFileSafe(target, 20000), stderr: '' });
     }
     return new Promise((resolve) => {
-      const child = spawn(bin, args.slice(1), { cwd: workspaceDir, shell: false, env: { ...process.env, NODE_ENV: process.env.NODE_ENV || 'development' } });
+      const child = spawn(bin, args.slice(1), { cwd: workspaceDir, shell: false, env: buildChildEnv() });
       let stdout = '', stderr = '';
       const cap = s => String(s || '').slice(-40000);
       child.stdout.on('data', d => { stdout = cap(stdout + d.toString()); });
@@ -290,7 +327,7 @@ function createQcodeWorkspaceService({ workspaceDir, snapshotDir, sessionsDir })
   function runGitCommand(args, timeoutMs = 15000) {
     ensureQcodeWorkspace();
     try {
-      const out = execFileSync('git', args, { cwd: workspaceDir, timeout: timeoutMs, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+      const out = execFileSync('git', args, { cwd: workspaceDir, timeout: timeoutMs, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: buildChildEnv() });
       return { ok: true, stdout: out };
     } catch (error) {
       return { ok: false, error: String(error.stderr || error.message || 'git command failed').slice(-4000) };
@@ -408,7 +445,8 @@ function createQcodeWorkspaceService({ workspaceDir, snapshotDir, sessionsDir })
     const allowedDevBins = new Set(['npm', 'node', 'npx', 'python', 'python3']);
     if (!allowedDevBins.has(bin)) throw new Error(`Command not allowed: ${bin}`);
     if (isDangerousCommand(cmd)) throw new Error('Command blocked by Qcode safety policy.');
-    devServerProc = spawn(bin, args.slice(1), { cwd: workspaceDir, shell: false, env: { ...process.env, NODE_ENV: process.env.NODE_ENV || 'development' } });
+    assertNetworkAllowed(args);
+    devServerProc = spawn(bin, args.slice(1), { cwd: workspaceDir, shell: false, env: buildChildEnv() });
     devServerState = { running: true, command: cmd, url: '', pid: devServerProc.pid, code: null, stdout: '', stderr: '' };
     const cap = s => String(s || '').slice(-8000);
     devServerProc.stdout.on('data', d => {
@@ -463,6 +501,7 @@ function createQcodeWorkspaceService({ workspaceDir, snapshotDir, sessionsDir })
   }
 
   return {
+    networkCommandsAllowed,
     ensureQcodeWorkspace,
     safeQcodePath,
     relativeQcodePath,

@@ -88,6 +88,7 @@ function registerQcodeRoutes(app, deps) {
       mode: 'soft-allowlist',
       blocked_patterns: 11,
       safe_commands: 9,
+      network_commands_allowed: t.networkCommandsAllowed === true,
       docker_available: false
     },
     mcp: {

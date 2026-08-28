@@ -34,6 +34,11 @@ let admin = null;
 try { admin = require('firebase-admin'); } catch (_) { admin = null; }
 
 const app = express();
+// Render (and any reverse proxy) terminates TLS and forwards the real client
+// IP in X-Forwarded-For. Without this, express-rate-limit keys every request
+// to the proxy's IP (making the limiter useless) and req.ip is the proxy.
+// '1' = trust exactly one hop, so a client cannot forge the header itself.
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 const QJO_VERSION = 'qjo-required-fixes-v1-2026-07-26-117';
 const QJO_FULL_TRAINING_PROMPT = (() => {
@@ -255,6 +260,10 @@ const ALLOWED_MODELS = new Set([
 ]);
 
 const math = create(all);
+// Capture the real evaluate BEFORE the hardening import below overrides the
+// namespace symbol, otherwise safeCalculate calls the throwing stub and the
+// calculator tool never works.
+const rawMathEvaluate = math.evaluate.bind(math);
 math.import({
   import: () => { throw new Error('Function import is disabled.'); },
   createUnit: () => { throw new Error('Function createUnit is disabled.'); },
@@ -264,7 +273,7 @@ math.import({
   derivative: () => { throw new Error('Function derivative is disabled.'); }
 }, { override: true });
 
-const safeCalculate = createSafeCalculate(math);
+const safeCalculate = createSafeCalculate(math, rawMathEvaluate);
 
 app.use(helmet({
   contentSecurityPolicy: {
@@ -413,10 +422,12 @@ function cleanMessages(messages) {
 }
 
 function getClientIp(req) {
-  const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
-  const realIp = String(req.headers['x-real-ip'] || '').trim();
-  const raw = forwarded || realIp || req.ip || req.socket?.remoteAddress || '';
-  return raw.replace(/^::ffff:/, '');
+  // req.ip is derived by Express using the 'trust proxy' setting, which picks
+  // the hop actually added by our proxy. Reading X-Forwarded-For[0] directly
+  // (the old behaviour) took the FIRST entry — which the client fully controls
+  // — letting anyone reset their guest quota by rotating a fake header.
+  const raw = req.ip || req.socket?.remoteAddress || '';
+  return String(raw).replace(/^::ffff:/, '');
 }
 
 function isPrivateIp(ip) {

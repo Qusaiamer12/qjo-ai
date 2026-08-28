@@ -44,6 +44,17 @@ function registerQSparkRoutes(app, deps) {
   if (!deps?.routingEngine) throw new Error('registerQSparkRoutes missing router');
   if (!deps?.cleanMessages) throw new Error('registerQSparkRoutes missing cleanMessages');
   if (!deps?.uploadMiddleware) throw new Error('registerQSparkRoutes missing uploadMiddleware');
+  if (!deps?.verifyFirebaseRequest) throw new Error('registerQSparkRoutes missing verifyFirebaseRequest');
+
+  // Auth gate for every Q-Spark endpoint EXCEPT /health (a public liveness
+  // probe that leaks no user data). Previously verifyFirebaseRequest was
+  // injected but never called, so /chat and /upload were reachable by anyone
+  // even with REQUIRE_FIREBASE_AUTH=true — burning QSPARK_* provider credit.
+  app.use('/api/qspark', async (req, res, next) => {
+    if (req.path === '/health') return next();
+    if (!(await deps.verifyFirebaseRequest(req, res))) return;
+    next();
+  });
 
   app.get('/api/qspark/health', (_, res) => {
     res.setHeader('Cache-Control', 'no-store');

@@ -8,10 +8,11 @@ function createAuthService({ admin, hasFirebaseAdmin, adminEmails, requireFireba
   const inMemoryDailyUsage = new Map();
 
   function getClientIp(req) {
-    const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
-    const realIp = String(req.headers['x-real-ip'] || '').trim();
-    const raw = forwarded || realIp || req.ip || req.socket?.remoteAddress || '';
-    return raw.replace(/^::ffff:/, '') || 'unknown';
+    // See server.js: trust proxy is configured, so req.ip is the real client
+    // IP. The previous X-Forwarded-For[0] read was client-spoofable, which
+    // defeated the guest daily quota keyed on this value.
+    const raw = req.ip || req.socket?.remoteAddress || '';
+    return String(raw).replace(/^::ffff:/, '') || 'unknown';
   }
 
   function usageKey(req) {
