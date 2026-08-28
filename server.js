@@ -46,7 +46,7 @@ const TRUST_PROXY_SETTING = (() => {
 })();
 app.set('trust proxy', TRUST_PROXY_SETTING);
 const PORT = process.env.PORT || 3000;
-const QJO_VERSION = 'qjo-required-fixes-v1-2026-07-26-117';
+const QJO_VERSION = 'qjo-launch-prep-2026-08-28-1';
 const QJO_FULL_TRAINING_PROMPT = (() => {
   try { return fs.readFileSync(path.join(__dirname, 'QJO_FULL_TRAINING_PROMPT.md'), 'utf8').trim(); }
   catch { return ''; }
