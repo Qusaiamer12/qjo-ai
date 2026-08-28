@@ -8,14 +8,48 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 20
+
+      # ---- Providers (set the values in the Render dashboard, never in git) --
       - key: GROQ_API_KEY
         sync: false
       - key: TAVILY_API_KEY
         sync: false
-      - key: DAILY_USER_LIMIT
-        value: 0
+
+      # ---- Access control ---------------------------------------------------
+      # ⚠️ LAUNCH DECISION: `false` means ANY anonymous visitor can call
+      # /api/chat and spend your provider credits. It is fine for private
+      # testing and wrong for a public launch.
+      #
+      # Before flipping this to `true` you MUST also set
+      # FIREBASE_SERVICE_ACCOUNT_JSON below — otherwise every authenticated
+      # route answers 500 ("Server auth verification is not configured") and
+      # the whole app looks broken.
       - key: REQUIRE_FIREBASE_AUTH
         value: false
 
-# Optional: set to 0 to disable IP rate limiting, or e.g. 300
-# IP_RATE_LIMIT_PER_MINUTE=0
+      # Firebase Admin credentials, required when REQUIRE_FIREBASE_AUTH=true.
+      # Paste the service account JSON as a single line in the dashboard.
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false
+
+      # Comma-separated emails allowed into /api/admin/* and the dashboard.
+      - key: ADMIN_EMAILS
+        sync: false
+
+      # ---- Quotas and abuse limits -----------------------------------------
+      # 0 = unlimited. Set real numbers before a public launch: these are the
+      # only thing standing between a scraper and your provider bill.
+      - key: DAILY_USER_LIMIT
+        value: 0
+      - key: GUEST_DAILY_LIMIT
+        value: 0
+      - key: IP_RATE_LIMIT_PER_MINUTE
+        value: 0
+
+      # ---- Proxy awareness --------------------------------------------------
+      # Render sets RENDER=true, which the server auto-detects to trust exactly
+      # one proxy hop. Only set TRUST_PROXY explicitly if another CDN
+      # (e.g. Cloudflare) sits in front of Render — then use 2. Getting this
+      # wrong lets clients forge X-Forwarded-For and bypass per-IP quotas.
+      # - key: TRUST_PROXY
+      #   value: 1
