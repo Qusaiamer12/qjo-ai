@@ -1,0 +1,615 @@
+/* =============================================================================
+   QJO DESIGN SYSTEM — qjo-ds-2026-08-28
+   =============================================================================
+   Loaded AFTER styles.css. The legacy stylesheet is ~6.3k lines of accumulated
+   patches that lean heavily on !important, so this layer matches that weight to
+   win the cascade. It is deliberately scoped to the visual layer only: colours,
+   type, spacing, borders, motion. No layout structure or behaviour is changed,
+   so nothing in app.js needs to know this file exists.
+
+   Design language: editorial, high-contrast, generous whitespace.
+   - One ink, one accent. No gradients-as-decoration, no glow, no purple haze.
+   - Type does the work: a very large tight-tracked display face against small
+     uppercase mono labels.
+   - Structure is drawn with 1px borders, not shadows.
+   ========================================================================== */
+
+/* ---------------------------------------------------------------- 1. Tokens */
+
+:root {
+  --ds-bg: #f6f7f9;
+  --ds-panel: #ffffff;
+  --ds-panel-2: #f2f3f6;
+  --ds-panel-3: #eaebef;
+
+  --ds-ink: #0b0b0d;
+  --ds-ink-2: #3f4149;
+  --ds-muted: #71737d;
+  --ds-muted-2: #9a9ca6;
+
+  --ds-line: #e6e7ec;
+  --ds-line-2: #d7d9e0;
+
+  --ds-accent: #1d4ed8;
+  --ds-accent-soft: rgba(29, 78, 216, .08);
+  --ds-accent-line: rgba(29, 78, 216, .22);
+
+  --ds-mint: #0f7a52;
+  --ds-mint-soft: rgba(16, 155, 105, .10);
+  --ds-danger: #c02640;
+
+  --ds-r-sm: 10px;
+  --ds-r-md: 14px;
+  --ds-r-lg: 20px;
+  --ds-r-pill: 999px;
+
+  --ds-shadow-1: 0 1px 2px rgba(12, 14, 20, .04);
+  --ds-shadow-2: 0 8px 28px rgba(12, 14, 20, .07);
+  --ds-shadow-3: 0 24px 60px rgba(12, 14, 20, .12);
+
+  --ds-sans: "Inter", "IBM Plex Sans Arabic", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --ds-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+
+  --ds-ease: cubic-bezier(.2, .7, .3, 1);
+}
+
+body.dark {
+  --ds-bg: #08090c;
+  --ds-panel: #101218;
+  --ds-panel-2: #161922;
+  --ds-panel-3: #1e222d;
+
+  --ds-ink: #f4f5f7;
+  --ds-ink-2: #c9ccd4;
+  --ds-muted: #8b8f9b;
+  --ds-muted-2: #6b6f7b;
+
+  --ds-line: #212530;
+  --ds-line-2: #2c313e;
+
+  --ds-accent: #5b8cff;
+  --ds-accent-soft: rgba(91, 140, 255, .12);
+  --ds-accent-line: rgba(91, 140, 255, .28);
+
+  --ds-mint: #4ade9f;
+  --ds-mint-soft: rgba(74, 222, 159, .12);
+  --ds-danger: #ff6b83;
+
+  --ds-shadow-1: 0 1px 2px rgba(0, 0, 0, .4);
+  --ds-shadow-2: 0 8px 28px rgba(0, 0, 0, .45);
+  --ds-shadow-3: 0 24px 60px rgba(0, 0, 0, .6);
+}
+
+/* Bridge the legacy variables so unconverted rules inherit the new palette
+   instead of fighting it. */
+:root,
+body.dark {
+  --bg: var(--ds-bg) !important;
+  --panel: var(--ds-panel) !important;
+  --panel-2: var(--ds-panel-2) !important;
+  --panel-3: var(--ds-panel-3) !important;
+  --text: var(--ds-ink) !important;
+  --muted: var(--ds-muted) !important;
+  --muted-2: var(--ds-muted-2) !important;
+  --border: var(--ds-line) !important;
+  --accent: var(--ds-ink) !important;
+  --accent-text: var(--ds-panel) !important;
+  --danger: var(--ds-danger) !important;
+  --success: var(--ds-mint) !important;
+  --shadow-sm: var(--ds-shadow-1) !important;
+  --shadow-md: var(--ds-shadow-2) !important;
+  --shadow-lg: var(--ds-shadow-3) !important;
+  --sidebar: 296px !important;
+}
+
+/* ------------------------------------------------------------ 2. Foundation */
+
+/* The theme class lives on <body>, so <html> would keep the light tokens and
+   show a white overscroll gutter in dark mode. :has() covers that; browsers
+   without it simply fall back to the body background, which fills the app. */
+html:has(body.dark) { background: #08090c !important; color-scheme: dark; }
+html { color-scheme: light; }
+
+html, body {
+  background: var(--ds-bg) !important;
+  color: var(--ds-ink) !important;
+  font-family: var(--ds-sans) !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "cv11", "ss01";
+}
+
+body { letter-spacing: -0.011em; }
+body.dark { background: var(--ds-bg) !important; color: var(--ds-ink) !important; }
+
+::selection {
+  background: var(--ds-accent);
+  color: #fff;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--ds-accent) !important;
+  outline-offset: 2px !important;
+  border-radius: 6px;
+}
+
+/* A single quiet arc motif behind the workspace, echoing the reference layout.
+   Pure CSS gradients — no extra asset, no network request. */
+.main {
+  background:
+    radial-gradient(circle 620px at 88% -8%, var(--ds-accent-soft), transparent 62%),
+    radial-gradient(circle 520px at 4% 108%, rgba(120, 124, 140, .05), transparent 60%),
+    var(--ds-bg) !important;
+}
+
+/* ------------------------------------------------------------- 3. Typography */
+
+.micro-label,
+.nav-label,
+.qjo-apps-label,
+.sidebar-card-title {
+  font-family: var(--ds-mono) !important;
+  font-size: 10.5px !important;
+  font-weight: 700 !important;
+  letter-spacing: .14em !important;
+  text-transform: uppercase !important;
+  color: var(--ds-muted-2) !important;
+  margin-bottom: 10px !important;
+}
+
+/* --------------------------------------------------------------- 4. Sidebar */
+
+.sidebar {
+  background: var(--ds-panel) !important;
+  border-inline-end: 1px solid var(--ds-line) !important;
+  box-shadow: none !important;
+  padding: 22px 18px !important;
+}
+
+.brand { gap: 12px !important; margin-bottom: 26px !important; align-items: center !important; }
+
+.brand-mark {
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 11px !important;
+  background: var(--ds-ink) !important;
+  border: none !important;
+  box-shadow: none !important;
+  overflow: hidden !important;
+  display: grid !important;
+  place-items: center !important;
+}
+.brand-mark img { width: 76% !important; height: 76% !important; object-fit: contain !important; filter: invert(1) brightness(2); }
+body.dark .brand-mark { background: var(--ds-ink) !important; }
+body.dark .brand-mark img { filter: invert(0) brightness(0); }
+
+.brand-name {
+  font-size: 19px !important;
+  font-weight: 800 !important;
+  letter-spacing: -.03em !important;
+  color: var(--ds-ink) !important;
+  line-height: 1.1 !important;
+}
+.brand-sub {
+  font-family: var(--ds-mono) !important;
+  font-size: 10px !important;
+  letter-spacing: .13em !important;
+  text-transform: uppercase !important;
+  color: var(--ds-muted-2) !important;
+}
+
+/* Primary action: solid ink, uppercase, letterspaced — the reference's
+   "SYNTHESIZE ELITE LOGIC" button. */
+.new-chat {
+  background: var(--ds-ink) !important;
+  color: var(--ds-panel) !important;
+  border: 1px solid var(--ds-ink) !important;
+  border-radius: var(--ds-r-md) !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  letter-spacing: .08em !important;
+  text-transform: uppercase !important;
+  padding: 14px 16px !important;
+  box-shadow: none !important;
+  transition: transform .18s var(--ds-ease), opacity .18s var(--ds-ease) !important;
+}
+.new-chat:hover { opacity: .88 !important; transform: translateY(-1px) !important; }
+.new-chat:active { transform: translateY(0) !important; }
+
+.nav-item {
+  border-radius: var(--ds-r-sm) !important;
+  border: 1px solid transparent !important;
+  color: var(--ds-muted) !important;
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+  padding: 10px 12px !important;
+  transition: background .16s var(--ds-ease), color .16s var(--ds-ease), border-color .16s var(--ds-ease) !important;
+}
+.nav-item:hover { background: var(--ds-panel-2) !important; color: var(--ds-ink) !important; }
+.nav-item.active,
+.qjo-app-item.active {
+  background: var(--ds-panel-2) !important;
+  border-color: var(--ds-line) !important;
+  color: var(--ds-ink) !important;
+}
+
+.nav-icon,
+.qjo-app-icon {
+  background: var(--ds-panel-2) !important;
+  border: 1px solid var(--ds-line) !important;
+  color: var(--ds-ink-2) !important;
+  border-radius: 9px !important;
+  width: 30px !important;
+  height: 30px !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  box-shadow: none !important;
+}
+.qjo-app-item.active .qjo-app-icon {
+  background: var(--ds-ink) !important;
+  border-color: var(--ds-ink) !important;
+  color: var(--ds-panel) !important;
+}
+.qjo-app-item[data-qjo-app="qcode"] .qjo-app-icon { background: var(--ds-panel-2) !important; color: var(--ds-ink-2) !important; }
+
+.qjo-app-text strong { font-size: 13.5px !important; font-weight: 650 !important; letter-spacing: -.015em !important; color: inherit !important; }
+.qjo-app-text small { font-family: var(--ds-mono) !important; font-size: 10px !important; letter-spacing: .08em !important; text-transform: uppercase !important; color: var(--ds-muted-2) !important; }
+
+/* Coming-soon entries: present, legible, clearly not interactive. */
+.qjo-app-item.qjo-app-soon { opacity: .55 !important; }
+.qjo-app-item.qjo-app-soon:hover { background: transparent !important; border-color: transparent !important; }
+.qjo-app-soon-badge {
+  font-family: var(--ds-mono) !important;
+  font-size: 9px !important;
+  font-weight: 700 !important;
+  letter-spacing: .12em !important;
+  padding: 3px 7px !important;
+  border-radius: var(--ds-r-pill) !important;
+  background: var(--ds-mint-soft) !important;
+  color: var(--ds-mint) !important;
+  border: 1px solid transparent !important;
+}
+
+.chat-list { gap: 2px !important; }
+.chat-list .chat-item,
+.chat-item {
+  border-radius: var(--ds-r-sm) !important;
+  font-size: 13px !important;
+  color: var(--ds-muted) !important;
+  border: 1px solid transparent !important;
+}
+.chat-item:hover { background: var(--ds-panel-2) !important; color: var(--ds-ink) !important; }
+.chat-item.active { background: var(--ds-panel-2) !important; border-color: var(--ds-line) !important; color: var(--ds-ink) !important; }
+
+.empty-chats,
+.show-all-chats {
+  font-family: var(--ds-mono) !important;
+  font-size: 10.5px !important;
+  letter-spacing: .06em !important;
+  color: var(--ds-muted-2) !important;
+  text-transform: uppercase !important;
+}
+
+.sidebar-card {
+  background: var(--ds-panel-2) !important;
+  border: 1px solid var(--ds-line) !important;
+  border-radius: var(--ds-r-md) !important;
+  padding: 14px !important;
+  box-shadow: none !important;
+}
+.sidebar-card-text { font-size: 12.5px !important; line-height: 1.6 !important; color: var(--ds-muted) !important; }
+
+.account-card {
+  background: var(--ds-panel) !important;
+  border: 1px solid var(--ds-line) !important;
+  border-radius: var(--ds-r-md) !important;
+  box-shadow: none !important;
+  padding: 10px !important;
+}
+.avatar {
+  background: var(--ds-ink) !important;
+  color: var(--ds-panel) !important;
+  border: none !important;
+  border-radius: 10px !important;
+  font-weight: 700 !important;
+  font-size: 13px !important;
+}
+.account-name { font-size: 13px !important; font-weight: 650 !important; color: var(--ds-ink) !important; }
+.account-email { font-family: var(--ds-mono) !important; font-size: 10.5px !important; color: var(--ds-muted-2) !important; }
+
+/* ---------------------------------------------------------------- 5. Topbar */
+
+.topbar {
+  background: color-mix(in srgb, var(--ds-bg) 82%, transparent) !important;
+  backdrop-filter: saturate(180%) blur(14px) !important;
+  -webkit-backdrop-filter: saturate(180%) blur(14px) !important;
+  border-bottom: 1px solid var(--ds-line) !important;
+  box-shadow: none !important;
+  padding: 14px 28px !important;
+}
+.top-title strong {
+  font-size: 15px !important;
+  font-weight: 750 !important;
+  letter-spacing: -.02em !important;
+  color: var(--ds-ink) !important;
+}
+.top-title span {
+  font-family: var(--ds-mono) !important;
+  font-size: 10.5px !important;
+  letter-spacing: .06em !important;
+  color: var(--ds-muted-2) !important;
+}
+
+.icon-btn,
+.mobile-menu {
+  background: var(--ds-panel) !important;
+  border: 1px solid var(--ds-line) !important;
+  color: var(--ds-ink-2) !important;
+  border-radius: var(--ds-r-sm) !important;
+  box-shadow: none !important;
+  font-family: var(--ds-mono) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: .06em !important;
+  transition: background .16s var(--ds-ease), border-color .16s var(--ds-ease), transform .16s var(--ds-ease) !important;
+}
+.icon-btn:hover,
+.mobile-menu:hover { background: var(--ds-panel-2) !important; border-color: var(--ds-line-2) !important; transform: translateY(-1px) !important; }
+
+/* ------------------------------------------------------------------ 6. Hero */
+
+.welcome { padding: 6vh 0 4vh !important; text-align: center !important; }
+
+.welcome-kicker {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  font-family: var(--ds-mono) !important;
+  font-size: 10.5px !important;
+  font-weight: 600 !important;
+  letter-spacing: .16em !important;
+  text-transform: uppercase !important;
+  color: var(--ds-muted) !important;
+  background: var(--ds-panel) !important;
+  border: 1px solid var(--ds-line) !important;
+  border-radius: var(--ds-r-pill) !important;
+  padding: 7px 14px !important;
+  box-shadow: none !important;
+  margin-bottom: 30px !important;
+}
+.kicker-dot {
+  width: 6px !important; height: 6px !important;
+  border-radius: 50% !important;
+  background: var(--ds-mint) !important;
+  box-shadow: 0 0 0 3px var(--ds-mint-soft) !important;
+  animation: ds-pulse 2.4s var(--ds-ease) infinite !important;
+}
+@keyframes ds-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .35; }
+}
+
+/* The headline is the design. Very large, very tight, near-black, with a
+   single accented phrase — the one place colour is allowed to shout. */
+.welcome h1,
+#welcomeTitle {
+  font-family: var(--ds-sans) !important;
+  font-size: clamp(38px, 6.2vw, 78px) !important;
+  font-weight: 800 !important;
+  line-height: 1.02 !important;
+  letter-spacing: -.042em !important;
+  color: var(--ds-ink) !important;
+  margin: 0 auto 22px !important;
+  max-width: 16ch !important;
+  text-wrap: balance;
+}
+#welcomeTitle em,
+#welcomeTitle .accent {
+  font-style: normal !important;
+  color: var(--ds-accent) !important;
+}
+
+.welcome p,
+#welcomeText {
+  font-size: clamp(15px, 1.5vw, 18px) !important;
+  line-height: 1.65 !important;
+  color: var(--ds-muted) !important;
+  max-width: 56ch !important;
+  margin: 0 auto 44px !important;
+  letter-spacing: -.008em !important;
+}
+
+/* Suggestion cards: bordered, flat, hover lifts the border not a shadow. */
+.suggestions { gap: 12px !important; max-width: 940px !important; margin: 0 auto !important; }
+.suggestion {
+  background: var(--ds-panel) !important;
+  border: 1px solid var(--ds-line) !important;
+  border-radius: var(--ds-r-md) !important;
+  padding: 18px !important;
+  box-shadow: none !important;
+  text-align: start !important;
+  transition: border-color .18s var(--ds-ease), transform .18s var(--ds-ease), background .18s var(--ds-ease) !important;
+}
+.suggestion:hover {
+  border-color: var(--ds-ink) !important;
+  transform: translateY(-2px) !important;
+  background: var(--ds-panel) !important;
+}
+.suggestion strong {
+  display: block !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  letter-spacing: -.02em !important;
+  color: var(--ds-ink) !important;
+  margin-bottom: 6px !important;
+}
+.suggestion span { font-size: 12.5px !important; line-height: 1.6 !important; color: var(--ds-muted) !important; }
+
+/* -------------------------------------------------------------- 7. Messages */
+
+.messages-inner { max-width: 860px !important; }
+
+.bubble {
+  border-radius: var(--ds-r-md) !important;
+  font-size: 15px !important;
+  line-height: 1.75 !important;
+  letter-spacing: -.006em !important;
+  box-shadow: none !important;
+}
+.msg.user .bubble {
+  background: var(--ds-ink) !important;
+  color: var(--ds-panel) !important;
+  border: 1px solid var(--ds-ink) !important;
+}
+.msg.assistant .bubble {
+  background: var(--ds-panel) !important;
+  color: var(--ds-ink) !important;
+  border: 1px solid var(--ds-line) !important;
+}
+
+.bubble h1, .bubble h2, .bubble h3 {
+  letter-spacing: -.025em !important;
+  font-weight: 750 !important;
+  color: var(--ds-ink) !important;
+}
+.bubble a { color: var(--ds-accent) !important; text-underline-offset: 3px !important; }
+.bubble code,
+.bubble pre {
+  font-family: var(--ds-mono) !important;
+  font-size: 12.5px !important;
+  border-radius: var(--ds-r-sm) !important;
+}
+.bubble pre {
+  background: var(--ds-panel-2) !important;
+  border: 1px solid var(--ds-line) !important;
+}
+.bubble blockquote {
+  border-inline-start: 2px solid var(--ds-accent) !important;
+  background: var(--ds-accent-soft) !important;
+  border-radius: 0 var(--ds-r-sm) var(--ds-r-sm) 0 !important;
+  color: var(--ds-ink-2) !important;
+}
+
+/* -------------------------------------------------------------- 8. Composer */
+
+.composer-shell {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  max-width: 860px !important;
+}
+.composer {
+  background: var(--ds-panel) !important;
+  border: 1px solid var(--ds-line-2) !important;
+  border-radius: var(--ds-r-lg) !important;
+  box-shadow: var(--ds-shadow-2) !important;
+  padding: 10px 12px !important;
+  transition: border-color .18s var(--ds-ease), box-shadow .18s var(--ds-ease) !important;
+}
+.composer:focus-within {
+  border-color: var(--ds-ink) !important;
+  box-shadow: var(--ds-shadow-3) !important;
+}
+.composer textarea,
+#input {
+  font-family: var(--ds-sans) !important;
+  font-size: 15px !important;
+  line-height: 1.6 !important;
+  color: var(--ds-ink) !important;
+  background: transparent !important;
+}
+.composer textarea::placeholder { color: var(--ds-muted-2) !important; }
+
+.attach-btn,
+.mode-current {
+  background: var(--ds-panel-2) !important;
+  border: 1px solid var(--ds-line) !important;
+  color: var(--ds-ink-2) !important;
+  border-radius: var(--ds-r-sm) !important;
+  box-shadow: none !important;
+}
+.attach-btn:hover,
+.mode-current:hover { background: var(--ds-panel-3) !important; border-color: var(--ds-line-2) !important; }
+.mode-current span,
+.mode-option span {
+  font-family: var(--ds-mono) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: .06em !important;
+  text-transform: uppercase !important;
+}
+
+.send-btn {
+  background: var(--ds-ink) !important;
+  color: var(--ds-panel) !important;
+  border: 1px solid var(--ds-ink) !important;
+  border-radius: var(--ds-r-sm) !important;
+  box-shadow: none !important;
+  transition: opacity .16s var(--ds-ease), transform .16s var(--ds-ease) !important;
+}
+.send-btn:hover { opacity: .88 !important; transform: translateY(-1px) !important; }
+.send-btn:disabled { opacity: .3 !important; transform: none !important; }
+
+.mode-dropdown {
+  background: var(--ds-panel) !important;
+  border: 1px solid var(--ds-line) !important;
+  border-radius: var(--ds-r-md) !important;
+  box-shadow: var(--ds-shadow-3) !important;
+  padding: 6px !important;
+}
+.mode-option { border-radius: 8px !important; color: var(--ds-muted) !important; }
+.mode-option:hover { background: var(--ds-panel-2) !important; color: var(--ds-ink) !important; }
+.mode-option.active { background: var(--ds-ink) !important; color: var(--ds-panel) !important; }
+
+.request-status {
+  background: var(--ds-panel) !important;
+  border: 1px solid var(--ds-line) !important;
+  border-radius: var(--ds-r-pill) !important;
+  box-shadow: var(--ds-shadow-1) !important;
+  font-family: var(--ds-mono) !important;
+  font-size: 11px !important;
+  letter-spacing: .05em !important;
+  text-transform: uppercase !important;
+  color: var(--ds-muted) !important;
+}
+.request-pulse { background: var(--ds-accent) !important; }
+
+.scroll-bottom-btn {
+  background: var(--ds-panel) !important;
+  border: 1px solid var(--ds-line-2) !important;
+  color: var(--ds-ink) !important;
+  box-shadow: var(--ds-shadow-2) !important;
+}
+
+/* ----------------------------------------------------------- 9. Misc panels */
+
+.modal, .settings-panel, .sheet, .dialog {
+  background: var(--ds-panel) !important;
+  border: 1px solid var(--ds-line) !important;
+  border-radius: var(--ds-r-lg) !important;
+  box-shadow: var(--ds-shadow-3) !important;
+}
+
+.network-banner {
+  background: var(--ds-ink) !important;
+  color: var(--ds-panel) !important;
+  font-family: var(--ds-mono) !important;
+  font-size: 11px !important;
+  letter-spacing: .05em !important;
+  text-transform: uppercase !important;
+}
+
+/* ------------------------------------------------------------ 10. Responsive */
+
+@media (max-width: 860px) {
+  .welcome { padding: 4vh 0 3vh !important; }
+  .welcome h1, #welcomeTitle { font-size: clamp(30px, 9vw, 44px) !important; letter-spacing: -.035em !important; max-width: 14ch !important; }
+  .welcome p, #welcomeText { font-size: 14.5px !important; margin-bottom: 30px !important; }
+  .topbar { padding: 12px 16px !important; }
+  .suggestions { grid-template-columns: 1fr !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+}

@@ -23,10 +23,6 @@ const { createLlmService } = require('./src/services/llmService');
 const { createRoutingEngine } = require('./src/agents/RoutingEngine');
 const { createChatPromptBuilder } = require('./src/services/systemPrompt');
 const { registerSearchRoutes } = require('./src/routes/search');
-const { createQcodeAgent } = require('./src/agents/qcodeAgent');
-const { registerQcodeRoutes } = require('./src/routes/qcode');
-const { registerQSparkRoutes } = require('./src/routes/qspark');
-const { createQcodeWorkspaceService } = require('./src/services/qcodeWorkspace');
 const { CALCULATOR_TOOL, createSafeCalculate } = require('./src/tools/calculatorTool');
 const { registerChatRoutes } = require('./src/routes/chat');
 
@@ -34,6 +30,21 @@ let admin = null;
 try { admin = require('firebase-admin'); } catch (_) { admin = null; }
 
 const app = express();
+// X-Forwarded-For is only trustworthy when a proxy we control actually
+// rewrites it. Trusting it unconditionally lets a direct client forge its own
+// IP and reset the guest quota; not trusting it on Render collapses every
+// visitor onto the proxy's IP and breaks rate limiting. So: trust exactly as
+// many hops as the deployment really has.
+//   TRUST_PROXY=<n>  explicit hop count (Cloudflare in front of Render => 2)
+//   TRUST_PROXY=false / 0  direct exposure, ignore the header entirely
+//   unset  => 1 on Render (RENDER is set by the platform), 0 locally
+const TRUST_PROXY_SETTING = (() => {
+  const raw = String(process.env.TRUST_PROXY ?? '').trim().toLowerCase();
+  if (raw === 'false') return false;
+  if (raw && Number.isFinite(Number(raw))) return Number(raw);
+  return process.env.RENDER ? 1 : 0;
+})();
+app.set('trust proxy', TRUST_PROXY_SETTING);
 const PORT = process.env.PORT || 3000;
 const QJO_VERSION = 'qjo-required-fixes-v1-2026-07-26-117';
 const QJO_FULL_TRAINING_PROMPT = (() => {
@@ -70,18 +81,6 @@ const AGNES_API_KEYS = String(process.env.AGNES_API_KEYS || process.env.AGNES_AP
   .map(k => k.trim())
   .filter(Boolean);
 
-// Q-Spark uses a completely separate key namespace. Do not fall back to Qjo keys.
-const QSPARK_GROQ_API_KEYS = (process.env.QSPARK_GROQ_API_KEYS || process.env.QSPARK_GROQ_API_KEY) ? String(process.env.QSPARK_GROQ_API_KEYS || process.env.QSPARK_GROQ_API_KEY).split(',').map(k => k.trim()).filter(Boolean) : GROQ_API_KEYS;
-const QSPARK_KIMI_API_KEYS = (process.env.QSPARK_KIMI_API_KEYS || process.env.QSPARK_KIMI_API_KEY) ? String(process.env.QSPARK_KIMI_API_KEYS || process.env.QSPARK_KIMI_API_KEY).split(',').map(k => k.trim()).filter(Boolean) : KIMI_API_KEYS;
-const QSPARK_QWEN_API_KEYS = (process.env.QSPARK_QWEN_API_KEYS || process.env.QSPARK_QWEN_API_KEY) ? String(process.env.QSPARK_QWEN_API_KEYS || process.env.QSPARK_QWEN_API_KEY).split(',').map(k => k.trim()).filter(Boolean) : QWEN_API_KEYS;
-const QSPARK_NVIDIA_API_KEYS = (process.env.QSPARK_NVIDIA_API_KEYS || process.env.QSPARK_NVIDIA_API_KEY)
-  ? String(process.env.QSPARK_NVIDIA_API_KEYS || process.env.QSPARK_NVIDIA_API_KEY).split(',').map(k => k.trim()).filter(Boolean)
-  : NVIDIA_API_KEYS;
-const QSPARK_GROQ_MODEL = process.env.QSPARK_GROQ_MODEL || 'llama-3.3-70b-versatile';
-const QSPARK_KIMI_BASE_URL = String(process.env.QSPARK_KIMI_BASE_URL || 'https://api.moonshot.ai/v1').replace(/\/$/, '');
-const QSPARK_KIMI_MODEL = process.env.QSPARK_KIMI_MODEL || 'moonshot-v1-128k';
-const QSPARK_QWEN_BASE_URL = String(process.env.QSPARK_QWEN_BASE_URL || 'https://openrouter.ai/api/v1').replace(/\/$/, '');
-const QSPARK_QWEN_MODEL = process.env.QSPARK_QWEN_MODEL || 'qwen/qwen3.5-397b-a17b';
 const EMBEDDING_API_KEYS = String(process.env.EMBEDDING_API_KEYS || process.env.EMBEDDING_API_KEY || '')
   .split(',')
   .map(k => k.trim())
@@ -96,55 +95,6 @@ const HUGGINGFACE_API_KEYS = String(process.env.HUGGINGFACE_API_KEYS || process.
 const HUGGINGFACE_EMBEDDING_MODEL = process.env.HUGGINGFACE_EMBEDDING_MODEL || 'intfloat/multilingual-e5-base';
 const HUGGINGFACE_EMBEDDING_URL = String(process.env.HUGGINGFACE_EMBEDDING_URL || '').replace(/\/$/, '');
 
-const QSPARK_NVIDIA_MODEL = process.env.QSPARK_NVIDIA_MODEL || 'deepseek-ai/deepseek-v4-flash';
-let qSparkGroqCursor = 0;
-let qSparkKimiCursor = 0;
-let qSparkQwenCursor = 0;
-let qSparkNvidiaCursor = 0;
-
-// Qcode uses a separate provider namespace and isolated workspace.
-const QCODE_GROQ_API_KEYS = (process.env.QCODE_GROQ_API_KEYS || process.env.QCODE_GROQ_API_KEY) ? String(process.env.QCODE_GROQ_API_KEYS || process.env.QCODE_GROQ_API_KEY).split(',').map(k => k.trim()).filter(Boolean) : GROQ_API_KEYS;
-const QCODE_QWEN_API_KEYS = (process.env.QCODE_QWEN_API_KEYS || process.env.QCODE_QWEN_API_KEY) ? String(process.env.QCODE_QWEN_API_KEYS || process.env.QCODE_QWEN_API_KEY).split(',').map(k => k.trim()).filter(Boolean) : QWEN_API_KEYS;
-const QCODE_KIMI_API_KEYS = (process.env.QCODE_KIMI_API_KEYS || process.env.QCODE_KIMI_API_KEY) ? String(process.env.QCODE_KIMI_API_KEYS || process.env.QCODE_KIMI_API_KEY).split(',').map(k => k.trim()).filter(Boolean) : KIMI_API_KEYS;
-const QCODE_NVIDIA_API_KEYS = (process.env.QCODE_NVIDIA_API_KEYS || process.env.QCODE_NVIDIA_API_KEY) 
-  ? String(process.env.QCODE_NVIDIA_API_KEYS || process.env.QCODE_NVIDIA_API_KEY).split(',').map(k => k.trim()).filter(Boolean)
-  : NVIDIA_API_KEYS;
-const QCODE_GROQ_MODEL = process.env.QCODE_GROQ_MODEL || 'llama-3.3-70b-versatile';
-const QCODE_QWEN_MODEL = process.env.QCODE_QWEN_MODEL || 'qwen-plus';
-const QCODE_KIMI_BASE_URL = String(process.env.QCODE_KIMI_BASE_URL || 'https://api.moonshot.ai/v1').replace(/\/$/, '');
-const QCODE_KIMI_MODEL = process.env.QCODE_KIMI_MODEL || 'moonshot-v1-32k';
-const QCODE_NVIDIA_MODEL = process.env.QCODE_NVIDIA_MODEL || 'meta/llama-3.1-70b-instruct';
-let qCodeGroqCursor = 0;
-let qCodeQwenCursor = 0;
-let qCodeKimiCursor = 0;
-let qCodeNvidiaCursor = 0;
-
-const QCODE_PROJECT_KNOWLEDGE_CONTEXT = `
-QCODE PROJECT KNOWLEDGE CONTEXT:
-- The uploaded Qcode reference describes a full Python agent architecture intended for Qcode's mature roadmap.
-- Target architecture includes: brain.py (Reason→Plan→Act→Verify→Reflect loop), tools.py (32 tools), providers.py (8 providers), router.py (smart routing/fallback), agents.py (planner/coder/tester/reviewer), sandbox.py, safety.py snapshots/rollback, indexer.py local semantic RAG, memory.py, knowledge.py, skills.py, i18n.py, server.py Flask endpoints, preview.py, sessions.py, auth.py, cost_tracker.py, project_rules.py, setup.py, agent.py CLI.
-- Target providers: Groq, Kimi, Qwen, Gemini, NVIDIA, Claude, OpenRouter, OpenAI.
-- Target tools include file read/write/edit/multi_edit/replace_all, list/find/grep/analyze/semantic_search/dependencies, scaffold/install/start_preview/stop_preview, run_command/run_code/run_tests/lint, git_snapshot/git_rollback/git_history, memory, knowledge, preview_edit, design tools, todo_write, replace_in_project, web_fetch.
-- Target API includes /api/chat SSE events, /api/files, /api/file, /api/upload, /api/download, /api/save, sessions, preview, background, usage, rules, sandbox_status.
-- Target quality bar: multi-agent, sandbox, snapshots/rollback, live preview, bilingual Arabic/English, project memory, skills, CI/testing, security.
-- Current hosted Node Qcode is an incremental public web integration. It should evolve toward this reference architecture step by step, prioritizing safety: snapshots/rollback before command execution, then safe command runner, then test/build loop, then preview, then sessions and usage.
-`;
-
-const QCODE_WORKSPACE_DIR = path.join(__dirname, 'qcode-workspace');
-const QCODE_SNAPSHOT_DIR = path.join(__dirname, '.qcode-snapshots');
-const QCODE_SESSIONS_DIR = path.join(__dirname, '.qcode-sessions');
-const QSPARK_MAX_SOURCES = Number(process.env.QSPARK_MAX_SOURCES || 0); // 0 = unlimited
-const QSPARK_MAX_FILE_MB = Number(process.env.QSPARK_MAX_FILE_MB || 0); // 0 = unlimited
-const QCODE_MAX_UPLOAD_MB = Number(process.env.QCODE_MAX_UPLOAD_MB || 5);
-const QCODE_MAX_UPLOAD_FILES = Number(process.env.QCODE_MAX_UPLOAD_FILES || 20);
-const QCODE_ALLOW_NETWORK_COMMANDS = process.env.QCODE_ALLOW_NETWORK_COMMANDS === 'true';
-const qcodeUsage = { total_tokens: 0, total_cost_usd: 0, by_provider: {}, calls: 0 };
-const qcodeUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: Math.max(1, QCODE_MAX_UPLOAD_MB) * 1024 * 1024, files: Math.max(1, QCODE_MAX_UPLOAD_FILES) } });
-const qSparkUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: Math.max(1, QSPARK_MAX_FILE_MB || 25) * 1024 * 1024, files: 8 } });
-let kimiKeyCursor = 0;
-let nvidiaKeyCursor = 0;
-let openRouterKeyCursor = 0;
-let agnesKeyCursor = 0;
 const IP_RATE_LIMIT_PER_MINUTE = Number(process.env.IP_RATE_LIMIT_PER_MINUTE || 0); // 0 = disabled
 // Groq's official replacements for the llama-3.1/3.3 line (shutting down
 // 2026-08-16 — see console.groq.com/docs/deprecations). llmService also
@@ -255,6 +205,10 @@ const ALLOWED_MODELS = new Set([
 ]);
 
 const math = create(all);
+// Capture the real evaluate BEFORE the hardening import below overrides the
+// namespace symbol, otherwise safeCalculate calls the throwing stub and the
+// calculator tool never works.
+const rawMathEvaluate = math.evaluate.bind(math);
 math.import({
   import: () => { throw new Error('Function import is disabled.'); },
   createUnit: () => { throw new Error('Function createUnit is disabled.'); },
@@ -264,7 +218,7 @@ math.import({
   derivative: () => { throw new Error('Function derivative is disabled.'); }
 }, { override: true });
 
-const safeCalculate = createSafeCalculate(math);
+const safeCalculate = createSafeCalculate(math, rawMathEvaluate);
 
 app.use(helmet({
   contentSecurityPolicy: {
@@ -347,14 +301,12 @@ app.use(helmet({
 }));
 
 // compression() buffers response bodies to gzip them, which breaks
-// Server-Sent Events streaming (the client gets nothing until the buffer
-// flushes, which can look like "it does nothing" for a multi-step agent).
-// /api/qcode/chat streams live tool/answer events, so it must bypass
-// compression entirely.
+// Server-Sent Events streaming: the client gets nothing until the buffer
+// flushes. /api/chat streams tokens live, so it must bypass compression.
 app.use(compression({
   threshold: 1024,
   filter: (req, res) => {
-    if (req.path === '/api/qcode/chat') return false;
+    if (req.path === '/api/chat') return false;
     return compression.filter(req, res);
   }
 }));
@@ -413,10 +365,12 @@ function cleanMessages(messages) {
 }
 
 function getClientIp(req) {
-  const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
-  const realIp = String(req.headers['x-real-ip'] || '').trim();
-  const raw = forwarded || realIp || req.ip || req.socket?.remoteAddress || '';
-  return raw.replace(/^::ffff:/, '');
+  // req.ip is derived by Express using the 'trust proxy' setting, which picks
+  // the hop actually added by our proxy. Reading X-Forwarded-For[0] directly
+  // (the old behaviour) took the FIRST entry — which the client fully controls
+  // — letting anyone reset their guest quota by rotating a fake header.
+  const raw = req.ip || req.socket?.remoteAddress || '';
+  return String(raw).replace(/^::ffff:/, '');
 }
 
 function isPrivateIp(ip) {
@@ -451,18 +405,6 @@ async function lookupClientGeo(ip) {
   }
 }
 
-
-
-const { createQcodeLearning } = require('./src/services/qcodeLearning');
-const QCODE_LEARNING_DIR = path.join(__dirname, '.qcode-learning');
-const qcodeLearning = createQcodeLearning({ dir: QCODE_LEARNING_DIR });
-
-const qcodeWorkspace = createQcodeWorkspaceService({
-  workspaceDir: QCODE_WORKSPACE_DIR,
-  snapshotDir: QCODE_SNAPSHOT_DIR,
-  sessionsDir: QCODE_SESSIONS_DIR,
-  allowNetworkCommands: QCODE_ALLOW_NETWORK_COMMANDS
-});
 
 
 const llmService = createLlmService({
@@ -515,45 +457,6 @@ const routingEngine = createRoutingEngine({
 });
 
 
-
-const qcodeAgent = createQcodeAgent({
-  routingEngine,
-  qcodeWorkspaceSummary: qcodeWorkspace.qcodeWorkspaceSummary,
-  projectKnowledgeContext: QCODE_PROJECT_KNOWLEDGE_CONTEXT,
-  usage: qcodeUsage,
-  extractJsonObject: qcodeWorkspace.extractJsonObject,
-  normalizeQcodeActions: qcodeWorkspace.normalizeQcodeActions,
-  runQcodeAction: qcodeWorkspace.runQcodeAction,
-  runQcodeCommand: qcodeWorkspace.runQcodeCommand,
-  verifyWorkspace: qcodeWorkspace.verifyWorkspace,
-  learning: qcodeLearning
-});
-
-registerQcodeRoutes(app, {
-  routingEngine,
-  fs,
-  path,
-  http,
-  ensureQcodeWorkspace: qcodeWorkspace.ensureQcodeWorkspace,
-  workspaceDir: QCODE_WORKSPACE_DIR,
-  sessionsDir: QCODE_SESSIONS_DIR,
-  uploadMiddleware: qcodeUpload,
-  usage: qcodeUsage,
-  agent: qcodeAgent,
-  verifyFirebaseRequest,
-  tools: qcodeWorkspace,
-  learning: qcodeLearning
-});
-
-registerQSparkRoutes(app, {
-  routingEngine,
-  keys: { groq: QSPARK_GROQ_API_KEYS.length, kimi: QSPARK_KIMI_API_KEYS.length, qwen: QSPARK_QWEN_API_KEYS.length, nvidia: QSPARK_NVIDIA_API_KEYS.length },
-  models: { groq: QSPARK_GROQ_MODEL, kimi: QSPARK_KIMI_MODEL, qwen: QSPARK_QWEN_MODEL, nvidia: QSPARK_NVIDIA_MODEL },
-  cleanMessages,
-  fullSystemPrompt: QJO_FULL_TRAINING_PROMPT,
-  verifyFirebaseRequest,
-  uploadMiddleware: qSparkUpload
-});
 
 registerFeedbackRoutes(app, { feedbackService, verifyAdminRequest });
 
@@ -666,7 +569,6 @@ registerSystemRoutes(app, {
   embeddingsService,
   getLimitConfig: authService.getLimitConfig,
   getUsageSnapshot: authService.getUsageSnapshot,
-  quotas: { qSparkMaxSources: QSPARK_MAX_SOURCES, qSparkMaxFileMB: QSPARK_MAX_FILE_MB, qCodeMaxUploadMB: QCODE_MAX_UPLOAD_MB, qCodeMaxUploadFiles: QCODE_MAX_UPLOAD_FILES, qCodeAllowNetworkCommands: QCODE_ALLOW_NETWORK_COMMANDS },
   getClientIp,
   lookupClientGeo,
   qjoProviders: () => ({
@@ -678,12 +580,6 @@ registerSystemRoutes(app, {
     openRouter: OPENROUTER_API_KEYS.length > 0,
     agnes: AGNES_API_KEYS.length > 0
   }),
-  qSparkProviders: () => ({
-    groq: QSPARK_GROQ_API_KEYS.length > 0,
-    kimi: QSPARK_KIMI_API_KEYS.length > 0,
-    qwen: QSPARK_QWEN_API_KEYS.length > 0,
-    nvidia: QSPARK_NVIDIA_API_KEYS.length > 0
-  }),
   healthPayload: () => ({
     geminiKeysConfigured: GEMINI_API_KEYS.length,
     groqKeysConfigured: GROQ_API_KEYS.length,
@@ -693,21 +589,8 @@ registerSystemRoutes(app, {
     openRouterKeysConfigured: OPENROUTER_API_KEYS.length,
     agnesKeysConfigured: AGNES_API_KEYS.length,
     guestDailyLimit: GUEST_DAILY_LIMIT,
-    quotas: { qSparkMaxSources: QSPARK_MAX_SOURCES, qSparkMaxFileMB: QSPARK_MAX_FILE_MB, qCodeMaxUploadMB: QCODE_MAX_UPLOAD_MB, qCodeMaxUploadFiles: QCODE_MAX_UPLOAD_FILES, qCodeAllowNetworkCommands: QCODE_ALLOW_NETWORK_COMMANDS },
     embeddingsConfigured: embeddingsService.configuredCount(),
     embeddingsProvider: embeddingsService.getEmbeddingProviderName(),
-    qSparkKeysConfigured: {
-      groq: QSPARK_GROQ_API_KEYS.length,
-      kimi: QSPARK_KIMI_API_KEYS.length,
-      qwen: QSPARK_QWEN_API_KEYS.length,
-      nvidia: QSPARK_NVIDIA_API_KEYS.length
-    },
-    qCodeKeysConfigured: {
-      groq: QCODE_GROQ_API_KEYS.length,
-      qwen: QCODE_QWEN_API_KEYS.length,
-      kimi: QCODE_KIMI_API_KEYS.length,
-      nvidia: QCODE_NVIDIA_API_KEYS.length
-    },
     routerVersion: 'pipelines-v2',
     chatPipelines: {
       lite: ['groq:flash', 'gemini:flash', 'qwen:flash', 'kimi:flash', 'nvidia:flash'],
@@ -744,8 +627,6 @@ registerSystemRoutes(app, {
     directLogoutButton: true,
     exportPdf: true,
     exportSlides: true,
-    qSparkSeparateKeys: true,
-    qCodeSeparateKeys: true,
     realEmbeddingsRag: true,
     fastSearchOptimized: true,
     smartRouterV2: true,
@@ -753,7 +634,13 @@ registerSystemRoutes(app, {
   })
 });
 
-registerExportRoutes(app, { verifyFirebaseRequest, uploadMiddleware: qcodeUpload });
+// Only /api/export/image-to-pdf uploads a file, so a small dedicated limit is
+// enough (this used to borrow Qcode's multer instance).
+const exportUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: Number(process.env.EXPORT_MAX_UPLOAD_MB || 10) * 1024 * 1024, files: 1 }
+});
+registerExportRoutes(app, { verifyFirebaseRequest, uploadMiddleware: exportUpload });
 
 // Picks the fastest available provider for the search query rewriter
 // (a tiny 150-token call that massively improves Arabic/dialect queries).
@@ -806,6 +693,27 @@ registerChatRoutes(app, {
   memoryCaches
 });
 
+// Unknown /api/* must NOT fall through to the SPA catch-all below. It used to,
+// so a typo'd endpoint returned 200 + index.html and the client blew up with
+// "Unexpected token '<'" instead of seeing a clean 404.
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: 'Endpoint not found.', path: req.originalUrl.split('?')[0] });
+});
+
 app.get('*', (_, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+
+// Last-resort error handler: never leak a stack trace to the client, and make
+// multer's upload-limit rejections readable instead of a generic 500.
+app.use((error, req, res, _next) => {
+  const status = error?.status || error?.statusCode || (error?.code === 'LIMIT_FILE_SIZE' ? 413 : 500);
+  const message = error?.code === 'LIMIT_FILE_SIZE'
+    ? 'File is too large.'
+    : error?.code === 'LIMIT_FILE_COUNT'
+      ? 'Too many files.'
+      : status === 500 ? 'Internal server error.' : String(error?.message || 'Request failed.');
+  if (status >= 500) console.error('Unhandled route error:', error?.message || error);
+  if (res.headersSent) return;
+  res.status(status).json({ error: message });
+});
 
 app.listen(PORT, () => console.log(`Qjo production server running on ${PORT}`));

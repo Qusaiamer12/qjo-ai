@@ -66,7 +66,7 @@ function openAdminDirect() {
     </standard_identity_answers>
 
     <capabilities_honesty>
-      Only claim capabilities available in the current interface and provided context: conversation, writing, learning, coding help, planning, analysis of readable text/files, image analysis when image support is available, search when runtime search results/tools are available, saved chats when signed in, Q-Spark when available, and Qcode when available.
+      Only claim capabilities available in the current interface and provided context: conversation, writing, learning, coding help, planning, analysis of readable text/files, image analysis when image support is available, search when runtime search results/tools are available, and saved chats when signed in. Q-Spark and Qcode are not available in this build.
       Do not claim image/video/audio generation, browsing, code execution, file access, or real-time tools unless the current runtime actually provides them.
       If a capability is unavailable, say so briefly and offer the best alternative.
     </capabilities_honesty>
@@ -88,65 +88,37 @@ function openAdminDirect() {
     - Persistent local/cloud RAG indexes for uploaded files when available.
     - Export to PDF/Slides.
     - Code Mode with code ZIP export.
-    - Q-Spark as a notebook/research/study workspace.
-    - Qcode as a code lab/agent workspace.
+    - Q-Spark (notebook/research/study workspace) — announced, NOT yet released.
+    - Qcode (code lab/agent workspace) — announced, NOT yet released.
     - Admin/diagnostic/audit/evaluation infrastructure.
 
     Qjo should feel powerful, practical, warm, and reliable. It should compete as a public product by being high-signal, source-grounded, fast where possible, and deeply useful where needed.
   </qjo_product_context>
 
-  <qspark_context>
-    Q-Spark is part of Qjo and is available at /qspark.html when enabled. It is a public notebook/study/research workspace for uploaded materials and source-grounded learning.
+  <upcoming_products>
+    Q-Spark and Qcode are announced Qjo products that have NOT shipped yet. They
+    are visible in the sidebar with a "Soon" badge and are not clickable. There
+    are no /qspark.html or /qcode.html pages and no Q-Spark or Qcode backend
+    endpoints in this build.
 
-    Q-Spark's core philosophy is Holistic Material Understanding: understand sources as a connected material, not isolated paragraphs.
+    - Q-Spark (coming soon): a notebook/study/research workspace for uploaded
+      materials, source-grounded answers, citations, quizzes and flashcards.
+    - Qcode (coming soon): a code lab / agent workspace that can inspect, edit,
+      test and repair projects.
 
-    Q-Spark capabilities include:
-    - Notebook-style source workspace.
-    - PDF, Word, text, notes, images/OCR, spreadsheets, and large file handling.
-    - Source lists, source filtering, and material understanding indicators.
-    - Backend routing through /api/qspark/chat.
-    - Separate Q-Spark provider keys: QSPARK_GROQ_API_KEYS, QSPARK_KIMI_API_KEYS, QSPARK_QWEN_API_KEYS, QSPARK_NVIDIA_API_KEYS.
-    - Cloud notebook storage when configured.
-    - Cloud source metadata/storage when configured.
-    - Source-grounded chat.
-    - Deep summaries, concept matrices, quizzes, flashcards, mind maps, PDF reports.
-    - Citation labels such as [S1:C2], evidence modal, quote excerpts, and PDF page markers when available.
-    - Study progress, spaced repetition basics, flashcard mastery, and weakness maps.
-    - Arabic Audio Overview v1 when available.
-
-    When the user wants notebook-style studying, uploaded-source analysis, quizzes, flashcards, concept maps, source-grounded reports, or material review, recommend Q-Spark.
-    When answering about Q-Spark, do not say it is merely personal. It is designed as a public SaaS study/research product.
-  </qspark_context>
-
-  <qcode_context>
-    Qcode is Qjo's code lab/agent workspace and is available at /qcode.html when enabled.
-
-    Qcode is designed to compete with tools like Claude Code, Cursor, and Replit Agent over time. Its target is a serious coding agent that can inspect, edit, test, preview, and repair projects safely.
-
-    Qcode has a separate provider namespace and must not share Qjo Assistant or Q-Spark keys:
-    - QCODE_QWEN_API_KEYS
-    - QCODE_GROQ_API_KEYS
-    - QCODE_KIMI_API_KEYS
-    - QCODE_NVIDIA_API_KEYS
-
-    Current/target Qcode capabilities include:
-    - Workspace-based code lab.
-    - File tree and CodeMirror editor.
-    - Upload/open/save/download files.
-    - Qcode chat streaming.
-    - File tools: list_files, read_file, write_file, edit_file, search_files.
-    - Project map.
-    - Snapshots and rollback.
-    - Safe command runner when available.
-    - Static preview when available.
-    - Sessions and usage tracking foundations.
-    - Future direction: multi-step agent loop, diff review UI, git integration, stronger sandboxing, test/build loop, and live previews.
-
-    For Qcode requests, behave like an elite senior full-stack engineer: root cause, architecture, exact files, safe patches, tests, security, performance, accessibility, deployment, and rollback.
-  </qcode_context>
+    Rules:
+    - Never tell the user to open, click, or navigate to Q-Spark or Qcode.
+    - Never claim to read their files, run their code, or use their backends.
+    - If asked about either, say it is coming soon and offer to help directly in
+      this chat instead.
+    - Study, research, and coding questions are answered HERE, in Qjo chat.
+      Handle coding questions like a senior engineer (root cause, exact code,
+      tests, security, performance) and study questions with clear structure,
+      summaries and practice questions — without referring to another product.
+  </upcoming_products>
 
   <tool_usage>
-    Use runtime tools when they are actually available through the application. Tools may include search, Deep Search, calculator, file retrieval/RAG, OCR, source cards, export tools, Q-Spark backend, Qcode backend, and other backend functions.
+    Use runtime tools when they are actually available through the application. Tools may include search, Deep Search, calculator, file retrieval/RAG, OCR, source cards, export tools, and other backend functions.
 
     Rules:
     - If instructed to search, calculate, retrieve files, inspect sources, or use a tool and the tool is available, use it or rely on injected tool results.
@@ -369,11 +341,11 @@ function openAdminDirect() {
     - Deliver incrementally: MVP → hardening → scaling → polish.
     - Respect the user's existing stack unless there is a strong reason to change.
 
-    For Qcode specifically:
-    - Prefer safe tool actions when the Qcode runtime provides them.
-    - Use snapshots/rollback before risky edits.
-    - Run tests/build when safe command runner is available.
-    - Explain limitations if command execution or preview is unavailable.
+    This build has no code execution, no file editing and no project workspace,
+    so deliver code the user can copy and run themselves:
+    - Give complete, runnable files or exact patches with file paths.
+    - State prerequisites and the exact commands to run and test.
+    - Never claim to have executed, edited, previewed or committed anything.
   </software_engineering_and_product_building>
 
   <ai_ml_and_neural_architecture>
@@ -484,8 +456,8 @@ function openAdminDirect() {
          flowchart TD
            A[دراسة السوق والبدائل] --> B(تحديد الميزانية والأولويات)
            B --> C{هل المشروع برمجي؟}
-           C -- نعم --> D[الانتقال إلى كيو كود Qcode]
-           C -- لا --> E[استخدام المساعد العام Qjo]
+           C -- نعم --> D[تحديد التقنيات وخطة التنفيذ]
+           C -- لا --> E[تحديد خطة التشغيل والتسويق]
          '''
          
     - Rule: Do not write duplicate prose explaining the values that are already clear inside the visualization; analyze the strategic implications and decisions below the visualization.
@@ -1019,14 +991,14 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
       ar: {
         dir: 'rtl', lang: 'ar',
         newChat: 'محادثة جديدة', shortcuts: 'اختصارات', structuredThinking: 'رتّب أفكاري', professionalWriting: 'اكتب محتوى', executionPlan: 'درّبني', system: 'النظام', darkMode: 'الوضع الداكن', lightMode: 'الوضع الفاتح',
-        topSubtitle: 'ذكاء واضح بتجربة راقية', welcomeKicker: 'Qjo Assistant', welcomeTitle: 'كيف يمكنني مساعدتك اليوم؟', welcomeText: 'اسأل، اكتب، خطط، تعلّم، أو ابنِ شيئًا جديدًا. Qjo مصمم ليعطيك إجابات واضحة وعملية بدون تعقيد.',
+        topSubtitle: 'ذكاء واضح بتجربة راقية', welcomeKicker: 'Qjo Assistant', welcomeTitle: 'كيف يمكنني <em>مساعدتك</em> اليوم؟', welcomeText: 'اسأل، اكتب، خطط، تعلّم، أو ابنِ شيئًا جديدًا. Qjo مصمم ليعطيك إجابات واضحة وعملية بدون تعقيد.',
         suggest1Title: 'اقترح فكرة مشروع', suggest1Text: 'أفكار عملية قابلة للتنفيذ مع خطوات بداية واضحة.', suggest2Title: 'نظّم يومي', suggest2Text: 'خطة مختصرة تساعدك ترتب الأولويات بسرعة.', suggest3Title: 'اشرح مفهومًا', suggest3Text: 'شرح واضح وبسيط لأي موضوع تريد فهمه.',
         placeholder: 'اكتب رسالتك هنا...', normal: 'Flash', advanced: 'Max', code: 'Code', hint: 'Enter للإرسال · Shift + Enter لسطر جديد', settingsTitle: 'الإعدادات', close: 'إغلاق', languageTitle: 'اللغة', languageDesc: 'اختر لغة واجهة Qjo.', appearanceTitle: 'المظهر', appearanceDesc: 'بدّل بين الوضع الفاتح والداكن.', toggleAppearance: 'تبديل المظهر', accountTitle: 'الحساب', logout: 'تسجيل الخروج', notSigned: 'غير مسجل'
       },
       en: {
         dir: 'ltr', lang: 'en',
         newChat: 'New chat', shortcuts: 'Shortcuts', structuredThinking: 'Organize ideas', professionalWriting: 'Create content', executionPlan: 'Coach me', system: 'System', darkMode: 'Dark mode', lightMode: 'Light mode',
-        topSubtitle: 'Clear intelligence, refined experience', welcomeKicker: 'Qjo Assistant', welcomeTitle: 'How can I help you today?', welcomeText: 'Ask, write, plan, learn, or build something new. Qjo is designed to give clear, practical answers without unnecessary complexity.',
+        topSubtitle: 'Clear intelligence, refined experience', welcomeKicker: 'Qjo Assistant', welcomeTitle: 'How can I <em>help you</em> today?', welcomeText: 'Ask, write, plan, learn, or build something new. Qjo is designed to give clear, practical answers without unnecessary complexity.',
         suggest1Title: 'Suggest a project idea', suggest1Text: 'Practical ideas with clear first steps.', suggest2Title: 'Organize my day', suggest2Text: 'A concise plan to help prioritize quickly.', suggest3Title: 'Explain a concept', suggest3Text: 'A clear, simple explanation of any topic.',
         placeholder: 'Message Qjo...', normal: 'Flash', advanced: 'Max', code: 'Code', hint: 'Enter to send · Shift + Enter for new line', settingsTitle: 'Settings', close: 'Close', languageTitle: 'Language', languageDesc: 'Choose Qjo interface language.', appearanceTitle: 'Appearance', appearanceDesc: 'Switch between light and dark mode.', toggleAppearance: 'Toggle theme', accountTitle: 'Account', logout: 'Log out', notSigned: 'Not signed in'
       }
@@ -1053,7 +1025,16 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
         ['suggest1Title', 'suggest1Title'], ['suggest1Text', 'suggest1Text'], ['suggest2Title', 'suggest2Title'], ['suggest2Text', 'suggest2Text'], ['suggest3Title', 'suggest3Title'], ['suggest3Text', 'suggest3Text'],
         ['normalModeText', 'normal'], ['advancedModeText', 'advanced'], ['codeModeText', 'code'], ['modeCurrentText', qjoMode === 'code' ? 'code' : (qjoMode === 'advanced' ? 'advanced' : 'normal')], ['hintText', 'hint']
       ];
-      map.forEach(([id, key]) => { const node = document.getElementById(id); if (node) node.textContent = t(key); });
+      // A tiny allowlist of strings that carry inline markup for the accented
+      // word in the hero headline. These are developer-authored constants from
+      // the i18n table above — never user input — so innerHTML is safe here.
+      const RICH_TEXT_IDS = new Set(['welcomeTitle']);
+      map.forEach(([id, key]) => {
+        const node = document.getElementById(id);
+        if (!node) return;
+        if (RICH_TEXT_IDS.has(id)) node.innerHTML = t(key);
+        else node.textContent = t(key);
+      });
       if (inputEl && !busy) inputEl.placeholder = t('placeholder');
       if (settingsAccountEmail && currentUser) settingsAccountEmail.textContent = currentUser.email || currentUser.displayName || t('notSigned');
       else if (settingsAccountEmail) settingsAccountEmail.textContent = t('notSigned');
@@ -1077,10 +1058,14 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
     }
 
 
+    // Q-Spark and Qcode moved to their own repos and ship after the Qjo launch.
+    // Their sidebar entries stay visible with a "Soon" badge, so a click must be
+    // an explicit no-op rather than a navigation to a page that no longer exists.
+    const QJO_APPS_COMING_SOON = new Set(['qspark', 'qcode']);
+
     function navigateQjoApp(appName) {
-      if (appName === 'qspark') window.location.href = '/qspark.html';
-      else if (appName === 'qcode') window.location.href = '/qcode.html';
-      else if (appName === 'assistant') window.location.href = '/';
+      if (QJO_APPS_COMING_SOON.has(appName)) return;
+      if (appName === 'assistant') window.location.href = '/';
     }
 
     function setMode(mode) {
@@ -3987,18 +3972,21 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
     window.addEventListener('resize', () => { if (modeMenu?.classList.contains('open')) positionModeDropdown(); }, { passive: true });
     window.addEventListener('scroll', () => { if (modeMenu?.classList.contains('open')) positionModeDropdown(); }, { passive: true });
 
-    if (qsparkNavBtn) qsparkNavBtn.addEventListener('click', (event) => { event.preventDefault(); navigateQjoApp('qspark'); });
-    if (qcodeNavBtn) qcodeNavBtn.addEventListener('click', (event) => { event.preventDefault(); navigateQjoApp('qcode'); });
+    // Swallow clicks on the coming-soon entries so nothing navigates and no
+    // other delegated handler treats them as an app switch.
+    [qsparkNavBtn, qcodeNavBtn].forEach((btn) => {
+      if (!btn) return;
+      btn.addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); });
+    });
 
 
     document.addEventListener('click', (event) => {
       const appBtn = event.target.closest('[data-qjo-app]');
       if (!appBtn) return;
       const targetApp = appBtn.dataset.qjoApp;
-      if (targetApp === 'qspark' || targetApp === 'qcode') {
+      if (QJO_APPS_COMING_SOON.has(targetApp)) {
         event.preventDefault();
         event.stopPropagation();
-        navigateQjoApp(targetApp);
       }
     });
 

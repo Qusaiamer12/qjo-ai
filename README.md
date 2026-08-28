@@ -1,29 +1,60 @@
 # Qjo Production Ready Package
 
-This package is prepared for production-style testing, but not deployed yet.
+Node.js + Express backend for **Qjo**, the AI chat assistant.
+Deployment target is Render (`render.yaml`).
+
+**Q-Spark** (notebook/research) and **Qcode** (agentic coding workspace) were
+split into their own repositories — [`qspark-ai`](https://github.com/Qusaiamer12/qspark-ai)
+and [`qcode-ai`](https://github.com/Qusaiamer12/qcode-ai) — so this repo can ship
+the first product alone. They still appear in the sidebar with a "Soon" badge.
+See `docs/MIGRATION_QSPARK_QCODE.md`.
 
 ## What is included
 
-- Secure backend proxy for Groq API.
-- Groq API key is never exposed to the browser.
-- Firebase Authentication support.
+- Secure backend proxy for 7 AI providers (Groq, Gemini, Qwen, Kimi, NVIDIA,
+  OpenRouter, Agnes) with key rotation and automatic fallback chains.
+- No provider API key is ever exposed to the browser.
+- Firebase Authentication support (`REQUIRE_FIREBASE_AUTH`), enforced on
+  `/api/chat`, `/api/search`, `/api/export/*`, `/api/embeddings`, `/api/jobs`.
 - Firestore chat history with subcollections:
   - `users/{uid}/chats/{chatId}`
   - `users/{uid}/chats/{chatId}/messages/{messageId}`
 - Image compression before sending to vision model.
 - PDF text extraction in browser using PDF.js.
-- Strict model whitelist.
-- Request timeout.
-- Rate limiting.
-- CSP without inline JS/CSS.
-- Optional Firebase Admin verification for `/api/chat`.
-- Optional daily per-user AI request limit.
+- Strict model whitelist plus runtime migration of decommissioned model IDs.
+- Per-attempt request timeouts and client-disconnect cancellation.
+- Optional IP rate limiting, plus a dedicated limiter on public `/api/feedback`.
+- Helmet security headers with a CSP allowlist.
+  > Note: `script-src` currently includes `'unsafe-inline'` and `'unsafe-eval'`
+  > because the Firebase SDK, MathJax and Tailwind CDN builds require them.
+  > This weakens CSP's XSS protection and is a known open item.
+- Optional daily per-user and per-guest request limits.
+- Export to PDF, PPTX, DOCX, XLSX and code ZIP.
 
 ## Install
 
 ```bash
 npm install
 ```
+
+## Verify
+
+```bash
+npm run scan-secrets  # blocks credentials from reaching a commit
+npm run lint          # ESLint (0 errors expected)
+npm test              # boots the server and asserts security/behaviour invariants
+npm run audit         # static stability audit of routes, frontend and CSS locks
+```
+
+Enable the pre-commit secret scan once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+A ready-to-use GitHub Actions pipeline running all three lives in
+`docs/ci/github-actions-ci.yml` — copy it to `.github/workflows/ci.yml` to
+activate it (see `docs/ci/README.md`).
 
 ## Run locally without server-side Firebase verification
 
@@ -109,14 +140,27 @@ The backend Admin SDK writes usage counters to `aiUsage`, which bypasses Firesto
 | `GOOGLE_APPLICATION_CREDENTIALS` | Alternative | Path to service account file. |
 | `DAILY_USER_LIMIT` | No | `0` means unlimited. Set a number later if you want daily per-user limits. |
 | `TAVILY_API_KEY` | Optional | Enables web search for current information. |
+| `GUEST_DAILY_LIMIT` | No | `0` means unlimited. Per-IP daily cap for anonymous users. |
+| `IP_RATE_LIMIT_PER_MINUTE` | No | `0` disables the global IP limiter. |
+| `TRUST_PROXY` | No | Reverse-proxy hop count. Unset = `1` on Render (auto-detected), `0` locally. Set to `2` if Cloudflare sits in front of Render, otherwise `X-Forwarded-For` can be forged and per-IP quotas bypassed. |
+| `EXPORT_MAX_UPLOAD_MB` | No | Upload ceiling for `/api/export/image-to-pdf`. Defaults to `10`. |
+| `ADMIN_EMAILS` | Optional | Comma-separated emails allowed into `/api/admin/*` and the admin dashboard. |
 
-## Remaining before real launch
+See `.env.example` for the full list.
 
-- Deploy on a real HTTPS host.
-- Move Firebase config to environment/build step if desired.
-- Add proper logging dashboard.
+## Known open items
+
+Tracked in `docs/reports/QJO_FULL_REPO_SCAN_REPORT.md` (full repo scan + fix log):
+
+- CSP still needs `'unsafe-inline'` / `'unsafe-eval'` for CDN dependencies.
+- In-memory state (job queue, caches, guest quotas) means a single instance
+  only — horizontal scaling would need Redis or similar.
+- Remaining `npm audit` findings sit in transitive deps of `firebase-admin`
+  and `puppeteer` and need major upgrades.
+- `public/app.js` (~4.2k lines) should be split into modules.
+- Move Firebase web config to `/api/public-config` instead of duplicating it
+  across five frontend files.
 - Add billing/subscriptions if this will be paid.
-- Add admin panel for usage and users.
 - Add OCR pipeline for scanned PDFs.
 
 

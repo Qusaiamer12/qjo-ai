@@ -1,3 +1,21 @@
-
-.qjo-feedback.jsonl
 node_modules/
+
+# Local env / secrets
+.env
+.env.local
+*.pem
+
+# Runtime state written by the server (must never be committed)
+.qjo-feedback.jsonl
+.qjo-feedback.jsonl.1
+.qjo-admin-config.json
+qcode-workspace/
+.qcode-snapshots/
+.qcode-sessions/
+.qcode-learning/
+
+# Logs / OS noise
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db

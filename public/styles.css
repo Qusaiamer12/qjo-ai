@@ -6266,3 +6266,50 @@ body.dark .auth-card {
     justify-content: center !important;
   }
 }
+
+/* =========================================================
+   Q-Spark / Qcode "Soon" state — qjo-apps-soon-2026-08-28
+   Q-Spark and Qcode moved to their own repos and ship after the Qjo launch.
+   Their sidebar entries stay visible as a teaser but must read and behave as
+   unavailable. This overrides the older qjo-app-nav-buttons-fix block, which
+   forces pointer-events/cursor on these two IDs.
+   ========================================================= */
+.qjo-app-item.qjo-app-soon,
+#qsparkNavBtn.qjo-app-soon,
+#qcodeNavBtn.qjo-app-soon {
+  cursor: default !important;
+  opacity: .62 !important;
+  position: relative !important;
+}
+
+/* Keep the click reaching JS (for the "coming soon" toast) while removing
+   every affordance that suggests navigation. */
+.qjo-app-item.qjo-app-soon:hover {
+  background: transparent !important;
+  border-color: transparent !important;
+  transform: none !important;
+}
+
+.qjo-app-item.qjo-app-soon .qjo-app-icon {
+  filter: grayscale(.55) !important;
+}
+
+.qjo-app-soon-badge {
+  margin-inline-start: auto !important;
+  flex: 0 0 auto !important;
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  letter-spacing: .04em !important;
+  text-transform: uppercase !important;
+  padding: 3px 8px !important;
+  border-radius: 999px !important;
+  background: rgba(56,199,221,.14) !important;
+  color: #7dd3fc !important;
+  border: 1px solid rgba(56,199,221,.26) !important;
+  line-height: 1.4 !important;
+  white-space: nowrap !important;
+}
+
+html[dir="rtl"] .qjo-app-soon-badge {
+  margin-inline-start: auto !important;
+}

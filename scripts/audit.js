@@ -34,7 +34,6 @@ const requiredFiles = [
   'public/index.html',
   'public/styles.css',
   'public/qjo-diagnostic.html',
-  'public/qcode.html',
   'public/terms.html',
   'public/privacy.html',
   'public/safety.html',
@@ -49,9 +48,7 @@ const requiredFiles = [
   'src/agents/RoutingEngine.js',
   'src/tools/calculatorTool.js',
   'src/tools/searchTool.js',
-  'src/tools/fileEditorTool.js',
   'src/services/searchService.js',
-  'src/services/qcodeWorkspace.js',
   'src/services/llmService.js',
   'src/services/embeddings.js',
   'src/services/exportService.js',
@@ -63,13 +60,10 @@ const requiredFiles = [
   'src/routes/embeddings.js',
   'src/routes/export.js',
   'src/routes/search.js',
-  'src/routes/qcode.js',
-  'src/routes/qspark.js',
   'src/routes/admin.js',
   'src/routes/system.js',
   'src/routes/jobs.js',
   'src/routes/feedback.js',
-  'src/agents/qcodeAgent.js',
   'package.json'
 ];
 
@@ -86,9 +80,7 @@ if (!failures) {
   syntaxCheck('src/agents/RoutingEngine.js');
   syntaxCheck('src/tools/calculatorTool.js');
   syntaxCheck('src/tools/searchTool.js');
-  syntaxCheck('src/tools/fileEditorTool.js');
   syntaxCheck('src/services/searchService.js');
-  syntaxCheck('src/services/qcodeWorkspace.js');
   syntaxCheck('src/services/llmService.js');
   syntaxCheck('src/services/embeddings.js');
   syntaxCheck('src/services/exportService.js');
@@ -100,13 +92,10 @@ if (!failures) {
   syntaxCheck('src/routes/embeddings.js');
   syntaxCheck('src/routes/export.js');
   syntaxCheck('src/routes/search.js');
-  syntaxCheck('src/routes/qcode.js');
-  syntaxCheck('src/routes/qspark.js');
   syntaxCheck('src/routes/admin.js');
   syntaxCheck('src/routes/system.js');
   syntaxCheck('src/routes/jobs.js');
   syntaxCheck('src/routes/feedback.js');
-  syntaxCheck('src/agents/qcodeAgent.js');
   syntaxCheck('evals/backend-regression-eval-v1.js');
   syntaxCheck('evals/ai-quality-eval-v1.js');
 }
@@ -171,9 +160,13 @@ must(Boolean(promptMatch), 'QJO_SYSTEM_PROMPT exists');
 if (promptMatch) {
   const prompt = promptMatch[1];
   must(prompt.length >= 18000, `QJO_SYSTEM_PROMPT vNext is substantial (${prompt.length} chars)`);
-  ['<system_instructions>', '<qjo_product_context>', '<qspark_context>', '<qcode_context>', '<search_and_sources>', '<software_engineering_and_product_building>', '<file_rag_and_multimodal_analysis>', '<privacy_security_and_safety>'].forEach((term) => {
+  // <qspark_context> / <qcode_context> were replaced by a single
+  // <upcoming_products> section when those products moved to their own repos.
+  ['<system_instructions>', '<qjo_product_context>', '<upcoming_products>', '<search_and_sources>', '<software_engineering_and_product_building>', '<file_rag_and_multimodal_analysis>', '<privacy_security_and_safety>'].forEach((term) => {
     must(prompt.toLowerCase().includes(term.toLowerCase()), `Prompt vNext contains ${term}`);
   });
+  must(!/available at \/(qspark|qcode)\.html/i.test(prompt), 'Prompt does not advertise removed pages as available');
+  must(/NOT shipped yet|coming soon/i.test(prompt), 'Prompt marks Q-Spark/Qcode as coming soon');
 }
 must(promptMatch && promptMatch[1].includes('<search_and_sources>'), 'Prompt vNext has search_and_sources section');
 must(promptMatch && promptMatch[1].includes('<intent_classification_and_mode_detection>'), 'Prompt vNext has mode behavior section');
@@ -188,7 +181,10 @@ console.log('----------');
 must(app.includes('modeDropdown.addEventListener'), 'Mode dropdown delegated click handler exists');
 must(app.includes('mode-menu-open'), 'Mode dropdown overlap state exists');
 must(css.includes('Mode Power + Dropdown Overlap Fix'), 'Mode overlap CSS patch exists');
-must(app.includes("const GROQ_MODEL = 'llama-3.3-70b-versatile'"), 'Max/Code frontend model requests 70B');
+// The frontend used to pin llama-3.3-70b-versatile, which Groq shut down on
+// 2026-08-16. app.js now pins the official replacement, so this lock tracks
+// that instead of asserting a dead model ID.
+must(app.includes("const GROQ_MODEL = 'openai/gpt-oss-120b'"), 'Max/Code frontend model is the current Groq flagship');
 
 console.log('\nSearch lock');
 console.log('-----------');
@@ -200,7 +196,6 @@ must(read('src/services/searchService.js').includes('tavilySearch'), 'Tavily sea
 must(read('src/services/searchService.js').includes('firecrawlScrape') && read('src/services/searchService.js').includes('enrichResultsWithFirecrawl'), 'Firecrawl enrichment exists');
 must(read('src/services/searchService.js').includes("search_depth: depth === 'advanced'"), 'Tavily advanced depth enabled');
 must(read('src/services/searchService.js').includes('include_raw_content'), 'Tavily raw content enabled for advanced');
-must(server.includes('cdn.tailwindcss.com') && server.includes('api.moonshot.cn'), 'Q-Spark CSP support exists');
 must(server.includes('memoryCaches') && server.includes('cacheGet') && server.includes('cacheSet'), 'Search/cache performance layer exists');
 must(read('src/search/searchCore.js').includes('buildSearchBeastPlan') && read('src/search/searchCore.js').includes('rankSearchBeastResults') && read('src/services/searchService.js').includes('buildSearchBeastPlan'), 'Search Beast v2 ranking exists');
 
@@ -219,8 +214,6 @@ must(read('src/routes/chat.js').includes("require('../agents/contextContinuity')
 // Routing engine strictly validates routing schemas and operates in server.js
 must(read('src/agents/RoutingEngine.js').includes('RoutingDecisionSchema') && read('src/agents/RoutingEngine.js').includes('z.enum') && read('src/routes/chat.js').includes('routingDecision'), 'Router Agent strict schema integration exists in RoutingEngine');
 must(server.includes("require('./src/routes/chat')") && read('src/routes/chat.js').includes("app.post('/api/chat'") && read('src/routes/chat.js').includes('registerChatRoutes') && read('src/routes/chat.js').includes('routingDecision'), 'Chat route module extracted from server monolith');
-must(server.includes("require('./src/routes/qcode')") && server.includes("require('./src/agents/qcodeAgent')") && read('src/tools/fileEditorTool.js').includes('QcodeActionSchema'), 'Qcode route/agent/file tool modules exist');
-must(server.includes("require('./src/services/qcodeWorkspace')") && read('src/services/qcodeWorkspace.js').includes('createQcodeWorkspaceService') && read('src/services/qcodeWorkspace.js').includes('safeQcodePath') && read('src/services/qcodeWorkspace.js').includes('runQcodeCommand'), 'Qcode workspace service module exists');
 
 // AI consolidated services check
 must(server.includes("require('./src/services/llmService')") && read('src/services/llmService.js').includes('createLlmService') && read('src/services/llmService.js').includes('callGroqChat') && read('src/services/llmService.js').includes('callQwenChat') && read('src/services/llmService.js').includes('callGeminiChat'), 'AI provider and model services consolidated in llmService');
@@ -243,32 +236,33 @@ must(app.includes('ocrDataUrl') && html.includes('tesseract.js'), 'OCR support e
 must(app.includes('renderMemoryList') && html.includes('memoryList'), 'Memory controls exist');
 must(exists('docs/QJO_FIRESTORE_RULES_WITH_RAG.md') && read('docs/QJO_FIRESTORE_RULES_WITH_RAG.md').includes('ragIndexes') && read('docs/QJO_FIRESTORE_RULES_WITH_RAG.md').includes('firebase.storage'), 'Cloud RAG/Storage rules documented');
 must(html.includes('data-qjo-app="assistant"') && html.includes('Q-Spark') && html.includes('Qcode'), 'Sidebar app switcher exists');
-must(exists('public/qcode.html') && read('public/qcode.html').includes('QCODE_EMBED_VERSION') && read('public/qcode.html').includes('QJO_APP_BACK_BUTTON_POSITION_FIX'), 'Qcode staged app exists');
-must((html.includes('id="qsparkNavBtn"') && html.includes('href="/qspark.html"')) && (html.includes('id="qcodeNavBtn"') && html.includes('href="/qcode.html"')), 'Sidebar app buttons have direct navigation');
-must(read('src/routes/qcode.js').includes("app.post('/api/qcode/chat'") && read('src/routes/qcode.js').includes("app.get('/api/qcode/files'") && server.includes('QCODE_QWEN_API_KEYS'), 'Qcode backend namespace exists');
-must(exists('docs/QCODE_PROJECT_KNOWLEDGE.md') && server.includes('QCODE_PROJECT_KNOWLEDGE_CONTEXT'), 'Qcode project knowledge exists');
-must(read('src/services/qcodeWorkspace.js').includes('runQcodeAction') && read('src/services/qcodeWorkspace.js').includes('writeQcodeFileSafe') && read('src/services/qcodeWorkspace.js').includes('editQcodeFileSafe') && read('src/services/qcodeWorkspace.js').includes('searchQcodeFiles') && read('src/routes/qcode.js').includes("app.post('/api/qcode/run'") && read('src/services/qcodeWorkspace.js').includes('rollbackQcodeSnapshot') && read('src/routes/qcode.js').includes("app.post('/api/qcode/diff'") && (read('src/agents/qcodeAgent.js').includes('multi-step agent loop') || read('src/agents/qcodeAgent.js').includes('agent_step') || read('src/agents/qcodeAgent.js').includes('OBSERVE results') || read('src/agents/qcodeAgent.js').includes('maxSteps')) && server.includes('qcodeUsage'), 'Qcode max agent tools/run/diff/rollback/usage exists');
-must(read('src/routes/qcode.js').includes("app.get('/api/qcode/preview/file'") && read('src/services/qcodeWorkspace.js').includes('qcodeSessionPath'), 'Qcode preview/sessions exist');
-must(exists('public/qspark.html') && html.includes('qsparkNavBtn') && read('public/qspark.html').includes('QJO_APP_BACK_BUTTON_POSITION_FIX'), 'Q-Spark page exists and sidebar links to it');
-must(read('src/routes/qspark.js').includes("app.get('/api/qspark/health'") && read('src/routes/qspark.js').includes("app.post('/api/qspark/chat'"), 'Q-Spark separate key endpoints exist');
-must(server.includes('QSPARK_GROQ_API_KEYS') && server.includes('QSPARK_NVIDIA_API_KEYS'), 'Q-Spark separate key namespace exists');
-must(server.includes("require('./src/routes/qspark')") && read('src/routes/qspark.js').includes('registerQSparkRoutes'), 'Q-Spark route exists');
-must(exists('docs/QSPARK_SYSTEM_KNOWLEDGE.md') && promptMatch && promptMatch[1].includes('<qspark_context>'), 'Q-Spark system knowledge exists');
-must(read('.env.example').includes('QSPARK_GROQ_API_KEYS') && read('docs/QJO_PROJECT_LOCKS.md').includes('Q-Spark separate keys lock'), 'Q-Spark separate keys documented');
-must(read('public/qspark.html').includes('QSPARK_DARK_POLISH'), 'Q-Spark dark polish exists');
-must(read('public/qspark.html').includes('initCloud') && read('public/qspark.html').includes('qsparkNotebooks') && read('public/qspark.html').includes('notebooks-modal'), 'Q-Spark SaaS notebook cloud functions exist');
-must(read('public/qspark.html').includes('firebase-storage-compat') && read('public/qspark.html').includes('uploadSourceFileToCloud'), 'Q-Spark source storage v2 exists');
-must(read('public/qspark.html').includes('generateAudioOverview') && read('public/qspark.html').includes('speechSynthesis') && read('public/qspark.html').includes('t-audio'), 'Q-Spark Audio Overview Arabic exists');
-must(read('public/qspark.html').includes('citationPanelHtml') && read('public/qspark.html').includes('STRICT CITATION RULES') && read('public/qspark.html').includes('[S1:C1]'), 'Q-Spark exact citations exist');
-must(read('public/qspark.html').includes('citation-modal') && read('public/qspark.html').includes('openCitationEvidence') && read('public/qspark.html').includes('lastCitationMap'), 'Q-Spark evidence sidebar exists');
-must(read('public/qspark.html').includes('studyProgressHtml') && read('public/qspark.html').includes('recordQuizAnswer') && read('public/qspark.html').includes('recordFlashcard'), 'Q-Spark study progress exists');
-must(read('public/qspark.html').includes('spacedInterval') && read('public/qspark.html').includes('weaknessList') && read('public/qspark.html').includes('dueFlashcardsCount'), 'Q-Spark spaced repetition exists');
-must(read('public/qspark.html').includes('[PAGE ${i}]') && read('public/qspark.html').includes('pageForChar'), 'Q-Spark PDF page citation markers exist');
-must(read('public/qspark.html').includes('/api/qspark/chat') && read('public/qspark.html').includes('QSPARK_BACKEND_ROUTING'), 'Q-Spark frontend uses backend routing');
+
+// Q-Spark and Qcode moved to their own repos (docs/MIGRATION_QSPARK_QCODE.md).
+// These locks now assert they are ADVERTISED BUT INERT, and that no route,
+// page or prompt claims they are usable.
+must(html.includes('qjo-app-soon') && (html.match(/qjo-app-soon-badge/g) || []).length >= 2, 'Q-Spark/Qcode sidebar entries carry a Soon badge');
+must(!html.includes('href="/qspark.html"') && !html.includes('href="/qcode.html"'), 'Sidebar no longer links to removed app pages');
+must(!exists('public/qspark.html') && !exists('public/qcode.html'), 'Removed app pages are gone');
+must(!exists('src/routes/qspark.js') && !exists('src/routes/qcode.js') && !exists('src/services/qcodeWorkspace.js') && !exists('src/agents/qcodeAgent.js'), 'Removed app backend modules are gone');
+must(!server.includes("require('./src/routes/qspark')") && !server.includes("require('./src/routes/qcode')"), 'server.js no longer registers removed app routes');
+must(!server.includes('QSPARK_GROQ_API_KEYS') && !server.includes('QCODE_GROQ_API_KEYS'), 'server.js no longer reads removed app key namespaces');
+must(app.includes('QJO_APPS_COMING_SOON'), 'Frontend treats Q-Spark/Qcode as coming soon');
+must(exists('docs/MIGRATION_QSPARK_QCODE.md'), 'Migration guide for the split-out products exists');
 must(css.includes('Qjo Sidebar Left + App Switcher') && css.includes('translateX(-112%)'), 'Sidebar left lock CSS exists');
 must(app.includes('renameChat') && html.includes('chatSearchInput') && html.includes('exportChatBtn'), 'Chat management controls exist');
 const braceDiff = (css.match(/{/g) || []).length - (css.match(/}/g) || []).length;
 must(braceDiff === 0, `CSS brace balance is OK (${braceDiff})`);
+
+// Design system layer (qjo-ds-2026-08-28). It only works if it loads AFTER
+// styles.css, so the order is locked here rather than left to chance.
+const ds = exists('public/design-system.css') ? read('public/design-system.css') : '';
+must(Boolean(ds), 'Design system stylesheet exists');
+let dsBrace = 0;
+for (const ch of ds) { if (ch === '{') dsBrace++; if (ch === '}') dsBrace--; }
+must(dsBrace === 0, `Design system brace balance is OK (${dsBrace})`);
+must(html.indexOf('design-system.css') > html.indexOf('styles.css'), 'Design system loads after styles.css');
+must(ds.includes('body.dark') && !ds.includes('data-theme'), 'Design system targets the theme class the app actually sets');
+must(app.includes('RICH_TEXT_IDS'), 'Hero headline supports the accented phrase');
 
 console.log('\nLocal context lock');
 console.log('------------------');

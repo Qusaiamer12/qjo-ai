@@ -4,6 +4,10 @@ const { z } = require('zod');
 
 // ── Zod Schema ──
 const RoutingDecisionSchema = z.object({
+  // These labels classify the USER'S INTENT to shape the chat's tone and
+  // pipeline (engineering vs study vs general). They are intentionally kept
+  // after Qcode/Q-Spark were split into their own repos — dropping them would
+  // degrade chat quality for coding and study questions.
   targetAgent: z.enum(['qcode', 'qspark', 'general']),
   confidence: z.number().min(0).max(100),
   reason: z.string().min(1).max(180)
@@ -291,43 +295,19 @@ function createRoutingEngine(deps) {
     return tools.length ? tools : undefined;
   }
 
-  // Unified router for Chat, Qcode, and Qspark modes
+  // Router for the Qjo chat product. The Qcode/Q-Spark provider pipelines that
+  // used to live here moved out with those products (see
+  // docs/MIGRATION_QSPARK_QCODE.md); `agentType` is kept for call-site clarity
+  // and forward compatibility.
   async function callAgent({
     agentType = 'chat', mode, messages, temperature = 0.7, max_tokens = 4000,
-    useTools, routingDecision, qsparkProvider, onChunk, model,
+    useTools, routingDecision, onChunk, model,
     deadlineMs, budgetMs, signal
   } = {}) {
     if (!deadlineMs) {
-      const defaultBudget = agentType === 'qcode' ? 120000 : agentType === 'qspark' ? 60000 : (budgetMs || 40000);
-      deadlineMs = Date.now() + defaultBudget;
+      deadlineMs = Date.now() + (budgetMs || 40000);
     }
     const base = { messages, temperature, max_tokens, onChunk, deadlineMs, signal };
-
-    // ── Qcode Mode ──
-    if (agentType === 'qcode') {
-      const chain = [['groq', 'code'], ['qwen', 'code'], ['kimi', 'code'], ['nvidia', 'code']];
-      const res = await runChain(chain, {
-        ...base,
-        temperature: temperature ?? 0.14,
-        max_tokens: max_tokens || 4200,
-        maxPerProviderMs: 30000
-      });
-      return res.ok ? res : { ok: false, status: res.status || 503, error: res.error || 'No Qcode provider is working.' };
-    }
-
-    // ── Qspark Mode ──
-    if (agentType === 'qspark') {
-      const requested = String(qsparkProvider || 'groq').toLowerCase();
-      const order = Array.from(new Set([requested, 'groq', 'qwen', 'nvidia', 'kimi']));
-      const chain = order.map(p => [p, 'text']);
-      const res = await runChain(chain, {
-        ...base,
-        temperature: temperature ?? 0.15,
-        max_tokens: max_tokens || 3000,
-        maxPerProviderMs: 20000
-      });
-      return res.ok ? res : { ok: false, status: res.status || 503, error: res.error || 'No Q-Spark provider is working.' };
-    }
 
     // ── Chat/General Smart Routing ──
     const originalQuestion = combinedUserText(messages);
@@ -421,7 +401,7 @@ function createRoutingEngine(deps) {
 function routeUserRequestDeterministic(messagesOrText) {
   const latest = lastUserText(messagesOrText);
   const recent = typeof messagesOrText === 'string' ? latest : combinedRecentUserText(messagesOrText);
-  const q = String(`${recent}\n${latest}` || '').toLowerCase();
+  const q = `${recent}\n${latest}`.toLowerCase();
 
   const explicitQcode = /(qcode|q-code|code lab|كيو\s*كود|كيوكود)/i.test(q);
   const codingIntent = /(كود|برمج|برمجة|موقع|تطبيق|api|sdk|debug|bug|stack trace|error|exception|react|next\.js|vue|node|express|fastapi|python|javascript|typescript|firebase|render|deploy|github|git|terminal|npm|package\.json|docker|sql|database|backend|frontend|full[- ]?stack|هندسة\s+برمجيات|تصحيح\s+خطأ|اكتب\s+دالة|اكتب\s+كلاس|اكتب\s+برنامج)/i.test(q);

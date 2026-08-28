@@ -63,12 +63,20 @@ npm run audit
 must pass.
 
 
-## 8. Q-Spark separate keys lock
-Q-Spark must not share Qjo Assistant provider keys.
-Required namespace:
-- `QSPARK_GROQ_API_KEYS`
-- `QSPARK_KIMI_API_KEYS`
-- `QSPARK_QWEN_API_KEYS`
-- `QSPARK_NVIDIA_API_KEYS`
+## 8. Q-Spark / Qcode separation lock (superseded 2026-08-28)
 
-Do not fallback from Q-Spark to `GROQ_API_KEYS`, `KIMI_API_KEYS`, `QWEN_API_KEYS`, or `NVIDIA_API_KEYS`. Q-Spark has its own separate provider pool.
+Q-Spark and Qcode were moved out of this repository into `qspark-ai` and
+`qcode-ai` so Qjo can launch as a single product. The old "separate key
+namespace" lock now belongs to those repos.
+
+What this repo must keep true:
+- No `QSPARK_*` or `QCODE_*` variables are read by `server.js`.
+- No `/api/qspark/*` or `/api/qcode/*` route is registered.
+- `public/qspark.html` and `public/qcode.html` do not exist.
+- The sidebar still shows both entries, carrying a `Soon` badge, not clickable,
+  and marked `aria-disabled`.
+- The system prompt describes them as unreleased and never tells the user to
+  open them.
+
+These are enforced by `npm run audit` and `npm test`.
+See `docs/MIGRATION_QSPARK_QCODE.md` for the retrieval procedure.

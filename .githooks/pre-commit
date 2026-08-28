@@ -1,0 +1,4 @@
+#!/bin/sh
+# Blocks commits that contain credentials. Enable once per clone with:
+#   git config core.hooksPath .githooks
+exec node "$(git rev-parse --show-toplevel)/scripts/scan-secrets.js" --staged

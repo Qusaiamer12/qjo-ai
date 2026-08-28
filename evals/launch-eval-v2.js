@@ -31,7 +31,7 @@ async function fetchJson(url, options = {}, timeoutMs = TIMEOUT_MS) {
 
 async function healthChecks() {
   const checks = [];
-  for (const endpoint of ['/api/health', '/api/qspark/health', '/api/client-context']) {
+  for (const endpoint of ['/api/health', '/api/client-context']) {
     try {
       const r = await fetchJson(BASE_URL + endpoint, { headers: { 'Accept': 'application/json' } }, 30000);
       checks.push({ endpoint, ok: r.ok, status: r.status, latencyMs: r.latencyMs, data: r.data });

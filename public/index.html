@@ -10,6 +10,11 @@
   <link rel="manifest" href="/manifest.webmanifest" />
   <meta name="theme-color" content="#123B7A" />
   <link rel="stylesheet" href="/styles.css?v=qjo-required-fixes-v1-2026-07-26-117" />
+  <!-- Design system layer. Must load AFTER styles.css so it wins the cascade. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" />
+  <link rel="stylesheet" href="/design-system.css?v=qjo-ds-2026-08-28" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js" defer></script>
@@ -61,20 +66,25 @@
               <small>المساعد الحالي</small>
             </span>
           </button>
-          <a class="nav-item qjo-app-item" id="qsparkNavBtn" href="/qspark.html" data-qjo-app="qspark" title="Q-Spark" aria-label="Open Q-Spark">
+          <!-- Q-Spark and Qcode moved to their own repos and ship later. They stay
+               visible as a teaser but are inert: no href, aria-disabled, and the
+               click handler in app.js only shows a "coming soon" toast. -->
+          <div class="nav-item qjo-app-item qjo-app-soon" id="qsparkNavBtn" data-qjo-app="qspark" role="link" aria-disabled="true" tabindex="-1" title="Q-Spark — قريبًا" aria-label="Q-Spark, coming soon">
             <span class="nav-icon qjo-app-icon">↯</span>
             <span class="qjo-app-text">
               <strong>Q-Spark</strong>
               <small>Notebook</small>
             </span>
-          </a>
-          <a class="nav-item qjo-app-item" id="qcodeNavBtn" href="/qcode.html" data-qjo-app="qcode" title="Qcode" aria-label="Open Qcode">
+            <span class="qjo-app-soon-badge" data-i18n="soon">Soon</span>
+          </div>
+          <div class="nav-item qjo-app-item qjo-app-soon" id="qcodeNavBtn" data-qjo-app="qcode" role="link" aria-disabled="true" tabindex="-1" title="Qcode — قريبًا" aria-label="Qcode, coming soon">
             <span class="nav-icon qjo-app-icon">⌘</span>
             <span class="qjo-app-text">
               <strong>Qcode</strong>
               <small>Code Lab</small>
             </span>
-          </a>
+            <span class="qjo-app-soon-badge" data-i18n="soon">Soon</span>
+          </div>
         </div>
 
         <div class="nav-group" style="margin-top:18px">
@@ -145,7 +155,7 @@
         <div class="messages-inner" id="messagesInner">
           <section class="welcome" id="welcome">
             <div class="welcome-kicker"><span class="kicker-dot"></span> <span id="welcomeKicker">Qjo Assistant</span></div>
-            <h1 id="welcomeTitle">كيف يمكنني مساعدتك اليوم؟</h1>
+            <h1 id="welcomeTitle">كيف يمكنني <em>مساعدتك</em> اليوم؟</h1>
             <p id="welcomeText">اسأل، اكتب، خطط، تعلّم، أو ابنِ شيئًا جديدًا. Qjo مصمم ليعطيك إجابات واضحة وعملية بدون تعقيد.</p>
 
             <div class="suggestions">

@@ -16,15 +16,23 @@ const CALCULATOR_TOOL = {
   }
 };
 
-function createSafeCalculate(math) {
+function createSafeCalculate(math, evaluateFn) {
+  // The caller may hand us the ORIGINAL math.evaluate captured before it was
+  // overridden by a security import(). Without this, server.js's
+  // `math.import({ evaluate: () => { throw ... } }, { override: true })`
+  // clobbered the very function this tool needs, so every calculate() call
+  // failed with "Nested evaluate is disabled." Nested evaluate inside an
+  // expression string still resolves through the overridden namespace symbol,
+  // so it stays blocked.
+  const evaluate = typeof evaluateFn === 'function' ? evaluateFn : math.evaluate.bind(math);
   return function safeCalculate(expression) {
     const expr = String(expression || '').trim();
     if (!expr) throw new Error('Missing expression.');
     if (expr.length > 500) throw new Error('Expression is too long.');
-    if (/[^0-9a-zA-Z_+\-*/%^().,\s\[\]{}:<>!=|&]/.test(expr)) {
+    if (/[^0-9a-zA-Z_+\-*/%^().,\s[\]{}:<>!=|&]/.test(expr)) {
       throw new Error('Expression contains unsupported characters.');
     }
-    const result = math.evaluate(expr, {});
+    const result = evaluate(expr, {});
     if (typeof result === 'number') {
       if (!Number.isFinite(result)) throw new Error('Result is not finite.');
       return String(result);
