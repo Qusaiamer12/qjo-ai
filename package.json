@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "lint": "eslint .",
+    "scan-secrets": "node scripts/scan-secrets.js",
     "test": "node scripts/smoke-test.js",
     "smoke": "node scripts/smoke-test.js",
     "audit": "node scripts/audit.js",

@@ -40,9 +40,16 @@ npm install
 ## Verify
 
 ```bash
-npm run lint     # ESLint (0 errors expected)
-npm test         # boots the server and asserts security/behaviour invariants
-npm run audit    # static stability audit of routes, frontend and CSS locks
+npm run scan-secrets  # blocks credentials from reaching a commit
+npm run lint          # ESLint (0 errors expected)
+npm test              # boots the server and asserts security/behaviour invariants
+npm run audit         # static stability audit of routes, frontend and CSS locks
+```
+
+Enable the pre-commit secret scan once per clone:
+
+```bash
+git config core.hooksPath .githooks
 ```
 
 A ready-to-use GitHub Actions pipeline running all three lives in
