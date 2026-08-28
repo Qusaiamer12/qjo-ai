@@ -1,8 +1,13 @@
 # Qjo Production Ready Package
 
-Node.js + Express backend serving three products from one process: **Qjo** (chat),
-**Q-Spark** (document/notebook research) and **Qcode** (agentic coding workspace).
+Node.js + Express backend for **Qjo**, the AI chat assistant.
 Deployment target is Render (`render.yaml`).
+
+**Q-Spark** (notebook/research) and **Qcode** (agentic coding workspace) were
+split into their own repositories — [`qspark-ai`](https://github.com/Qusaiamer12/qspark-ai)
+and [`qcode-ai`](https://github.com/Qusaiamer12/qcode-ai) — so this repo can ship
+the first product alone. They still appear in the sidebar with a "Soon" badge.
+See `docs/MIGRATION_QSPARK_QCODE.md`.
 
 ## What is included
 
@@ -10,7 +15,7 @@ Deployment target is Render (`render.yaml`).
   OpenRouter, Agnes) with key rotation and automatic fallback chains.
 - No provider API key is ever exposed to the browser.
 - Firebase Authentication support (`REQUIRE_FIREBASE_AUTH`), enforced on
-  `/api/chat`, `/api/qspark/*`, `/api/qcode/*`, `/api/search`, `/api/export/*`.
+  `/api/chat`, `/api/search`, `/api/export/*`, `/api/embeddings`, `/api/jobs`.
 - Firestore chat history with subcollections:
   - `users/{uid}/chats/{chatId}`
   - `users/{uid}/chats/{chatId}/messages/{messageId}`
@@ -24,9 +29,7 @@ Deployment target is Render (`render.yaml`).
   > because the Firebase SDK, MathJax and Tailwind CDN builds require them.
   > This weakens CSP's XSS protection and is a known open item.
 - Optional daily per-user and per-guest request limits.
-- Qcode sandbox: command allowlist, minimal child-process environment
-  (provider keys are never inherited), snapshots/rollback, and a
-  `QCODE_ALLOW_NETWORK_COMMANDS` gate on package installs.
+- Export to PDF, PPTX, DOCX, XLSX and code ZIP.
 
 ## Install
 
@@ -133,24 +136,21 @@ The backend Admin SDK writes usage counters to `aiUsage`, which bypasses Firesto
 | `GUEST_DAILY_LIMIT` | No | `0` means unlimited. Per-IP daily cap for anonymous users. |
 | `IP_RATE_LIMIT_PER_MINUTE` | No | `0` disables the global IP limiter. |
 | `TRUST_PROXY` | No | Reverse-proxy hop count. Unset = `1` on Render (auto-detected), `0` locally. Set to `2` if Cloudflare sits in front of Render, otherwise `X-Forwarded-For` can be forged and per-IP quotas bypassed. |
-| `QCODE_ALLOW_NETWORK_COMMANDS` | No | `false` by default. When `false`, `npm install` / `npx` / `pip install` are blocked inside the Qcode workspace. |
+| `EXPORT_MAX_UPLOAD_MB` | No | Upload ceiling for `/api/export/image-to-pdf`. Defaults to `10`. |
 | `ADMIN_EMAILS` | Optional | Comma-separated emails allowed into `/api/admin/*` and the admin dashboard. |
 
-See `.env.example` for the full list, including the separate `QSPARK_*` and
-`QCODE_*` provider namespaces.
+See `.env.example` for the full list.
 
 ## Known open items
 
 Tracked in `docs/reports/QJO_FULL_REPO_SCAN_REPORT.md` (full repo scan + fix log):
 
 - CSP still needs `'unsafe-inline'` / `'unsafe-eval'` for CDN dependencies.
-- The Qcode workspace is shared by all users; it is not partitioned per `uid`.
 - In-memory state (job queue, caches, guest quotas) means a single instance
   only — horizontal scaling would need Redis or similar.
 - Remaining `npm audit` findings sit in transitive deps of `firebase-admin`
   and `puppeteer` and need major upgrades.
-- `public/app.js` (4.2k lines) and `public/qspark.html` (3.1k lines) should be
-  split into modules.
+- `public/app.js` (~4.2k lines) should be split into modules.
 - Move Firebase web config to `/api/public-config` instead of duplicating it
   across five frontend files.
 - Add billing/subscriptions if this will be paid.

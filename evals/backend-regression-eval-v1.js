@@ -64,7 +64,7 @@ async function testLimits() {
 }
 
 async function testPublicPages() {
-  for (const route of ['/', '/qspark.html', '/qcode.html', '/qjo-diagnostic.html']) {
+  for (const route of ['/', '/qjo-diagnostic.html']) {
     const res = await fetchWithTimeout(BASE_URL + route);
     const text = await res.text();
     log(res.ok && /<html|<!doctype/i.test(text), `page ${route}`, `HTTP ${res.status}`);
@@ -91,25 +91,6 @@ async function testJobs() {
   log(list.res.ok && Array.isArray(list.data?.jobs), 'job list', `${list.data?.jobs?.length || 0} jobs`);
   const retry = await postJson('/api/jobs/' + encodeURIComponent(id) + '/retry', {});
   log(retry.res.ok && retry.data?.ok && retry.data?.job?.id && retry.data.job.id !== id, 'job retry', retry.data?.job?.id || `HTTP ${retry.res.status}`);
-}
-
-async function testQcode() {
-  const health = await getJson('/api/qcode/health');
-  log(health.res.ok && health.data?.ok && health.data?.workspaceReady, 'qcode health', JSON.stringify(health.data?.keysConfigured || {}));
-
-  const run = await postJson('/api/qcode/run', { command: 'pwd' });
-  log(run.res.ok && run.data?.ok && Number(run.data?.result?.code) === 0, 'qcode run pwd', `code=${run.data?.result?.code}`);
-
-  const save = await postJson('/api/qcode/save', { path: 'eval-diff.txt', content: 'one\ntwo\nthree' });
-  log(save.res.ok && save.data?.ok, 'qcode save eval file', save.data?.path || '');
-
-  const diff = await postJson('/api/qcode/diff', { path: 'eval-diff.txt', find: 'two', replace: 'TWO' });
-  log(diff.res.ok && diff.data?.ok && diff.data?.found && Array.isArray(diff.data?.unifiedDiff), 'qcode rich diff endpoint', `diffRows=${diff.data?.unifiedDiff?.length || 0}`);
-}
-
-async function testQSpark() {
-  const health = await getJson('/api/qspark/health');
-  log(health.res.ok && health.data?.ok && health.data?.separateKeys === true, 'qspark health separate keys', JSON.stringify(health.data?.keysConfigured || {}));
 }
 
 async function testEmbeddingsNoKeySafe() {
@@ -146,8 +127,6 @@ async function main() {
     testPublicPages,
     testSearchDistillation,
     testJobs,
-    testQcode,
-    testQSpark,
     testEmbeddingsNoKeySafe,
     testExportZip,
     testChatNoKeysSafe

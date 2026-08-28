@@ -77,19 +77,9 @@ async function main() {
     record(res.ok && data?.ok && data?.limits, 'limits JSON', `guest=${data?.limits?.guestDailyLimit ?? 'n/a'}`);
   } catch (e) { record(false, 'limits JSON', e.message); }
 
-  try {
-    const { res, data } = await json('/api/qcode/health');
-    record(res.ok && data?.ok && data?.separateKeys === true, 'qcode health', JSON.stringify(data?.keysConfigured || {}));
-  } catch (e) { record(false, 'qcode health', e.message); }
 
-  try {
-    const { res, data } = await json('/api/qspark/health');
-    record(res.ok && data?.ok && data?.separateKeys === true, 'qspark health', JSON.stringify(data?.keysConfigured || {}));
-  } catch (e) { record(false, 'qspark health', e.message); }
 
   await page('/', 'Qjo');
-  await page('/qcode.html', 'Qcode');
-  await page('/qspark.html', 'Q-Spark');
   await page('/qjo-diagnostic.html');
   await page('/terms.html', 'شروط الاستخدام');
   await page('/privacy.html', 'سياسة الخصوصية');

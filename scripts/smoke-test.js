@@ -80,7 +80,7 @@ async function main() {
 
   // ── Group 1: default open mode ────────────────────────────────────────────
   console.log('Default mode (no auth required):');
-  await withServer({ GROQ_API_KEY: SENTINEL_KEY, QCODE_ALLOW_NETWORK_COMMANDS: 'false' }, async (base) => {
+  await withServer({ GROQ_API_KEY: SENTINEL_KEY }, async (base) => {
     const health = await get(base, '/api/health');
     check('GET /api/health returns 200', health.status === 200);
 
@@ -94,54 +94,46 @@ async function main() {
     const spa = await get(base, '/some/client/route');
     check('SPA catch-all still serves index.html', spa.status === 200 && (spa.headers.get('content-type') || '').includes('text/html'));
 
-    // Qcode child processes must not inherit provider API keys.
-    await postJson(base, '/api/qcode/save', {
-      path: 'smoke-env-probe.js',
-      content: 'console.log(JSON.stringify({leaked: process.env.GROQ_API_KEY || null, count: Object.keys(process.env).length}))'
-    });
-    const runRes = await postJson(base, '/api/qcode/run', { command: 'node smoke-env-probe.js' });
-    const runBody = await runRes.json().catch(() => ({}));
-    let probe = {};
-    try { probe = JSON.parse(String(runBody?.result?.stdout || '{}')); } catch (_) { /* keep {} */ }
-    check('child process cannot read GROQ_API_KEY', probe.leaked === null, `leaked=${JSON.stringify(probe.leaked)}`);
-    check('child process env is minimal', Number(probe.count) > 0 && Number(probe.count) <= 8, `${probe.count} vars`);
+    // Q-Spark and Qcode moved to their own repos: every endpoint and page must
+    // be gone, and must return a JSON 404 rather than the SPA shell.
+    for (const path of [
+      '/api/qspark/health', '/api/qspark/chat', '/api/qcode/files',
+      '/api/qcode/run', '/api/qcode/chat', '/api/qcode/sandbox_status'
+    ]) {
+      const res = await get(base, path);
+      const isJson = (res.headers.get('content-type') || '').includes('application/json');
+      check(`${path} is gone`, res.status === 404 && isJson, `${res.status} ${res.headers.get('content-type')}`);
+    }
 
-    // Network commands are gated by QCODE_ALLOW_NETWORK_COMMANDS.
-    const npmRes = await postJson(base, '/api/qcode/run', { command: 'npm install left-pad' });
-    const npmBody = await npmRes.json().catch(() => ({}));
-    check('npm install blocked when network disabled', /Network commands are disabled/.test(npmBody.error || ''), npmBody.error || 'no error returned');
+    // The old pages must not be served as static files either.
+    for (const page of ['/qspark.html', '/qcode.html']) {
+      const res = await get(base, page);
+      const body = await res.text();
+      check(`${page} no longer serves the old app`, !body.includes('QCODE_EMBED_VERSION') && !body.includes('qsparkNotebooks'), `${res.status}`);
+    }
 
-    const npxRes = await postJson(base, '/api/qcode/run', { command: 'npx cowsay hi' });
-    const npxBody = await npxRes.json().catch(() => ({}));
-    check('npx blocked when network disabled', /Network commands are disabled/.test(npxBody.error || ''), npxBody.error || 'no error returned');
-
-    // Offline commands must keep working.
-    const nodeRes = await postJson(base, '/api/qcode/run', { command: 'node -e "console.log(6*7)"' });
-    const nodeBody = await nodeRes.json().catch(() => ({}));
-    check('offline node command still runs', String(nodeBody?.result?.stdout || '').trim() === '42', String(nodeBody?.result?.stdout || '').trim());
-
-    // sandbox_status must report the real flag, not a hardcoded one.
-    const sandbox = await (await get(base, '/api/qcode/sandbox_status')).json().catch(() => ({}));
-    check('sandbox_status reports network flag', sandbox?.sandbox?.network_commands_allowed === false, String(sandbox?.sandbox?.network_commands_allowed));
+    // The sidebar keeps both entries as inert "Soon" teasers.
+    const home = await (await get(base, '/')).text();
+    check('sidebar still shows Q-Spark and Qcode', home.includes('Q-Spark') && home.includes('Qcode'));
+    check('sidebar entries carry a Soon badge', (home.match(/qjo-app-soon-badge/g) || []).length >= 2);
+    check('sidebar entries are not links', !home.includes('href="/qspark.html"') && !home.includes('href="/qcode.html"'));
+    check('sidebar entries are aria-disabled', (home.match(/aria-disabled="true"/g) || []).length >= 2);
   });
 
   // ── Group 2: auth enforced ────────────────────────────────────────────────
   console.log('\nREQUIRE_FIREBASE_AUTH=true:');
   await withServer({ REQUIRE_FIREBASE_AUTH: 'true', GROQ_API_KEY: SENTINEL_KEY }, async (base) => {
-    const chat = await postJson(base, '/api/qspark/chat', { messages: [{ role: 'user', content: 'hi' }] });
-    check('POST /api/qspark/chat rejects anonymous', chat.status === 401 || chat.status === 500, `got ${chat.status}`);
-
-    const upload = await fetch(base + '/api/qspark/upload', { method: 'POST' });
-    check('POST /api/qspark/upload rejects anonymous', upload.status === 401 || upload.status === 500, `got ${upload.status}`);
-
-    const health = await get(base, '/api/qspark/health');
-    check('GET /api/qspark/health stays public', health.status === 200, `got ${health.status}`);
-
-    const qcode = await get(base, '/api/qcode/files');
-    check('GET /api/qcode/files rejects anonymous', qcode.status === 401 || qcode.status === 500, `got ${qcode.status}`);
-
     const chatApi = await postJson(base, '/api/chat', { messages: [{ role: 'user', content: 'hi' }] });
     check('POST /api/chat rejects anonymous', chatApi.status === 401 || chatApi.status === 500, `got ${chatApi.status}`);
+
+    const search = await postJson(base, '/api/search', { query: 'test' });
+    check('POST /api/search rejects anonymous', search.status === 401 || search.status === 500, `got ${search.status}`);
+
+    const exportPdf = await postJson(base, '/api/export/pdf', { content: 'x' });
+    check('POST /api/export/pdf rejects anonymous', exportPdf.status === 401 || exportPdf.status === 500, `got ${exportPdf.status}`);
+
+    const health = await get(base, '/api/health');
+    check('GET /api/health stays public', health.status === 200, `got ${health.status}`);
   });
 
   // ── Group 3: guest quota ──────────────────────────────────────────────────

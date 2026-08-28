@@ -61,20 +61,25 @@
               <small>المساعد الحالي</small>
             </span>
           </button>
-          <a class="nav-item qjo-app-item" id="qsparkNavBtn" href="/qspark.html" data-qjo-app="qspark" title="Q-Spark" aria-label="Open Q-Spark">
+          <!-- Q-Spark and Qcode moved to their own repos and ship later. They stay
+               visible as a teaser but are inert: no href, aria-disabled, and the
+               click handler in app.js only shows a "coming soon" toast. -->
+          <div class="nav-item qjo-app-item qjo-app-soon" id="qsparkNavBtn" data-qjo-app="qspark" role="link" aria-disabled="true" tabindex="-1" title="Q-Spark — قريبًا" aria-label="Q-Spark, coming soon">
             <span class="nav-icon qjo-app-icon">↯</span>
             <span class="qjo-app-text">
               <strong>Q-Spark</strong>
               <small>Notebook</small>
             </span>
-          </a>
-          <a class="nav-item qjo-app-item" id="qcodeNavBtn" href="/qcode.html" data-qjo-app="qcode" title="Qcode" aria-label="Open Qcode">
+            <span class="qjo-app-soon-badge" data-i18n="soon">Soon</span>
+          </div>
+          <div class="nav-item qjo-app-item qjo-app-soon" id="qcodeNavBtn" data-qjo-app="qcode" role="link" aria-disabled="true" tabindex="-1" title="Qcode — قريبًا" aria-label="Qcode, coming soon">
             <span class="nav-icon qjo-app-icon">⌘</span>
             <span class="qjo-app-text">
               <strong>Qcode</strong>
               <small>Code Lab</small>
             </span>
-          </a>
+            <span class="qjo-app-soon-badge" data-i18n="soon">Soon</span>
+          </div>
         </div>
 
         <div class="nav-group" style="margin-top:18px">
