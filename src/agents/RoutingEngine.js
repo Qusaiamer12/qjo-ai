@@ -139,16 +139,16 @@ function isLiteRequest(messages) {
 // Order = quality × fit for the pipeline's job. Providers without keys (or
 // without a model configured for the requested slot) are skipped at runtime.
 const PIPELINES = {
-  // Lite track: fast/free models.
+  // Lite track: fast/free models (Groq primary, LLM7 fallback).
   lite: [['groq', 'flash'], ['llm7', 'flash'], ['qwen', 'flash'], ['kimi', 'flash']],
-  // Flash mode: high velocity, primary Groq with LLM7, Qwen, Kimi fallbacks.
+  // Flash mode: high velocity (Groq primary, LLM7 fallback).
   flash: [['groq', 'flash'], ['llm7', 'flash'], ['qwen', 'flash'], ['kimi', 'flash']],
-  // Max mode (Arabic-heavy): strongest Arabic reasoning first.
-  maxAr: [['qwen', 'text'], ['kimi', 'text'], ['llm7', 'text'], ['groq', 'text']],
-  // Max mode (English / mixed): strongest general models first.
+  // Max mode (Arabic-heavy): Groq text primary, LLM7 fallback.
+  maxAr: [['groq', 'text'], ['llm7', 'text'], ['qwen', 'text'], ['kimi', 'text']],
+  // Max mode (English / mixed): Groq text primary, LLM7 fallback.
   maxEn: [['groq', 'text'], ['llm7', 'text'], ['qwen', 'text'], ['kimi', 'text']],
-  // Code mode: code-first models.
-  code: [['kimi', 'code'], ['qwen', 'code'], ['llm7', 'text'], ['groq', 'text']],
+  // Code mode: Groq text/code primary, LLM7 fallback.
+  code: [['groq', 'text'], ['llm7', 'text'], ['kimi', 'code'], ['qwen', 'code']],
   // Vision requests: vision-capable slots (Groq & Qwen vision).
   vision: [['groq', 'vision'], ['qwen', 'vision']]
 };
