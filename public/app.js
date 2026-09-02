@@ -4634,3 +4634,58 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
     // Also try a few times after load (for Firebase redirect)
     setTimeout(rebindAvatarTrigger, 500);
     setTimeout(rebindAvatarTrigger, 1500);
+
+    // ---- Interactive Cloud Mascot (Eyes tracking, blinking, password shy closing) ----
+    function initCloudMascot() {
+      const mascot = document.getElementById('cloudMascot');
+      if (!mascot) return;
+      const leftPupil = mascot.querySelector('.left-eye .cloud-pupil');
+      const rightPupil = mascot.querySelector('.right-eye .cloud-pupil');
+      const leftEye = mascot.querySelector('.left-eye');
+      const rightEye = mascot.querySelector('.right-eye');
+      const passwordInput = document.getElementById('authPassword');
+
+      let isPasswordFocused = false;
+
+      function trackEye(eye, pupil, mouseX, mouseY) {
+        if (isPasswordFocused || !eye || !pupil) return;
+        const rect = eye.getBoundingClientRect();
+        const eyeCenterX = rect.left + rect.width / 2;
+        const eyeCenterY = rect.top + rect.height / 2;
+        const dx = mouseX - eyeCenterX;
+        const dy = mouseY - eyeCenterY;
+        const dist = Math.hypot(dx, dy);
+        const maxDist = 4.5;
+        const moveX = dist > 0 ? (dx / dist) * Math.min(dist, maxDist) : 0;
+        const moveY = dist > 0 ? (dy / dist) * Math.min(dist, maxDist * 1.3) : 0;
+        pupil.style.transform = `translate(${moveX}px, ${moveY}px)`;
+      }
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isPasswordFocused) {
+          trackEye(leftEye, leftPupil, e.clientX, e.clientY);
+          trackEye(rightEye, rightPupil, e.clientX, e.clientY);
+        }
+      }, { passive: true });
+
+      // Blink periodically every 3.6s
+      setInterval(() => {
+        if (isPasswordFocused) return;
+        mascot.classList.add('blink');
+        setTimeout(() => mascot.classList.remove('blink'), 180);
+      }, 3600);
+
+      // Password field focus -> eyes close tight & hands peek up!
+      if (passwordInput) {
+        passwordInput.addEventListener('focus', () => {
+          isPasswordFocused = true;
+          mascot.classList.add('cloud-eyes-closed');
+        });
+        passwordInput.addEventListener('blur', () => {
+          isPasswordFocused = false;
+          mascot.classList.remove('cloud-eyes-closed');
+        });
+      }
+    }
+    initCloudMascot();
+    setTimeout(initCloudMascot, 300);
