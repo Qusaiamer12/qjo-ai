@@ -9,13 +9,13 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <meta name="theme-color" content="#0a0818" />
-  <link rel="stylesheet" href="/styles.css?v=qjo-luxe-aurora-v5-2026-09-02-5" />
+  <link rel="stylesheet" href="/styles.css?v=qjo-luxe-aurora-v6-fix-2026-09-02-6" />
   <!-- Design system layer. Must load AFTER styles.css so it wins the cascade. -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" />
   <link rel="stylesheet" href="/design-system.css?v=qjo-ds-2026-08-28" />
-  <link rel="stylesheet" href="/premium-ui.css?v=qjo-luxe-aurora-v5-2026-09-02-5" />
+  <link rel="stylesheet" href="/premium-ui.css?v=qjo-luxe-aurora-v6-fix-2026-09-02-6" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js" defer></script>
@@ -24,7 +24,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js" defer></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js" defer></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js" defer></script>
-  <script>window.QJO_INDEX_VERSION='qjo-luxe-aurora-v5-2026-09-02-5';console.info('Qjo index version:', window.QJO_INDEX_VERSION);</script>
+  <script>window.QJO_INDEX_VERSION='qjo-luxe-aurora-v6-fix-2026-09-02-6';console.info('Qjo index version:', window.QJO_INDEX_VERSION);</script>
   <script type="module" src="https://unpkg.com/@splinetool/viewer@1.9.0/build/spline-viewer.js" defer></script>
 </head>
 <body>
@@ -196,7 +196,7 @@
             <input id="fileInput" type="file" multiple accept="image/*,.txt,.md,.csv,.json,.pdf,.doc,.docx,.xls,.xlsx" hidden />
             <button class="attach-btn" id="attachBtn" type="button" title="إرفاق ملف" aria-label="إرفاق ملف">
               <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-                <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M21.44 11.05 12.25 20.24a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </button>
             <button class="mic-btn" id="micBtn" type="button" title="تسجيل صوتي">
@@ -214,19 +214,19 @@
           </div>
           <div class="quick-command-cats" id="quickCommandCats">
             <button class="quick-cat-btn" data-cat="learn" type="button">
-              <span class="quick-cat-icon">📚</span>
+              <svg class="cat-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M4 19V7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12l-4-2-4 2-4-2-4 2Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 8h8M8 12h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
               <span>تعلّم</span>
             </button>
             <button class="quick-cat-btn" data-cat="code" type="button">
-              <span class="quick-cat-icon">💻</span>
+              <svg class="cat-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="m8 8-5 4 5 4M16 8l5 4-5 4M14 4l-4 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
               <span>برمجة</span>
             </button>
             <button class="quick-cat-btn" data-cat="write" type="button">
-              <span class="quick-cat-icon">✍️</span>
+              <svg class="cat-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M4 20h4L20 8l-4-4L4 16v4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="m14 6 4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
               <span>كتابة</span>
             </button>
             <button class="quick-cat-btn" data-cat="plan" type="button">
-              <span class="quick-cat-icon">📋</span>
+              <svg class="cat-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M9 11l3 3L22 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
               <span>خطط</span>
             </button>
           </div>
@@ -466,6 +466,6 @@
     </div>
   </div>
 
-  <script src="/app.js?v=qjo-luxe-aurora-v5-2026-09-02-5" defer></script>
+  <script src="/app.js?v=qjo-luxe-aurora-v6-fix-2026-09-02-6" defer></script>
 </body>
 </html>

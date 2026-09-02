@@ -726,3 +726,173 @@ pre::before{
   .welcome h1{ font-size: 40px !important; }
   .welcome p{ font-size: 15px !important; }
 }
+
+/* =========================================================
+   FORCE OVERRIDES — defeat any light-mode bleed from older CSS
+   ========================================================= */
+html, body{ background: #05030d !important; min-height: 100vh; height:100%; }
+body{ color: #f1f5f9 !important; }
+
+.app, .main, .topbar, .messages, .composer-wrap{
+  background: transparent !important;
+}
+.app{ height:100dvh; }
+
+/* Kill light-mode composer background from design-system */
+.composer,
+.composer-shell,
+.composer-wrap{
+  background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04)) !important;
+  border: 1px solid rgba(255,255,255,0.18) !important;
+  color: #f8fafc !important;
+}
+.composer-wrap{
+  background: transparent !important;
+  padding: 18px 28px 28px !important;
+}
+.composer-shell{
+  margin: 0 auto !important;
+  max-width: 820px !important;
+  width: calc(100% - 56px) !important;
+}
+
+/* Make sure textarea text/placeholders visible */
+textarea#input,
+textarea#input::placeholder{
+  color: #f1f5f9 !important;
+  -webkit-text-fill-color: #f1f5f9 !important;
+}
+textarea#input::placeholder{ color: #94a3b8 !important; -webkit-text-fill-color: #94a3b8 !important; opacity:1; }
+
+/* Welcome title full white, em gradient */
+.welcome h1, .welcome h1 *{
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+.welcome h1 em, .welcome h1 em *{
+  background: linear-gradient(135deg,#818cf8,#c084fc,#f472b6) !important;
+  -webkit-background-clip:text !important;
+  background-clip:text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+}
+
+/* Welcome kicker + paragraph visibility */
+.welcome-kicker{ color: #c4b5fd !important; -webkit-text-fill-color: #c4b5fd !important; }
+.welcome p{ color:#cbd5e1 !important; -webkit-text-fill-color:#cbd5e1 !important; font-size:15px; }
+
+/* Function toggles & cat chips text visible */
+.composer-function-toggles .func-toggle,
+.composer-function-toggles .func-toggle span,
+.quick-command-cats .quick-cat-btn,
+.quick-command-cats .quick-cat-btn span{
+  color: #ddd6fe !important;
+  -webkit-text-fill-color: #ddd6fe !important;
+}
+.composer-function-toggles .func-toggle.active,
+.composer-function-toggles .func-toggle.active span{
+  color:#fff !important;
+  -webkit-text-fill-color:#fff !important;
+}
+
+/* Sidebar text */
+.sidebar, .sidebar *:not(.brand-mark):not(.brand-mark *){
+  color: #e2e8f0 !important;
+  -webkit-text-fill-color: #e2e8f0 !important;
+}
+.sidebar .sidebar-muted,
+.sidebar .history-empty,
+.sidebar .sidebar-section-label,
+.sidebar .muted{
+  color:#94a3b8 !important;
+  -webkit-text-fill-color:#94a3b8 !important;
+}
+
+/* Sidebar cards visible */
+.sidebar-card, .sidebar-card-mini{
+  background: rgba(255,255,255,0.04) !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  color:#e2e8f0 !important;
+}
+.sidebar-card-text, .sidebar-card-mini-text{
+  color:#94a3b8 !important;
+  -webkit-text-fill-color:#94a3b8 !important;
+}
+
+/* Bottom gradient backdrop for composer area removed (the white strip) */
+.composer-wrap::before{ display:none !important; }
+
+/* Messages topbar top-subtitle */
+.top-subtitle{
+  color:#cbd5e1 !important;
+  -webkit-text-fill-color:#cbd5e1 !important;
+}
+#connectionStatusDot{
+  background:#10b981 !important;
+}
+
+/* Ensure send button visible */
+.send-btn, .send-btn svg{ color:#fff !important; }
+.send-btn{
+  background: linear-gradient(135deg,#6366f1,#8b5cf6,#ec4899) !important;
+  border:none !important;
+  box-shadow: 0 10px 24px rgba(139,92,246,.45) !important;
+}
+.send-btn:hover{ transform: translateY(-2px) rotate(-6deg) scale(1.06) !important; box-shadow: 0 14px 30px rgba(236,72,153,.45) !important; }
+
+/* Ensure buttons in composer-actions are visible */
+.attach-btn, .mic-btn{ color:#c4b5fd !important; -webkit-text-fill-color:#c4b5fd !important; }
+.attach-btn svg, .mic-btn svg{ color:#c4b5fd !important; fill:#c4b5fd !important; }
+
+/* Modal/toast over dark bg */
+.modal-backdrop{ background: rgba(5,3,13,0.75) !important; backdrop-filter: blur(8px); }
+.modal-card, .toast, .micro-toast{
+  background: linear-gradient(180deg,rgba(30,20,60,0.95),rgba(15,10,35,0.98)) !important;
+  border: 1px solid rgba(139,92,246,.3) !important;
+  color:#f1f5f9 !important;
+}
+
+/* FORCE DARK regardless of body.dark class — Luxe Aurora is always dark */
+:root{
+  --bg:#0a0818 !important;
+  --panel:#0b091a !important;
+  --panel-2:#0e0b22 !important;
+  --panel-3:#151030 !important;
+  --text:#f1f5f9 !important;
+  --muted:#94a3b8 !important;
+  --muted-2:#64748b !important;
+  --border:rgba(255,255,255,0.10) !important;
+  --ui-border:rgba(255,255,255,0.14) !important;
+  --ui-muted:#94a3b8 !important;
+  --ui-text:#f1f5f9 !important;
+  --ui-bg:#0b091a !important;
+  --ui-surface:rgba(255,255,255,0.05) !important;
+  --accent:#a855f7 !important;
+  --accent-2:#ec4899 !important;
+}
+body{
+  background:#05030d !important;
+  color:#f1f5f9 !important;
+}
+
+/* Fix messages area padding so composer sits at bottom nicely */
+.messages-inner{ padding-bottom: 20px !important; }
+
+/* Make category chips use emoji-sized font (fix missing emoji boxes on Windows) */
+.quick-cat-btn .cat-emoji, .quick-cat-btn .cat-icon{
+  font-size: 15px !important;
+  line-height:1 !important;
+  display:inline-block !important;
+  width:auto !important; height:auto !important;
+  filter: drop-shadow(0 0 6px rgba(168,85,247,.4));
+}
+/* If emoji doesn't render, fall back to inline SVG icons provided in HTML */
+.quick-cat-btn svg.cat-icon{
+  width:15px !important; height:15px !important;
+  color:#c4b5fd !important; fill:none !important; stroke:currentColor !important;
+  stroke-width:2 !important;
+}
+
+/* Send arrow direction correct for RTL */
+[dir="rtl"] .send-btn svg,
+html[dir="rtl"] .send-btn svg{ transform: rotate(180deg); }
