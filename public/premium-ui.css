@@ -1023,10 +1023,204 @@ code{ font-family:"JetBrains Mono","Fira Code",ui-monospace,monospace; }
   }
   .auth-card-split{
     padding: 32px 20px !important;
-    max-width: 440px !important;
   }
   .cloud-mascot{
     width: 170px;
     height: 95px;
   }
+}
+
+/* =========================================================
+   QJO REASONING ACCORDION & STREAMING TIMELINE (DeepSeek / o1 style)
+   ========================================================= */
+.qjo-reasoning-card {
+  margin: 4px 0 14px 0;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--qjo-border, rgba(255, 255, 255, 0.08));
+  border-radius: 14px;
+  overflow: hidden;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: inherit;
+}
+body:not(.dark) .qjo-reasoning-card {
+  background: rgba(15, 23, 42, 0.035);
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+.qjo-reasoning-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  cursor: pointer;
+  user-select: none;
+  background: transparent;
+  transition: background 0.15s ease;
+}
+.qjo-reasoning-header:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.qjo-reasoning-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #94a3b8;
+}
+body:not(.dark) .qjo-reasoning-title {
+  color: #64748b;
+}
+
+.qjo-reasoning-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #8b5cf6;
+  box-shadow: 0 0 10px #8b5cf6;
+  display: inline-block;
+  animation: qjo-pulse 1.4s infinite;
+}
+@keyframes qjo-pulse {
+  0%, 100% { opacity: 0.4; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.2); box-shadow: 0 0 14px #8b5cf6; }
+}
+
+.qjo-reasoning-timer {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #cbd5e1;
+}
+body:not(.dark) .qjo-reasoning-timer {
+  background: rgba(15, 23, 42, 0.06);
+  color: #475569;
+}
+
+.qjo-reasoning-toggle {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.qjo-reasoning-card.collapsed .qjo-reasoning-toggle {
+  transform: rotate(180deg);
+}
+
+.qjo-reasoning-body {
+  padding: 4px 16px 14px 16px;
+  max-height: 520px;
+  opacity: 1;
+  overflow-y: auto;
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease, padding 0.25s ease;
+  scrollbar-width: thin;
+}
+.qjo-reasoning-card.collapsed .qjo-reasoning-body {
+  max-height: 0;
+  opacity: 0;
+  padding-bottom: 0;
+  overflow: hidden;
+}
+
+/* Vertical Stepper / Timeline */
+.qjo-reasoning-timeline {
+  position: relative;
+  padding-right: 22px; /* RTL default */
+  padding-left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+[dir="ltr"] .qjo-reasoning-timeline, html[lang="en"] .qjo-reasoning-timeline {
+  padding-left: 22px;
+  padding-right: 0;
+}
+
+.qjo-reasoning-timeline::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  right: 5px;
+  width: 2px;
+  background: rgba(148, 163, 184, 0.22);
+  border-radius: 2px;
+}
+[dir="ltr"] .qjo-reasoning-timeline::before, html[lang="en"] .qjo-reasoning-timeline::before {
+  left: 5px;
+  right: auto;
+}
+
+.qjo-reasoning-step {
+  position: relative;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: #cbd5e1;
+  word-break: break-word;
+}
+body:not(.dark) .qjo-reasoning-step {
+  color: #334155;
+}
+
+.qjo-step-dot {
+  position: absolute;
+  top: 6px;
+  right: -21px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #94a3b8;
+  box-shadow: 0 0 0 2px var(--qjo-bg-0, #0a0818);
+}
+[dir="ltr"] .qjo-step-dot, html[lang="en"] .qjo-step-dot {
+  left: -21px;
+  right: auto;
+}
+
+.qjo-reasoning-step.tool-step {
+  color: #10b981;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.qjo-reasoning-step.tool-step .qjo-step-dot {
+  background: #10b981;
+  box-shadow: 0 0 0 2px var(--qjo-bg-0, #0a0818), 0 0 8px rgba(16, 185, 129, 0.4);
+}
+.qjo-reasoning-step.tool-step .tool-check {
+  color: #10b981;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.qjo-reasoning-divider {
+  height: 1px;
+  background: var(--qjo-border, rgba(255, 255, 255, 0.08));
+  margin: 12px 0 16px 0;
+}
+
+/* Typing cursor animation */
+.qjo-typing-cursor {
+  display: inline-block;
+  width: 7px;
+  height: 16px;
+  background: #8b5cf6;
+  border-radius: 2px;
+  margin-right: 3px;
+  margin-left: 3px;
+  vertical-align: -2px;
+  animation: qjo-cursor-blink 0.75s infinite;
+}
+@keyframes qjo-cursor-blink {
+  0%, 100% { opacity: 1; transform: scaleY(1); }
+  50% { opacity: 0; transform: scaleY(0.7); }
 }

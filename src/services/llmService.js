@@ -160,8 +160,8 @@ function createLlmService(config = {}) {
   }
 
   // Parses an SSE stream from any OpenAI-compatible provider. Captures text
-  // content, indexed tool_call deltas and the real finish_reason.
-  async function consumeStream(response, onChunk, signal) {
+  // content, reasoning deltas, indexed tool_call deltas and the real finish_reason.
+  async function consumeStream(response, onChunk, signal, onReasoning) {
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
@@ -176,6 +176,13 @@ function createLlmService(config = {}) {
       try { data = JSON.parse(cleanedLine.slice(6)); } catch (_) { return; }
       const choice = data?.choices?.[0] || {};
       const delta = choice.delta || {};
+
+      // Capture native reasoning tokens (DeepSeek, Groq, Qwen, etc.)
+      const reasoningChunk = delta.reasoning_content || delta.reasoning;
+      if (reasoningChunk && onReasoning) {
+        onReasoning(reasoningChunk);
+      }
+
       if (delta.content) {
         fullText += delta.content;
         chunksDelivered++;
@@ -219,7 +226,7 @@ function createLlmService(config = {}) {
     return { fullText, toolCalls, finishReason: finishReason || 'stop', chunksDelivered };
   }
 
-  async function callOpenAICompatible({ provider, baseUrl, model, messages, temperature, max_tokens, tools, extraHeaders = {}, onChunk, timeoutMs, signal, _migrated = false }) {
+  async function callOpenAICompatible({ provider, baseUrl, model, messages, temperature, max_tokens, tools, extraHeaders = {}, onChunk, onReasoning, timeoutMs, signal, _migrated = false }) {
     if (provider === 'groq') {
       const mig = migratedModel(model);
       if (mig) {
@@ -263,7 +270,7 @@ function createLlmService(config = {}) {
           if (onChunk) {
             let streamed;
             try {
-              streamed = await consumeStream(response, onChunk, signal);
+              streamed = await consumeStream(response, onChunk, signal, onReasoning);
             } catch (streamErr) {
               if (attempt.wasExternal() || streamErr.name === 'ClientAbortError') throw clientAbortError();
               markKeyFailure(key, { status: 500, errorMsg: streamErr.message });

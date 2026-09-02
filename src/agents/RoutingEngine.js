@@ -172,7 +172,7 @@ function createRoutingEngine(deps) {
     return results.map(r => `[${r.id}] ${r.title || 'untitled'} (${r.url})\n${String(r.content || '').slice(0, 900)}`).join('\n\n');
   }
 
-  async function executeToolCalls(toolCalls, originalQuestion) {
+  async function executeToolCalls(toolCalls, originalQuestion, onToolCall) {
     const toolMessages = [];
     const used = [];
     for (const call of (toolCalls || []).slice(0, 4)) {
@@ -181,12 +181,16 @@ function createRoutingEngine(deps) {
       try {
         const args = JSON.parse(call.function.arguments || '{}');
         if (name === 'calculate' && safeCalculate) {
+          if (onToolCall) onToolCall({ tool: 'calculate', label: 'Used calculator', detail: args.expression, status: 'running' });
           output = safeCalculate(args.expression);
           used.push({ tool: 'calculate', input: args.expression });
+          if (onToolCall) onToolCall({ tool: 'calculate', label: 'Used calculator', detail: `${args.expression} = ${output}`, status: 'done' });
         } else if (name === 'web_search' && searchService) {
+          if (onToolCall) onToolCall({ tool: 'web_search', label: 'Searching the web', detail: args.query, status: 'running' });
           const payload = await searchService.performSearch({ rawQuery: args.query, originalQuestion });
           output = formatSearchResultsForTool(payload);
           used.push({ tool: 'web_search', input: payload.query || args.query, resultCount: (payload.results || []).length });
+          if (onToolCall) onToolCall({ tool: 'web_search', label: 'Searched the web', detail: args.query, count: (payload.results || []).length, status: 'done' });
         } else {
           output = `Tool "${name}" is not available.`;
         }
@@ -248,7 +252,7 @@ function createRoutingEngine(deps) {
       if (!withTools || !toolCalls.length) return res;
 
       // First pass asked for tools: execute, then continue on the SAME provider.
-      const { toolMessages, used } = await executeToolCalls(toolCalls, originalQuestion);
+      const { toolMessages, used } = await executeToolCalls(toolCalls, originalQuestion, params.onToolCall);
       if (!toolMessages.length) return res;
       if (params.deadlineMs && params.deadlineMs - Date.now() < 2500) return res;
       const second = await tryProvider(provider, slot, {
@@ -299,13 +303,13 @@ function createRoutingEngine(deps) {
   // and forward compatibility.
   async function callAgent({
     agentType = 'chat', mode, messages, temperature = 0.7, max_tokens = 4000,
-    useTools, routingDecision, onChunk, model,
+    useTools, routingDecision, onChunk, onReasoning, onToolCall, model,
     deadlineMs, budgetMs, signal
   } = {}) {
     if (!deadlineMs) {
       deadlineMs = Date.now() + (budgetMs || 40000);
     }
-    const base = { messages, temperature, max_tokens, onChunk, deadlineMs, signal };
+    const base = { messages, temperature, max_tokens, onChunk, onReasoning, onToolCall, deadlineMs, signal };
 
     // ── Chat/General Smart Routing ──
     const originalQuestion = combinedUserText(messages);

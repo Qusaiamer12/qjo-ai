@@ -198,6 +198,16 @@ function registerChatRoutes(app, deps) {
         res.write(`event: chunk\ndata: ${JSON.stringify({ text: sanitizeMathNotation(String(text || '')) })}\n\n`);
       };
 
+      const writeReasoning = (text) => {
+        if (responseFinished) return;
+        res.write(`event: reasoning\ndata: ${JSON.stringify({ text: String(text || '') })}\n\n`);
+      };
+
+      const writeToolCall = (info) => {
+        if (responseFinished) return;
+        res.write(`event: tool_call\ndata: ${JSON.stringify(info || {})}\n\n`);
+      };
+
       if (useStreaming) sseHeaders(res);
 
       const ai = await deps.routingEngine.callAgent({
@@ -210,7 +220,9 @@ function registerChatRoutes(app, deps) {
         mode,
         routingDecision,
         signal: clientAbort.signal,
-        onChunk: useStreaming ? writeChunk : undefined
+        onChunk: useStreaming ? writeChunk : undefined,
+        onReasoning: useStreaming ? writeReasoning : undefined,
+        onToolCall: useStreaming ? writeToolCall : undefined
       });
 
       if (!ai.ok) {
