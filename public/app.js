@@ -3178,9 +3178,9 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
       history.length = 0;
       messagesInner.innerHTML = '';
       messagesInner.classList.remove('has-messages');
-      // Welcome section permanently hidden for productivity-focused UI
+      // Welcome hero shown on empty state (Luxe Aurora UI)
       if (welcomeEl) {
-        welcomeEl.style.display = 'none';
+        welcomeEl.style.display = '';
       }
       safeFocusComposer();
     }
@@ -3961,6 +3961,8 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
         history.forEach(m => addMessage(m.role, m.content));
 
         if (!history.length && welcomeEl) {
+          welcomeEl.style.display = '';
+        } else if (welcomeEl) {
           welcomeEl.style.display = 'none';
         }
 
@@ -3980,9 +3982,9 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
       history.length = 0;
       messagesInner.innerHTML = '';
       messagesInner.classList.remove('has-messages');
-      // Welcome section permanently hidden for productivity UI
+      // Welcome hero visible on empty state
       if (welcomeEl) {
-        welcomeEl.style.display = 'none';
+        welcomeEl.style.display = '';
       }
       clearAuthGrace();
       if (auth) await auth.signOut();
