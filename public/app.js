@@ -1096,11 +1096,13 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
     }
 
     function updateModeUI() {
-      normalModeBtn.classList.toggle('active', qjoMode === 'normal');
-      advancedModeBtn.classList.toggle('active', qjoMode === 'advanced');
+      if (normalModeBtn) normalModeBtn.classList.toggle('active', qjoMode === 'normal');
+      if (advancedModeBtn) advancedModeBtn.classList.toggle('active', qjoMode === 'advanced');
       if (codeModeBtn) codeModeBtn.classList.toggle('active', qjoMode === 'code');
-      modeCurrentBtn.classList.remove('mode-flash', 'mode-pro', 'mode-code');
-      modeCurrentBtn.classList.add(qjoMode === 'advanced' ? 'mode-pro' : 'mode-flash');
+      if (modeCurrentBtn) {
+        modeCurrentBtn.classList.remove('mode-flash', 'mode-pro', 'mode-code');
+        modeCurrentBtn.classList.add(qjoMode === 'advanced' ? 'mode-pro' : 'mode-flash');
+      }
       if (modeCurrentText) modeCurrentText.textContent = qjoMode === 'advanced' ? t('advanced') : t('normal');
       if (modeCurrentIcon) modeCurrentIcon.textContent = qjoMode === 'advanced' ? '◆' : '⚡';
       document.body.dataset.qjoMode = qjoMode;
@@ -3172,6 +3174,18 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
       }
     }
 
+    function showWelcomeHero() {
+      if (!messagesInner) return;
+      messagesInner.innerHTML = '';
+      messagesInner.classList.remove('has-messages');
+      if (welcomeEl) {
+        welcomeEl.style.display = '';
+        if (!messagesInner.contains(welcomeEl)) {
+          messagesInner.appendChild(welcomeEl);
+        }
+      }
+    }
+
     function clearChat() {
       if (currentChatId) localStorage.removeItem(activeChatStorageKey());
       currentChatId = null;
@@ -3180,12 +3194,7 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
       pendingAttachments = [];
       renderAttachments();
       history.length = 0;
-      messagesInner.innerHTML = '';
-      messagesInner.classList.remove('has-messages');
-      // Welcome hero shown on empty state (Luxe Aurora UI)
-      if (welcomeEl) {
-        welcomeEl.style.display = '';
-      }
+      showWelcomeHero();
       safeFocusComposer();
     }
 
@@ -3455,9 +3464,7 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
             currentChatId = null;
             history.length = 0;
             messageSeq = 0;
-            messagesInner.innerHTML = '';
-            messagesInner.classList.remove('has-messages');
-            if (welcomeEl) welcomeEl.style.display = '';
+            showWelcomeHero();
             restoreDraft();
             safeFocusComposer();
             subscribeToChats();
@@ -4030,12 +4037,11 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
 
         messageSeq = history.length;
         messagesInner.innerHTML = '';
-        history.forEach(m => addMessage(m.role, m.content));
-
-        if (!history.length && welcomeEl) {
-          welcomeEl.style.display = '';
-        } else if (welcomeEl) {
-          welcomeEl.style.display = 'none';
+        if (history.length) {
+          history.forEach(m => addMessage(m.role, m.content));
+          if (welcomeEl) welcomeEl.style.display = 'none';
+        } else {
+          showWelcomeHero();
         }
 
         allChatsModal.classList.remove('show');
@@ -4059,9 +4065,7 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
       busy = false;
       fileProcessing = false;
       history.length = 0;
-      messagesInner.innerHTML = '';
-      messagesInner.classList.remove('has-messages');
-      if (welcomeEl) welcomeEl.style.display = '';
+      showWelcomeHero();
       if (inputEl) { inputEl.value = ''; inputEl.disabled = false; autoResize(); clearDraft(); }
       if (sendBtn) sendBtn.disabled = false;
       if (attachBtn) attachBtn.disabled = false;
@@ -4465,33 +4469,49 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
       let activeCat = null;
 
       document.querySelectorAll('.quick-cat-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
           const cat = btn.dataset.cat;
-          document.querySelectorAll('.quick-cat-btn').forEach(b => b.classList.remove('active'));
-          if (activeCat === cat){
+          if (!suggestions[cat]) return;
+          if (activeCat === cat && panel && !panel.hidden){
             activeCat = null;
             panel.hidden = true;
+            btn.classList.remove('active');
             return;
           }
+          document.querySelectorAll('.quick-cat-btn').forEach(b => b.classList.remove('active'));
           activeCat = cat;
           btn.classList.add('active');
-          header.textContent = categoryLabels[cat];
-          list.innerHTML = suggestions[cat].map(s => `<li>${s}</li>`).join('');
-          panel.hidden = false;
-          list.querySelectorAll('li').forEach((li, i) => {
-            li.style.animation = `qjoRise .3s cubic-bezier(.2,.8,.2,1) ${i*0.04}s both`;
-            li.addEventListener('click', () => {
-              const input = document.getElementById('input');
-              input.value = li.textContent;
-              input.focus();
-              panel.hidden = true;
-              document.querySelectorAll('.quick-cat-btn').forEach(b => b.classList.remove('active'));
-              activeCat = null;
-              // auto size input
-              input.dispatchEvent(new Event('input'));
+          if (header) header.textContent = categoryLabels[cat] || cat;
+          if (list) {
+            list.innerHTML = suggestions[cat].map(s => `<li>${escapeHtml(s)}</li>`).join('');
+            if (panel) panel.hidden = false;
+            list.querySelectorAll('li').forEach((li, i) => {
+              li.style.animation = `qjoRise .25s cubic-bezier(.2,.8,.2,1) ${i*0.03}s both`;
+              li.addEventListener('click', (eLi) => {
+                eLi.stopPropagation();
+                const input = document.getElementById('input');
+                if (input) {
+                  input.value = li.textContent;
+                  input.focus();
+                  input.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+                if (panel) panel.hidden = true;
+                document.querySelectorAll('.quick-cat-btn').forEach(b => b.classList.remove('active'));
+                activeCat = null;
+              });
             });
-          });
+          }
         });
+      });
+
+      document.addEventListener('click', (e) => {
+        if (panel && !panel.hidden && !e.target.closest('#quickCommandCats') && !e.target.closest('#quickSuggestionsPanel')) {
+          panel.hidden = true;
+          document.querySelectorAll('.quick-cat-btn').forEach(b => b.classList.remove('active'));
+          activeCat = null;
+        }
       });
     }
 
