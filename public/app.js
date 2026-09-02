@@ -4676,10 +4676,12 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
       // Password input focus -> eyes smoothly close into happy arcs & hands cover up!
       if (passwordInput) {
         passwordInput.addEventListener('focus', () => {
-          isPasswordFocused = true;
-          mascot.classList.add('cloud-eyes-closed');
-          if (leftPupil) leftPupil.style.transform = '';
-          if (rightPupil) rightPupil.style.transform = '';
+          if (passwordInput.type === 'password') {
+            isPasswordFocused = true;
+            mascot.classList.add('cloud-eyes-closed');
+            if (leftPupil) leftPupil.style.transform = '';
+            if (rightPupil) rightPupil.style.transform = '';
+          }
         });
         passwordInput.addEventListener('blur', () => {
           isPasswordFocused = false;
@@ -4691,9 +4693,22 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
       if (togglePassBtn && passwordInput) {
         togglePassBtn.addEventListener('click', (e) => {
           e.preventDefault();
-          const isPass = passwordInput.type === 'password';
-          passwordInput.type = isPass ? 'text' : 'password';
-          togglePassBtn.setAttribute('aria-pressed', isPass ? 'true' : 'false');
+          const willShow = passwordInput.type === 'password';
+          passwordInput.type = willShow ? 'text' : 'password';
+          togglePassBtn.classList.toggle('showing-password', willShow);
+          togglePassBtn.setAttribute('title', willShow ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور');
+          togglePassBtn.setAttribute('aria-pressed', willShow ? 'true' : 'false');
+
+          if (willShow) {
+            isPasswordFocused = false;
+            mascot.classList.remove('cloud-eyes-closed');
+          } else {
+            isPasswordFocused = true;
+            mascot.classList.add('cloud-eyes-closed');
+            if (leftPupil) leftPupil.style.transform = '';
+            if (rightPupil) rightPupil.style.transform = '';
+          }
+          passwordInput.focus();
         });
       }
     }

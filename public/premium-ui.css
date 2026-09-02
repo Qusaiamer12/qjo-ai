@@ -728,24 +728,54 @@ code{ font-family:"JetBrains Mono","Fira Code",ui-monospace,monospace; }
 }
 .toggle-password-btn{
   position: absolute;
-  left: 12px;
+  left: 10px;
   top: 50%;
   transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
   background: transparent;
   border: none;
-  color: #64748b;
+  border-radius: 8px;
+  color: #94a3b8;
   cursor: pointer;
-  padding: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.15s ease;
+  transition: color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+  z-index: 2;
+  padding: 0;
 }
 .toggle-password-btn:hover{
-  color: #c7d2fe;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
 }
+.toggle-password-btn:active{
+  transform: translateY(-50%) scale(0.92);
+}
+.toggle-password-btn .eye-icon{
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+.toggle-password-btn .eye-closed-icon{
+  display: none;
+}
+.toggle-password-btn.showing-password .eye-open-icon{
+  display: none;
+}
+.toggle-password-btn.showing-password .eye-closed-icon{
+  display: block;
+}
+.toggle-password-btn.showing-password{
+  color: #818cf8;
+}
+
 .auth-input-wrap input{
-  padding-left: 42px !important;
+  padding-left: 48px !important;
 }
 
 .auth-card-split .remember-row{
