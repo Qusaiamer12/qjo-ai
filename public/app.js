@@ -1040,7 +1040,7 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
       ar: {
         dir: 'rtl', lang: 'ar',
         newChat: 'محادثة جديدة', shortcuts: 'اختصارات', structuredThinking: 'رتّب أفكاري', professionalWriting: 'اكتب محتوى', executionPlan: 'درّبني', system: 'النظام', darkMode: 'الوضع الداكن', lightMode: 'الوضع الفاتح',
-        topSubtitle: 'ذكاء واضح بتجربة راقية', welcomeKicker: 'Qjo Assistant', welcomeTitle: 'كيف يمكنني <em>مساعدتك</em> اليوم؟', welcomeText: 'اسأل، اكتب، خطط، تعلّم، أو ابنِ شيئًا جديدًا. Qjo مصمم ليعطيك إجابات واضحة وعملية بدون تعقيد.',
+        topSubtitle: 'ذكاء واضح بتجربة راقية', welcomeKicker: 'Qjo Assistant', welcomeTitle: 'ابنِ شيئًا <em>مذهلاً</em>', welcomeText: 'ابدأ الكتابة بالأسفل، أو اختر من الأزرار لتبدأ بسرعة. Qjo يساعدك تفكر، تكتب، تتعلم وتبني بذكاء ووضوح.',
         suggest1Title: 'اقترح فكرة مشروع', suggest1Text: 'أفكار عملية قابلة للتنفيذ مع خطوات بداية واضحة.', suggest2Title: 'نظّم يومي', suggest2Text: 'خطة مختصرة تساعدك ترتب الأولويات بسرعة.', suggest3Title: 'اشرح مفهومًا', suggest3Text: 'شرح واضح وبسيط لأي موضوع تريد فهمه.',
         placeholder: 'اكتب رسالتك هنا...', normal: 'Flash', advanced: 'Max', code: 'Code', hint: 'Enter للإرسال · Shift + Enter لسطر جديد', settingsTitle: 'الإعدادات', close: 'إغلاق', languageTitle: 'اللغة', languageDesc: 'اختر لغة واجهة Qjo.', appearanceTitle: 'المظهر', appearanceDesc: 'بدّل بين الوضع الفاتح والداكن.', toggleAppearance: 'تبديل المظهر', accountTitle: 'الحساب', logout: 'تسجيل الخروج', notSigned: 'غير مسجل'
       },
@@ -4042,11 +4042,15 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
       renderAttachments();
       messageSeq = 0;
       cancelActiveRequest();
+      busy = false;
+      fileProcessing = false;
       history.length = 0;
       messagesInner.innerHTML = '';
       messagesInner.classList.remove('has-messages');
       if (welcomeEl) welcomeEl.style.display = '';
-      if (inputEl) { inputEl.value = ''; autoResize(); clearDraft(); }
+      if (inputEl) { inputEl.value = ''; inputEl.disabled = false; autoResize(); clearDraft(); }
+      if (sendBtn) sendBtn.disabled = false;
+      if (attachBtn) attachBtn.disabled = false;
       clearAuthGrace();
       if (auth) await auth.signOut();
     }

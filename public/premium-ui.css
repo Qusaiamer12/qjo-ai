@@ -1230,3 +1230,34 @@ body.sidebar-collapsed .sidebar-toggle svg{ transform: scaleX(-1); }
 .sidebar::-webkit-scrollbar-thumb{ background: color-mix(in srgb, var(--qjo-accent) 18%, transparent); border-radius:6px; }
 /* Make bottom-area stick to bottom by using margin-top:auto on spacer only if there's room */
 .sidebar-bottom-area{ margin-top: auto; flex-shrink: 0; padding-top: 6px; }
+
+/* Collapsed: expand main area to full width, center composer */
+body.sidebar-collapsed{ --sidebar: 0px; }
+body.sidebar-collapsed .app{
+  grid-template-columns: 1fr !important;
+}
+body.sidebar-collapsed .main{
+  width:100%;
+}
+body.sidebar-collapsed .composer-shell{
+  max-width: 920px !important;
+  width: calc(100% - 48px) !important;
+}
+body.sidebar-collapsed .messages-inner{
+  padding-left: 0; padding-right: 0;
+}
+/* Make sure topbar uses full width */
+body.sidebar-collapsed .topbar{
+  padding-inline: 28px;
+}
+/* Ensure quick-cat buttons clickable */
+.quick-cat-btn, .quick-cat-btn *{
+  pointer-events: auto !important;
+  position: relative;
+}
+/* Ensure hidden panels stay hidden */
+[hidden]{ display:none !important; }
+/* When panel is visible */
+.quick-suggestions-panel:not([hidden]){
+  display:block !important;
+}
