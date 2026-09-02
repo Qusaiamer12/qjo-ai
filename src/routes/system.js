@@ -86,7 +86,7 @@ function registerSystemRoutes(app, deps) {
     results.groq = { ok: groq.ok, error: groq.error, status: groq.status };
 
     // Test LLM7
-    const llm7 = await deps.llmService.callLlm7Chat({ model: 'deepseek-chat', messages: testMessages, temperature: 0.1, max_tokens: 10 });
+    const llm7 = await deps.llmService.callLlm7Chat({ model: 'gpt-oss', messages: testMessages, temperature: 0.1, max_tokens: 10 });
     results.llm7 = { ok: llm7.ok, error: llm7.error, status: llm7.status };
 
     // Test Qwen

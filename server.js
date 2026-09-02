@@ -63,8 +63,8 @@ const LLM7_API_KEYS = String(process.env.LLM7_API_KEYS || process.env.LLM7_API_K
   .map(k => k.trim())
   .filter(Boolean);
 const LLM7_BASE_URL = String(process.env.LLM7_BASE_URL || 'https://api.llm7.io/v1').replace(/\/$/, '');
-const LLM7_FLASH_MODEL = process.env.LLM7_FLASH_MODEL || 'deepseek-chat';
-const LLM7_TEXT_MODEL = process.env.LLM7_TEXT_MODEL || 'llama-3.3-70b-instruct';
+const LLM7_FLASH_MODEL = process.env.LLM7_FLASH_MODEL || 'gpt-oss';
+const LLM7_TEXT_MODEL = process.env.LLM7_TEXT_MODEL || 'gpt-oss';
 
 // Kimi (Moonshot) Free tier
 const KIMI_API_KEYS = String(process.env.KIMI_API_KEYS || process.env.KIMI_API_KEY || '')
@@ -186,6 +186,7 @@ const ALLOWED_MODELS = new Set([
   // LLM7 models
   LLM7_FLASH_MODEL,
   LLM7_TEXT_MODEL,
+  'gpt-oss',
   'deepseek-chat',
   'llama-3.3-70b-instruct',
   // Qwen models
@@ -411,7 +412,7 @@ const llmService = createLlmService({
   groqKeys: GROQ_API_KEYS,
   llm7Keys: LLM7_API_KEYS,
   llm7BaseUrl: LLM7_BASE_URL,
-  hasLlm7: LLM7_API_KEYS.length > 0 || process.env.ENABLE_LLM7 === 'true' || Boolean(process.env.LLM7_API_KEY),
+  hasLlm7: true,
   qwenKeys: QWEN_API_KEYS,
   kimiKeys: KIMI_API_KEYS,
   kimiBaseUrl: KIMI_BASE_URL
@@ -423,7 +424,7 @@ const routingEngine = createRoutingEngine({
   searchService: null,
   keys: {
     groq: GROQ_API_KEYS.length,
-    llm7: LLM7_API_KEYS.length || (process.env.ENABLE_LLM7 === 'true' ? 1 : 0),
+    llm7: LLM7_API_KEYS.length || 1,
     qwen: QWEN_API_KEYS.length,
     kimi: KIMI_API_KEYS.length
   },
