@@ -9,13 +9,13 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <meta name="theme-color" content="#123B7A" />
-  <link rel="stylesheet" href="/styles.css?v=qjo-premium-ui-v1-2026-09-02-2" />
+  <link rel="stylesheet" href="/styles.css?v=qjo-premium-ui-v3-2026-09-02-3" />
   <!-- Design system layer. Must load AFTER styles.css so it wins the cascade. -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" />
   <link rel="stylesheet" href="/design-system.css?v=qjo-ds-2026-08-28" />
-  <link rel="stylesheet" href="/premium-ui.css?v=qjo-premium-ui-v1-2026-09-02-2" />
+  <link rel="stylesheet" href="/premium-ui.css?v=qjo-premium-ui-v3-2026-09-02-3" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js" defer></script>
@@ -24,7 +24,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js" defer></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js" defer></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js" defer></script>
-  <script>window.QJO_INDEX_VERSION='qjo-premium-ui-v1-2026-09-02-2';console.info('Qjo index version:', window.QJO_INDEX_VERSION);</script>
+  <script>window.QJO_INDEX_VERSION='qjo-premium-ui-v3-2026-09-02-3';console.info('Qjo index version:', window.QJO_INDEX_VERSION);</script>
   <script type="module" src="https://unpkg.com/@splinetool/viewer@1.9.0/build/spline-viewer.js" defer></script>
 </head>
 <body>
@@ -155,22 +155,26 @@
       <section class="messages" id="messages">
         <div class="messages-inner" id="messagesInner">
           <section class="welcome" id="welcome">
-            <div class="welcome-kicker"><span class="kicker-dot"></span> <span id="welcomeKicker">Qjo Assistant</span></div>
-            <h1 id="welcomeTitle">كيف يمكنني <em>مساعدتك</em> اليوم؟</h1>
-            <p id="welcomeText">اسأل، اكتب، خطط، تعلّم، أو ابنِ شيئًا جديدًا. Qjo مصمم ليعطيك إجابات واضحة وعملية بدون تعقيد.</p>
+            <div class="welcome-kicker"><span class="kicker-dot"></span> <span id="welcomeKicker">Qjo — ذكاء واضح، مساعدة حقيقية</span></div>
+            <h1 id="welcomeTitle">جاهز أساعدك، <em>اسألني أي شيء</em></h1>
+            <p id="welcomeText">تعلّم، اكتب، برمج، خطط، أو ابحث في الويب — Qjo مصمم ليعطيك إجابات واضحة، دقيقة، وعملية بدون كلام زائد أو تعقيد.</p>
 
             <div class="suggestions">
-              <button class="suggestion" data-prompt="اكتب لي فكرة مشروع بسيطة ومربحة">
-                <strong id="suggest1Title">اقترح فكرة مشروع</strong>
-                <span id="suggest1Text">أفكار عملية قابلة للتنفيذ مع خطوات بداية واضحة.</span>
+              <button class="suggestion" data-prompt="اكتب لي فكرة مشروع بسيطة ومربحة أبدأها من البيت">
+                <strong id="suggest1Title">🚀 فكرة مشروع</strong>
+                <span id="suggest1Text">أفكار عملية مربحة قابلة للتنفيذ مع خطوات بداية واضحة.</span>
               </button>
-              <button class="suggestion" data-prompt="ساعدني أرتب يومي بخطة مختصرة">
-                <strong id="suggest2Title">نظّم يومي</strong>
-                <span id="suggest2Text">خطة مختصرة تساعدك ترتب الأولويات بسرعة.</span>
+              <button class="suggestion" data-prompt="ساعدني أرتب يومي بخطة إنتاجية مختصرة منظمة">
+                <strong id="suggest2Title">📅 نظّم يومي</strong>
+                <span id="suggest2Text">خطة ذكية تساعدك ترتب الأولويات وتنجز أكثر بوقت أقل.</span>
               </button>
-              <button class="suggestion" data-prompt="اشرح لي الذكاء الاصطناعي ببساطة">
-                <strong id="suggest3Title">اشرح مفهومًا</strong>
-                <span id="suggest3Text">شرح واضح وبسيط لأي موضوع تريد فهمه.</span>
+              <button class="suggestion" data-prompt="ابحث لي عن آخر أخبار الذكاء الاصطناعي لليوم مع المصادر">
+                <strong id="suggest3Title">🔍 ابحث لي</strong>
+                <span id="suggest3Text">بحث آني في الويب مع مصادر موثوقة ونتائج محدثة.</span>
+              </button>
+              <button class="suggestion" data-prompt="اشرح لي مفهوم سلاسل الكتل (Blockchain) ببساطة شديدة">
+                <strong id="suggest4Title">📚 اشرح مفهوم</strong>
+                <span id="suggest4Text">شرح واضح وبسيط لأي موضوع علمي أو تقني تريد فهمه.</span>
               </button>
             </div>
           </section>
@@ -193,35 +197,62 @@
           <div class="attachment-tray" id="attachmentTray"></div>
           <div class="composer">
             <textarea id="input" placeholder="اكتب رسالتك هنا..." rows="1"></textarea>
-            <div class="composer-actions">
-              <input id="fileInput" type="file" multiple accept="image/*,.txt,.md,.csv,.json,.pdf,.doc,.docx,.xls,.xlsx" hidden />
-              <button class="attach-btn" id="attachBtn" type="button" title="إرفاق ملف" aria-label="إرفاق ملف">
-                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-                  <path d="M7.5 12.5 13.9 6.1a4.1 4.1 0 0 1 5.8 5.8l-8.2 8.2a5.7 5.7 0 0 1-8.1-8.1l8.6-8.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="m8.8 15.2 7.4-7.4a1.9 1.9 0 0 1 2.7 2.7l-7.7 7.7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </button>
-              <div class="mode-menu" id="modeMenu">
-                <button class="mode-current mode-flash" id="modeCurrentBtn" type="button" aria-haspopup="true" aria-expanded="false">
-                  <span class="mode-dot" id="modeCurrentIcon">⚡</span>
-                  <span id="modeCurrentText">Flash</span>
-                  <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-                    <path d="m7 10 5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </button>
-                <div class="mode-dropdown" id="modeDropdown">
-                  <button class="mode-option mode-flash active" id="normalModeBtn" type="button" data-mode="normal"><span class="mode-dot">⚡</span><span id="normalModeText">Flash</span></button>
-                  <button class="mode-option mode-pro" id="advancedModeBtn" type="button" data-mode="advanced"><span class="mode-dot">◆</span><span id="advancedModeText">Max</span></button>
-                </div>
-              </div>
-              <button class="send-btn" id="sendBtn" type="button" title="إرسال" aria-label="إرسال">
-                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-                  <path d="M12 19V5M6.5 10.5 12 5l5.5 5.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </button>
-            </div>
+            <div class="composer-function-toggles" id="composerToggles">
+            <button class="func-toggle search-toggle" id="toggleSearch" type="button" title="بحث في الويب">
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              <span>بحث</span>
+            </button>
+            <button class="func-toggle deep-toggle" id="toggleDeep" type="button" title="بحث عميق متعمق">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="2"/><circle cx="8" cy="8" r="3" fill="currentColor"/></svg>
+              <span>بحث عميق</span>
+            </button>
+            <button class="func-toggle reason-toggle" id="toggleReason" type="button" title="تفكير منطقي موسع">
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 4a8 8 0 1 0 8 8c0-1.2-.3-2.3-.8-3.3L12 12l-3-3 5-5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="18" cy="6" r="2" fill="currentColor"/></svg>
+              <span>تفكير</span>
+            </button>
           </div>
-          <div class="hint" id="hintText">Enter للإرسال · Shift + Enter لسطر جديد</div>
+          <div class="composer-actions">
+            <input id="fileInput" type="file" multiple accept="image/*,.txt,.md,.csv,.json,.pdf,.doc,.docx,.xls,.xlsx" hidden />
+            <button class="attach-btn" id="attachBtn" type="button" title="إرفاق ملف" aria-label="إرفاق ملف">
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
+            <button class="mic-btn" id="micBtn" type="button" title="تسجيل صوتي">
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                <rect x="9" y="3" width="6" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="2"/>
+                <path d="M5 11a7 7 0 0 0 14 0M12 18v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
+            <button class="send-btn" id="sendBtn" type="button" title="إرسال" aria-label="إرسال">
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                <path d="M12 19V5M6.5 10.5 12 5l5.5 5.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
+          </div>
+          <div class="quick-command-cats" id="quickCommandCats">
+            <button class="quick-cat-btn" data-cat="learn" type="button">
+              <span class="quick-cat-icon">📚</span>
+              <span>تعلّم</span>
+            </button>
+            <button class="quick-cat-btn" data-cat="code" type="button">
+              <span class="quick-cat-icon">💻</span>
+              <span>برمجة</span>
+            </button>
+            <button class="quick-cat-btn" data-cat="write" type="button">
+              <span class="quick-cat-icon">✍️</span>
+              <span>كتابة</span>
+            </button>
+            <button class="quick-cat-btn" data-cat="plan" type="button">
+              <span class="quick-cat-icon">📋</span>
+              <span>خطط</span>
+            </button>
+          </div>
+          <div class="quick-suggestions-panel" id="quickSuggestionsPanel" hidden>
+            <div class="qs-header" id="qsHeader">اقتراحات</div>
+            <ul class="qs-list" id="qsList"></ul>
+          </div>
         </div>
       </footer>
     </main>
@@ -454,6 +485,6 @@
     </div>
   </div>
 
-  <script src="/app.js?v=qjo-premium-lively-v2-2026-09-02-1" defer></script>
+  <script src="/app.js?v=qjo-premium-lively-v3-2026-09-02-3" defer></script>
 </body>
 </html>

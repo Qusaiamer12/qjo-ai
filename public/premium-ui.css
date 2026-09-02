@@ -629,3 +629,147 @@ body.typing-active .composer-shell::after{ animation-duration:3s; opacity:.8; }
   .thinking-block{ margin-right:12px; max-width:86%; }
   .msg-reactions{ margin-inline-start:0; }
 }
+
+/* =====================================
+   INTEGRATED TOGGLES + QUICK CATEGORIES
+   Matches the new React UI in Qjo brand
+   ===================================== */
+
+.composer-function-toggles{
+  display:flex; gap:8px; flex-wrap:wrap;
+  padding:4px 4px 10px;
+  direction:rtl;
+}
+.func-toggle{
+  display:inline-flex; align-items:center; gap:6px;
+  padding:7px 13px;
+  border-radius:999px;
+  border:1px solid var(--qjo-glass-border);
+  background:var(--qjo-glass);
+  color:var(--muted);
+  font-size:12.5px; font-weight:600;
+  cursor:pointer;
+  transition:all .22s cubic-bezier(.2,.8,.2,1);
+  backdrop-filter:blur(8px);
+}
+.func-toggle:hover{
+  transform:translateY(-1px);
+  border-color:rgba(18,59,122,.2);
+  color:var(--qjo-brand-1);
+  box-shadow:0 8px 18px rgba(18,59,122,.1);
+}
+.func-toggle.active{
+  background:linear-gradient(135deg,#123B7A,#38C7DD);
+  color:#fff;
+  border-color:transparent;
+  box-shadow:0 10px 22px rgba(18,59,122,.28);
+}
+.func-toggle.reason-toggle.active{ background:linear-gradient(135deg,#7B3FE4,#38C7DD); box-shadow:0 10px 22px rgba(123,63,228,.28); }
+.func-toggle.deep-toggle.active{ background:linear-gradient(135deg,#FFB86B,#FF7A94); box-shadow:0 10px 22px rgba(255,122,148,.28); }
+
+.attach-btn, .mic-btn{
+  width:42px; height:42px;
+  display:grid; place-items:center;
+  border-radius:14px;
+  border:1px solid transparent;
+  background:transparent;
+  color:var(--muted);
+  cursor:pointer;
+  transition:all .2s cubic-bezier(.2,.8,.2,1);
+}
+.attach-btn:hover, .mic-btn:hover{
+  background:rgba(18,59,122,.08);
+  color:var(--qjo-brand-1);
+  transform:scale(1.06);
+}
+
+/* Quick category buttons below composer */
+.quick-command-cats{
+  display:grid; grid-template-columns:repeat(4,1fr);
+  gap:10px;
+  padding-top:10px;
+  border-top:1px solid var(--qjo-glass-border);
+  margin-top:4px;
+}
+.quick-cat-btn{
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:6px;
+  padding:14px 8px;
+  border-radius:18px;
+  border:1px solid var(--qjo-glass-border);
+  background:var(--qjo-glass);
+  color:var(--text);
+  cursor:pointer;
+  transition:all .25s cubic-bezier(.2,.8,.2,1);
+  backdrop-filter:blur(8px);
+}
+.quick-cat-btn:hover{
+  transform:translateY(-3px);
+  border-color:rgba(18,59,122,.2);
+  box-shadow:0 14px 30px rgba(18,59,122,.12);
+}
+.quick-cat-btn.active{
+  background:linear-gradient(135deg,rgba(18,59,122,.08),rgba(123,63,228,.12));
+  border-color:rgba(18,59,122,.22);
+  transform:translateY(-2px);
+}
+.quick-cat-icon{
+  font-size:22px;
+  filter:drop-shadow(0 4px 10px rgba(0,0,0,.08));
+}
+.quick-cat-btn span:last-child{
+  font-size:12.5px; font-weight:700;
+}
+.quick-cat-btn[data-cat="learn"].active{ border-color:rgba(56,199,221,.3); }
+.quick-cat-btn[data-cat="code"].active{ border-color:rgba(123,63,228,.3); }
+.quick-cat-btn[data-cat="write"].active{ border-color:rgba(255,122,148,.3); }
+.quick-cat-btn[data-cat="plan"].active{ border-color:rgba(255,184,107,.3); }
+
+/* Suggestions dropdown when category selected */
+.quick-suggestions-panel{
+  margin-top:12px;
+  border-radius:20px;
+  border:1px solid var(--qjo-glass-border);
+  background:var(--qjo-glass);
+  backdrop-filter:blur(16px);
+  overflow:hidden;
+  animation:qjoRise .3s cubic-bezier(.2,.8,.2,1) both;
+  box-shadow:0 18px 44px rgba(18,59,122,.12);
+}
+.qs-header{
+  padding:12px 16px;
+  font-weight:700; font-size:13px;
+  color:var(--qjo-brand-1);
+  background:linear-gradient(135deg,rgba(56,199,221,.08),rgba(123,63,228,.08));
+  border-bottom:1px solid var(--qjo-glass-border);
+}
+.qs-list{
+  list-style:none; margin:0; padding:6px;
+}
+.qs-list li{
+  padding:12px 14px;
+  border-radius:12px;
+  display:flex; align-items:center; gap:12px;
+  cursor:pointer;
+  font-size:14px; font-weight:500;
+  color:var(--text);
+  transition:all .18s ease;
+}
+.qs-list li:hover{
+  background:linear-gradient(135deg,rgba(56,199,221,.08),rgba(123,63,228,.08));
+  transform:translateX(-4px);
+}
+.qs-list li::before{
+  content:"→";
+  color:var(--qjo-brand-1);
+  font-weight:800;
+  font-size:14px;
+}
+
+@media (max-width: 640px){
+  .composer-function-toggles{ gap:6px; padding-bottom:8px; }
+  .func-toggle{ padding:6px 10px; font-size:11.5px; }
+  .func-toggle span{ display:none; }
+  .quick-command-cats{ grid-template-columns:repeat(2,1fr); gap:8px; }
+  .quick-cat-btn{ padding:12px 6px; }
+}

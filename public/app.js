@@ -4268,5 +4268,102 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
     sprinkleWelcomeConfetti();
     installTypingSparkle();
     installSuggestionPop();
+    installFunctionToggles();
+    installQuickCategories();
     // Re-wire suggestion pop if suggestions re-render (they don't, but safe)
     setTimeout(installSuggestionPop, 400);
+
+    // --- Function toggles (Search / Deep / Reason) ---
+    function installFunctionToggles(){
+      const toggles = [
+        { btn: 'toggleSearch', flag: 'tavily', label: 'Search enabled' },
+        { btn: 'toggleDeep', flag: 'deep', label: 'Deep research enabled' },
+        { btn: 'toggleReason', flag: 'reason', label: 'Reasoning enabled' },
+      ];
+      toggles.forEach(({btn}) => {
+        const b = document.getElementById(btn);
+        if (!b) return;
+        b.addEventListener('click', () => {
+          b.classList.toggle('active');
+          const label = b.querySelector('span');
+          if (b.classList.contains('active')){
+            showMicroToast(b.dataset.on || 'تم تفعيل الخاصية ✨');
+          }
+        });
+      });
+    }
+
+    // --- Quick command categories (Learn / Code / Write / Plan) ---
+    function installQuickCategories(){
+      const suggestions = {
+        learn: [
+          'اشرح نظرية الانفجار العظيم ببساطة',
+          'كيف يعمل البناء الضوئي عند النباتات؟',
+          'ما هي الثقوب السوداء وكيف تتكون؟',
+          'اشرح الحوسبة الكمومية ببساطة للمبتدئين',
+          'كيف يعمل الدماغ البشري؟'
+        ],
+        code: [
+          'أنشئ لي مكون React لقائمة مهام بسيطة',
+          'اكتب دالة بايثون لترتيب قائمة أرقام',
+          'كيف أنشئ نظام مصادقة في Next.js؟',
+          'اشرح async/await في جافاسكربت ببساطة',
+          'اكتب لي CSS animation لزر تفاعلي'
+        ],
+        write: [
+          'اكتب إيميل احترافي لعميل محتمل',
+          'أنشئ وصف منتج لهاتف ذكي جديد',
+          'اكتب مقال مدونة عن مستقبل الذكاء الاصطناعي',
+          'اكتب قصة إبداعية عن استكشاف الفضاء',
+          'أنشئ منشور سوشيال ميديا عن الاستدامة'
+        ],
+        plan: [
+          'خطتي لبداية مشروع أونلاين بـ 0 ميزانية',
+          'نظم لي جدول يومي لزيادة الإنتاجية',
+          'خطة دراسة لتعلم البرمجة من الصفر في 3 أشهر',
+          'نظم لي خطة سفر لمدة 7 أيام في تركيا',
+          'خطة مالية شخصية بسيطة للمبتدئين'
+        ]
+      };
+      const panel = document.getElementById('quickSuggestionsPanel');
+      const list = document.getElementById('qsList');
+      const header = document.getElementById('qsHeader');
+      const categoryLabels = {
+        learn: '📚 اقتراحات للتعلم',
+        code: '💻 اقتراحات برمجية',
+        write: '✍️ اقتراحات للكتابة',
+        plan: '📋 اقتراحات للتخطيط'
+      };
+      let activeCat = null;
+
+      document.querySelectorAll('.quick-cat-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const cat = btn.dataset.cat;
+          document.querySelectorAll('.quick-cat-btn').forEach(b => b.classList.remove('active'));
+          if (activeCat === cat){
+            activeCat = null;
+            panel.hidden = true;
+            return;
+          }
+          activeCat = cat;
+          btn.classList.add('active');
+          header.textContent = categoryLabels[cat];
+          list.innerHTML = suggestions[cat].map(s => `<li>${s}</li>`).join('');
+          panel.hidden = false;
+          list.querySelectorAll('li').forEach((li, i) => {
+            li.style.animation = `qjoRise .3s cubic-bezier(.2,.8,.2,1) ${i*0.04}s both`;
+            li.addEventListener('click', () => {
+              const input = document.getElementById('input');
+              input.value = li.textContent;
+              input.focus();
+              panel.hidden = true;
+              document.querySelectorAll('.quick-cat-btn').forEach(b => b.classList.remove('active'));
+              activeCat = null;
+              // auto size input
+              input.dispatchEvent(new Event('input'));
+            });
+          });
+        });
+      });
+    }
+
