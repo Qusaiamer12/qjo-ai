@@ -9,13 +9,13 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <meta name="theme-color" content="#0a0818" />
-  <link rel="stylesheet" href="/styles.css?v=qjo-fix-listeners-v13-2026-09-03-13" />
+  <link rel="stylesheet" href="/styles.css?v=qjo-clean-topbar-welcome-v14-2026-09-03-14" />
   <!-- Design system layer. Must load AFTER styles.css so it wins the cascade. -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" />
   <link rel="stylesheet" href="/design-system.css?v=qjo-ds-2026-08-28" />
-  <link rel="stylesheet" href="/premium-ui.css?v=qjo-fix-listeners-v13-2026-09-03-13" />
+  <link rel="stylesheet" href="/premium-ui.css?v=qjo-clean-topbar-welcome-v14-2026-09-03-14" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js" defer></script>
@@ -24,7 +24,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js" defer></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js" defer></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js" defer></script>
-  <script>window.QJO_INDEX_VERSION='qjo-fix-listeners-v13-2026-09-03-13';console.info('Qjo index version:', window.QJO_INDEX_VERSION);</script>
+  <script>window.QJO_INDEX_VERSION='qjo-clean-topbar-welcome-v14-2026-09-03-14';console.info('Qjo index version:', window.QJO_INDEX_VERSION);</script>
   <script type="module" src="https://unpkg.com/@splinetool/viewer@1.9.0/build/spline-viewer.js" defer></script>
 </head>
 <body>
@@ -148,21 +148,6 @@
               <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             </svg>
           </button>
-          <button class="mode-btn" id="modeCurrentBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="نمط الرد">
-            <svg id="modeCurrentIcon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z" fill="currentColor"/></svg>
-            <span id="modeCurrentText">عادي</span>
-          </button>
-          <div class="mode-dropdown" id="modeMenu" role="menu" hidden>
-            <button class="mode-option active" id="normalModeBtn" data-mode="normal" role="menuitem" type="button">
-              <span class="mode-icon">⚡</span><span class="mode-name" id="normalModeText">عادي</span>
-            </button>
-            <button class="mode-option" id="advancedModeBtn" data-mode="advanced" role="menuitem" type="button">
-              <span class="mode-icon">🧠</span><span class="mode-name" id="advancedModeText">متقدم</span>
-            </button>
-            <button class="mode-option" id="codeModeBtn" data-mode="code" role="menuitem" type="button">
-              <span class="mode-icon">{ }</span><span class="mode-name" id="codeModeText">كود</span>
-            </button>
-          </div>
           <button class="icon-btn" id="exportChatBtn" type="button" title="تصدير المحادثة" aria-label="تصدير المحادثة">
             <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
@@ -172,8 +157,8 @@
       <section class="messages" id="messages">
         <div class="messages-inner" id="messagesInner">
           <section class="welcome" id="welcome">
-            <h1 id="welcomeTitle">ابنِ شيئًا <em>مذهلاً</em></h1>
-            <p id="welcomeText">ابدأ الكتابة بالأسفل، أو اختر من الأزرار لتبدأ بسرعة. Qjo يساعدك تفكر، تكتب، تتعلم وتبني بذكاء ووضوح.</p>
+            <h1 id="welcomeTitle">كيف يمكنني <em>مساعدتك</em> اليوم؟</h1>
+            <p id="welcomeText">اسأل، اكتب، خطط، تعلّم، أو ابنِ شيئًا جديدًا. Qjo مصمم ليعطيك إجابات واضحة وعملية بدون تعقيد.</p>
           </section>
         </div>
       </section>
@@ -527,6 +512,6 @@ Qjo مساعد عام للناس.
     </div>
   </div>
 
-  <script src="/app.js?v=qjo-fix-listeners-v13-2026-09-03-13" defer></script>
+  <script src="/app.js?v=qjo-clean-topbar-welcome-v14-2026-09-03-14" defer></script>
 </body>
 </html>
