@@ -59,7 +59,7 @@ function parseDeepSearchRequest(body) {
 // Function-calling schema so the model itself decides when it needs current
 // information, instead of relying only on the client's regex-based
 // pre-search heuristic (which inevitably misses phrasings it wasn't written
-// for). Given directly to Groq/Qwen/Kimi/Nvidia's tools param.
+// for). Given directly to Groq/LLM7/Qwen/Kimi's tools param.
 const WEB_SEARCH_TOOL = {
   type: 'function',
   function: {

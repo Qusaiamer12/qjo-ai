@@ -78,23 +78,6 @@ const QWEN_API_KEYS = String(process.env.QWEN_API_KEYS || process.env.QWEN_API_K
   .map(k => k.trim())
   .filter(Boolean);
 
-// Optional secondary fallbacks
-const GEMINI_API_KEYS = String(process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || '')
-  .split(',')
-  .map(k => k.trim())
-  .filter(Boolean);
-const NVIDIA_API_KEYS = String(process.env.NVIDIA_API_KEYS || process.env.NVIDIA_API_KEY || '')
-  .split(',')
-  .map(k => k.trim())
-  .filter(Boolean);
-const OPENROUTER_API_KEYS = String(process.env.OPENROUTER_API_KEYS || process.env.OPENROUTER_API_KEY || '')
-  .split(',')
-  .map(k => k.trim())
-  .filter(Boolean);
-const AGNES_API_KEYS = String(process.env.AGNES_API_KEYS || process.env.AGNES_API_KEY || '')
-  .split(',')
-  .map(k => k.trim())
-  .filter(Boolean);
 
 const EMBEDDING_API_KEYS = String(process.env.EMBEDDING_API_KEYS || process.env.EMBEDDING_API_KEY || '')
   .split(',')
@@ -117,28 +100,14 @@ const IP_RATE_LIMIT_PER_MINUTE = Number(process.env.IP_RATE_LIMIT_PER_MINUTE || 
 const GROQ_FLASH_MODEL = process.env.GROQ_FLASH_MODEL || 'openai/gpt-oss-20b';
 const GROQ_TEXT_MODEL = process.env.GROQ_TEXT_MODEL || 'openai/gpt-oss-120b';
 const GROQ_VISION_MODEL = process.env.GROQ_VISION_MODEL || 'meta-llama/llama-4-scout-17b-16e-instruct';
-const GEMINI_FLASH_MODEL = process.env.GEMINI_FLASH_MODEL || 'gemini-2.0-flash';
-const GEMINI_TEXT_MODEL = process.env.GEMINI_TEXT_MODEL || 'gemini-2.0-flash';
-const GEMINI_VISION_MODEL = process.env.GEMINI_VISION_MODEL || GEMINI_TEXT_MODEL;
 const QWEN_FLASH_MODEL = process.env.QWEN_FLASH_MODEL || 'qwen-plus';
 const QWEN_TEXT_MODEL = process.env.QWEN_TEXT_MODEL || 'qwen-plus';
 const QWEN_CODE_MODEL = process.env.QWEN_CODE_MODEL || QWEN_TEXT_MODEL;
+const QWEN_VISION_MODEL = process.env.QWEN_VISION_MODEL || 'qwen-vl-plus';
 const KIMI_BASE_URL = String(process.env.KIMI_BASE_URL || 'https://api.moonshot.ai/v1').replace(/\/$/, '');
 const KIMI_FLASH_MODEL = process.env.KIMI_FLASH_MODEL || process.env.KIMI_MODEL || 'moonshot-v1-8k';
 const KIMI_TEXT_MODEL = process.env.KIMI_TEXT_MODEL || process.env.KIMI_MODEL || 'moonshot-v1-8k';
 const KIMI_CODE_MODEL = process.env.KIMI_CODE_MODEL || KIMI_TEXT_MODEL;
-const NVIDIA_FLASH_MODEL = process.env.NVIDIA_FLASH_MODEL || 'meta/llama-3.1-8b-instruct';
-const NVIDIA_TEXT_MODEL = process.env.NVIDIA_TEXT_MODEL || 'meta/llama-3.1-70b-instruct';
-// Vision-capable slots (image requests route here FIRST now — previously they
-// marched through text-only models and died). Leave empty to disable a slot.
-const QWEN_VISION_MODEL = process.env.QWEN_VISION_MODEL || 'qwen-vl-plus';
-const NVIDIA_VISION_MODEL = process.env.NVIDIA_VISION_MODEL || '';
-const OPENROUTER_FREE_MODELS = String(process.env.OPENROUTER_FREE_MODELS || 'qwen/qwen3-235b-a22b:free,meta-llama/llama-3.3-70b-instruct:free,mistralai/mistral-7b-instruct:free')
-  .split(',')
-  .map(m => m.trim())
-  .filter(m => m && m.includes(':free'));
-const AGNES_BASE_URL = String(process.env.AGNES_BASE_URL || '').replace(/\/$/, '');
-const AGNES_MODEL = process.env.AGNES_MODEL || 'default';
 const REQUIRE_FIREBASE_AUTH = process.env.REQUIRE_FIREBASE_AUTH === 'true';
 const DAILY_USER_LIMIT = Number(process.env.DAILY_USER_LIMIT || 0); // 0 = unlimited per-user daily usage
 const GUEST_DAILY_LIMIT = Number(process.env.GUEST_DAILY_LIMIT || process.env.DAILY_GUEST_LIMIT || 0); // 0 = unlimited guest/IP daily usage
@@ -269,8 +238,6 @@ app.use(helmet({
         "https://api.tavily.com",
         "https://api.firecrawl.dev",
         "https://dashscope-intl.aliyuncs.com",
-        "https://integrate.api.nvidia.com",
-        "https://openrouter.ai",
         "https://api.moonshot.ai",
         "https://api.moonshot.cn",
         "https://api.deepseek.com",
@@ -430,14 +397,7 @@ const llmService = createLlmService({
   hasLlm7: LLM7_API_KEYS.length > 0 || process.env.ENABLE_LLM7 === 'true' || Boolean(process.env.LLM7_API_KEY),
   qwenKeys: QWEN_API_KEYS,
   kimiKeys: KIMI_API_KEYS,
-  geminiKeys: GEMINI_API_KEYS,
-  nvidiaKeys: NVIDIA_API_KEYS,
-  openRouterKeys: OPENROUTER_API_KEYS,
-  agnesKeys: AGNES_API_KEYS,
-  kimiBaseUrl: KIMI_BASE_URL,
-  openRouterFreeModels: OPENROUTER_FREE_MODELS,
-  agnesBaseUrl: AGNES_BASE_URL,
-  agnesModel: AGNES_MODEL
+  kimiBaseUrl: KIMI_BASE_URL
 });
 
 const routingEngine = createRoutingEngine({
@@ -448,11 +408,7 @@ const routingEngine = createRoutingEngine({
     groq: GROQ_API_KEYS.length,
     llm7: LLM7_API_KEYS.length || (process.env.ENABLE_LLM7 === 'true' ? 1 : 0),
     qwen: QWEN_API_KEYS.length,
-    kimi: KIMI_API_KEYS.length,
-    gemini: GEMINI_API_KEYS.length,
-    nvidia: NVIDIA_API_KEYS.length,
-    openRouter: OPENROUTER_API_KEYS.length,
-    agnes: AGNES_API_KEYS.length
+    kimi: KIMI_API_KEYS.length
   },
   models: {
     groqFlash: GROQ_FLASH_MODEL,
@@ -468,14 +424,7 @@ const routingEngine = createRoutingEngine({
     qwenVision: QWEN_VISION_MODEL,
     kimiFlash: KIMI_FLASH_MODEL,
     kimiText: KIMI_TEXT_MODEL,
-    kimiCode: KIMI_CODE_MODEL,
-    geminiText: GEMINI_TEXT_MODEL,
-    geminiFlash: GEMINI_FLASH_MODEL,
-    geminiVision: GEMINI_VISION_MODEL,
-    nvidiaFlash: NVIDIA_FLASH_MODEL,
-    nvidiaText: NVIDIA_TEXT_MODEL,
-    nvidiaCode: NVIDIA_TEXT_MODEL,
-    nvidiaVision: NVIDIA_VISION_MODEL
+    kimiCode: KIMI_CODE_MODEL
   }
 });
 
@@ -494,11 +443,9 @@ registerAdminRoutes(app, {
   ipRateLimitPerMinute: IP_RATE_LIMIT_PER_MINUTE,
   providersDiagnostics: () => ({
     groq: GROQ_API_KEYS.length,
+    llm7: LLM7_API_KEYS.length || (process.env.ENABLE_LLM7 === 'true' ? 1 : 0),
     qwen: QWEN_API_KEYS.length,
     kimi: KIMI_API_KEYS.length,
-    nvidia: NVIDIA_API_KEYS.length,
-    openRouter: OPENROUTER_API_KEYS.length,
-    agnes: AGNES_API_KEYS.length,
     tavily: Boolean(TAVILY_API_KEY),
     firecrawl: Boolean(FIRECRAWL_API_KEY)
   }),
@@ -506,19 +453,15 @@ registerAdminRoutes(app, {
     groqFlash: GROQ_FLASH_MODEL,
     groqText: GROQ_TEXT_MODEL,
     groqVision: GROQ_VISION_MODEL,
-    geminiFlash: GEMINI_FLASH_MODEL,
-    geminiText: GEMINI_TEXT_MODEL,
-    geminiVision: GEMINI_VISION_MODEL,
+    llm7Flash: LLM7_FLASH_MODEL,
+    llm7Text: LLM7_TEXT_MODEL,
     qwenFlash: QWEN_FLASH_MODEL,
     qwenText: QWEN_TEXT_MODEL,
     qwenCode: QWEN_CODE_MODEL,
     qwenVision: QWEN_VISION_MODEL,
     kimiFlash: KIMI_FLASH_MODEL,
     kimiText: KIMI_TEXT_MODEL,
-    kimiCode: KIMI_CODE_MODEL,
-    nvidiaFlash: NVIDIA_FLASH_MODEL,
-    nvidiaText: NVIDIA_TEXT_MODEL,
-    nvidiaVision: NVIDIA_VISION_MODEL
+    kimiCode: KIMI_CODE_MODEL
   }),
   featuresDiagnostics: () => ({
     publicConfig: true,
@@ -598,44 +541,38 @@ registerSystemRoutes(app, {
     groq: GROQ_API_KEYS.length > 0,
     llm7: LLM7_API_KEYS.length > 0 || process.env.ENABLE_LLM7 === 'true',
     qwen: QWEN_API_KEYS.length > 0,
-    kimi: KIMI_API_KEYS.length > 0,
-    gemini: GEMINI_API_KEYS.length > 0,
-    nvidia: NVIDIA_API_KEYS.length > 0,
-    openRouter: OPENROUTER_API_KEYS.length > 0,
-    agnes: AGNES_API_KEYS.length > 0
+    kimi: KIMI_API_KEYS.length > 0
   }),
   healthPayload: () => ({
     groqKeysConfigured: GROQ_API_KEYS.length,
     llm7KeysConfigured: LLM7_API_KEYS.length || (process.env.ENABLE_LLM7 === 'true' ? 1 : 0),
     qwenKeysConfigured: QWEN_API_KEYS.length,
     kimiKeysConfigured: KIMI_API_KEYS.length,
-    geminiKeysConfigured: GEMINI_API_KEYS.length,
-    nvidiaKeysConfigured: NVIDIA_API_KEYS.length,
-    openRouterKeysConfigured: OPENROUTER_API_KEYS.length,
-    agnesKeysConfigured: AGNES_API_KEYS.length,
     guestDailyLimit: GUEST_DAILY_LIMIT,
     embeddingsConfigured: embeddingsService.configuredCount(),
     embeddingsProvider: embeddingsService.getEmbeddingProviderName(),
     routerVersion: 'pipelines-v2',
     chatPipelines: {
-      lite: ['groq:flash', 'gemini:flash', 'qwen:flash', 'kimi:flash', 'nvidia:flash'],
-      flash: ['gemini:flash', 'qwen:flash', 'groq:text', 'kimi:flash', 'nvidia:text', 'openrouter:free'],
-      maxAr: ['qwen:text', 'kimi:text', 'groq:text', 'gemini:text', 'nvidia:text', 'openrouter:free'],
-      maxEn: ['groq:text', 'qwen:text', 'kimi:text', 'gemini:text', 'nvidia:text', 'openrouter:free'],
-      code: ['kimi:code', 'qwen:code', 'groq:text', 'nvidia:text', 'gemini:text', 'openrouter:free'],
-      vision: ['groq:vision', 'gemini:vision', 'qwen:vision', 'nvidia:vision']
+      lite: ['groq:flash', 'llm7:flash', 'qwen:flash', 'kimi:flash'],
+      flash: ['groq:flash', 'llm7:flash', 'qwen:flash', 'kimi:flash'],
+      maxAr: ['qwen:text', 'kimi:text', 'llm7:text', 'groq:text'],
+      maxEn: ['groq:text', 'llm7:text', 'qwen:text', 'kimi:text'],
+      code: ['kimi:code', 'qwen:code', 'llm7:text', 'groq:text'],
+      vision: ['groq:vision', 'qwen:vision']
     },
     models: {
-      flash: GROQ_FLASH_MODEL,
-      text: GROQ_TEXT_MODEL,
-      vision: GROQ_VISION_MODEL,
+      groqFlash: GROQ_FLASH_MODEL,
+      groqText: GROQ_TEXT_MODEL,
+      groqVision: GROQ_VISION_MODEL,
+      llm7Flash: LLM7_FLASH_MODEL,
+      llm7Text: LLM7_TEXT_MODEL,
       qwenFlash: QWEN_FLASH_MODEL,
       qwenText: QWEN_TEXT_MODEL,
       qwenCode: QWEN_CODE_MODEL,
-      nvidiaFlash: NVIDIA_FLASH_MODEL,
-      nvidiaText: NVIDIA_TEXT_MODEL,
-      openRouterFreeModels: OPENROUTER_FREE_MODELS,
-      agnesModel: AGNES_MODEL
+      qwenVision: QWEN_VISION_MODEL,
+      kimiFlash: KIMI_FLASH_MODEL,
+      kimiText: KIMI_TEXT_MODEL,
+      kimiCode: KIMI_CODE_MODEL
     }
   }),
   featuresHealth: () => ({
@@ -671,10 +608,9 @@ registerExportRoutes(app, { verifyFirebaseRequest, uploadMiddleware: exportUploa
 // (a tiny 150-token call that massively improves Arabic/dialect queries).
 function pickQueryRewriter() {
   if (GROQ_API_KEYS.length) return { provider: 'groq', model: GROQ_FLASH_MODEL };
-  if (GEMINI_API_KEYS.length) return { provider: 'gemini', model: GEMINI_FLASH_MODEL };
+  if (LLM7_API_KEYS.length || process.env.ENABLE_LLM7 === 'true') return { provider: 'llm7', model: LLM7_FLASH_MODEL };
   if (QWEN_API_KEYS.length) return { provider: 'qwen', model: QWEN_FLASH_MODEL };
   if (KIMI_API_KEYS.length) return { provider: 'kimi', model: KIMI_FLASH_MODEL };
-  if (NVIDIA_API_KEYS.length) return { provider: 'nvidia', model: NVIDIA_FLASH_MODEL };
   return null; // regex distillation fallback handles it
 }
 
@@ -698,7 +634,7 @@ routingEngine.searchService = searchService;
 const chatPromptBuilder = createChatPromptBuilder();
 
 registerChatRoutes(app, {
-  hasAnyAiProvider: () => Boolean(GEMINI_API_KEYS.length || GROQ_API_KEYS.length || QWEN_API_KEYS.length || KIMI_API_KEYS.length || NVIDIA_API_KEYS.length || OPENROUTER_API_KEYS.length || AGNES_API_KEYS.length),
+  hasAnyAiProvider: () => Boolean(GROQ_API_KEYS.length || LLM7_API_KEYS.length || process.env.ENABLE_LLM7 === 'true' || QWEN_API_KEYS.length || KIMI_API_KEYS.length),
   verifyFirebaseRequest,
   enforceDailyUsage,
   allowedModels: ALLOWED_MODELS,

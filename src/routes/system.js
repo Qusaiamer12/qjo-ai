@@ -77,21 +77,25 @@ function registerSystemRoutes(app, deps) {
   app.get('/api/diagnostics', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     if (!deps.llmService) return res.status(500).json({ error: 'llmService not injected to system routes' });
-    
+
     const results = {};
     const testMessages = [{ role: 'user', content: 'Say "hello" and nothing else.' }];
-    
-    // Test Gemini
-    const gemini = await deps.llmService.callGeminiChat({ model: 'gemini-2.0-flash', messages: testMessages, temperature: 0.1, max_tokens: 10 });
-    results.gemini = { ok: gemini.ok, error: gemini.error, status: gemini.status };
-    
-    // Test Nvidia
-    const nvidia = await deps.llmService.callNvidiaChat({ model: 'meta/llama-3.1-8b-instruct', messages: testMessages, temperature: 0.1, max_tokens: 10 });
-    results.nvidia = { ok: nvidia.ok, error: nvidia.error, status: nvidia.status };
-    
+
     // Test Groq
-    const groq = await deps.llmService.callGroqChat({ model: 'llama-3.1-8b-instant', messages: testMessages, temperature: 0.1, max_tokens: 10 });
+    const groq = await deps.llmService.callGroqChat({ model: 'openai/gpt-oss-20b', messages: testMessages, temperature: 0.1, max_tokens: 10 });
     results.groq = { ok: groq.ok, error: groq.error, status: groq.status };
+
+    // Test LLM7
+    const llm7 = await deps.llmService.callLlm7Chat({ model: 'deepseek-chat', messages: testMessages, temperature: 0.1, max_tokens: 10 });
+    results.llm7 = { ok: llm7.ok, error: llm7.error, status: llm7.status };
+
+    // Test Qwen
+    const qwen = await deps.llmService.callQwenChat({ model: 'qwen-plus', messages: testMessages, temperature: 0.1, max_tokens: 10 });
+    results.qwen = { ok: qwen.ok, error: qwen.error, status: qwen.status };
+
+    // Test Kimi
+    const kimi = await deps.llmService.callKimiChat({ model: 'moonshot-v1-8k', messages: testMessages, temperature: 0.1, max_tokens: 10 });
+    results.kimi = { ok: kimi.ok, error: kimi.error, status: kimi.status };
 
     res.json({
       ok: true,

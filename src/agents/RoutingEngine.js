@@ -214,13 +214,11 @@ function createRoutingEngine(deps) {
   function attempts(chain) {
     return chain.filter(([provider, slot]) => {
       if (!hasKeys(provider)) return false;
-      if (provider === 'openrouter') return slot !== 'vision'; // free models are text-only
       return Boolean(slotModel(provider, slot));
     });
   }
 
   async function tryProvider(provider, slot, params) {
-    if (provider === 'openrouter') return llmService.callOpenRouterFreeChat(params);
     const model = slotModel(provider, slot);
     if (!model) return { ok: false, status: 501, error: `No ${slot} model for ${provider}.` };
     return llmService.dispatch(provider, { model, ...params });
@@ -242,7 +240,7 @@ function createRoutingEngine(deps) {
       const res = await tryProvider(provider, slot, params);
       if (!res.ok) { last = res; failures.push({ provider, status: res.status }); continue; }
 
-      // Non-streaming providers (e.g. Gemini path): deliver the whole answer
+      // Non-streaming providers: deliver the whole answer
       // as one instant chunk so SSE clients never stare at an empty bubble.
       if (res.ok && params.onChunk && res.answer && !res.streamed) params.onChunk(res.answer);
 
@@ -277,7 +275,7 @@ function createRoutingEngine(deps) {
   function locateExplicitModel(modelName) {
     const target = String(modelName || '').trim();
     if (!target) return null;
-    for (const provider of ['groq', 'llm7', 'qwen', 'kimi', 'gemini', 'nvidia']) {
+    for (const provider of ['groq', 'llm7', 'qwen', 'kimi']) {
       if (!hasKeys(provider)) continue;
       for (const slot of ['flash', 'text', 'code', 'vision']) {
         const cap = slot[0].toUpperCase() + slot.slice(1);
