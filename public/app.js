@@ -4111,7 +4111,8 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
     // other delegated handler treats them as an app switch.
     [qsparkNavBtn, qcodeNavBtn].forEach((btn) => {
       if (!btn) return;
-      btn.addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); });
+      btn.addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); showMicroToast('هذه الميزة قادمة قريبًا ✨'); });
+      btn.style.cursor='pointer';
     });
 
 
@@ -4122,6 +4123,7 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
       if (QJO_APPS_COMING_SOON.has(targetApp)) {
         event.preventDefault();
         event.stopPropagation();
+        showMicroToast('هذه الميزة قادمة قريبًا ✨');
       }
     });
 
