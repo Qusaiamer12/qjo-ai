@@ -764,13 +764,16 @@ code{
 
 /* ---------- MODALS / TOASTS ---------- */
 .modal-backdrop{
-  position:fixed; inset:0; z-index:50;
-  background: color-mix(in srgb, var(--qjo-bg-0) 60%, transparent) !important;
+  position:fixed !important; inset:0 !important;
+  z-index: 200 !important;
+  display:none;
+  align-items:center; justify-content:center;
+  padding:18px;
+  background: color-mix(in srgb, var(--qjo-bg-0) 55%, transparent) !important;
   backdrop-filter: blur(10px);
-  display:grid; place-items:center; padding:20px;
-  animation: fadeIn .25s ease;
+  -webkit-backdrop-filter: blur(10px);
 }
-@keyframes fadeIn{ from{opacity:0} to{opacity:1} }
+.modal-backdrop.show{ display:flex !important; animation: fadeIn .25s ease; }
 .modal-card{
   width:100%; max-width:460px;
   background: var(--qjo-glass-strong) !important;

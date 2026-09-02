@@ -3362,16 +3362,15 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
         if (!auth?.currentUser) {
           authStateSettled = true;
           setAuthBusy(false);
-          showAuthOverlay(true);
           updateUserUI(null);
           userPreferences = {};
           fillPreferenceForm();
-          if (chatUnsubscribe) chatUnsubscribe();
-          chatUnsubscribe = null;
+          if (chatUnsubscribe) { chatUnsubscribe(); chatUnsubscribe = null; }
           renderChatList([]);
-          if (!authError.textContent) {
-            setAuthMessage('سجّل دخولك للمتابعة. إذا كانت الجلسة لا تثبت، امسح بيانات الموقع من المتصفح ثم جرّب الدخول بالبريد الإلكتروني.');
-          }
+          // Guest mode is supported — don't force the overlay.
+          // Users can still sign in from the "حسابي" button.
+          showAuthOverlay(false);
+          setAuthMessage('');
         }
       }, inAuthGrace() ? 2500 : 350);
     }
@@ -4032,17 +4031,37 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
 
 
     async function logoutUser() {
-      userSettingsModal.classList.remove('show');
+      userSettingsModal && userSettingsModal.classList.remove('show');
+      allChatsModal && allChatsModal.classList.remove('show');
+      if (chatUnsubscribe) { chatUnsubscribe(); chatUnsubscribe = null; }
       currentChatId = null;
+      activeRagIndexes = [];
+      pendingAttachments = [];
+      renderAttachments();
+      messageSeq = 0;
+      cancelActiveRequest();
       history.length = 0;
       messagesInner.innerHTML = '';
       messagesInner.classList.remove('has-messages');
       // Welcome hero visible on empty state
-      if (welcomeEl) {
-        welcomeEl.style.display = '';
-      }
+      if (welcomeEl) welcomeEl.style.display = '';
+      renderChatList([]);
+      updateUserUI(null);
+      setAuthBusy(false);
+      // Clear draft and reset composer
+      if (inputEl) { inputEl.value = ''; autoResize(); clearDraft(); }
       clearAuthGrace();
-      if (auth) await auth.signOut();
+      // After signOut, scheduleAuthOverlayIfStillLoggedOut will show the auth modal.
+      // For a "guest-style" experience after logout we allow continuing without signing in.
+      try { if (auth) await auth.signOut(); } catch(e){ console.warn('signOut err', e); }
+      // Show a guest-friendly message in the auth overlay
+      if (authError) authError.textContent = '';
+      showMicroToast('تم تسجيل الخروج. يمكنك المتابعة كزائر أو تسجيل الدخول مجدداً.');
+      // Don't force the overlay on logout — let guest continue.
+      clearTimeout(authNullTimer);
+      authStateSettled = true;
+      setAuthBusy(false);
+      showAuthOverlay(false);
     }
 
     messagesEl.addEventListener('scroll', updateScrollBottomButton, { passive: true });
@@ -4077,6 +4096,16 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
     githubLoginBtn.addEventListener('click', signInWithGitHub);
     emailLoginBtn.addEventListener('click', signInWithEmail);
     emailSignupBtn.addEventListener('click', signUpWithEmail);
+    const continueAsGuestBtn = el('continueAsGuestBtn');
+    if (continueAsGuestBtn) continueAsGuestBtn.addEventListener('click', () => {
+      clearAuthGrace();
+      showAuthOverlay(false);
+      setAuthMessage('');
+      authStateSettled = true;
+      setAuthBusy(false);
+      safeFocusComposer();
+      showMicroToast('تستخدم Qjo كزائر. المحادثات لن تُحفظ سحابيًا.');
+    });
     [authEmail, authPassword].forEach(field => {
       field.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
@@ -4354,43 +4383,75 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
     // --- Quick command categories (Learn / Code / Write / Plan) ---
     function installQuickCategories(){
       const suggestions = {
-        learn: [
-          'اشرح نظرية الانفجار العظيم ببساطة',
-          'كيف يعمل البناء الضوئي عند النباتات؟',
-          'ما هي الثقوب السوداء وكيف تتكون؟',
-          'اشرح الحوسبة الكمومية ببساطة للمبتدئين',
-          'كيف يعمل الدماغ البشري؟'
-        ],
         code: [
-          'أنشئ لي مكون React لقائمة مهام بسيطة',
-          'اكتب دالة بايثون لترتيب قائمة أرقام',
-          'كيف أنشئ نظام مصادقة في Next.js؟',
-          'اشرح async/await في جافاسكربت ببساطة',
-          'اكتب لي CSS animation لزر تفاعلي'
+          'أنشئ لي مكون React حديث لقائمة مهام (Todo List) بتصميم زجاجي داكن',
+          'اكتب لي دالة Python لقراءة ملف CSV وتحليل البيانات بـ pandas',
+          'أنشئ واجهة تسجيل دخول عصرية بـ Next.js + Tailwind',
+          'اكتب CSS animation لزر مع تأثير موجات (ripple) عند النقر',
+          'أنشئ REST API بسيط بـ Node.js + Express لإدارة المهام'
         ],
-        write: [
-          'اكتب إيميل احترافي لعميل محتمل',
-          'أنشئ وصف منتج لهاتف ذكي جديد',
-          'اكتب مقال مدونة عن مستقبل الذكاء الاصطناعي',
-          'اكتب قصة إبداعية عن استكشاف الفضاء',
-          'أنشئ منشور سوشيال ميديا عن الاستدامة'
+        launch: [
+          'كيف أرفع تطبيق Next.js على Vercel خطوة بخطوة؟',
+          'أريد إطلاق MVP بسرعة، ما هي أسرع استضافة لمشروعي؟',
+          'أنشئ لي خطة إطلاق تطبيق موبايل على App Store و Google Play',
+          'ما الفرق بين Vercel و Netlify و Render؟ وما الأنسب لـ SaaS صغير؟',
+          'اكتب لي config لـ Docker لتطبيق Node.js'
         ],
-        plan: [
-          'خطتي لبداية مشروع أونلاين بـ 0 ميزانية',
-          'نظم لي جدول يومي لزيادة الإنتاجية',
-          'خطة دراسة لتعلم البرمجة من الصفر في 3 أشهر',
-          'نظم لي خطة سفر لمدة 7 أيام في تركيا',
-          'خطة مالية شخصية بسيطة للمبتدئين'
+        ui: [
+          'أنشئ لي مجموعة أزرار (button system) بتصميم زجاجي glassmorphism',
+          'اكتب لي Navbar متجاوب مع قائمة موبايل (hamburger)',
+          'أريد كارد (Card) حديث بتأثير hover رفع وإضاءة',
+          'صمم لي dashboard layout بـ CSS Grid مع sidebar',
+          'أنشئ لي Form تسجيل دخول بتأثيرات focus على الحقول'
+        ],
+        theme: [
+          'اقترح لي باليت ألوان بنفسجي/وردي (aurora) لتطبيق دردشة ذكاء اصطناعي',
+          'ما أفضل التدرجات (gradients) لثيم داكن فاخر؟',
+          'اقترح خطوط عربية وإنجليزية متناسقة لتطبيق إنتاجي',
+          'أفكار لثيم فاتح أنيق بدون أن يكون مُبهر (off-white)',
+          'كيف أطبق dark/light mode مع CSS variables بشكل نقي؟'
+        ],
+        dashboard: [
+          'صمم لي واجهة Dashboard إحصائية بالرسوم البيانية',
+          'أنشئ لي قائمة مستخدمين (users table) مع بحث وفلترة وترقيم صفحات',
+          'أريد صفحة إعدادات (settings page) بتبويبات أنيقة',
+          'صمم لي profile page ببطاقات إحصائيات وبيانات المستخدم',
+          'أنشئ لي نظام إشعارات (notifications panel) منسدل أنيق'
+        ],
+        landing: [
+          'اكتب لي Hero section لتطبيق AI chat مع عنوان قوي وCTA',
+          'أنشئ لي pricing section بـ 3 باقات (مجاني/برو/مؤسسات)',
+          'صمم لي FAQ accordion قابل للفتح والإغلاق بـ HTML/CSS/JS',
+          'اكتب لي testimonials section ببطاقات آراء العملاء',
+          'أريد Footer احترافي مع روابط وسوشيال ميديا واشتراك newsletter'
+        ],
+        docs: [
+          'اكتب لي ملف README احترافي لمشروعي على GitHub',
+          'كيف أجهز ملف PDF لرفعه وتحليله بالذكاء الاصطناعي؟',
+          'أنشئ لي قالب docs-style documentation page',
+          'اكتب لي CHANGELOG.md بصيغة Keep a Changelog',
+          'كيف أستخرج نص من ملف Word أو Excel في المتصفح؟'
+        ],
+        images: [
+          'أريد برومبت لإنشاء صورة hero بنفسجية أورورا لشات AI',
+          'أنشئ لي SVG icon set minimal لتطبيق دردشة',
+          'كيف أضغط وأحسن الصور لموقعي (WebP/AVIF)؟',
+          'اكتب لي CSS لصورة أفاتار دائرية مع حدود متدرجة',
+          'أفكار لصور أيقونية (illustrations) بنفسجية للـ empty states'
         ]
       };
       const panel = document.getElementById('quickSuggestionsPanel');
       const list = document.getElementById('qsList');
       const header = document.getElementById('qsHeader');
       const categoryLabels = {
-        learn: '📚 اقتراحات للتعلم',
-        code: '💻 اقتراحات برمجية',
-        write: '✍️ اقتراحات للكتابة',
-        plan: '📋 اقتراحات للتخطيط'
+        code: '💻 توليد كود',
+        launch: '🚀 إطلاق تطبيقات',
+        ui: '🎨 مكونات واجهة',
+        theme: '🎭 ثيمات وألوان',
+        dashboard: '👤 لوحات المستخدم',
+        landing: '🖥️ صفحات هبوط',
+        docs: '📄 رفع مستندات',
+        images: '🖼️ صور وأصول'
       };
       let activeCat = null;
 
