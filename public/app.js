@@ -17,7 +17,7 @@ function openAdminDirect() {
         modal.classList.add('show');
         modal.setAttribute('aria-hidden', 'false');
         var input = document.getElementById('modelInput');
-        if (input) input.value = 'llama-3.3-70b-versatile';
+        if (input) input.value = 'openai/gpt-oss-120b';
       } else {
         alert('لم يتم العثور على نافذة الإعدادات. حدّث الصفحة وحاول مرة ثانية.');
       }

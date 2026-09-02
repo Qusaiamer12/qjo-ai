@@ -362,7 +362,7 @@ function createRoutingEngine(deps) {
     return runChain(chain, {
       ...base,
       tools: (hasImages || normMode === 'normal') ? undefined : tools,
-      maxPerProviderMs: normMode === 'flash' ? 10000 : 14000
+      maxPerProviderMs: normMode === 'flash' ? 18000 : 25000
     }, { withTools: Boolean(tools), originalQuestion });
   }
 

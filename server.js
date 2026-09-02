@@ -182,10 +182,27 @@ const ALLOWED_MODELS = new Set([
   GROQ_VISION_MODEL,
   'openai/gpt-oss-20b',
   'openai/gpt-oss-120b',
+  'meta-llama/llama-4-scout-17b-16e-instruct',
+  // LLM7 models
+  LLM7_FLASH_MODEL,
+  LLM7_TEXT_MODEL,
+  'deepseek-chat',
+  'llama-3.3-70b-instruct',
+  // Qwen models
+  QWEN_FLASH_MODEL,
+  QWEN_TEXT_MODEL,
+  QWEN_CODE_MODEL,
+  QWEN_VISION_MODEL,
+  'qwen-plus',
+  'qwen-vl-plus',
+  // Kimi models
+  KIMI_FLASH_MODEL,
+  KIMI_TEXT_MODEL,
+  KIMI_CODE_MODEL,
+  'moonshot-v1-8k',
   // Legacy IDs still accepted from old clients; llmService migrates them.
   'llama-3.1-8b-instant',
-  'llama-3.3-70b-versatile',
-  'meta-llama/llama-4-scout-17b-16e-instruct'
+  'llama-3.3-70b-versatile'
 ]);
 
 const math = create(all);

@@ -161,12 +161,13 @@ function createLlmService(config = {}) {
 
   // Parses an SSE stream from any OpenAI-compatible provider. Captures text
   // content, indexed tool_call deltas and the real finish_reason.
-  async function consumeStream(response, onChunk) {
+  async function consumeStream(response, onChunk, signal) {
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
     let fullText = '';
     let finishReason = '';
+    let chunksDelivered = 0;
     const toolAcc = new Map();
 
     function feedLine(cleanedLine) {
@@ -177,6 +178,7 @@ function createLlmService(config = {}) {
       const delta = choice.delta || {};
       if (delta.content) {
         fullText += delta.content;
+        chunksDelivered++;
         if (onChunk) onChunk(delta.content);
       }
       for (const tc of (delta.tool_calls || [])) {
@@ -190,20 +192,31 @@ function createLlmService(config = {}) {
       if (choice.finish_reason) finishReason = choice.finish_reason;
     }
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop();
-      for (const line of lines) feedLine(line.trim());
+    try {
+      while (true) {
+        if (signal?.aborted) break;
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+        for (const line of lines) feedLine(line.trim());
+      }
+      if (buffer.trim()) feedLine(buffer.trim());
+    } catch (streamErr) {
+      // If we already started delivering tokens to the user, return what we have
+      // rather than failing the response or duplicating output.
+      if (chunksDelivered > 0) {
+        console.warn(`[llmService] stream reader interrupted after ${chunksDelivered} chunks. Gracefully preserving delivered answer.`);
+        return { fullText, toolCalls: [], finishReason: 'interrupted', chunksDelivered };
+      }
+      throw streamErr;
     }
-    if (buffer.trim()) feedLine(buffer.trim());
 
     const toolCalls = [...toolAcc.values()]
       .filter(t => t.name)
       .map((t, i) => ({ id: t.id || `call_stream_${i}`, type: 'function', function: { name: t.name, arguments: t.arguments || '{}' } }));
-    return { fullText, toolCalls, finishReason: finishReason || 'stop' };
+    return { fullText, toolCalls, finishReason: finishReason || 'stop', chunksDelivered };
   }
 
   async function callOpenAICompatible({ provider, baseUrl, model, messages, temperature, max_tokens, tools, extraHeaders = {}, onChunk, timeoutMs, signal, _migrated = false }) {
@@ -221,10 +234,9 @@ function createLlmService(config = {}) {
 
     for (const key of keys) {
       attemptIndex++;
-      // Fast adaptive per-attempt timeout:
-      // Groq & LLM7 are fast; 8000ms max per key attempt so failover happens instantly!
-      const effectiveTimeout = Math.min(timeoutMs || 8000, 10000);
-      const attempt = wireAttemptSignal({ timeoutMs: effectiveTimeout, signal });
+      // Fast connection timeout: get HTTP headers within 7500ms so dead keys are skipped in a flash.
+      const connectTimeout = Math.min(timeoutMs || 7500, 8000);
+      const attempt = wireAttemptSignal({ timeoutMs: connectTimeout, signal });
 
       try {
         if (signal?.aborted) throw clientAbortError();
@@ -244,20 +256,21 @@ function createLlmService(config = {}) {
         });
 
         if (response.ok) {
+          // Headers received: disarm the connection timeout!
+          attempt.done();
           markKeySuccess(key);
+
           if (onChunk) {
             let streamed;
             try {
-              streamed = await consumeStream(response, onChunk);
+              streamed = await consumeStream(response, onChunk, signal);
             } catch (streamErr) {
-              attempt.done();
               if (attempt.wasExternal() || streamErr.name === 'ClientAbortError') throw clientAbortError();
               markKeyFailure(key, { status: 500, errorMsg: streamErr.message });
               lastError = { status: 502, error: `${provider} stream dropped: ${streamErr.message}` };
-              console.warn(`[llmService] ${provider} key #${attemptIndex} stream dropped. Switching to next key instantly.`);
+              console.warn(`[llmService] ${provider} key #${attemptIndex} stream dropped before output. Switching to next key instantly.`);
               continue;
             }
-            attempt.done();
             const message = { role: 'assistant', content: streamed?.fullText || null };
             if (streamed?.toolCalls?.length) message.tool_calls = streamed.toolCalls;
             return {
