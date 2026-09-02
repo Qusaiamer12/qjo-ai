@@ -56,15 +56,30 @@ const GROQ_API_KEYS = String(process.env.GROQ_API_KEYS || process.env.GROQ_API_K
   .split(',')
   .map(k => k.trim())
   .filter(Boolean);
-const GEMINI_API_KEYS = String(process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || '')
+
+// LLM7: Free OpenAI-compatible aggregator
+const LLM7_API_KEYS = String(process.env.LLM7_API_KEYS || process.env.LLM7_API_KEY || '')
   .split(',')
   .map(k => k.trim())
   .filter(Boolean);
+const LLM7_BASE_URL = String(process.env.LLM7_BASE_URL || 'https://api.llm7.io/v1').replace(/\/$/, '');
+const LLM7_FLASH_MODEL = process.env.LLM7_FLASH_MODEL || 'deepseek-chat';
+const LLM7_TEXT_MODEL = process.env.LLM7_TEXT_MODEL || 'llama-3.3-70b-instruct';
+
+// Kimi (Moonshot) Free tier
+const KIMI_API_KEYS = String(process.env.KIMI_API_KEYS || process.env.KIMI_API_KEY || '')
+  .split(',')
+  .map(k => k.trim())
+  .filter(Boolean);
+
+// Qwen (DashScope) Free tier
 const QWEN_API_KEYS = String(process.env.QWEN_API_KEYS || process.env.QWEN_API_KEY || '')
   .split(',')
   .map(k => k.trim())
   .filter(Boolean);
-const KIMI_API_KEYS = String(process.env.KIMI_API_KEYS || process.env.KIMI_API_KEY || '')
+
+// Optional secondary fallbacks
+const GEMINI_API_KEYS = String(process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || '')
   .split(',')
   .map(k => k.trim())
   .filter(Boolean);
@@ -250,6 +265,7 @@ app.use(helmet({
       "connect-src": [
         "'self'",
         "https://api.groq.com",
+        "https://api.llm7.io",
         "https://api.tavily.com",
         "https://api.firecrawl.dev",
         "https://dashscope-intl.aliyuncs.com",
@@ -409,9 +425,12 @@ async function lookupClientGeo(ip) {
 
 const llmService = createLlmService({
   groqKeys: GROQ_API_KEYS,
+  llm7Keys: LLM7_API_KEYS,
+  llm7BaseUrl: LLM7_BASE_URL,
+  hasLlm7: LLM7_API_KEYS.length > 0 || process.env.ENABLE_LLM7 === 'true' || Boolean(process.env.LLM7_API_KEY),
   qwenKeys: QWEN_API_KEYS,
-  geminiKeys: GEMINI_API_KEYS,
   kimiKeys: KIMI_API_KEYS,
+  geminiKeys: GEMINI_API_KEYS,
   nvidiaKeys: NVIDIA_API_KEYS,
   openRouterKeys: OPENROUTER_API_KEYS,
   agnesKeys: AGNES_API_KEYS,
@@ -427,9 +446,10 @@ const routingEngine = createRoutingEngine({
   searchService: null,
   keys: {
     groq: GROQ_API_KEYS.length,
-    gemini: GEMINI_API_KEYS.length,
+    llm7: LLM7_API_KEYS.length || (process.env.ENABLE_LLM7 === 'true' ? 1 : 0),
     qwen: QWEN_API_KEYS.length,
     kimi: KIMI_API_KEYS.length,
+    gemini: GEMINI_API_KEYS.length,
     nvidia: NVIDIA_API_KEYS.length,
     openRouter: OPENROUTER_API_KEYS.length,
     agnes: AGNES_API_KEYS.length
@@ -439,9 +459,9 @@ const routingEngine = createRoutingEngine({
     groqText: GROQ_TEXT_MODEL,
     groqCode: GROQ_TEXT_MODEL,
     groqVision: GROQ_VISION_MODEL,
-    geminiText: GEMINI_TEXT_MODEL,
-    geminiFlash: GEMINI_FLASH_MODEL,
-    geminiVision: GEMINI_VISION_MODEL,
+    llm7Flash: LLM7_FLASH_MODEL,
+    llm7Text: LLM7_TEXT_MODEL,
+    llm7Code: LLM7_TEXT_MODEL,
     qwenFlash: QWEN_FLASH_MODEL,
     qwenText: QWEN_TEXT_MODEL,
     qwenCode: QWEN_CODE_MODEL,
@@ -449,6 +469,9 @@ const routingEngine = createRoutingEngine({
     kimiFlash: KIMI_FLASH_MODEL,
     kimiText: KIMI_TEXT_MODEL,
     kimiCode: KIMI_CODE_MODEL,
+    geminiText: GEMINI_TEXT_MODEL,
+    geminiFlash: GEMINI_FLASH_MODEL,
+    geminiVision: GEMINI_VISION_MODEL,
     nvidiaFlash: NVIDIA_FLASH_MODEL,
     nvidiaText: NVIDIA_TEXT_MODEL,
     nvidiaCode: NVIDIA_TEXT_MODEL,
@@ -572,19 +595,21 @@ registerSystemRoutes(app, {
   getClientIp,
   lookupClientGeo,
   qjoProviders: () => ({
-    gemini: GEMINI_API_KEYS.length > 0,
     groq: GROQ_API_KEYS.length > 0,
+    llm7: LLM7_API_KEYS.length > 0 || process.env.ENABLE_LLM7 === 'true',
     qwen: QWEN_API_KEYS.length > 0,
     kimi: KIMI_API_KEYS.length > 0,
+    gemini: GEMINI_API_KEYS.length > 0,
     nvidia: NVIDIA_API_KEYS.length > 0,
     openRouter: OPENROUTER_API_KEYS.length > 0,
     agnes: AGNES_API_KEYS.length > 0
   }),
   healthPayload: () => ({
-    geminiKeysConfigured: GEMINI_API_KEYS.length,
     groqKeysConfigured: GROQ_API_KEYS.length,
+    llm7KeysConfigured: LLM7_API_KEYS.length || (process.env.ENABLE_LLM7 === 'true' ? 1 : 0),
     qwenKeysConfigured: QWEN_API_KEYS.length,
     kimiKeysConfigured: KIMI_API_KEYS.length,
+    geminiKeysConfigured: GEMINI_API_KEYS.length,
     nvidiaKeysConfigured: NVIDIA_API_KEYS.length,
     openRouterKeysConfigured: OPENROUTER_API_KEYS.length,
     agnesKeysConfigured: AGNES_API_KEYS.length,

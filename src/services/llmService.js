@@ -89,6 +89,7 @@ function createLlmService(config = {}) {
     switch (provider) {
       case 'gemini': return Array.isArray(config.geminiKeys) ? config.geminiKeys : [];
       case 'groq': return Array.isArray(config.groqKeys) ? config.groqKeys : [];
+      case 'llm7': return Array.isArray(config.llm7Keys) && config.llm7Keys.length ? config.llm7Keys : (config.hasLlm7 ? ['llm7-free-key'] : []);
       case 'qwen': return Array.isArray(config.qwenKeys) ? config.qwenKeys : [];
       case 'kimi': return Array.isArray(config.kimiKeys) ? config.kimiKeys : [];
       case 'nvidia': return Array.isArray(config.nvidiaKeys) ? config.nvidiaKeys : [];
@@ -327,7 +328,14 @@ function createLlmService(config = {}) {
     if (res.ok) return { ok: true, upstream: { ok: true }, data: res.raw, ...res };
     return { ok: false, upstream: { ok: false, status: res.status }, data: { error: { message: res.error } }, ...res };
   }
-  async function callKimiChat(opts) { return callOpenAICompatible({ provider: 'kimi', baseUrl: config.kimiBaseUrl || 'https://api.moonshot.cn/v1', ...opts }); }
+  async function callLlm7Chat(opts) {
+    return callOpenAICompatible({
+      provider: 'llm7',
+      baseUrl: config.llm7BaseUrl || 'https://api.llm7.io/v1',
+      ...opts
+    });
+  }
+  async function callKimiChat(opts) { return callOpenAICompatible({ provider: 'kimi', baseUrl: config.kimiBaseUrl || 'https://api.moonshot.ai/v1', ...opts }); }
   async function callNvidiaChat(opts) { return callOpenAICompatible({ provider: 'nvidia', baseUrl: 'https://integrate.api.nvidia.com/v1', ...opts }); }
   async function callAgnesChat(opts) { return callOpenAICompatible({ provider: 'agnes', baseUrl: config.agnesBaseUrl, model: config.agnesModel, ...opts }); }
 
@@ -353,9 +361,10 @@ function createLlmService(config = {}) {
   // like the search query rewriter that just need "some fast provider").
   const PROVIDER_METHODS = {
     groq: callGroqChat,
-    gemini: callGeminiChat,
+    llm7: callLlm7Chat,
     qwen: callQwenChat,
     kimi: callKimiChat,
+    gemini: callGeminiChat,
     nvidia: callNvidiaChat,
     agnes: callAgnesChat,
     openrouter: callOpenRouterFreeChat
@@ -370,6 +379,7 @@ function createLlmService(config = {}) {
     callGeminiChat,
     callQwenChat,
     callGroqChat,
+    callLlm7Chat,
     callKimiChat,
     callNvidiaChat,
     callAgnesChat,
@@ -377,7 +387,7 @@ function createLlmService(config = {}) {
     dispatch,
     hasKeys: (provider) => getKeys(provider).length > 0,
     normalizeProviderFinishReason,
-    hasAnyProvider: () => ['gemini', 'groq', 'qwen', 'kimi', 'nvidia', 'openrouter', 'agnes'].some(p => getKeys(p).length > 0)
+    hasAnyProvider: () => ['groq', 'llm7', 'qwen', 'kimi', 'gemini', 'nvidia', 'openrouter', 'agnes'].some(p => getKeys(p).length > 0)
   };
 }
 
