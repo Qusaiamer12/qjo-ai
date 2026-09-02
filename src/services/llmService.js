@@ -47,7 +47,50 @@ function migratedModel(model) {
 }
 
 function createLlmService(config = {}) {
-  const cursors = new Map();
+  // ── High-Performance Key Circuit Breaker & Round-Robin Health Tracker ──
+  // Keeps track of per-key failures, cooldown timers, and request distributions.
+  const keyHealth = new Map(); // key -> { failures: 0, cooldownUntil: 0, successes: 0 }
+  const cursors = new Map();   // provider -> number
+
+  function getKeyRecord(key) {
+    let rec = keyHealth.get(key);
+    if (!rec) {
+      rec = { failures: 0, cooldownUntil: 0, successes: 0 };
+      keyHealth.set(key, rec);
+    }
+    return rec;
+  }
+
+  function markKeySuccess(key) {
+    const rec = getKeyRecord(key);
+    rec.failures = 0;
+    rec.cooldownUntil = 0;
+    rec.successes++;
+  }
+
+  function markKeyFailure(key, { status, errorMsg = '', retryAfterSec }) {
+    const rec = getKeyRecord(key);
+    rec.failures++;
+    const now = Date.now();
+
+    // Determine smart cooldown duration:
+    let cooldownMs = 15000; // default 15s
+    if (typeof retryAfterSec === 'number' && retryAfterSec > 0) {
+      cooldownMs = retryAfterSec * 1000;
+    } else if (status === 429 || /rate|quota|limit|tpm|rpm/i.test(errorMsg)) {
+      // Exponential backoff: 15s, 22s, 33s, 50s, capped at 60s
+      cooldownMs = Math.min(60000, 15000 * Math.pow(1.5, Math.min(rec.failures - 1, 4)));
+    } else if (status === 401 || /invalid|unauthorized|forbidden|deactivated/i.test(errorMsg)) {
+      // Bad/revoked key: sideline for 1 hour to protect latency
+      cooldownMs = 3600000;
+    } else if (status >= 500) {
+      // Transient server 5xx: short 5s cooldown
+      cooldownMs = 5000;
+    }
+
+    rec.cooldownUntil = now + cooldownMs;
+    return cooldownMs;
+  }
 
   function getKeys(provider) {
     switch (provider) {
@@ -59,21 +102,51 @@ function createLlmService(config = {}) {
     }
   }
 
+  // Ultra-resilient key rotation:
+  // 1. Prioritizes healthy keys via round-robin cursor to balance load (4x TPM/RPM).
+  // 2. Automatically skips keys currently in cooldown.
+  // 3. If all keys are in cooldown, falls back to the one recovering soonest.
   function rotateKeys(provider) {
-    const list = getKeys(provider);
-    if (!list.length) return [];
-    const start = cursors.get(provider) || 0;
-    const ordered = [];
-    for (let i = 0; i < list.length; i++) ordered.push(list[(start + i) % list.length]);
-    cursors.set(provider, (start + 1) % list.length);
-    return ordered;
+    const allKeys = getKeys(provider);
+    if (!allKeys.length) return [];
+    const now = Date.now();
+
+    const healthy = [];
+    const coolingDown = [];
+
+    for (const k of allKeys) {
+      const rec = getKeyRecord(k);
+      if (rec.cooldownUntil <= now) {
+        healthy.push(k);
+      } else {
+        coolingDown.push({ key: k, expiresAt: rec.cooldownUntil });
+      }
+    }
+
+    let prioritized = [];
+    if (healthy.length > 0) {
+      const cursor = cursors.get(provider) || 0;
+      for (let i = 0; i < healthy.length; i++) {
+        prioritized.push(healthy[(cursor + i) % healthy.length]);
+      }
+      cursors.set(provider, (cursor + 1) % healthy.length);
+
+      // Append cooling keys at the end as emergency fallbacks
+      coolingDown.sort((a, b) => a.expiresAt - b.expiresAt);
+      for (const item of coolingDown) prioritized.push(item.key);
+    } else {
+      coolingDown.sort((a, b) => a.expiresAt - b.expiresAt);
+      prioritized = coolingDown.map(c => c.key);
+    }
+
+    return prioritized;
   }
 
   // Builds an abort controller per attempt that is cancelled by either the
   // per-attempt timeout OR the external (client disconnect) signal.
   function wireAttemptSignal({ timeoutMs, signal }) {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), Math.max(1000, timeoutMs || 12000));
+    const timeout = setTimeout(() => controller.abort(), Math.max(1000, timeoutMs || 10000));
     let externalAborted = false;
     if (signal) {
       if (signal.aborted) externalAborted = true;
@@ -134,12 +207,9 @@ function createLlmService(config = {}) {
   }
 
   async function callOpenAICompatible({ provider, baseUrl, model, messages, temperature, max_tokens, tools, extraHeaders = {}, onChunk, timeoutMs, signal, _migrated = false }) {
-    // Proactive migration for known-deprecated Groq IDs (shutdown 2026-08-16);
-    // the reactive retry below catches anything unknown/non-Groq.
     if (provider === 'groq') {
       const mig = migratedModel(model);
       if (mig) {
-        console.warn(`[llmService] model "${model}" is deprecated by Groq — using "${mig}" instead.`);
         model = mig;
       }
     }
@@ -147,13 +217,20 @@ function createLlmService(config = {}) {
     if (!keys.length || !baseUrl || !model) return { ok: false, status: 501, error: `${provider} is not configured.` };
 
     let lastError = null;
+    let attemptIndex = 0;
+
     for (const key of keys) {
-      const attempt = wireAttemptSignal({ timeoutMs, signal });
+      attemptIndex++;
+      // Fast adaptive per-attempt timeout:
+      // Groq & LLM7 are fast; 8000ms max per key attempt so failover happens instantly!
+      const effectiveTimeout = Math.min(timeoutMs || 8000, 10000);
+      const attempt = wireAttemptSignal({ timeoutMs: effectiveTimeout, signal });
+
       try {
         if (signal?.aborted) throw clientAbortError();
         const body = { model, messages, temperature, max_tokens };
         if (tools) { body.tools = tools; body.tool_choice = 'auto'; }
-        if (onChunk) body.stream = true; // stream even when tools are attached; deltas are parsed
+        if (onChunk) body.stream = true;
 
         const response = await fetch(`${baseUrl.replace(/\/$/, '')}/chat/completions`, {
           method: 'POST',
@@ -167,22 +244,34 @@ function createLlmService(config = {}) {
         });
 
         if (response.ok) {
+          markKeySuccess(key);
           if (onChunk) {
-            const streamed = await consumeStream(response, onChunk);
+            let streamed;
+            try {
+              streamed = await consumeStream(response, onChunk);
+            } catch (streamErr) {
+              attempt.done();
+              if (attempt.wasExternal() || streamErr.name === 'ClientAbortError') throw clientAbortError();
+              markKeyFailure(key, { status: 500, errorMsg: streamErr.message });
+              lastError = { status: 502, error: `${provider} stream dropped: ${streamErr.message}` };
+              console.warn(`[llmService] ${provider} key #${attemptIndex} stream dropped. Switching to next key instantly.`);
+              continue;
+            }
             attempt.done();
-            const message = { role: 'assistant', content: streamed.fullText || null };
-            if (streamed.toolCalls.length) message.tool_calls = streamed.toolCalls;
+            const message = { role: 'assistant', content: streamed?.fullText || null };
+            if (streamed?.toolCalls?.length) message.tool_calls = streamed.toolCalls;
             return {
               ok: true,
-              answer: streamed.fullText,
+              answer: streamed?.fullText || '',
               message,
-              toolCalls: streamed.toolCalls,
+              toolCalls: streamed?.toolCalls || [],
               provider,
               model,
-              finish_reason: streamed.finishReason,
+              finish_reason: streamed?.finishReason || 'stop',
               streamed: true
             };
           }
+
           const data = await response.json().catch(() => ({}));
           attempt.done();
           const message = data?.choices?.[0]?.message || {};
@@ -198,6 +287,9 @@ function createLlmService(config = {}) {
           };
         }
 
+        // Response NOT ok:
+        const retryAfterHeader = response.headers?.get?.('retry-after');
+        const retryAfterSec = retryAfterHeader ? parseInt(retryAfterHeader, 10) : undefined;
         const data = await response.json().catch(() => ({}));
         attempt.done();
         const errorMsg = data?.error?.message || data?.message || `${provider} HTTP ${response.status}`;
@@ -210,24 +302,26 @@ function createLlmService(config = {}) {
           }
         }
 
+        const cooldownApplied = markKeyFailure(key, { status: response.status, errorMsg, retryAfterSec });
         lastError = { status: response.status, error: errorMsg };
-        const limited = response.status === 429 || response.status === 402 || /rate|quota|limit|balance|insufficient/i.test(errorMsg);
-        if (limited) continue;
 
-        return { ok: false, status: response.status, error: errorMsg };
+        // INSTANT KEY FAILOVER:
+        console.warn(`[llmService] ${provider} key #${attemptIndex}/${keys.length} returned ${response.status} (${errorMsg.slice(0, 70)}). Cooldown: ${Math.round(cooldownApplied / 1000)}s. Instant switch to next key.`);
+        continue;
       } catch (error) {
         attempt.done();
         if (attempt.wasExternal() || error.name === 'ClientAbortError') throw clientAbortError();
-        // Timeout / network error on a single key: mark it and CONTINUE to the
-        // next key; the router will then fall through to the next provider.
+        const isTimeout = error.name === 'AbortError';
+        markKeyFailure(key, { status: isTimeout ? 504 : 502, errorMsg: error.message });
         lastError = {
-          status: error.name === 'AbortError' ? 504 : 502,
-          error: error.name === 'AbortError' ? `${provider} timeout.` : (error.message || `${provider} request failed.`)
+          status: isTimeout ? 504 : 502,
+          error: isTimeout ? `${provider} timeout (${effectiveTimeout}ms).` : (error.message || `${provider} request failed.`)
         };
+        console.warn(`[llmService] ${provider} key #${attemptIndex}/${keys.length} error (${lastError.error}). Instant switch to next key.`);
         continue;
       }
     }
-    return { ok: false, status: lastError?.status || 429, error: lastError?.error || `All ${provider} keys failed.` };
+    return { ok: false, status: lastError?.status || 429, error: lastError?.error || `All ${keys.length} ${provider} keys failed.` };
   }
 
   // Facade methods mapping to the unified OpenAI-compatible caller
