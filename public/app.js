@@ -3104,9 +3104,14 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
 
         const userMessage = { role: 'user', content: savedUserContent };
         history.push(userMessage);
-        await ensureChatDocument(text);
-        await persistAttachmentsToRagIndex(currentChatId, attachmentsForRag);
-        await safePersistMessage(userMessage);
+        // Persist in background without delaying AI streaming
+        ensureChatDocument(text)
+          .then(() => safePersistMessage(userMessage))
+          .catch(e => console.warn('Background message save error:', e));
+        if (attachmentsForRag && attachmentsForRag.length) {
+          persistAttachmentsToRagIndex(currentChatId, attachmentsForRag).catch(e => console.warn('Background RAG index error:', e));
+        }
+
         activeRequestController = new AbortController();
         const timeoutId = setTimeout(() => activeRequestController.abort(), 180000);
         const response = await fetch('/api/chat', {
@@ -3133,6 +3138,7 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
         clearTimeout(timeoutId);
 
         typing.remove();
+        showRequestStatus(false);
 
         if (!response.ok) {
           const data = await response.json().catch(() => ({}));

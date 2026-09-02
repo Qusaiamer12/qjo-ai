@@ -40,29 +40,30 @@ function geoCacheSet(ip, value) {
   geoCache.set(ip, { value, expiresAt: Date.now() + GEO_CACHE_TTL_MS });
 }
 
-// Resolves geo fast: cache hit (0ms) → live lookup raced against `raceMs`.
-// A slower lookup still completes in the background and serves the user's
-// NEXT message, so location awareness is preserved without latency.
-async function resolveGeoFast(ip, lookupFn, raceMs = 1200) {
+// Resolves geo fast: cache hit (0ms) → live lookup in background.
+// Never blocks chat streaming with artificial timeouts.
+async function resolveGeoFast(ip, lookupFn) {
   if (!ip || !lookupFn) return null;
   const cached = geoCacheGet(ip);
   if (cached !== null) return cached;
-  const lookupPromise = Promise.resolve()
+  Promise.resolve()
     .then(() => lookupFn(ip))
-    .then(geo => { if (geo) geoCacheSet(ip, geo); return geo || null; })
+    .then(geo => { if (geo) geoCacheSet(ip, geo); })
     .catch(() => null);
-  return Promise.race([
-    lookupPromise,
-    new Promise(resolve => setTimeout(() => resolve(null), raceMs))
-  ]);
+  return null;
 }
 
 function sseHeaders(res) {
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-transform, private');
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no');
+  res.setHeader('Content-Encoding', 'none');
   res.flushHeaders();
+  // Bypass Render/Cloudflare/Nginx proxy buffering by immediately sending 2KB padding comment.
+  // This forces reverse proxies to enter instant unbuffered pass-through mode!
+  res.write(': ' + ' '.repeat(2048) + '\n\n');
+  if (typeof res.flush === 'function') res.flush();
 }
 
 // Cached answers are delivered INSTANTLY (one single chunk): the previous
@@ -196,16 +197,19 @@ function registerChatRoutes(app, deps) {
       const writeChunk = (text) => {
         if (responseFinished) return;
         res.write(`event: chunk\ndata: ${JSON.stringify({ text: sanitizeMathNotation(String(text || '')) })}\n\n`);
+        if (typeof res.flush === 'function') res.flush();
       };
 
       const writeReasoning = (text) => {
         if (responseFinished) return;
         res.write(`event: reasoning\ndata: ${JSON.stringify({ text: String(text || '') })}\n\n`);
+        if (typeof res.flush === 'function') res.flush();
       };
 
       const writeToolCall = (info) => {
         if (responseFinished) return;
         res.write(`event: tool_call\ndata: ${JSON.stringify(info || {})}\n\n`);
+        if (typeof res.flush === 'function') res.flush();
       };
 
       if (useStreaming) sseHeaders(res);
