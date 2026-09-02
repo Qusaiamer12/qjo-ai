@@ -1224,3 +1224,18 @@ body:not(.dark) .qjo-reasoning-step {
   0%, 100% { opacity: 1; transform: scaleY(1); }
   50% { opacity: 0; transform: scaleY(0.7); }
 }
+
+/* Polish / Literary Stylist toggle button */
+.func-toggle.polish-toggle {
+  transition: all 0.2s ease;
+}
+.func-toggle.polish-toggle:hover {
+  border-color: rgba(245, 158, 11, 0.35) !important;
+  color: #fbbf24 !important;
+}
+.func-toggle.polish-toggle.active {
+  background: rgba(245, 158, 11, 0.16) !important;
+  color: #fbbf24 !important;
+  border-color: rgba(245, 158, 11, 0.45) !important;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.25) !important;
+}

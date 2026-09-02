@@ -1018,7 +1018,15 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
         ? `\n\nSaved user corrections:\n${qjoLearning.slice(-20).map((note, i) => `${i + 1}. ${note}`).join('\n')}\n\nApply only when relevant and safe.`
         : '';
 
-      return QJO_SYSTEM_PROMPT + currentDateContext + modeInstruction + skillCapsules + ownerKnowledge + remoteTraining + preferenceContext + learnedCorrections;
+      const isPolishActive = Boolean(document.getElementById('togglePolish')?.classList.contains('active'));
+      const polishOverlay = isPolishActive ? `\n\nACTIVE LITERARY & STYLIST OVERLAY:
+The user explicitly toggled Literary Craftsmanship & Formatting.
+1. Restructure: Dissect any scattered, chaotic or bulleted thoughts and reshape them into a seamless, captivating narrative arc with elegant transitional phrasing (حسن التخلص والربط المحكم).
+2. Arabic Mastery: Deliver flawless, elevated Modern Standard Arabic (فصحى بليغة جزلة خالية تماماً من اللحن والأخطاء النحوية والإملائية وتنافر الحروف) using exquisite rhetoric (البيان والبديع) suited to the context.
+3. English Mastery: If the language is English, write with prestigious, publication-grade cadence, rich vocabulary, and impeccable syntax.
+4. Visual Typography: Use prestigious Markdown layout (clear ### headings, indented blockquotes > for poignant axioms, stylized bullet points, bold emphasis for effortless visual scanning).` : '';
+
+      return QJO_SYSTEM_PROMPT + currentDateContext + modeInstruction + polishOverlay + skillCapsules + ownerKnowledge + remoteTraining + preferenceContext + learnedCorrections;
     }
 
     function applyTheme() {
@@ -4605,6 +4613,7 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
         { btn: 'toggleSearch', flag: 'tavily', label: 'Search enabled' },
         { btn: 'toggleDeep', flag: 'deep', label: 'Deep research enabled' },
         { btn: 'toggleReason', flag: 'reason', label: 'Reasoning enabled' },
+        { btn: 'togglePolish', flag: 'polish', label: 'تم تفعيل الصياغة الأدبية والتدقيق اللغوي 🖋️' },
       ];
       toggles.forEach(({btn}) => {
         const b = document.getElementById(btn);
