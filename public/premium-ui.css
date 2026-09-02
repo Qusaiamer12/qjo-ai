@@ -1172,3 +1172,61 @@ body.mode-menu-open .mode-dropdown{
 .top-title strong{
   font-weight:800; font-size:16px; letter-spacing:-.02em; color: var(--qjo-text);
 }
+
+/* ===== Sidebar toggle & collapsed state ===== */
+.sidebar-toggle{ display:grid !important; place-items:center; }
+/* Collapsed state */
+body.sidebar-collapsed .sidebar{
+  transform: translateX(calc(100% + 20px));
+  opacity: 0;
+  pointer-events: none;
+  min-width: 0 !important;
+  width: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  overflow: hidden;
+}
+body.sidebar-collapsed .app{ grid-template-columns: 1fr !important; }
+body.sidebar-collapsed .sidebar-toggle svg{ transform: scaleX(-1); }
+.sidebar{
+  transition: transform .3s cubic-bezier(.2,.8,.2,1),
+              opacity .25s ease,
+              width .3s cubic-bezier(.2,.8,.2,1),
+              padding .3s;
+}
+/* Fix sidebar left-edge clipping in RTL: ensure content is not cut */
+.sidebar > *{ min-width: 0; }
+.sidebar .nav-item,
+.sidebar .new-chat-btn,
+.sidebar .show-all-chats,
+.sidebar .sidebar-card,
+.sidebar .account-card{
+  max-width: 100%;
+  overflow: hidden;
+}
+.sidebar .nav-item,
+.sidebar .new-chat-btn,
+.sidebar button{
+  box-sizing: border-box;
+}
+/* Fix nav-item inner text clipping */
+.nav-item .qjo-app-text,
+.nav-item span:not(.nav-icon):not(.qjo-app-icon):not(.qjo-app-soon-badge){
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Ensure bottom account card fits */
+.bottom-account{ width: 100%; box-sizing: border-box; }
+
+/* Ensure sidebar itself scrolls if content overflows, bottom area pinned */
+.sidebar{
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--qjo-accent) 20%, transparent) transparent;
+}
+.sidebar::-webkit-scrollbar{ width: 6px; }
+.sidebar::-webkit-scrollbar-thumb{ background: color-mix(in srgb, var(--qjo-accent) 18%, transparent); border-radius:6px; }
+/* Make bottom-area stick to bottom by using margin-top:auto on spacer only if there's room */
+.sidebar-bottom-area{ margin-top: auto; flex-shrink: 0; padding-top: 6px; }

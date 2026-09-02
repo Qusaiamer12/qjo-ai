@@ -4056,6 +4056,19 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
     scrollBottomBtn.addEventListener('click', () => scrollToBottom(true));
 
     mobileMenuBtn.addEventListener('click', () => document.body.classList.add('drawer-open'));
+
+    // Desktop sidebar toggle (hide/show)
+    const sidebarToggle = el('sidebarToggle');
+    if (sidebarToggle) {
+      // Restore last state
+      if (localStorage.getItem('qjo_sidebar_collapsed') === '1') {
+        document.body.classList.add('sidebar-collapsed');
+      }
+      sidebarToggle.addEventListener('click', () => {
+        const collapsed = document.body.classList.toggle('sidebar-collapsed');
+        try { localStorage.setItem('qjo_sidebar_collapsed', collapsed ? '1' : '0'); } catch(e){}
+      });
+    }
     drawerBackdrop.addEventListener('click', () => document.body.classList.remove('drawer-open'));
     themeToggleBtn.addEventListener('click', toggleTheme);
     if (exportChatBtn) exportChatBtn.addEventListener('click', exportCurrentChatMarkdown);
