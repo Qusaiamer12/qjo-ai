@@ -9,13 +9,13 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <meta name="theme-color" content="#0a0818" />
-  <link rel="stylesheet" href="/styles.css?v=qjo-v24-bespoke-branding" />
+  <link rel="stylesheet" href="/styles.css?v=qjo-v25-pure-statement" />
   <!-- Design system layer. Must load AFTER styles.css so it wins the cascade. -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" />
   <link rel="stylesheet" href="/design-system.css?v=qjo-ds-2026-08-28" />
-  <link rel="stylesheet" href="/premium-ui.css?v=qjo-v24-bespoke-branding" />
+  <link rel="stylesheet" href="/premium-ui.css?v=qjo-v25-pure-statement" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js" defer></script>
@@ -24,7 +24,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js" defer></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js" defer></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js" defer></script>
-  <script>window.QJO_INDEX_VERSION='qjo-v24-bespoke-branding';console.info('Qjo index version:', window.QJO_INDEX_VERSION);</script>
+  <script>window.QJO_INDEX_VERSION='qjo-v25-pure-statement';console.info('Qjo index version:', window.QJO_INDEX_VERSION);</script>
   <script type="module" src="https://unpkg.com/@splinetool/viewer@1.9.0/build/spline-viewer.js" defer></script>
 </head>
 <body>
@@ -266,58 +266,26 @@
   <div class="auth-overlay" id="authOverlay">
     <div class="auth-split-wrapper">
       
-      <!-- Right side: Visual Hero Banner (Bespoke Qjo Platform Showcase) -->
+      <!-- Right side: Visual Hero Banner (Pure, Majestic, Bold Typography - Not AI-like) -->
       <div class="auth-hero-banner">
         <div class="auth-hero-glow"></div>
         <div class="auth-hero-content">
           <div class="auth-hero-brand">
             <img class="brand-logo-img" src="/qjo-logo.png" alt="Qjo Logo" />
-            <span class="brand-logo-text">Qjo AI</span>
+            <span class="brand-logo-text">Qjo</span>
           </div>
-          <h1 class="auth-hero-title">مساحتك الذكية<br><span>للابتكار والتطوير.</span></h1>
-          <p class="auth-hero-desc">المساعد البرمجي والتحليلي الذي يبني معك الحلول والأكواد المعقدة خطوة بخطوة وبسرعة فائقة.</p>
-          
-          <!-- Human-Crafted Interactive Showcase Card -->
-          <div class="auth-preview-card">
-            <div class="preview-card-header">
-              <div class="preview-dots">
-                <span class="p-dot red"></span>
-                <span class="p-dot yellow"></span>
-                <span class="p-dot green"></span>
-              </div>
-              <span class="preview-card-title">qjo-core • workspace</span>
-            </div>
-            <div class="preview-card-body">
-              <div class="preview-msg user">
-                <span class="role-badge">المستخدم</span>
-                <span class="msg-txt">ابنِ واجهة مستخدم احترافية وسريعة لتطبيقي الجديد</span>
-              </div>
-              <div class="preview-msg ai">
-                <div class="ai-header">
-                  <img src="/qjo-logo.png" alt="Q" class="mini-qjo-avatar" />
-                  <span class="ai-name">Qjo AI</span>
-                  <span class="ai-tag">مكتمل</span>
-                </div>
-                <div class="msg-txt code-preview">
-                  <code>const app = new Qjo({ theme: 'dark', realtime: true });</code>
-                </div>
-              </div>
-            </div>
+          <div class="auth-hero-statement">
+            <h1 class="hero-headline">
+              فكّر بعمق.<br>
+              ابْتَكِر بلا حدود.<br>
+              <span>أنجِز بذكاء فائق.</span>
+            </h1>
+            <p class="hero-subtext">
+              مساحة العمل المتكاملة للمطورين والمبدعين. سرعة فائقة، دقة استثنائية، وأدوات متقدمة ترتقي بإنتاجيتك إلى أعلى مستوى.
+            </p>
           </div>
-
-          <div class="auth-hero-meta">
-            <div class="hero-meta-item">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-              </svg>
-              <span>بيانات مشفرة وحفظ سحابي آمن</span>
-            </div>
-            <div class="hero-meta-item">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>
-              </svg>
-              <span>مزامنة فورية للمحادثات</span>
-            </div>
+          <div class="auth-hero-quote">
+            « الإبداع الحقيقي يبدأ عندما تلتقي فكرتك مع الأداة الصحيحة. »
           </div>
         </div>
       </div>
@@ -688,6 +656,6 @@ Qjo مساعد عام للناس.
     </div>
   </div>
 
-  <script src="/app.js?v=qjo-v24-bespoke-branding" defer></script>
+  <script src="/app.js?v=qjo-v25-pure-statement" defer></script>
 </body>
 </html>
