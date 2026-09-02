@@ -3178,9 +3178,9 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
       history.length = 0;
       messagesInner.innerHTML = '';
       messagesInner.classList.remove('has-messages');
+      // Welcome section permanently hidden for productivity-focused UI
       if (welcomeEl) {
-        welcomeEl.style.display = 'block';
-        messagesInner.appendChild(welcomeEl);
+        welcomeEl.style.display = 'none';
       }
       safeFocusComposer();
     }
@@ -3961,8 +3961,7 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
         history.forEach(m => addMessage(m.role, m.content));
 
         if (!history.length && welcomeEl) {
-          welcomeEl.style.display = 'block';
-          messagesInner.appendChild(welcomeEl);
+          welcomeEl.style.display = 'none';
         }
 
         allChatsModal.classList.remove('show');
@@ -3981,9 +3980,9 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
       history.length = 0;
       messagesInner.innerHTML = '';
       messagesInner.classList.remove('has-messages');
+      // Welcome section permanently hidden for productivity UI
       if (welcomeEl) {
-        welcomeEl.style.display = 'block';
-        messagesInner.appendChild(welcomeEl);
+        welcomeEl.style.display = 'none';
       }
       clearAuthGrace();
       if (auth) await auth.signOut();
