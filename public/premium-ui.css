@@ -886,3 +886,106 @@ body:not(.dark){
 body.dark{
   background:#070514 !important; color:#f1f5f9 !important;
 }
+
+/* ===== Modal fixes (overrides my earlier .modal-card rule for real .modal class) ===== */
+.modal-backdrop{
+  position:fixed !important; inset:0 !important;
+  z-index: 200 !important;
+  display:none;
+  align-items:center; justify-content:center;
+  padding:18px;
+  background: color-mix(in srgb, var(--qjo-bg-0) 55%, transparent) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.modal-backdrop.show{ display:flex !important; animation: fadeIn .25s ease; }
+
+.modal-backdrop .modal{
+  width: min(640px, 100%) !important;
+  max-height: 90vh; overflow-y:auto;
+  background: var(--qjo-bg-1) !important;
+  background-image: linear-gradient(180deg, var(--qjo-glass-strong), var(--qjo-glass)) !important;
+  border: 1px solid var(--qjo-border-strong) !important;
+  border-radius: 22px !important;
+  box-shadow: var(--qjo-shadow-lg) !important;
+  padding: 22px !important;
+  color: var(--qjo-text) !important;
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  animation: qjoRise .35s cubic-bezier(.2,.8,.2,1);
+}
+.modal-backdrop .modal h2{
+  margin:0 0 6px; font-size:20px; font-weight:800; letter-spacing:-.02em; color: var(--qjo-text);
+}
+.modal-backdrop .modal p{
+  color: var(--qjo-muted); margin: 0 0 14px; line-height:1.7; font-size:14px;
+}
+.modal-head{
+  display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px;
+}
+/* Ensure no invisible overlay captures clicks on the modal content */
+.modal-backdrop .modal,
+.modal-backdrop .modal *{ pointer-events: auto !important; position: relative; }
+
+/* Training textarea */
+.training-area{
+  width:100%; min-height:140px; max-height:40vh;
+  background: var(--qjo-glass) !important;
+  border: 1px solid var(--qjo-border) !important;
+  border-radius:14px;
+  padding:12px 14px;
+  color: var(--qjo-text) !important;
+  -webkit-text-fill-color: var(--qjo-text) !important;
+  font: inherit; font-size:14px; line-height:1.7;
+  resize: vertical;
+  outline:none;
+  margin-bottom:14px;
+  box-sizing:border-box;
+  transition: border-color .2s, box-shadow .2s;
+}
+.training-area:focus{
+  border-color: color-mix(in srgb, var(--qjo-accent) 50%, var(--qjo-border)) !important;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--qjo-accent) 18%, transparent);
+}
+.training-area::placeholder{ color: var(--qjo-muted-2); }
+
+/* Modal actions row (buttons) */
+.modal-backdrop .modal-actions{
+  display:flex; gap:10px; flex-wrap:wrap;
+  margin-bottom: 10px;
+}
+.primary-btn, .plain-btn, .danger-btn, .btn-primary, .btn-secondary{
+  padding: 10px 18px;
+  border-radius: 12px;
+  font-weight:700; font-size:13.5px;
+  cursor:pointer;
+  transition: transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .2s, background .2s;
+  font-family: inherit;
+}
+.primary-btn{
+  background: linear-gradient(135deg, var(--qjo-brand-1), var(--qjo-brand-2), var(--qjo-brand-3)) !important;
+  color:#fff !important; border:none !important;
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--qjo-accent) 35%, transparent);
+}
+.primary-btn:hover{ transform: translateY(-2px); box-shadow: 0 12px 26px color-mix(in srgb, var(--qjo-accent-2) 40%, transparent); }
+.plain-btn{
+  background: var(--qjo-glass) !important;
+  border:1px solid var(--qjo-border) !important;
+  color: var(--qjo-text) !important;
+}
+.plain-btn:hover{ background: var(--qjo-glass-strong) !important; transform: translateY(-1px); }
+.danger-btn{
+  background: transparent !important;
+  border:1px solid color-mix(in srgb, var(--danger) 35%, var(--qjo-border)) !important;
+  color: var(--danger) !important;
+}
+.danger-btn:hover{ background: color-mix(in srgb, var(--danger) 10%, transparent) !important; transform: translateY(-1px); }
+
+.status-box{
+  padding: 10px 12px;
+  background: var(--qjo-glass) !important;
+  border:1px solid var(--qjo-border) !important;
+  border-radius:12px;
+  color: var(--qjo-muted) !important;
+  font-size:13px; text-align:center;
+}

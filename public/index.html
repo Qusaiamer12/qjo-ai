@@ -9,13 +9,13 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <meta name="theme-color" content="#0a0818" />
-  <link rel="stylesheet" href="/styles.css?v=qjo-unified-v8-dual-theme-2026-09-02-8" />
+  <link rel="stylesheet" href="/styles.css?v=qjo-unified-v9-fix-modals-2026-09-02-9" />
   <!-- Design system layer. Must load AFTER styles.css so it wins the cascade. -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" />
   <link rel="stylesheet" href="/design-system.css?v=qjo-ds-2026-08-28" />
-  <link rel="stylesheet" href="/premium-ui.css?v=qjo-unified-v8-dual-theme-2026-09-02-8" />
+  <link rel="stylesheet" href="/premium-ui.css?v=qjo-unified-v9-fix-modals-2026-09-02-9" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js" defer></script>
@@ -24,7 +24,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js" defer></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js" defer></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js" defer></script>
-  <script>window.QJO_INDEX_VERSION='qjo-unified-v8-dual-theme-2026-09-02-8';console.info('Qjo index version:', window.QJO_INDEX_VERSION);</script>
+  <script>window.QJO_INDEX_VERSION='qjo-unified-v9-fix-modals-2026-09-02-9';console.info('Qjo index version:', window.QJO_INDEX_VERSION);</script>
   <script type="module" src="https://unpkg.com/@splinetool/viewer@1.9.0/build/spline-viewer.js" defer></script>
 </head>
 <body>
@@ -454,7 +454,11 @@
 
       <p>أضف هنا معلومات وتعليمات تريد Qjo يعتمد عليها. هذه ليست تدريبًا حقيقيًا للنموذج، لكنها تُرسل كتعليمات معرفة مع كل رسالة داخل هذه النسخة التجريبية.</p>
 
-      <textarea class="training-area" id="trainingText" placeholder="مثال:\nQjo مساعد عام للناس.\nيرد بالعربي إذا المستخدم عربي.\nفي الوضع العادي يجاوب باختصار.\nفي الوضع المتقدم يعطي خطوات وأمثلة."></textarea>
+      <textarea class="training-area" id="trainingText" placeholder="مثال:
+Qjo مساعد عام للناس.
+يرد بالعربي إذا المستخدم عربي.
+في الوضع العادي يجاوب باختصار.
+في الوضع المتقدم يعطي خطوات وأمثلة."></textarea>
 
       <div class="modal-actions">
         <button class="primary-btn" id="saveTrainingBtn" type="button">حفظ التدريب</button>
@@ -466,6 +470,6 @@
     </div>
   </div>
 
-  <script src="/app.js?v=qjo-unified-v8-dual-theme-2026-09-02-8" defer></script>
+  <script src="/app.js?v=qjo-unified-v9-fix-modals-2026-09-02-9" defer></script>
 </body>
 </html>
