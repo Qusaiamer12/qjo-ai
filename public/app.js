@@ -607,6 +607,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     const userSettingsBtn = el('userSettingsBtn');
     const directLogoutBtn = el('directLogoutBtn');
     const userAvatar = el('userAvatar');
+    const accountCard = el('accountCard');
     const userName = el('userName');
     const userEmail = el('userEmail');
     const chatList = el('chatList');
@@ -3523,8 +3524,10 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
     }
 
     function updateUserUI(user) {
+      const avatarEl = userAvatar;
+      const chosen = localStorage.getItem('qjo_user_avatar'); // 'google' | 'initial' | 'svg:<id>'
       if (!user) {
-        userAvatar.textContent = 'Q';
+        renderAvatar(avatarEl, { type: 'initial', letter: 'Q' });
         userName.textContent = 'مستخدم';
         userEmail.textContent = t('notSigned');
         if (settingsAccountEmail) settingsAccountEmail.textContent = t('notSigned');
@@ -3534,7 +3537,59 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
       userName.textContent = display;
       userEmail.textContent = user.email || 'حساب';
       if (settingsAccountEmail) settingsAccountEmail.textContent = user.email || user.displayName || 'حساب';
-      userAvatar.textContent = (display || 'Q').trim().charAt(0).toUpperCase();
+      // Render avatar based on choice
+      if (chosen === 'google' && user.photoURL) {
+        renderAvatar(avatarEl, { type: 'image', src: user.photoURL });
+      } else if (chosen && chosen.startsWith('svg:')) {
+        renderAvatar(avatarEl, { type: 'svg', id: chosen.slice(4) });
+      } else if (user.photoURL && !chosen) {
+        // New Google sign-in -> default to Google photo automatically
+        renderAvatar(avatarEl, { type: 'image', src: user.photoURL });
+      } else {
+        renderAvatar(avatarEl, { type: 'initial', letter: (display || 'Q').trim().charAt(0).toUpperCase() });
+      }
+    }
+
+    // ---- Avatar renderer ----
+    const AVATAR_SVGS = {
+      smile_orange: { bg: '#FFB13B', accent: '#FF0F6B', face: '#1a1220' },
+      cool_dark:    { bg: '#0f0b1d', accent: '#FF7A29', face: '#f5f5f5' },
+      happy_pink:   { bg: '#FF1468', accent: '#FF1468', face: '#ffffff' },
+      chill_mint:   { bg: '#7CF6B4', accent: '#D8FFB5', face: '#1a2e26' },
+      star_purple:  { bg: '#8B5CF6', accent: '#EC4899', face: '#ffffff' },
+    };
+    function buildAvatarSVG(id, size=64){
+      const a = AVATAR_SVGS[id];
+      if(!a) return '';
+      // Cute smiley blob like the reference screenshot
+      return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}">
+        <defs>
+          <clipPath id="ac-${id}"><circle cx="50" cy="50" r="44"/></clipPath>
+        </defs>
+        <circle cx="50" cy="50" r="48" fill="${a.bg}"/>
+        <g clip-path="url(#ac-${id})">
+          <path d="M12 66 Q32 30 64 40 Q88 48 96 30 L96 110 L0 110 Z" fill="${a.accent}" opacity="0.85"/>
+        </g>
+        <circle cx="40" cy="46" r="3.5" fill="${a.face}"/>
+        <circle cx="58" cy="46" r="3.5" fill="${a.face}"/>
+        <path d="M38 60 Q50 70 62 60" stroke="${a.face}" stroke-width="3" stroke-linecap="round" fill="none"/>
+      </svg>`;
+    }
+    function renderAvatar(el, opts){
+      if(!el) return;
+      el.innerHTML = '';
+      if(opts.type === 'image'){
+        const img = document.createElement('img');
+        img.src = opts.src;
+        img.alt = '';
+        img.referrerPolicy = 'no-referrer';
+        img.onerror = () => renderAvatar(el, { type:'initial', letter:'Q' });
+        el.appendChild(img);
+      } else if(opts.type === 'svg'){
+        el.innerHTML = buildAvatarSVG(opts.id, 48);
+      } else {
+        el.textContent = opts.letter || 'Q';
+      }
     }
 
 
@@ -4368,3 +4423,100 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
       });
     }
 
+
+    // ---- Avatar Picker Modal ----
+    (function installAvatarPicker(){
+      const modal = el('avatarModal');
+      if(!modal) return;
+      const preview = el('avatarPreview');
+      const grid = el('avatarPickerGrid');
+      const status = el('avatarStatus');
+      const googleBtn = el('useGoogleAvatar');
+      const resetBtn = el('resetAvatar');
+      const closeBtn = el('closeAvatarModal');
+      if(!preview || !grid) return;
+
+      let currentChoice = localStorage.getItem('qjo_user_avatar') || (currentUser && currentUser.photoURL ? 'google' : 'initial');
+
+      function renderPreview(){
+        preview.innerHTML = '';
+        if(currentChoice === 'google' && currentUser && currentUser.photoURL){
+          const img = document.createElement('img'); img.src = currentUser.photoURL; img.alt='';
+          img.referrerPolicy='no-referrer';
+          img.onerror = () => { currentChoice='initial'; renderPreview(); };
+          preview.appendChild(img);
+        } else if(currentChoice && currentChoice.startsWith('svg:')){
+          preview.innerHTML = buildAvatarSVG(currentChoice.slice(4), 140);
+        } else {
+          const div = document.createElement('div');
+          div.style.cssText = 'width:100%;height:100%;display:grid;place-items:center;font-size:48px;font-weight:800;color:#fff;font-family:inherit;';
+          const letter = currentUser && currentUser.displayName ? currentUser.displayName.trim().charAt(0).toUpperCase() : 'Q';
+          div.textContent = letter;
+          preview.appendChild(div);
+        }
+        // mark selected in grid
+        grid.querySelectorAll('.avatar-option').forEach(b => {
+          b.classList.toggle('selected', b.dataset.val === currentChoice);
+        });
+      }
+
+      function buildOptions(){
+        grid.innerHTML = '';
+        // Initial letter
+        const initialBtn = document.createElement('button');
+        initialBtn.type='button'; initialBtn.className='avatar-option'; initialBtn.dataset.val='initial';
+        initialBtn.innerHTML = `<svg viewBox="0 0 100 100" width="64" height="64"><defs><linearGradient id="av-grad-init" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6366f1"/><stop offset="0.5" stop-color="#a855f7"/><stop offset="1" stop-color="#ec4899"/></linearGradient></defs><circle cx="50" cy="50" r="48" fill="url(#av-grad-init)"/><text x="50" y="62" text-anchor="middle" font-size="44" font-weight="800" fill="#fff" font-family="inherit">${currentUser && currentUser.displayName ? currentUser.displayName.trim().charAt(0).toUpperCase() : 'Q'}</text></svg>`;
+        initialBtn.addEventListener('click', () => { currentChoice='initial'; renderPreview(); status.textContent='اخترت الحرف الأول.'; });
+        grid.appendChild(initialBtn);
+
+        // SVG avatars
+        Object.keys(AVATAR_SVGS).forEach(id => {
+          const btn = document.createElement('button');
+          btn.type='button'; btn.className='avatar-option'; btn.dataset.val = 'svg:'+id;
+          btn.innerHTML = buildAvatarSVG(id, 72);
+          btn.addEventListener('click', () => { currentChoice='svg:'+id; renderPreview(); status.textContent='أفاتار رائع! اضغط خارج النافذة أو إغلاق للحفظ.'; });
+          grid.appendChild(btn);
+        });
+      }
+
+      function openPicker(){
+        currentChoice = localStorage.getItem('qjo_user_avatar') || (currentUser && currentUser.photoURL ? 'google' : 'initial');
+        if(googleBtn){
+          googleBtn.style.display = (currentUser && currentUser.photoURL) ? '' : 'none';
+        }
+        buildOptions();
+        renderPreview();
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden','false');
+      }
+      function closePicker(save){
+        if(save){
+          localStorage.setItem('qjo_user_avatar', currentChoice);
+          updateUserUI(currentUser);
+          status.textContent = 'تم حفظ الصورة.';
+        }
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden','true');
+      }
+      userAvatar.addEventListener('click', openPicker);
+      if(accountCard){
+        accountCard.addEventListener('click', (e) => {
+          // Open picker only if click not on settings/logout buttons
+          if(e.target.closest('.account-settings') || e.target.closest('.account-logout-direct')) return;
+          openPicker();
+        });
+      }
+      closeBtn && closeBtn.addEventListener('click', () => closePicker(true));
+      modal.addEventListener('click', e => { if(e.target === modal) closePicker(true); });
+      googleBtn && googleBtn.addEventListener('click', () => {
+        if(!(currentUser && currentUser.photoURL)) return;
+        currentChoice = 'google';
+        renderPreview();
+        status.textContent = 'سيتم استخدام صورة جوجل.';
+      });
+      resetBtn && resetBtn.addEventListener('click', () => {
+        currentChoice = 'initial';
+        renderPreview();
+        status.textContent = 'تمت إعادة الصورة للحرف الأول.';
+      });
+    })();

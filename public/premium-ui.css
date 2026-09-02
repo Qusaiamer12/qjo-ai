@@ -989,3 +989,114 @@ body.dark{
   color: var(--qjo-muted) !important;
   font-size:13px; text-align:center;
 }
+
+/* Remove the gradient line above welcome title from legacy styles */
+.welcome::before{ display:none !important; }
+.welcome-kicker{ display:none !important; }
+
+/* ===== Sidebar bottom account card polish ===== */
+.bottom-account{
+  display:flex; align-items:center; gap:10px; padding:10px;
+  background: var(--qjo-glass) !important;
+  border: 1px solid var(--qjo-border) !important;
+  border-radius: 16px;
+  backdrop-filter: blur(12px);
+  position:relative;
+  cursor: pointer;
+  transition: all .25s;
+}
+.bottom-account:hover{
+  border-color: color-mix(in srgb, var(--qjo-accent) 30%, var(--qjo-border)) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--qjo-accent) 18%, transparent);
+}
+.account-card .avatar,
+.sidebar-avatar,
+.avatar#userAvatar{
+  width:40px !important; height:40px !important; border-radius:50% !important;
+  flex-shrink:0;
+  display:grid; place-items:center;
+  font-weight:800; font-size:15px; color:#fff;
+  background: linear-gradient(135deg, var(--qjo-brand-1), var(--qjo-brand-3)) !important;
+  overflow:hidden;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--qjo-accent) 35%, transparent);
+  position:relative;
+}
+.avatar#userAvatar img{
+  width:100%; height:100%; object-fit:cover; display:block; border-radius:50%;
+}
+.account-meta{ flex:1; min-width:0; }
+.account-name{ font-weight:700; font-size:13.5px; color: var(--qjo-text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.account-email{ font-size:11.5px; color: var(--qjo-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.account-actions{ display:flex; gap:6px; }
+.account-settings, .account-logout-direct{
+  width:34px; height:34px; border-radius:10px;
+  background: var(--qjo-glass) !important;
+  border: 1px solid var(--qjo-border) !important;
+  color: var(--qjo-muted) !important;
+  display:grid; place-items:center; cursor:pointer;
+  transition: all .2s;
+}
+.account-logout-direct span{ display:none; }
+.account-settings:hover, .account-logout-direct:hover{
+  background: color-mix(in srgb, var(--qjo-accent) 16%, transparent) !important;
+  color: var(--qjo-text) !important;
+  transform: rotate(-6deg);
+}
+.account-logout-direct:hover{ color: var(--danger) !important; }
+
+/* ===== Avatar Picker Modal ===== */
+.avatar-picker-grid{
+  display:flex; flex-wrap:wrap; gap:12px; justify-content:center;
+  margin: 16px 0 8px;
+}
+.avatar-option{
+  width:64px; height:64px; border-radius:50%;
+  border: 3px solid var(--qjo-border);
+  background: var(--qjo-glass);
+  display:grid; place-items:center;
+  cursor:pointer; overflow:hidden;
+  transition: transform .25s cubic-bezier(.2,.8,.2,1), border-color .2s, box-shadow .2s;
+  padding:0;
+}
+.avatar-option:hover{
+  transform: translateY(-3px) scale(1.08);
+  border-color: color-mix(in srgb, var(--qjo-accent) 50%, var(--qjo-border));
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--qjo-accent) 25%, transparent);
+}
+.avatar-option.selected{
+  border-color: var(--qjo-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--qjo-accent) 22%, transparent),
+              0 10px 22px color-mix(in srgb, var(--qjo-accent) 30%, transparent);
+}
+.avatar-option svg{ width:64px; height:64px; }
+.avatar-preview{
+  width:120px; height:120px; border-radius:50%;
+  margin: 10px auto 14px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--qjo-accent) 10%, var(--qjo-bg-1)), var(--qjo-bg-1));
+  border: 4px solid var(--qjo-border-strong);
+  display:grid; place-items:center;
+  overflow:hidden;
+  box-shadow: 0 20px 40px color-mix(in srgb, var(--qjo-accent) 20%, transparent);
+}
+.avatar-preview svg{ width:120px; height:120px; }
+.avatar-preview img{ width:100%; height:100%; object-fit:cover; }
+.avatar-picker-title{
+  text-align:center; font-size:22px; font-weight:800; margin: 4px 0 4px;
+  color: var(--qjo-text);
+}
+.avatar-picker-sub{
+  text-align:center; color: var(--qjo-muted); font-size:14px; margin-bottom:6px;
+}
+
+/* ===== Generic disabled state for all buttons ===== */
+button:disabled{
+  opacity:.5; cursor:not-allowed; transform:none !important;
+  filter:grayscale(.2);
+}
+
+/* Ensure all legacy buttons work - remove any pointer-events:none from overlays */
+button, .btn, [role="button"], input[type="button"], input[type="submit"]{
+  pointer-events: auto !important;
+  position: relative;
+}
