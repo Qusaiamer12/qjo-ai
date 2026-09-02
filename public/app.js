@@ -3362,15 +3362,16 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
         if (!auth?.currentUser) {
           authStateSettled = true;
           setAuthBusy(false);
+          showAuthOverlay(true);
           updateUserUI(null);
           userPreferences = {};
           fillPreferenceForm();
-          if (chatUnsubscribe) { chatUnsubscribe(); chatUnsubscribe = null; }
+          if (chatUnsubscribe) chatUnsubscribe();
+          chatUnsubscribe = null;
           renderChatList([]);
-          // Guest mode is supported — don't force the overlay.
-          // Users can still sign in from the "حسابي" button.
-          showAuthOverlay(false);
-          setAuthMessage('');
+          if (!authError.textContent) {
+            setAuthMessage('سجّل دخولك للمتابعة. إذا كانت الجلسة لا تثبت، امسح بيانات الموقع من المتصفح ثم جرّب الدخول بالبريد الإلكتروني.');
+          }
         }
       }, inAuthGrace() ? 2500 : 350);
     }
@@ -4031,9 +4032,7 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
 
 
     async function logoutUser() {
-      userSettingsModal && userSettingsModal.classList.remove('show');
-      allChatsModal && allChatsModal.classList.remove('show');
-      if (chatUnsubscribe) { chatUnsubscribe(); chatUnsubscribe = null; }
+      userSettingsModal.classList.remove('show');
       currentChatId = null;
       activeRagIndexes = [];
       pendingAttachments = [];
@@ -4043,25 +4042,10 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
       history.length = 0;
       messagesInner.innerHTML = '';
       messagesInner.classList.remove('has-messages');
-      // Welcome hero visible on empty state
       if (welcomeEl) welcomeEl.style.display = '';
-      renderChatList([]);
-      updateUserUI(null);
-      setAuthBusy(false);
-      // Clear draft and reset composer
       if (inputEl) { inputEl.value = ''; autoResize(); clearDraft(); }
       clearAuthGrace();
-      // After signOut, scheduleAuthOverlayIfStillLoggedOut will show the auth modal.
-      // For a "guest-style" experience after logout we allow continuing without signing in.
-      try { if (auth) await auth.signOut(); } catch(e){ console.warn('signOut err', e); }
-      // Show a guest-friendly message in the auth overlay
-      if (authError) authError.textContent = '';
-      showMicroToast('تم تسجيل الخروج. يمكنك المتابعة كزائر أو تسجيل الدخول مجدداً.');
-      // Don't force the overlay on logout — let guest continue.
-      clearTimeout(authNullTimer);
-      authStateSettled = true;
-      setAuthBusy(false);
-      showAuthOverlay(false);
+      if (auth) await auth.signOut();
     }
 
     messagesEl.addEventListener('scroll', updateScrollBottomButton, { passive: true });
@@ -4096,16 +4080,6 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
     githubLoginBtn.addEventListener('click', signInWithGitHub);
     emailLoginBtn.addEventListener('click', signInWithEmail);
     emailSignupBtn.addEventListener('click', signUpWithEmail);
-    const continueAsGuestBtn = el('continueAsGuestBtn');
-    if (continueAsGuestBtn) continueAsGuestBtn.addEventListener('click', () => {
-      clearAuthGrace();
-      showAuthOverlay(false);
-      setAuthMessage('');
-      authStateSettled = true;
-      setAuthBusy(false);
-      safeFocusComposer();
-      showMicroToast('تستخدم Qjo كزائر. المحادثات لن تُحفظ سحابيًا.');
-    });
     [authEmail, authPassword].forEach(field => {
       field.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {

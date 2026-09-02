@@ -9,13 +9,13 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <meta name="theme-color" content="#0a0818" />
-  <link rel="stylesheet" href="/styles.css?v=qjo-stable-v11-fix-all-2026-09-02-11" />
+  <link rel="stylesheet" href="/styles.css?v=qjo-restore-auth-v12-2026-09-02-12" />
   <!-- Design system layer. Must load AFTER styles.css so it wins the cascade. -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" />
   <link rel="stylesheet" href="/design-system.css?v=qjo-ds-2026-08-28" />
-  <link rel="stylesheet" href="/premium-ui.css?v=qjo-stable-v11-fix-all-2026-09-02-11" />
+  <link rel="stylesheet" href="/premium-ui.css?v=qjo-restore-auth-v12-2026-09-02-12" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js" defer></script>
@@ -24,7 +24,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js" defer></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js" defer></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js" defer></script>
-  <script>window.QJO_INDEX_VERSION='qjo-stable-v11-fix-all-2026-09-02-11';console.info('Qjo index version:', window.QJO_INDEX_VERSION);</script>
+  <script>window.QJO_INDEX_VERSION='qjo-restore-auth-v12-2026-09-02-12';console.info('Qjo index version:', window.QJO_INDEX_VERSION);</script>
   <script type="module" src="https://unpkg.com/@splinetool/viewer@1.9.0/build/spline-viewer.js" defer></script>
 </head>
 <body>
@@ -297,11 +297,6 @@
       </div>
 
       <div class="auth-error" id="authError"></div>
-      <div class="auth-guest-row" style="margin-top:14px; text-align:center;">
-        <button class="plain-btn" id="continueAsGuestBtn" type="button" style="width:100%; padding:12px;">
-          المتابعة كزائر بدون تسجيل
-        </button>
-      </div>
       <div class="auth-note">لأفضل نتيجة افتح الموقع من الرابط المباشر وليس من داخل Preview أو iframe. تأكد أن دومين الموقع مضاف في Firebase Authorized domains.</div>
     </div>
   </div>
@@ -515,6 +510,6 @@ Qjo مساعد عام للناس.
     </div>
   </div>
 
-  <script src="/app.js?v=qjo-stable-v11-fix-all-2026-09-02-11" defer></script>
+  <script src="/app.js?v=qjo-restore-auth-v12-2026-09-02-12" defer></script>
 </body>
 </html>
