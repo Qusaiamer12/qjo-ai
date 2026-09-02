@@ -1126,7 +1126,8 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
     }
 
     function positionModeDropdown() {
-      if (!modeCurrentBtn || !modeDropdown) return;
+      const dd = modeDropdown || modeMenu;
+      if (!modeCurrentBtn || !dd) return;
       const rect = modeCurrentBtn.getBoundingClientRect();
       const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 360;
       const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 640;
@@ -1140,6 +1141,7 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
     }
 
     function toggleModeDropdown() {
+      if (!modeMenu || !modeCurrentBtn) return;
       const isOpen = modeMenu.classList.toggle('open');
       document.body.classList.toggle('mode-menu-open', isOpen);
       modeCurrentBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
@@ -1150,9 +1152,10 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
     }
 
     function closeModeDropdown() {
+      if (!modeMenu) return;
       modeMenu.classList.remove('open');
       document.body.classList.remove('mode-menu-open');
-      modeCurrentBtn.setAttribute('aria-expanded', 'false');
+      if (modeCurrentBtn) modeCurrentBtn.setAttribute('aria-expanded', 'false');
     }
 
     function setActivationStatus(status, text) {
@@ -2596,7 +2599,7 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
       sendBtn.disabled = isBusy || fileProcessing || !navigator.onLine;
       inputEl.disabled = isBusy;
       attachBtn.disabled = isBusy || fileProcessing;
-      modeCurrentBtn.disabled = isBusy;
+      if (modeCurrentBtn) modeCurrentBtn.disabled = isBusy;
       inputEl.placeholder = isBusy ? (qjoLanguage === 'ar' ? 'جاري توليد الرد...' : 'Generating response...') : t('placeholder');
     }
 
@@ -4090,14 +4093,15 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
     });
     clearBtn.addEventListener('click', clearChat);
     newChatBtn.addEventListener('click', clearChat);
-    modeCurrentBtn.addEventListener('click', (e) => {
+    const modeDropdownEl = modeDropdown || modeMenu;
+    if (modeCurrentBtn) modeCurrentBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       toggleModeDropdown();
     });
-    normalModeBtn.addEventListener('click', () => setMode('normal'));
-    advancedModeBtn.addEventListener('click', () => setMode('advanced'));
+    if (normalModeBtn) normalModeBtn.addEventListener('click', () => setMode('normal'));
+    if (advancedModeBtn) advancedModeBtn.addEventListener('click', () => setMode('advanced'));
     if (codeModeBtn) codeModeBtn.addEventListener('click', () => setMode('code'));
-    modeDropdown.addEventListener('click', (e) => {
+    if (modeDropdownEl) modeDropdownEl.addEventListener('click', (e) => {
       const option = e.target.closest('[data-mode]');
       if (!option) return;
       e.preventDefault();

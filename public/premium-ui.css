@@ -1103,3 +1103,72 @@ button, .btn, [role="button"], input[type="button"], input[type="submit"]{
   pointer-events: auto !important;
   position: relative;
 }
+
+/* ===== Mode switch (topbar) ===== */
+.mode-btn{
+  display:inline-flex; align-items:center; gap:7px;
+  padding: 8px 14px; border-radius:999px;
+  background: var(--qjo-glass) !important;
+  border:1px solid var(--qjo-border) !important;
+  color: var(--qjo-text) !important;
+  font-weight:600; font-size:12.5px;
+  cursor:pointer;
+  transition: all .22s cubic-bezier(.2,.8,.2,1);
+  backdrop-filter: blur(10px);
+}
+.mode-btn:hover{
+  background: var(--qjo-glass-strong) !important;
+  transform: translateY(-1px);
+}
+.mode-btn[aria-expanded="true"]{
+  border-color: color-mix(in srgb, var(--qjo-accent) 45%, var(--qjo-border)) !important;
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--qjo-accent) 22%, transparent);
+}
+.mode-btn svg{ width:14px; height:14px; color: var(--qjo-accent); }
+.mode-btn.mode-pro svg{ color:#c084fc; }
+.mode-btn.mode-code svg{ color:#22d3ee; }
+
+.mode-dropdown{
+  position: fixed;
+  bottom: var(--qjo-mode-dropdown-bottom, 20px);
+  left: var(--qjo-mode-dropdown-left, 50%);
+  transform: translateY(8px) scale(.96);
+  width: var(--qjo-mode-dropdown-width, 200px);
+  background: var(--qjo-bg-1) !important;
+  background-image: linear-gradient(180deg, var(--qjo-glass-strong), var(--qjo-glass)) !important;
+  border: 1px solid var(--qjo-border-strong) !important;
+  border-radius:16px;
+  padding:6px;
+  box-shadow: var(--qjo-shadow-lg);
+  backdrop-filter: blur(28px);
+  opacity:0; pointer-events:none;
+  transition: all .22s cubic-bezier(.2,.8,.2,1);
+  z-index:40;
+}
+body.mode-menu-open .mode-dropdown{
+  opacity:1; pointer-events:auto; transform:none;
+}
+.mode-option{
+  width:100%; display:flex; align-items:center; gap:10px;
+  padding:10px 12px;
+  background: transparent; border:none; border-radius:10px;
+  color: var(--qjo-text); font-weight:600; font-size:13px;
+  cursor:pointer; text-align:start;
+  transition: background .2s;
+}
+.mode-option:hover{
+  background: color-mix(in srgb, var(--qjo-accent) 14%, transparent) !important;
+}
+.mode-option.active{
+  background: color-mix(in srgb, var(--qjo-accent) 18%, transparent) !important;
+  color: var(--qjo-accent);
+}
+.mode-icon{ width:22px; font-size:15px; text-align:center; }
+
+/* Top title */
+.top-title{
+  display:flex; align-items:baseline; gap:10px;
+}
+.top-title strong{
+  font-weight:800; font-size:16px; letter-spacing:-.02em; color: var(--qjo-text);
+}
