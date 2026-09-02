@@ -1,7 +1,7 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
-const http = require('http');
+const _http = require('http');
 const helmet = require('helmet');
 const compression = require('compression');
 const multer = require('multer');
@@ -23,7 +23,7 @@ const { createLlmService } = require('./src/services/llmService');
 const { createRoutingEngine } = require('./src/agents/RoutingEngine');
 const { createChatPromptBuilder } = require('./src/services/systemPrompt');
 const { registerSearchRoutes } = require('./src/routes/search');
-const { CALCULATOR_TOOL, createSafeCalculate } = require('./src/tools/calculatorTool');
+const { createSafeCalculate } = require('./src/tools/calculatorTool');
 const { registerChatRoutes } = require('./src/routes/chat');
 
 let admin = null;
@@ -51,7 +51,7 @@ const QJO_FULL_TRAINING_PROMPT = (() => {
   try { return fs.readFileSync(path.join(__dirname, 'QJO_FULL_TRAINING_PROMPT.md'), 'utf8').trim(); }
   catch { return ''; }
 })();
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
+const _GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_API_KEYS = String(process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || '')
   .split(',')
   .map(k => k.trim())

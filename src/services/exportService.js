@@ -156,7 +156,7 @@ function removeCodeBlocks(content) {
   return String(content || '').replace(/```[\s\S]*?```/g, '\n[Code block extracted separately]\n');
 }
 
-function mixedDirectionNote(rtl) {
+function _mixedDirectionNote(rtl) {
   return rtl ? 'Arabic / English mixed content' : 'English / mixed content';
 }
 
@@ -171,7 +171,7 @@ function markdownToBlocks(content, fallbackTitle = 'Qjo') {
   };
 
   for (const line of lines) {
-    const codeStart = line.match(/^```(\w+)?/);
+    const _codeStart = line.match(/^```(\w+)?/);
     const heading = line.match(/^#{1,4}\s+(.+)/);
     if (heading) {
       pushCurrent();
@@ -209,7 +209,7 @@ function blockToSlideText(block) {
   return { kind: 'text', chunks: chunkText(body, 900) };
 }
 
-function splitSlidesFromMarkdown(title, content) {
+function _splitSlidesFromMarkdown(title, content) {
   const sections = parseMarkdownSections(content, title);
   const slides = [];
 
@@ -557,7 +557,7 @@ const ExcelJS = require('exceljs');
 
 async function exportDocx(req, res) {
   try {
-    const { title, content, rtl } = safeExportPayload(req);
+    const { title, content } = safeExportPayload(req);
     const sections = parseMarkdownSections(content, title);
     
     const docChildren = [

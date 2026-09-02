@@ -1,6 +1,5 @@
 const {
   distillSearchQueryServer,
-  inferSearchMode,
   buildSearchBeastPlan,
   rankSearchBeastResults
 } = require('../search/searchCore');
