@@ -3439,17 +3439,27 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
           if (user) {
             clearTimeout(authNullTimer);
             setAuthBusy(false);
-                clearAuthGrace();
+            clearAuthGrace();
             authStateSettled = true;
             setAuthMessage('');
             showAuthOverlay(false);
+            // Reset composer state so input/buttons are never stuck disabled
+            busy = false;
+            fileProcessing = false;
+            if (inputEl) { inputEl.disabled = false; inputEl.value = ''; }
+            if (sendBtn) sendBtn.disabled = !navigator.onLine;
+            if (attachBtn) attachBtn.disabled = false;
             updateUserUI(user);
             await loadUserPreferences();
             didAutoLoadChat = true;
             currentChatId = null;
             history.length = 0;
             messageSeq = 0;
+            messagesInner.innerHTML = '';
+            messagesInner.classList.remove('has-messages');
+            if (welcomeEl) welcomeEl.style.display = '';
             restoreDraft();
+            safeFocusComposer();
             subscribeToChats();
             return;
           }
@@ -3457,6 +3467,7 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
           // Firebase can briefly emit null during redirect/persistence restoration.
           // Do not immediately throw the user back to login; wait and re-check.
           currentUser = null;
+          updateUserUI(null);
           scheduleAuthOverlayIfStillLoggedOut();
         });
       } catch (error) {
@@ -3534,6 +3545,7 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
         userName.textContent = 'مستخدم';
         userEmail.textContent = t('notSigned');
         if (settingsAccountEmail) settingsAccountEmail.textContent = t('notSigned');
+        rebindAvatarTrigger();
         return;
       }
       const display = user.displayName || (user.email ? user.email.split('@')[0] : 'مستخدم');
@@ -3551,6 +3563,8 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
       } else {
         renderAvatar(avatarEl, { type: 'initial', letter: (display || 'Q').trim().charAt(0).toUpperCase() });
       }
+      // Re-bind click on avatar after replacing its content
+      rebindAvatarTrigger();
     }
 
     // ---- Avatar renderer ----
@@ -4547,6 +4561,7 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
         modal.classList.add('show');
         modal.setAttribute('aria-hidden','false');
       }
+      window.__qjoOpenAvatarPicker = openPicker;
       function closePicker(save){
         if(save){
           localStorage.setItem('qjo_user_avatar', currentChoice);
@@ -4578,3 +4593,24 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
         status.textContent = 'تمت إعادة الصورة للحرف الأول.';
       });
     })();
+
+    // Re-bind avatar picker trigger any time the avatar/account card is replaced (after sign-in render)
+    function rebindAvatarTrigger(){
+      const av = el('userAvatar');
+      const ac = el('accountCard');
+      if (!av || av.dataset.bound === '1') return;
+      av.dataset.bound = '1';
+      av.style.cursor = 'pointer';
+      av.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const m = el('avatarModal');
+        if (m) {
+          // trigger existing openPicker by dispatching a custom event (simpler: call via window)
+          if (window.__qjoOpenAvatarPicker) window.__qjoOpenAvatarPicker();
+        }
+      });
+    }
+    rebindAvatarTrigger();
+    // Also try a few times after load (for Firebase redirect)
+    setTimeout(rebindAvatarTrigger, 500);
+    setTimeout(rebindAvatarTrigger, 1500);

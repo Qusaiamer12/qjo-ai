@@ -1261,3 +1261,76 @@ body.sidebar-collapsed .topbar{
 .quick-suggestions-panel:not([hidden]){
   display:block !important;
 }
+
+/* ==== SIDEBAR COLLAPSE: properly center content ==== */
+body.sidebar-collapsed{
+  --sidebar: 0px;
+}
+body.sidebar-collapsed .app{
+  grid-template-columns: 1fr !important;
+}
+body.sidebar-collapsed .main{
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  width: 100%;
+}
+body.sidebar-collapsed .messages{
+  padding: 0 !important;
+}
+body.sidebar-collapsed .composer-shell{
+  max-width: 820px !important;
+  width: min(820px, calc(100vw - 48px)) !important;
+  margin: 0 auto 28px !important;
+  margin-inline: auto !important;
+}
+body.sidebar-collapsed .quick-command-cats,
+body.sidebar-collapsed .quick-suggestions-panel{
+  max-width: 820px !important;
+  margin-inline: auto !important;
+}
+body.sidebar-collapsed .welcome{
+  margin-inline: auto !important;
+}
+body.sidebar-collapsed .topbar{
+  padding-inline: 28px;
+}
+
+/* RTL: when collapsed, composer still centered, not shifted */
+[dir="rtl"] body.sidebar-collapsed .composer-shell{
+  margin: 0 auto 28px !important;
+}
+
+/* Toggle button active look */
+.sidebar-toggle{
+  transition: transform .25s, background .2s, color .2s !important;
+}
+body.sidebar-collapsed .sidebar-toggle{
+  background: color-mix(in srgb, var(--qjo-accent) 15%, var(--qjo-glass)) !important;
+  color: var(--qjo-accent) !important;
+}
+
+/* === Ensure all modal backdrops are truly hidden by default === */
+.modal-backdrop{
+  display:none !important;
+}
+.modal-backdrop.show{
+  display:flex !important;
+  align-items:center;
+  justify-content:center;
+}
+
+/* === Ensure composer-wrap & quick-cats fully clickable (no overlay above them) === */
+.composer-wrap{ position: relative; z-index: 3; }
+.quick-command-cats{ position: relative; z-index: 3; }
+.quick-cat-btn, .quick-cat-btn *{ cursor:pointer; }
+.quick-suggestions-panel{ position: relative; z-index: 4; }
+
+/* === Make topbar always above content but not covering modals === */
+.topbar{ z-index: 2; }
+.messages{ z-index: 1; position: relative; }
+
+/* === Avatar / account card reliable click target === */
+.bottom-account, .avatar#userAvatar{ cursor:pointer; }
+.bottom-account .account-settings, .bottom-account .account-logout-direct{
+  position: relative; z-index: 2;
+}
