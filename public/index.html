@@ -9,13 +9,13 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <meta name="theme-color" content="#0a0818" />
-  <link rel="stylesheet" href="/styles.css?v=qjo-v22-cloud-auth" />
+  <link rel="stylesheet" href="/styles.css?v=qjo-v23-fullscreen-auth" />
   <!-- Design system layer. Must load AFTER styles.css so it wins the cascade. -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" />
   <link rel="stylesheet" href="/design-system.css?v=qjo-ds-2026-08-28" />
-  <link rel="stylesheet" href="/premium-ui.css?v=qjo-v22-cloud-auth" />
+  <link rel="stylesheet" href="/premium-ui.css?v=qjo-v23-fullscreen-auth" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js" defer></script>
@@ -24,7 +24,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js" defer></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js" defer></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js" defer></script>
-  <script>window.QJO_INDEX_VERSION='qjo-v22-cloud-auth';console.info('Qjo index version:', window.QJO_INDEX_VERSION);</script>
+  <script>window.QJO_INDEX_VERSION='qjo-v23-fullscreen-auth';console.info('Qjo index version:', window.QJO_INDEX_VERSION);</script>
   <script type="module" src="https://unpkg.com/@splinetool/viewer@1.9.0/build/spline-viewer.js" defer></script>
 </head>
 <body>
@@ -266,37 +266,127 @@
   <div class="auth-overlay" id="authOverlay">
     <div class="auth-split-wrapper">
       
-      <!-- Left side: Form & Interactive Cloud Mascot -->
+      <!-- Right side: Visual Hero Banner (Full height Cosmic / Qjo AI Theme) -->
+      <div class="auth-hero-banner">
+        <div class="auth-hero-glow"></div>
+        <div class="auth-hero-content">
+          <div class="auth-hero-brand">
+            <div class="brand-mark-mini">Q</div>
+            <span>Qjo AI • Assistant</span>
+          </div>
+          <h1 class="auth-hero-title">فكّر أسرع،<br><span>وابنِ بذكاء.</span></h1>
+          <p class="auth-hero-desc">منصتك الذكية الشاملة للدردشة التفاعلية، توليد الأكواد البرمجية، وتحليل البيانات بأحدث محركات الذكاء الاصطناعي.</p>
+          <div class="auth-hero-features">
+            <div class="hero-feature-item">
+              <span class="feature-dot"></span>
+              <span>نماذج استدلال وبرمجة فائقة السرعة والدقة</span>
+            </div>
+            <div class="hero-feature-item">
+              <span class="feature-dot"></span>
+              <span>بحث عميق وتحليل حي للملفات والمستندات</span>
+            </div>
+            <div class="hero-feature-item">
+              <span class="feature-dot"></span>
+              <span>مزامنة سحابية آمنة ومشفرة لكافة محادثاتك</span>
+            </div>
+          </div>
+          <div class="auth-hero-status">
+            <span class="status-pulse"></span>
+            <span>الأنظمة تعمل بكفاءة 100% • جاهز للاستخدام</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Left side: Form & Interactive Pure SVG Cloud Mascot -->
       <div class="auth-card auth-card-split">
-        <!-- Interactive Cloud Mascot that tracks mouse and closes eyes on password -->
+        <!-- Interactive Vector Cloud Mascot (Zero background, follows mouse, shy on password) -->
         <div class="cloud-mascot-wrap">
           <div class="cloud-mascot" id="cloudMascot" title="Qjo Cloud">
-            <img class="cloud-body-img" src="/cloud-transparent.png" alt="Cloud Mascot" />
-            <div class="cloud-eyes">
-              <div class="cloud-eye left-eye">
-                <div class="cloud-pupil"></div>
-                <div class="cloud-eyelid"></div>
-                <svg class="cloud-closed-arc" viewBox="0 0 24 16" width="16" height="12">
-                  <path d="M 2 12 Q 12 0 22 12" fill="none" stroke="#2563eb" stroke-width="3.5" stroke-linecap="round"/>
-                </svg>
-              </div>
-              <div class="cloud-eye right-eye">
-                <div class="cloud-pupil"></div>
-                <div class="cloud-eyelid"></div>
-                <svg class="cloud-closed-arc" viewBox="0 0 24 16" width="16" height="12">
-                  <path d="M 2 12 Q 12 0 22 12" fill="none" stroke="#2563eb" stroke-width="3.5" stroke-linecap="round"/>
-                </svg>
-              </div>
-            </div>
-            <div class="cloud-hands">
-              <div class="cloud-hand left-hand"></div>
-              <div class="cloud-hand right-hand"></div>
-            </div>
+            <svg class="cloud-svg" viewBox="0 0 260 140" width="200" height="110" aria-hidden="true">
+              <defs>
+                <linearGradient id="qjoCloudGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="#93cbf5"/>
+                  <stop offset="35%" stop-color="#76b3e2"/>
+                  <stop offset="70%" stop-color="#5fa1d5"/>
+                  <stop offset="100%" stop-color="#4d8ec4"/>
+                </linearGradient>
+                <filter id="qjoCloudGlow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#38bdf8" flood-opacity="0.28"/>
+                  <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#0284c7" flood-opacity="0.18"/>
+                </filter>
+                <radialGradient id="qjoCloudHighlight" cx="45%" cy="30%" r="55%">
+                  <stop offset="0%" stop-color="#ffffff" stop-opacity="0.5"/>
+                  <stop offset="45%" stop-color="#ffffff" stop-opacity="0.12"/>
+                  <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>
+                </radialGradient>
+              </defs>
+
+              <!-- Fluffy Cloud Silhouette -->
+              <g filter="url(#qjoCloudGlow)">
+                <path class="cloud-body-base" d="
+                  M 52,105 
+                  C 28,105 14,91 15,74 
+                  C 15,57 28,46 44,48 
+                  C 49,32 66,18 88,18 
+                  C 102,18 116,24 125,34 
+                  C 134,22 152,14 172,18 
+                  C 194,22 210,38 214,56 
+                  C 232,60 246,75 244,92 
+                  C 242,107 228,118 210,116 
+                  C 198,122 180,122 168,114 
+                  C 154,122 132,122 120,114 
+                  C 106,122 84,120 72,112 
+                  C 64,115 57,112 52,105 Z" 
+                  fill="url(#qjoCloudGrad)"
+                />
+                <path class="cloud-body-glow" d="
+                  M 52,105 
+                  C 28,105 14,91 15,74 
+                  C 15,57 28,46 44,48 
+                  C 49,32 66,18 88,18 
+                  C 102,18 116,24 125,34 
+                  C 134,22 152,14 172,18 
+                  C 194,22 210,38 214,56 
+                  C 232,60 246,75 244,92 
+                  C 242,107 228,118 210,116 
+                  C 198,122 180,122 168,114 
+                  C 154,122 132,122 120,114 
+                  C 106,122 84,120 72,112 
+                  C 64,115 57,112 52,105 Z" 
+                  fill="url(#qjoCloudHighlight)"
+                />
+              </g>
+
+              <!-- Interactive Eyes Layer -->
+              <g class="svg-eye left-eye-group" transform="translate(100, 68)">
+                <ellipse class="eye-socket" cx="0" cy="0" rx="10" ry="16" fill="#ffffff" stroke="#e0f2fe" stroke-width="0.5"/>
+                <g class="eye-pupil left-pupil">
+                  <circle cx="0" cy="0" r="5.5" fill="#0b0f19"/>
+                  <circle cx="-1.5" cy="-2" r="1.8" fill="#ffffff"/>
+                </g>
+                <path class="eye-closed-arc" d="M -8,4 Q 0,-6 8,4" fill="none" stroke="#172554" stroke-width="2.6" stroke-linecap="round"/>
+              </g>
+
+              <g class="svg-eye right-eye-group" transform="translate(148, 68)">
+                <ellipse class="eye-socket" cx="0" cy="0" rx="10" ry="16" fill="#ffffff" stroke="#e0f2fe" stroke-width="0.5"/>
+                <g class="eye-pupil right-pupil">
+                  <circle cx="0" cy="0" r="5.5" fill="#0b0f19"/>
+                  <circle cx="-1.5" cy="-2" r="1.8" fill="#ffffff"/>
+                </g>
+                <path class="eye-closed-arc" d="M -8,4 Q 0,-6 8,4" fill="none" stroke="#172554" stroke-width="2.6" stroke-linecap="round"/>
+              </g>
+
+              <!-- Cute Cloud Hands -->
+              <g class="svg-hands">
+                <circle class="cloud-hand left-hand" cx="100" cy="116" r="13" fill="#8bc3ec" stroke="#cbe7fd" stroke-width="1.2"/>
+                <circle class="cloud-hand right-hand" cx="148" cy="116" r="13" fill="#8bc3ec" stroke="#cbe7fd" stroke-width="1.2"/>
+              </g>
+            </svg>
           </div>
         </div>
 
         <div class="auth-header-text">
-          <h2>مرحبًا بك في Qjo</h2>
+          <h2>تسجيل الدخول إلى Qjo</h2>
           <p>سجّل دخولك لحفظ محادثاتك والوصول لكامل مزايا الذكاء الاصطناعي.</p>
         </div>
 
@@ -345,32 +435,6 @@
 
         <div class="auth-error" id="authError"></div>
         <div class="auth-note">Qjo يحفظ جلساتك بأمان ومحمي بأعلى معايير التشفير.</div>
-      </div>
-
-      <!-- Right side: Visual Hero Banner (Think fast, Build faster) -->
-      <div class="auth-hero-banner">
-        <div class="auth-hero-content">
-          <div class="auth-hero-brand">
-            <div class="brand-mark-mini">Q</div>
-            <span>Qjo Assistant</span>
-          </div>
-          <h1 class="auth-hero-title">Think fast,<br><span>Build faster</span></h1>
-          <p class="auth-hero-desc">المساعد الذكي الذي يفهمك، يطور معك، ويبني أفكارك بسرعة فائقة ودقة متناهية.</p>
-          <div class="auth-hero-features">
-            <div class="hero-feature-item">
-              <span class="feature-dot"></span>
-              <span>محركات ذكاء اصطناعي متعددة وسريعة الاستجابة</span>
-            </div>
-            <div class="hero-feature-item">
-              <span class="feature-dot"></span>
-              <span>برمجة فورية مع تحليل ملفات ومستندات</span>
-            </div>
-            <div class="hero-feature-item">
-              <span class="feature-dot"></span>
-              <span>حفظ سحابي آمن ومزامنة دائمة للمحادثات</span>
-            </div>
-          </div>
-        </div>
       </div>
 
     </div>
@@ -585,6 +649,6 @@ Qjo مساعد عام للناس.
     </div>
   </div>
 
-  <script src="/app.js?v=qjo-v22-cloud-auth" defer></script>
+  <script src="/app.js?v=qjo-v23-fullscreen-auth" defer></script>
 </body>
 </html>

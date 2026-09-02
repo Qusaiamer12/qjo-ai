@@ -497,195 +497,143 @@ code{ font-family:"JetBrains Mono","Fira Code",ui-monospace,monospace; }
   .topbar{ padding:12px 16px; }
 }
 
-/* ===== Modern Split Auth Screen & Interactive Cloud Mascot ===== */
+/* ===== Fullscreen Luxury Split Auth Screen & Pure Vector SVG Cloud Mascot ===== */
 .auth-overlay{
   position: fixed !important;
   inset: 0 !important;
   z-index: 220 !important;
   display: none;
-  align-items: center;
-  justify-content: center;
-  background: rgba(4, 3, 10, 0.88) !important;
-  backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
-  padding: 20px !important;
+  background: #060411 !important;
   overflow-y: auto !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 .auth-overlay.show{
-  display: flex !important;
+  display: block !important;
 }
 
 .auth-split-wrapper{
   display: grid;
-  grid-template-columns: minmax(360px, 460px) minmax(320px, 420px);
-  max-width: 900px;
-  width: 100%;
-  background: linear-gradient(145deg, rgba(15, 23, 42, 0.95), rgba(7, 10, 24, 0.98)) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  border-radius: 32px !important;
-  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.05);
-  overflow: hidden;
+  grid-template-columns: 1.15fr 1fr;
+  min-height: 100vh;
+  min-height: 100dvh;
+  width: 100vw;
+  max-width: 100vw;
+  background: #060411;
+  overflow-x: hidden;
   position: relative;
-  margin: auto;
+  margin: 0;
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
+/* Form Side (Right in LTR, Left in RTL) */
 .auth-card-split{
   width: 100% !important;
-  max-width: 100% !important;
+  max-width: 480px !important;
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
-  padding: 32px 34px !important;
+  padding: 40px 24px !important;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   position: relative;
   z-index: 10;
+  margin: auto !important;
 }
 
-/* Cloud Mascot */
+/* Cloud Mascot (Vector SVG, zero raster background, 100% transparent) */
 .cloud-mascot-wrap{
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-bottom: 6px;
+  margin-bottom: 12px;
   position: relative;
 }
 .cloud-mascot{
   position: relative;
-  width: 175px;
-  height: 90px;
+  width: 200px;
+  height: 110px;
   animation: floatCloud 3.6s ease-in-out infinite;
   user-select: none;
+  background: transparent !important;
 }
 @keyframes floatCloud {
   0%, 100% { transform: translateY(0px); }
   50% { transform: translateY(-8px); }
 }
-.cloud-body-img{
+.cloud-svg{
   width: 100%;
   height: 100%;
-  object-fit: contain;
-  filter: drop-shadow(0 12px 24px rgba(56, 189, 248, 0.3));
-  pointer-events: none;
+  overflow: visible;
+  display: block;
 }
-.cloud-eyes{
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-.cloud-eye{
-  position: absolute;
-  top: 45%;
-  width: 18px;
-  height: 29px;
-  background: #ffffff;
-  border-radius: 50%;
-  overflow: hidden;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.18), 0 1px 3px rgba(0, 0, 0, 0.12);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.cloud-eye.left-eye{ left: 39%; }
-.cloud-eye.right-eye{ left: 56.5%; }
 
-.cloud-pupil{
-  width: 10px;
-  height: 10px;
-  background: #0f172a;
-  border-radius: 50%;
-  position: relative;
-  transition: transform 0.08s ease-out;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+/* Eye Sockets & Pupils */
+.eye-socket{
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease;
+  transform-origin: center;
 }
-.cloud-pupil::after{
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 3px;
-  height: 3px;
-  background: #ffffff;
-  border-radius: 50%;
+.eye-pupil{
+  transition: transform 0.08s ease-out, opacity 0.2s ease;
+  transform-origin: center;
 }
-.cloud-eyelid{
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 100%;
-  background: #7bb2db;
-  transform: scaleY(0);
-  transform-origin: top;
-  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.cloud-closed-arc{
-  position: absolute;
-  top: 36%;
-  left: 0;
-  right: 0;
-  margin: 0 auto;
+.eye-closed-arc{
   opacity: 0;
+  transform-origin: center;
   transform: scale(0.6);
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* Blinking */
-.cloud-mascot.blink .cloud-eyelid{
-  transform: scaleY(1);
-  transition: transform 0.09s ease;
+.cloud-mascot.blink .eye-socket{
+  transform: scaleY(0.08);
 }
-
-/* Password focused -> Shy closed eyes and cute peeking hands! */
-.cloud-mascot.cloud-eyes-closed .cloud-eyelid{
-  transform: scaleY(1);
-}
-.cloud-mascot.cloud-eyes-closed .cloud-pupil{
+.cloud-mascot.blink .eye-pupil{
   opacity: 0;
 }
-.cloud-mascot.cloud-eyes-closed .cloud-closed-arc{
+
+/* Password focused: Eyes close into happy arcs & cute hands cover them */
+.cloud-mascot.cloud-eyes-closed .eye-socket{
+  opacity: 0;
+  transform: scaleY(0.08);
+}
+.cloud-mascot.cloud-eyes-closed .eye-pupil{
+  opacity: 0;
+}
+.cloud-mascot.cloud-eyes-closed .eye-closed-arc{
   opacity: 1;
-  transform: scale(1);
+  transform: scale(1.15);
 }
 
-.cloud-hands{
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
+/* Cloud Hands Covering Eyes */
 .cloud-hand{
-  position: absolute;
-  width: 24px;
-  height: 24px;
-  background: #89bfe5;
-  border-radius: 50%;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.2), inset 0 2px 4px rgba(255,255,255,0.7);
-  bottom: 8%;
+  transform-origin: center;
+  transform: translateY(0px);
   opacity: 0;
-  transform: translateY(22px) scale(0.7);
-  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease;
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease;
 }
-.cloud-hand.left-hand{ left: 35%; }
-.cloud-hand.right-hand{ right: 35%; }
-
 .cloud-mascot.cloud-eyes-closed .cloud-hand{
   opacity: 1;
-  transform: translateY(0px) scale(1);
+  transform: translateY(-46px);
 }
 
 /* Form Typography & Elements */
 .auth-header-text{
   text-align: center;
-  margin-bottom: 20px;
+  margin-bottom: 22px;
 }
 .auth-header-text h2{
-  font-size: 24px !important;
+  font-size: 26px !important;
   font-weight: 800 !important;
   color: #ffffff !important;
   margin: 0 0 6px !important;
+  letter-spacing: -0.02em;
 }
 .auth-header-text p{
-  font-size: 13.5px !important;
+  font-size: 14px !important;
   color: #94a3b8 !important;
   margin: 0 !important;
   line-height: 1.6;
@@ -694,58 +642,59 @@ code{ font-family:"JetBrains Mono","Fira Code",ui-monospace,monospace; }
 .auth-card-split .social-login-grid{
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-bottom: 18px;
+  gap: 12px;
+  margin-bottom: 20px;
 }
 .auth-card-split .social-btn{
-  height: 44px;
+  height: 46px;
   background: rgba(255, 255, 255, 0.05) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
   border-radius: 14px !important;
   color: #f1f5f9 !important;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  font-size: 13.5px;
+  gap: 10px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .auth-card-split .social-btn:hover{
   background: rgba(255, 255, 255, 0.1) !important;
-  border-color: rgba(255, 255, 255, 0.2) !important;
+  border-color: rgba(255, 255, 255, 0.24) !important;
   transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
 }
 
 .auth-card-split .auth-divider{
   display: flex;
   align-items: center;
-  margin: 0 0 16px;
+  margin: 0 0 18px;
   color: #64748b;
-  font-size: 12px;
+  font-size: 12.5px;
 }
 .auth-card-split .auth-divider::before,
 .auth-card-split .auth-divider::after{
   content: '';
   flex: 1;
   height: 1px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.09);
 }
 .auth-card-split .auth-divider span{
-  padding: 0 12px;
+  padding: 0 14px;
 }
 
 .auth-card-split .auth-fields{
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-bottom: 14px;
+  gap: 14px;
+  margin-bottom: 16px;
 }
 .auth-field-group{
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
   text-align: start;
 }
 .auth-field-group label{
@@ -756,80 +705,83 @@ code{ font-family:"JetBrains Mono","Fira Code",ui-monospace,monospace; }
 .auth-card-split input[type="email"],
 .auth-card-split input[type="password"]{
   width: 100%;
-  height: 44px;
-  background: rgba(0, 0, 0, 0.3) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  border-radius: 12px !important;
-  padding: 0 14px !important;
+  height: 48px;
+  background: rgba(15, 23, 42, 0.6) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 14px !important;
+  padding: 0 16px !important;
   color: #ffffff !important;
-  font-size: 14px !important;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  font-size: 14.5px !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 .auth-card-split input[type="email"]:focus,
 .auth-card-split input[type="password"]:focus{
   outline: none !important;
-  border-color: #6366f1 !important;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25) !important;
+  background: rgba(15, 23, 42, 0.85) !important;
+  border-color: #818cf8 !important;
+  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.25) !important;
 }
 
 .auth-card-split .remember-row{
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   font-size: 13px;
   color: #94a3b8;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
   cursor: pointer;
 }
 .auth-card-split .remember-row input[type="checkbox"]{
   accent-color: #6366f1;
-  width: 16px;
-  height: 16px;
+  width: 17px;
+  height: 17px;
   cursor: pointer;
 }
 
 .auth-card-split .auth-actions{
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 .auth-card-split .submit-btn{
   width: 100%;
-  height: 46px;
+  height: 48px;
   background: linear-gradient(135deg, #6366f1, #8b5cf6, #ec4899) !important;
   border: none !important;
   border-radius: 14px !important;
   color: #ffffff !important;
-  font-weight: 700 !important;
-  font-size: 15px !important;
+  font-weight: 750 !important;
+  font-size: 15.5px !important;
   cursor: pointer;
-  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.35);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.38);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
 }
 .auth-card-split .submit-btn:hover{
   transform: translateY(-1px);
-  box-shadow: 0 12px 28px rgba(99, 102, 241, 0.45);
+  box-shadow: 0 12px 32px rgba(99, 102, 241, 0.5);
+  filter: brightness(1.05);
 }
 .auth-card-split .signup-toggle-btn{
   width: 100%;
-  height: 40px;
+  height: 42px;
   background: transparent !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
   border-radius: 14px !important;
   color: #94a3b8 !important;
   font-size: 13.5px !important;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 .auth-card-split .signup-toggle-btn:hover{
   background: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
   color: #ffffff !important;
 }
 
 .auth-card-split .auth-error{
-  margin-top: 10px;
-  padding: 8px 12px;
-  border-radius: 10px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
   font-size: 13px;
   background: rgba(239, 68, 68, 0.15);
   border: 1px solid rgba(239, 68, 68, 0.3);
@@ -840,32 +792,32 @@ code{ font-family:"JetBrains Mono","Fira Code",ui-monospace,monospace; }
   display: block;
 }
 .auth-card-split .auth-note{
-  margin-top: 14px;
-  font-size: 11.5px;
+  margin-top: 16px;
+  font-size: 12px;
   color: #64748b;
   text-align: center;
 }
 
-/* Right Side: Hero Banner (Image 1 match) */
+/* Visual Hero Banner (Full height Cosmic / Qjo AI Theme) */
 .auth-hero-banner{
   position: relative;
-  background: #020108;
-  padding: 44px 36px;
+  background: #060411;
+  padding: 64px 60px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  border-inline-start: 1px solid rgba(255, 255, 255, 0.08);
+  border-inline-end: 1px solid rgba(255, 255, 255, 0.08);
   overflow: hidden;
 }
-.auth-hero-banner::before{
-  content: '';
+.auth-hero-glow{
   position: absolute;
-  inset: -20px;
+  inset: -100px;
   background: 
-    radial-gradient(ellipse 90% 70% at 85% 30%, rgba(249, 115, 22, 0.45) 0%, transparent 60%),
-    radial-gradient(ellipse 80% 60% at 20% 75%, rgba(234, 88, 12, 0.35) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 50% at 50% 10%, rgba(139, 92, 246, 0.2) 0%, transparent 50%);
-  filter: blur(28px);
+    radial-gradient(ellipse 70% 60% at 30% 40%, rgba(99, 102, 241, 0.35) 0%, transparent 60%),
+    radial-gradient(ellipse 65% 55% at 75% 65%, rgba(168, 85, 247, 0.3) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 50% at 50% 15%, rgba(6, 182, 212, 0.2) 0%, transparent 55%),
+    radial-gradient(ellipse 40% 40% at 85% 25%, rgba(244, 63, 94, 0.18) 0%, transparent 50%);
+  filter: blur(48px);
   pointer-events: none;
 }
 .auth-hero-banner::after{
@@ -873,91 +825,118 @@ code{ font-family:"JetBrains Mono","Fira Code",ui-monospace,monospace; }
   position: absolute;
   inset: 0;
   background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.12) 1px, transparent 0);
-  background-size: 18px 18px;
-  opacity: 0.4;
+  background-size: 24px 24px;
+  opacity: 0.35;
   pointer-events: none;
 }
 .auth-hero-content{
   position: relative;
   z-index: 2;
+  max-width: 520px;
 }
 .auth-hero-brand{
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   font-weight: 800;
-  font-size: 17px;
+  font-size: 18px;
   color: #ffffff;
-  margin-bottom: 32px;
+  margin-bottom: 36px;
 }
 .brand-mark-mini{
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #f97316, #ea580c);
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #6366f1, #a855f7);
   display: grid;
   place-items: center;
   font-weight: 800;
   color: #fff;
-  font-size: 16px;
-  box-shadow: 0 4px 14px rgba(249, 115, 22, 0.4);
+  font-size: 18px;
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.45);
 }
 .auth-hero-title{
-  font-size: clamp(32px, 3.8vw, 44px);
+  font-size: clamp(38px, 4.4vw, 54px);
   font-weight: 900;
   line-height: 1.15;
   letter-spacing: -0.04em;
   color: #ffffff;
-  margin: 0 0 16px;
+  margin: 0 0 18px;
 }
 .auth-hero-title span{
-  background: linear-gradient(135deg, #f97316, #fb923c, #f43f5e);
+  background: linear-gradient(135deg, #818cf8, #c084fc, #f472b6);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 .auth-hero-desc{
-  font-size: 14.5px;
-  line-height: 1.7;
-  color: rgba(255, 255, 255, 0.75);
-  margin-bottom: 28px;
+  font-size: 16px;
+  line-height: 1.75;
+  color: rgba(255, 255, 255, 0.78);
+  margin-bottom: 36px;
 }
 .auth-hero-features{
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+  margin-bottom: 40px;
 }
 .hero-feature-item{
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 13.5px;
-  color: rgba(255, 255, 255, 0.88);
+  gap: 12px;
+  font-size: 14.5px;
+  color: rgba(255, 255, 255, 0.9);
 }
 .feature-dot{
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: #f97316;
-  box-shadow: 0 0 8px #f97316;
+  background: #a855f7;
+  box-shadow: 0 0 10px #a855f7;
   flex-shrink: 0;
+}
+.auth-hero-status{
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  border-radius: 100px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  font-weight: 600;
+  backdrop-filter: blur(12px);
+}
+.status-pulse{
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  animation: statusPulse 2s infinite;
+}
+@keyframes statusPulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
 }
 
 /* Mobile Responsiveness */
-@media (max-width: 820px) {
+@media (max-width: 900px) {
   .auth-split-wrapper{
     grid-template-columns: 1fr !important;
-    max-width: 440px !important;
-    border-radius: 26px !important;
   }
   .auth-hero-banner{
     display: none !important;
   }
   .auth-card-split{
-    padding: 24px 20px !important;
+    padding: 32px 20px !important;
+    max-width: 440px !important;
   }
   .cloud-mascot{
-    width: 155px;
-    height: 80px;
+    width: 170px;
+    height: 95px;
   }
 }

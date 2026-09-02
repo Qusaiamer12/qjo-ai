@@ -3381,9 +3381,7 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
           if (chatUnsubscribe) chatUnsubscribe();
           chatUnsubscribe = null;
           renderChatList([]);
-          if (!authError.textContent) {
-            setAuthMessage('سجّل دخولك للمتابعة. إذا كانت الجلسة لا تثبت، امسح بيانات الموقع من المتصفح ثم جرّب الدخول بالبريد الإلكتروني.');
-          }
+          setAuthMessage('');
         }
       }, inAuthGrace() ? 2500 : 350);
     }
@@ -4635,14 +4633,14 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
     setTimeout(rebindAvatarTrigger, 500);
     setTimeout(rebindAvatarTrigger, 1500);
 
-    // ---- Interactive Cloud Mascot (Eyes tracking, blinking, password shy closing) ----
+    // ---- Interactive Cloud Mascot (SVG vector, Eyes tracking, smooth blinking & shy password closing) ----
     function initCloudMascot() {
       const mascot = document.getElementById('cloudMascot');
       if (!mascot) return;
-      const leftPupil = mascot.querySelector('.left-eye .cloud-pupil');
-      const rightPupil = mascot.querySelector('.right-eye .cloud-pupil');
-      const leftEye = mascot.querySelector('.left-eye');
-      const rightEye = mascot.querySelector('.right-eye');
+      const leftPupil = mascot.querySelector('.left-pupil');
+      const rightPupil = mascot.querySelector('.right-pupil');
+      const leftEye = mascot.querySelector('.left-eye-group');
+      const rightEye = mascot.querySelector('.right-eye-group');
       const passwordInput = document.getElementById('authPassword');
 
       let isPasswordFocused = false;
@@ -4657,7 +4655,7 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
         const dist = Math.hypot(dx, dy);
         const maxDist = 4.5;
         const moveX = dist > 0 ? (dx / dist) * Math.min(dist, maxDist) : 0;
-        const moveY = dist > 0 ? (dy / dist) * Math.min(dist, maxDist * 1.3) : 0;
+        const moveY = dist > 0 ? (dy / dist) * Math.min(dist, maxDist * 1.2) : 0;
         pupil.style.transform = `translate(${moveX}px, ${moveY}px)`;
       }
 
@@ -4668,18 +4666,20 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
         }
       }, { passive: true });
 
-      // Blink periodically every 3.6s
+      // Blink periodically every 3.5s
       setInterval(() => {
         if (isPasswordFocused) return;
         mascot.classList.add('blink');
         setTimeout(() => mascot.classList.remove('blink'), 180);
-      }, 3600);
+      }, 3500);
 
-      // Password field focus -> eyes close tight & hands peek up!
+      // Password input focus -> eyes smoothly close into happy arcs & hands cover up!
       if (passwordInput) {
         passwordInput.addEventListener('focus', () => {
           isPasswordFocused = true;
           mascot.classList.add('cloud-eyes-closed');
+          if (leftPupil) leftPupil.style.transform = '';
+          if (rightPupil) rightPupil.style.transform = '';
         });
         passwordInput.addEventListener('blur', () => {
           isPasswordFocused = false;
