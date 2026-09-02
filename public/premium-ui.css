@@ -722,6 +722,32 @@ code{ font-family:"JetBrains Mono","Fira Code",ui-monospace,monospace; }
   box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.25) !important;
 }
 
+.auth-input-wrap{
+  position: relative;
+  width: 100%;
+}
+.toggle-password-btn{
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease;
+}
+.toggle-password-btn:hover{
+  color: #c7d2fe;
+}
+.auth-input-wrap input{
+  padding-left: 42px !important;
+}
+
 .auth-card-split .remember-row{
   display: flex;
   align-items: center;
@@ -837,31 +863,175 @@ code{ font-family:"JetBrains Mono","Fira Code",ui-monospace,monospace; }
 .auth-hero-brand{
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   font-weight: 800;
-  font-size: 18px;
+  font-size: 20px;
   color: #ffffff;
-  margin-bottom: 36px;
+  margin-bottom: 24px;
 }
-.brand-mark-mini{
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #6366f1, #a855f7);
-  display: grid;
-  place-items: center;
+.brand-logo-img{
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 14px rgba(99, 102, 241, 0.45));
+}
+.brand-logo-text{
+  font-size: 22px;
   font-weight: 800;
-  color: #fff;
-  font-size: 18px;
-  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.45);
+  letter-spacing: -0.02em;
+  color: #ffffff;
 }
+
+/* User's logo on Form side */
+.auth-form-brand-badge{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 auto 10px;
+  padding: 5px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 100px;
+  color: #cbd5e1;
+  font-size: 13px;
+  font-weight: 600;
+}
+.auth-card-logo{
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+/* Interactive Human-Crafted Code/Chat Showcase Card */
+.auth-preview-card{
+  background: rgba(13, 17, 28, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  margin-bottom: 28px;
+  overflow: hidden;
+}
+.preview-card-header{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.preview-dots{
+  display: flex;
+  gap: 6px;
+}
+.p-dot{
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+.p-dot.red{ background: #ef4444; }
+.p-dot.yellow{ background: #f59e0b; }
+.p-dot.green{ background: #10b981; }
+.preview-card-title{
+  font-size: 11.5px;
+  color: #64748b;
+  font-family: "JetBrains Mono", monospace;
+  direction: ltr;
+}
+.preview-card-body{
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.preview-msg{
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.preview-msg.user .role-badge{
+  font-size: 11px;
+  font-weight: 700;
+  color: #818cf8;
+}
+.preview-msg.user .msg-txt{
+  font-size: 13.5px;
+  color: #f1f5f9;
+}
+.preview-msg.ai .ai-header{
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.mini-qjo-avatar{
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+.ai-name{
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #c084fc;
+}
+.ai-tag{
+  font-size: 10px;
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+.code-preview{
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 9px 12px;
+}
+.code-preview code{
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12.5px;
+  color: #38bdf8;
+  direction: ltr;
+  display: block;
+}
+
+.auth-hero-meta{
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.hero-meta-item{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  color: #94a3b8;
+}
+.hero-meta-item svg{
+  color: #818cf8;
+}
+
+.social-btn.google-btn{
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+}
+.social-btn.google-btn:hover{
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(66, 133, 244, 0.5) !important;
+  box-shadow: 0 6px 20px rgba(66, 133, 244, 0.2) !important;
+}
+.google-icon{
+  flex-shrink: 0;
+}
+
 .auth-hero-title{
   font-size: clamp(38px, 4.4vw, 54px);
   font-weight: 900;
   line-height: 1.15;
   letter-spacing: -0.04em;
   color: #ffffff;
-  margin: 0 0 18px;
+  margin: 0 0 16px;
 }
 .auth-hero-title span{
   background: linear-gradient(135deg, #818cf8, #c084fc, #f472b6);
@@ -870,57 +1040,10 @@ code{ font-family:"JetBrains Mono","Fira Code",ui-monospace,monospace; }
   color: transparent;
 }
 .auth-hero-desc{
-  font-size: 16px;
+  font-size: 15.5px;
   line-height: 1.75;
   color: rgba(255, 255, 255, 0.78);
-  margin-bottom: 36px;
-}
-.auth-hero-features{
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  margin-bottom: 40px;
-}
-.hero-feature-item{
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 14.5px;
-  color: rgba(255, 255, 255, 0.9);
-}
-.feature-dot{
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #a855f7;
-  box-shadow: 0 0 10px #a855f7;
-  flex-shrink: 0;
-}
-.auth-hero-status{
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 16px;
-  border-radius: 100px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 13px;
-  font-weight: 600;
-  backdrop-filter: blur(12px);
-}
-.status-pulse{
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #10b981;
-  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
-  animation: statusPulse 2s infinite;
-}
-@keyframes statusPulse {
-  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-  70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
-  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+  margin-bottom: 26px;
 }
 
 /* Mobile Responsiveness */

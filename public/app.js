@@ -4686,6 +4686,16 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
           mascot.classList.remove('cloud-eyes-closed');
         });
       }
+
+      const togglePassBtn = document.getElementById('togglePasswordVisibility');
+      if (togglePassBtn && passwordInput) {
+        togglePassBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const isPass = passwordInput.type === 'password';
+          passwordInput.type = isPass ? 'text' : 'password';
+          togglePassBtn.setAttribute('aria-pressed', isPass ? 'true' : 'false');
+        });
+      }
     }
     initCloudMascot();
     setTimeout(initCloudMascot, 300);
