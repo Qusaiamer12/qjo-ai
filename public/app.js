@@ -488,10 +488,58 @@ function openAdminDirect() {
 
 </system_instructions>
 `;
-const QJO_FRONTEND_VERSION = 'qjo-required-fixes-v1-2026-07-26-117';
+const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     console.info('Qjo frontend version:', QJO_FRONTEND_VERSION);
 
     const el = (id) => document.getElementById(id);
+
+    // Tiny UX helpers — warm toast, shuffle, sparkles, confetti dots
+    function shuffle(arr){ const a=[...arr]; for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+    function showMicroToast(text){
+      const t=document.createElement('div');
+      t.textContent=text;
+      t.style.cssText='position:fixed;bottom:92px;left:50%;transform:translateX(-50%) translateY(12px);background:linear-gradient(135deg,#123B7A,#7B3FE4);color:#fff;padding:10px 18px;border-radius:999px;font-weight:600;font-size:13px;box-shadow:0 18px 40px rgba(123,63,228,.35);z-index:9999;opacity:0;transition:all .35s cubic-bezier(.3,1.4,.4,1);pointer-events:none;';
+      document.body.appendChild(t);
+      requestAnimationFrame(()=>{ t.style.opacity='1'; t.style.transform='translateX(-50%) translateY(0)'; });
+      setTimeout(()=>{ t.style.opacity='0'; t.style.transform='translateX(-50%) translateY(10px)'; setTimeout(()=>t.remove(),400); }, 1700);
+    }
+    function sprinkleWelcomeConfetti(){
+      const w = document.getElementById('welcome'); if(!w) return;
+      const colors=['#38C7DD','#7B3FE4','#FFB86B','#FF7A94','#123B7A'];
+      for(let i=0;i<10;i++){
+        const d=document.createElement('span');
+        d.className='welcome-confetti';
+        d.style.background=colors[i%colors.length];
+        d.style.top=(10+Math.random()*70)+'%';
+        d.style.left=(Math.random()*94)+'%';
+        d.style.animationDelay=(Math.random()*3)+'s';
+        d.style.animationDuration=(3.5+Math.random()*2)+'s';
+        d.style.transform=`rotate(${Math.random()*360}deg)`;
+        w.appendChild(d);
+      }
+    }
+    function installTypingSparkle(){
+      const input = document.getElementById('input');
+      if(!input) return;
+      let t;
+      input.addEventListener('input', () => {
+        document.body.classList.add('typing-active');
+        clearTimeout(t);
+        t = setTimeout(()=>document.body.classList.remove('typing-active'), 900);
+      });
+    }
+    // Suggestion click "pop" feedback
+    function installSuggestionPop(){
+      document.querySelectorAll('.suggestion').forEach(btn=>{
+        btn.addEventListener('click', () => {
+          btn.animate([
+            { transform:'translateY(-4px) scale(1)' },
+            { transform:'translateY(-4px) scale(.96)' },
+            { transform:'translateY(-4px) scale(1.02)' }
+          ],{ duration:280, easing:'cubic-bezier(.3,1.4,.4,1)' });
+        });
+      });
+    }
 
     const messagesEl = el('messages');
     const messagesInner = el('messagesInner');
@@ -1665,6 +1713,37 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
         }
       }
       wrap.appendChild(bubble);
+
+      // Friendly reaction bar (like / love / helpful) — non-AI, feels lively
+      if (role === 'assistant' && !String(extraClass || '').includes('error')) {
+        const reactions = document.createElement('div');
+        reactions.className = 'msg-reactions';
+        const react = (emoji, title) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.title = title;
+          b.textContent = emoji;
+          b.addEventListener('click', () => {
+            b.classList.toggle('reacted');
+            b.animate([
+              { transform: 'scale(1)' },
+              { transform: 'scale(1.5) rotate(-12deg)' },
+              { transform: 'scale(1.15)' }
+            ], { duration: 380, easing: 'cubic-bezier(.3,1.5,.4,1)' });
+            // tiny feedback toast
+            showMicroToast(shuffle([
+              'شكرًا 🙌','تمام، انتبهت 👌','يسعدني ذلك ✨','رائع! 🎉','تكرم عينك 💜','تمام، سآخذ بالحسبان 👀'
+            ])[0]);
+          });
+          return b;
+        };
+        reactions.appendChild(react('👍', qjoLanguage === 'ar' ? 'إجابة ممتازة' : 'Good answer'));
+        reactions.appendChild(react('💜', qjoLanguage === 'ar' ? 'أعجبتني' : 'Love it'));
+        reactions.appendChild(react('✨', qjoLanguage === 'ar' ? 'مفيدة' : 'Helpful'));
+        reactions.appendChild(react('🔁', qjoLanguage === 'ar' ? 'أعد الصياغة أقصر' : 'Regenerate shorter'));
+        wrap.appendChild(reactions);
+      }
+
       if (role === 'assistant' && !String(extraClass || '').includes('error')) {
         const actions = document.createElement('div');
         actions.className = 'export-actions';
@@ -4186,3 +4265,8 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
     updateRuntimeStatus();
     updateTrainingStatus();
     safeFocusComposer();
+    sprinkleWelcomeConfetti();
+    installTypingSparkle();
+    installSuggestionPop();
+    // Re-wire suggestion pop if suggestions re-render (they don't, but safe)
+    setTimeout(installSuggestionPop, 400);
