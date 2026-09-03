@@ -4885,18 +4885,31 @@ body:not(.dark) .composer textarea::placeholder {
     -webkit-text-fill-color: #ffffff !important;
   }
 
-  .assistant .bubble,
-  .assistant .bubble p,
-  .assistant .bubble li,
-  .assistant .bubble td,
-  .assistant .bubble th,
-  .assistant .bubble h2,
-  .assistant .bubble h3,
-  .assistant .bubble h4,
-  .msg.assistant .bubble,
-  .msg.assistant .bubble * {
+  body.dark .assistant .bubble,
+  body.dark .assistant .bubble p,
+  body.dark .assistant .bubble li,
+  body.dark .assistant .bubble td,
+  body.dark .assistant .bubble th,
+  body.dark .assistant .bubble h2,
+  body.dark .assistant .bubble h3,
+  body.dark .assistant .bubble h4,
+  body.dark .msg.assistant .bubble,
+  body.dark .msg.assistant .bubble * {
     color: #f8fafc !important;
     -webkit-text-fill-color: #f8fafc !important;
+  }
+
+  body:not(.dark) .assistant .bubble,
+  body:not(.dark) .assistant .bubble p,
+  body:not(.dark) .assistant .bubble li,
+  body:not(.dark) .assistant .bubble td,
+  body:not(.dark) .assistant .bubble th,
+  body:not(.dark) .assistant .bubble h2,
+  body:not(.dark) .assistant .bubble h3,
+  body:not(.dark) .assistant .bubble h4,
+  body:not(.dark) .msg.assistant .bubble {
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
   }
 }
 
@@ -5091,10 +5104,24 @@ body:not(.dark) .composer textarea::placeholder {
     box-shadow: 0 18px 44px rgba(0,0,0,.22) !important;
   }
 
-  .assistant .bubble,
-  .assistant .bubble * {
+  body.dark .assistant .bubble,
+  body.dark .assistant .bubble * {
     color: #f8fafc !important;
     -webkit-text-fill-color: #f8fafc !important;
+  }
+
+  body:not(.dark) .assistant .bubble {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid rgba(15, 42, 80, .12) !important;
+  }
+
+  body:not(.dark) .assistant .bubble,
+  body:not(.dark) .assistant .bubble p,
+  body:not(.dark) .assistant .bubble li,
+  body:not(.dark) .assistant .bubble span:not(.qjo-typing-cursor):not(.tool-check) {
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
   }
 
   .assistant .bubble a { color: #7dd3fc !important; -webkit-text-fill-color: #7dd3fc !important; }

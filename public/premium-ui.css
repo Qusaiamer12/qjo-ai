@@ -463,10 +463,134 @@ body.sidebar-collapsed .quick-command-cats,
 body.sidebar-collapsed .quick-suggestions-panel{ max-width:860px !important; margin-inline:auto !important; }
 body.sidebar-collapsed .topbar{ padding-inline:32px !important; }
 
-/* ===== Code / thinking / other elements ===== */
-pre{ background:color-mix(in srgb,#000 35%,var(--qjo-bg-0)) !important; border:1px solid rgba(255,255,255,0.08) !important; border-radius:14px; padding:14px 16px; overflow-x:auto; color:#e2e8f0 !important; }
-code{ font-family:"JetBrains Mono","Fira Code",ui-monospace,monospace; }
-:not(pre)>code{ background:color-mix(in srgb,var(--qjo-accent) 15%,transparent) !important; color:var(--qjo-text) !important; padding:2px 7px; border-radius:6px; font-size:13px; }
+/* ===== Universal High-Contrast Code Block Architecture (Dark & Light) ===== */
+.code-block-wrapper {
+  margin: 14px 0 18px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.25) !important;
+  background: #0d1117 !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  direction: ltr !important;
+}
+
+.code-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  background: #161b22 !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+  font-family: "JetBrains Mono", Consolas, monospace;
+}
+
+.code-block-lang {
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #8b949e !important;
+  -webkit-text-fill-color: #8b949e !important;
+  letter-spacing: 0.05em;
+}
+
+.copy-code-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #c9d1d9 !important;
+  -webkit-text-fill-color: #c9d1d9 !important;
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.copy-code-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.copy-code-btn.copied {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #34d399 !important;
+  -webkit-text-fill-color: #34d399 !important;
+}
+
+.bubble pre,
+pre,
+.msg.assistant .bubble pre,
+body:not(.dark) .bubble pre,
+body:not(.dark) pre,
+body.dark .bubble pre {
+  background: #0d1117 !important;
+  border: 1px solid rgba(148, 163, 184, 0.25) !important;
+  border-radius: 12px !important;
+  padding: 14px 16px !important;
+  margin: 12px 0 16px !important;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25) !important;
+  direction: ltr !important;
+  text-align: left !important;
+  color: #e6edf3 !important;
+  -webkit-text-fill-color: #e6edf3 !important;
+}
+
+.code-block-wrapper pre {
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.bubble pre code,
+pre code,
+.msg.assistant .bubble pre code,
+.bubble pre *,
+pre * {
+  color: #e6edf3 !important;
+  -webkit-text-fill-color: #e6edf3 !important;
+  font-family: "JetBrains Mono", "Fira Code", Consolas, Monaco, monospace !important;
+  font-size: 13.5px !important;
+  line-height: 1.65 !important;
+  background: transparent !important;
+}
+
+/* Inline code tags (:not(pre) > code) */
+body:not(.dark) :not(pre) > code,
+body:not(.dark) .assistant .bubble :not(pre) > code,
+body:not(.dark) .bubble :not(pre) > code {
+  background: #eef2ff !important;
+  color: #4338ca !important;
+  -webkit-text-fill-color: #4338ca !important;
+  border: 1px solid #c7d2fe !important;
+  border-radius: 5px;
+  padding: 2px 6px;
+  font-family: "JetBrains Mono", "Fira Code", monospace !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+
+body.dark :not(pre) > code,
+:not(pre) > code,
+.bubble :not(pre) > code {
+  background: rgba(139, 92, 246, 0.18) !important;
+  color: #c4b5fd !important;
+  -webkit-text-fill-color: #c4b5fd !important;
+  border: 1px solid rgba(139, 92, 246, 0.3) !important;
+  border-radius: 6px !important;
+  padding: 2px 7px !important;
+  font-family: "JetBrains Mono", "Fira Code", monospace !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+
 .thinking-block{ max-width:780px; margin:10px auto; width:calc(100% - 48px); background:color-mix(in srgb,var(--qjo-accent) 8%,transparent) !important; border:1px dashed color-mix(in srgb,var(--qjo-accent) 30%,transparent) !important; border-radius:16px; padding:12px 16px; color:var(--qjo-muted) !important; font-size:13.5px; font-style:italic; }
 .toast, .micro-toast{ background:var(--qjo-glass-strong) !important; border:1px solid var(--qjo-border-strong) !important; color:var(--qjo-text) !important; border-radius:14px; padding:10px 16px; backdrop-filter:blur(16px); box-shadow:0 14px 36px rgba(0,0,0,.25); }
 #connectionStatusDot{ width:8px; height:8px; border-radius:50%; background:#10b981; box-shadow:0 0 0 3px rgba(16,185,129,0.2); }
@@ -1315,4 +1439,464 @@ body:not(.dark) .qjo-reasoning-step {
   background: rgba(37, 99, 235, 0.32);
   color: #ffffff;
   border-color: rgba(96, 165, 250, 0.55);
+}
+
+/* =========================================================
+   Qjo Mobile Master Redesign (ChatGPT / Gemini Grade Experience)
+   ========================================================= */
+
+/* Desktop defaults: Hide mobile notch & sheet */
+.mobile-tools-notch,
+.mobile-tools-sheet,
+.mobile-tools-sheet-backdrop {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  /* 1. Global Viewport & Container Reset for Mobile Browsers */
+  html, body {
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+    max-height: 100dvh !important;
+    overflow: hidden !important;
+    position: fixed !important;
+    width: 100vw !important;
+  }
+
+  .app-shell {
+    height: 100dvh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+  }
+
+  .main-content {
+    height: 100dvh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+  }
+
+  .chat-area {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    position: relative !important;
+  }
+
+  .messages {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 10px 8px 85px !important;
+    scrollbar-width: none;
+  }
+  .messages::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* 2. Hide Inline Clutter From Mobile Composer Shell */
+  .composer-shell .composer-function-toggles,
+  .composer-shell .quick-command-cats {
+    display: none !important;
+  }
+
+  /* 3. Sleek Floating Mobile Composer (Like ChatGPT / Gemini) */
+  .composer-wrap {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    margin: 0 !important;
+    padding: 6px 10px calc(8px + env(safe-area-inset-bottom, 8px)) !important;
+    background: rgba(10, 8, 24, 0.88) !important;
+    backdrop-filter: blur(24px) saturate(190%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(190%) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+    z-index: 90 !important;
+    box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.3) !important;
+  }
+
+  body:not(.dark) .composer-wrap {
+    background: rgba(255, 255, 255, 0.92) !important;
+    border-top: 1px solid rgba(15, 23, 42, 0.08) !important;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.05) !important;
+  }
+
+  .composer-shell {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .composer {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    background: rgba(255, 255, 255, 0.07) !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    border-radius: 26px !important;
+    padding: 5px 8px 5px 14px !important;
+    min-height: 48px !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15) !important;
+  }
+
+  body:not(.dark) .composer {
+    background: #ffffff !important;
+    border: 1px solid rgba(15, 23, 42, 0.12) !important;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06) !important;
+  }
+
+  .composer textarea#input {
+    flex: 1 1 auto !important;
+    border: none !important;
+    background: transparent !important;
+    min-height: 24px !important;
+    max-height: 110px !important;
+    font-size: 15px !important;
+    line-height: 1.45 !important;
+    padding: 6px 0 !important;
+    margin: 0 !important;
+    color: #f8fafc !important;
+    -webkit-text-fill-color: #f8fafc !important;
+    resize: none !important;
+  }
+
+  body:not(.dark) .composer textarea#input {
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
+  }
+
+  .composer textarea#input::placeholder {
+    font-size: 14.5px !important;
+    color: rgba(148, 163, 184, 0.75) !important;
+    -webkit-text-fill-color: rgba(148, 163, 184, 0.75) !important;
+  }
+
+  .composer-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    margin: 0 !important;
+  }
+
+  .composer-actions button {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+    border-radius: 50% !important;
+    display: grid !important;
+    place-items: center !important;
+    padding: 0 !important;
+  }
+
+  .send-btn {
+    background: linear-gradient(135deg, #7c3aed, #a855f7) !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 10px rgba(124, 58, 237, 0.4) !important;
+  }
+
+  /* 4. Floating Mobile Tools Notch (ChatGPT / Gemini style) */
+  .mobile-tools-notch {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 5px;
+    position: fixed !important;
+    bottom: calc(66px + env(safe-area-inset-bottom, 8px)) !important;
+    inset-inline-start: 12px !important;
+    z-index: 92 !important;
+    padding: 6px 13px !important;
+    border-radius: 999px !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    background: rgba(15, 23, 42, 0.88) !important;
+    border: 1px solid rgba(139, 92, 246, 0.4) !important;
+    color: #e2e8f0 !important;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35), 0 0 14px rgba(139, 92, 246, 0.25) !important;
+    backdrop-filter: blur(16px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+    cursor: pointer;
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s;
+  }
+
+  .mobile-tools-notch:active {
+    transform: scale(0.94);
+  }
+
+  body:not(.dark) .mobile-tools-notch {
+    background: rgba(255, 255, 255, 0.94) !important;
+    color: #4f46e5 !important;
+    border-color: rgba(99, 102, 241, 0.35) !important;
+    box-shadow: 0 4px 18px rgba(99, 102, 241, 0.2) !important;
+  }
+
+  .notch-icon {
+    font-size: 13px;
+  }
+
+  .notch-indicator {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #a855f7;
+    box-shadow: 0 0 8px #a855f7;
+    display: none;
+  }
+
+  .notch-indicator.active {
+    display: inline-block !important;
+    animation: qjo-pulse-indicator 1.5s infinite;
+  }
+
+  @keyframes qjo-pulse-indicator {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  /* 5. Mobile Tools Bottom Sheet / Drawer */
+  .mobile-tools-sheet-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 105;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+
+  .mobile-tools-sheet-backdrop.show {
+    display: block !important;
+    opacity: 1 !important;
+  }
+
+  .mobile-tools-sheet {
+    display: flex !important;
+    flex-direction: column !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    max-height: 82vh !important;
+    background: #0d111e !important;
+    border-top: 1px solid rgba(148, 163, 184, 0.2) !important;
+    border-radius: 24px 24px 0 0 !important;
+    padding: 12px 16px calc(24px + env(safe-area-inset-bottom, 12px)) !important;
+    z-index: 110 !important;
+    transform: translateY(105%) !important;
+    transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.5) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  body:not(.dark) .mobile-tools-sheet {
+    background: #ffffff !important;
+    border-top: 1px solid rgba(15, 23, 42, 0.12) !important;
+    box-shadow: 0 -12px 36px rgba(0, 0, 0, 0.15) !important;
+  }
+
+  .mobile-tools-sheet.show {
+    transform: translateY(0) !important;
+  }
+
+  .sheet-drag-handle {
+    width: 40px;
+    height: 4px;
+    background: rgba(148, 163, 184, 0.4);
+    border-radius: 999px;
+    margin: 0 auto 12px;
+  }
+
+  .sheet-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  }
+
+  .sheet-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 750;
+    color: #f8fafc;
+  }
+
+  body:not(.dark) .sheet-title {
+    color: #0f172a;
+  }
+
+  .sheet-close-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    color: #94a3b8;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  body:not(.dark) .sheet-close-btn {
+    background: rgba(15, 23, 42, 0.06);
+    color: #475569;
+  }
+
+  .sheet-section-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #818cf8;
+    margin: 14px 0 8px;
+  }
+
+  body:not(.dark) .sheet-section-title {
+    color: #6366f1;
+  }
+
+  /* Sheet Toggles Grid */
+  .sheet-toggles-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .sheet-toggle-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 14px;
+    cursor: pointer;
+    text-align: start;
+    transition: all 0.2s ease;
+  }
+
+  body:not(.dark) .sheet-toggle-card {
+    background: rgba(15, 23, 42, 0.03);
+    border-color: rgba(15, 23, 42, 0.1);
+  }
+
+  .sheet-toggle-card.active {
+    background: rgba(124, 58, 237, 0.16) !important;
+    border-color: rgba(139, 92, 246, 0.45) !important;
+    box-shadow: 0 0 12px rgba(139, 92, 246, 0.25);
+  }
+
+  .sheet-toggle-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .sheet-toggle-info {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .sheet-toggle-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #f8fafc;
+  }
+
+  body:not(.dark) .sheet-toggle-name {
+    color: #0f172a;
+  }
+
+  .sheet-toggle-desc {
+    font-size: 10.5px;
+    color: #94a3b8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .sheet-toggle-switch {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid rgba(148, 163, 184, 0.4);
+    flex-shrink: 0;
+  }
+
+  .sheet-toggle-card.active .sheet-toggle-switch {
+    background: #a855f7;
+    border-color: #a855f7;
+    box-shadow: 0 0 8px #a855f7;
+  }
+
+  /* Sheet Categories Grid */
+  .sheet-cats-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .sheet-cat-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    color: #e2e8f0;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  body:not(.dark) .sheet-cat-chip {
+    background: rgba(15, 23, 42, 0.04);
+    border-color: rgba(15, 23, 42, 0.12);
+    color: #1e293b;
+  }
+
+  .sheet-cat-chip:hover,
+  .sheet-cat-chip:active {
+    background: rgba(124, 58, 237, 0.2);
+    border-color: rgba(139, 92, 246, 0.4);
+    color: #ffffff;
+  }
+
+  /* 6. Message Bubble Refinements for Mobile */
+  .msg {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 6px 0 !important;
+    padding: 0 6px !important;
+  }
+
+  .bubble {
+    max-width: 90% !important;
+    font-size: 14.5px !important;
+    line-height: 1.65 !important;
+    padding: 12px 14px !important;
+    border-radius: 18px !important;
+  }
+
+  .topbar {
+    padding: 8px 12px !important;
+    min-height: 52px !important;
+  }
 }

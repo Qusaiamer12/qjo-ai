@@ -794,7 +794,21 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
           const placeholder = `<div class="interactive-quiz-container" id="quiz-instance-${id}" data-quiz-config="${quizDataEscaped}"></div>`;
           codeBlocks.push(placeholder);
         } else {
-          codeBlocks.push(`<pre><code class="language-${lang || 'text'}">${code.trim()}</code></pre>`);
+          const langDisplay = (lang || 'code').toLowerCase();
+          const codeEscaped = encodeURIComponent(code.trim());
+          const placeholder = `
+            <div class="code-block-wrapper">
+              <div class="code-block-header">
+                <span class="code-block-lang">${escapeHtml(langDisplay)}</span>
+                <button type="button" class="copy-code-btn" data-code="${codeEscaped}">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                  <span>${qjoLanguage === 'ar' ? 'نسخ' : 'Copy'}</span>
+                </button>
+              </div>
+              <pre><code class="language-${escapeHtml(langDisplay)}">${escapeHtml(code.trim())}</code></pre>
+            </div>
+          `.trim();
+          codeBlocks.push(placeholder);
         }
         return `@@CODE_BLOCK_${id}@@`;
       });
@@ -1621,6 +1635,33 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
       });
     }
 
+    function initializeCodeBlockCopyButtons(element) {
+      if (!element) return;
+      element.querySelectorAll('.copy-code-btn').forEach(btn => {
+        if (btn.dataset.initialized) return;
+        btn.dataset.initialized = 'true';
+        btn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          try {
+            const rawCode = decodeURIComponent(btn.dataset.code || '');
+            const ok = await copyTextToClipboard(rawCode);
+            const span = btn.querySelector('span');
+            if (ok && span) {
+              const origText = span.textContent;
+              span.textContent = qjoLanguage === 'ar' ? 'تم النسخ ✓' : 'Copied ✓';
+              btn.classList.add('copied');
+              setTimeout(() => {
+                span.textContent = origText;
+                btn.classList.remove('copied');
+              }, 1800);
+            }
+          } catch (err) {
+            console.warn('Copy code failed:', err);
+          }
+        });
+      });
+    }
+
     function initializeQuizzesInElement(element) {
       const containers = element.querySelectorAll('.interactive-quiz-container');
       containers.forEach(container => {
@@ -1777,6 +1818,7 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
         typesetMath(bubble);
         initializeChartsInElement(bubble);
         initializeTableExportsInElement(bubble);
+        initializeCodeBlockCopyButtons(bubble);
         initializeQuizzesInElement(bubble);
         if (typeof mermaid !== 'undefined') {
           try {
@@ -3362,6 +3404,7 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
           typesetMath(bubble);
           initializeChartsInElement(bubble);
           initializeTableExportsInElement(bubble);
+          initializeCodeBlockCopyButtons(bubble);
           initializeQuizzesInElement(bubble);
           if (typeof mermaid !== 'undefined') {
             try {
@@ -4952,3 +4995,107 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
     }
     initCloudMascot();
     setTimeout(initCloudMascot, 300);
+
+    // --- Mobile Side Notch & Tools Drawer (ChatGPT / Gemini style) ---
+    function installMobileToolsNotch() {
+      const notch = document.getElementById('mobileToolsNotch');
+      const sheet = document.getElementById('mobileToolsSheet');
+      const backdrop = document.getElementById('mobileToolsBackdrop');
+      const closeBtn = document.getElementById('closeToolsSheetBtn');
+      const togglesGrid = document.getElementById('mobileSheetToggles');
+      const catsGrid = document.getElementById('mobileSheetCats');
+      const indicator = document.getElementById('notchIndicator');
+
+      if (!notch || !sheet || !backdrop) return;
+
+      const toggleDefs = [
+        { id: 'toggleSearch', icon: '🔍', title: 'بحث في الويب', desc: 'معلومات حية ومصادر' },
+        { id: 'toggleDeep', icon: '🎯', title: 'بحث عميق', desc: 'تحليل دقيق وموسع' },
+        { id: 'toggleReason', icon: '🧠', title: 'تفكير منطقي', desc: 'استدلال تسلسلي عميق' },
+        { id: 'togglePolish', icon: '🖋️', title: 'صياغة أدبية', desc: 'فصاحة وبلاغة وتنسيق' }
+      ];
+
+      function updateIndicator() {
+        const anyActive = toggleDefs.some(t => document.getElementById(t.id)?.classList.contains('active'));
+        if (indicator) indicator.classList.toggle('active', anyActive);
+      }
+
+      function renderSheetToggles() {
+        if (!togglesGrid) return;
+        togglesGrid.innerHTML = '';
+        toggleDefs.forEach(def => {
+          const origBtn = document.getElementById(def.id);
+          const isActive = Boolean(origBtn?.classList.contains('active'));
+          const item = document.createElement('button');
+          item.type = 'button';
+          item.className = 'sheet-toggle-card' + (isActive ? ' active' : '');
+          item.innerHTML = `
+            <div class="sheet-toggle-icon">${def.icon}</div>
+            <div class="sheet-toggle-info">
+              <span class="sheet-toggle-name">${def.title}</span>
+              <span class="sheet-toggle-desc">${def.desc}</span>
+            </div>
+            <div class="sheet-toggle-switch"></div>
+          `;
+          item.addEventListener('click', () => {
+            if (origBtn) origBtn.click();
+            const nowActive = Boolean(origBtn?.classList.contains('active'));
+            item.classList.toggle('active', nowActive);
+            updateIndicator();
+          });
+          togglesGrid.appendChild(item);
+        });
+        updateIndicator();
+      }
+
+      function renderSheetCats() {
+        if (!catsGrid) return;
+        catsGrid.innerHTML = '';
+        const origCats = document.querySelectorAll('.quick-command-cats .quick-cat-btn');
+        origCats.forEach(catBtn => {
+          const cat = catBtn.dataset.cat;
+          const label = catBtn.querySelector('span')?.textContent || '';
+          const iconSvg = catBtn.querySelector('svg')?.outerHTML || '⚡';
+          const item = document.createElement('button');
+          item.type = 'button';
+          item.className = 'sheet-cat-chip';
+          item.innerHTML = `${iconSvg}<span>${label}</span>`;
+          item.addEventListener('click', () => {
+            catBtn.click();
+            closeSheet();
+            inputEl?.focus();
+          });
+          catsGrid.appendChild(item);
+        });
+      }
+
+      function openSheet() {
+        renderSheetToggles();
+        renderSheetCats();
+        sheet.classList.add('show');
+        backdrop.classList.add('show');
+        document.body.classList.add('sheet-open');
+      }
+
+      function closeSheet() {
+        sheet.classList.remove('show');
+        backdrop.classList.remove('show');
+        document.body.classList.remove('sheet-open');
+      }
+
+      notch.addEventListener('click', openSheet);
+      if (closeBtn) closeBtn.addEventListener('click', closeSheet);
+      backdrop.addEventListener('click', closeSheet);
+
+      // Listen for toggle changes from any source
+      toggleDefs.forEach(def => {
+        const origBtn = document.getElementById(def.id);
+        if (origBtn) {
+          const obs = new MutationObserver(() => updateIndicator());
+          obs.observe(origBtn, { attributes: true, attributeFilter: ['class'] });
+        }
+      });
+      updateIndicator();
+    }
+    installMobileToolsNotch();
+    setTimeout(installMobileToolsNotch, 400);
