@@ -175,6 +175,49 @@
 
 
 /* ---------------------------------------------------------------------------
+   3d. Table contrast fix inside assistant bubbles
+   ---------------------------------------------------------------------------
+   `.md-table-wrap` / `.md-table th` paint their background from semantic
+   theme variables (--ui-surface / --ui-muted-surface), while a later patch
+   force-sets the *text* color of td/th straight to near-white (dark mode) or
+   near-black (light mode) to match the bubble. When the variable-based
+   background doesn't track that same override, text and background end up
+   nearly the same color (e.g. near-white text on a near-white cell), so the
+   table becomes unreadable. Pin both background and text explicitly per
+   theme so they can never drift apart again.
+   --------------------------------------------------------------------------- */
+body.dark .assistant .bubble .md-table-wrap,
+body.dark .assistant .bubble .md-table {
+  background: rgba(17, 24, 39, 0.98) !important;
+  border-color: rgba(148, 163, 184, 0.22) !important;
+}
+body.dark .assistant .bubble .md-table th {
+  background: rgba(255, 255, 255, 0.07) !important;
+  color: #f8fafc !important;
+}
+body.dark .assistant .bubble .md-table td {
+  background: transparent !important;
+  color: #f8fafc !important;
+  border-bottom-color: rgba(148, 163, 184, 0.18) !important;
+}
+
+body:not(.dark) .assistant .bubble .md-table-wrap,
+body:not(.dark) .assistant .bubble .md-table {
+  background: #ffffff !important;
+  border-color: rgba(15, 42, 80, 0.14) !important;
+}
+body:not(.dark) .assistant .bubble .md-table th {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+body:not(.dark) .assistant .bubble .md-table td {
+  background: transparent !important;
+  color: #0f172a !important;
+  border-bottom-color: rgba(15, 42, 80, 0.10) !important;
+}
+
+
+/* ---------------------------------------------------------------------------
    4. Floating tools notch — keep it clear of the fixed composer
    --------------------------------------------------------------------------- */
 @media (max-width: 768px) {
