@@ -10,6 +10,8 @@
     "test": "node scripts/smoke-test.js",
     "smoke": "node scripts/smoke-test.js",
     "audit": "node scripts/audit.js",
+    "kb:sync": "node scripts/kb-sync.js",
+    "kb:validate": "node scripts/kb-validate.js",
     "eval": "node evals/run-eval.js",
     "launch-eval": "node evals/launch-eval-v2.js",
     "backend-regression": "node evals/backend-regression-eval-v1.js",
@@ -17,6 +19,7 @@
     "deploy-verify": "node evals/deploy-verify-v1.js"
   },
   "dependencies": {
+    "@qdrant/js-client-rest": "^1.19.0",
     "compression": "^1.7.4",
     "docx": "^9.7.1",
     "exceljs": "^4.4.0",

@@ -138,19 +138,23 @@ function isLiteRequest(messages) {
 // ── Pipeline definitions ──
 // Order = quality × fit for the pipeline's job. Providers without keys (or
 // without a model configured for the requested slot) are skipped at runtime.
+// Free-only provider policy (2026-09): exactly four providers in every chain —
+// Groq (primary, fastest) → LLM7 (free aggregator, keyless-capable) →
+// Kimi (moonshot free slot) → Qwen (free quota, strongest Arabic + vision).
+// Gemini / NVIDIA / OpenRouter / Agnes are out of the chains (dormant code).
 const PIPELINES = {
   // Lite track: tiny casual messages. Fast/cheap models only.
-  lite: [['groq', 'flash'], ['gemini', 'flash'], ['qwen', 'flash'], ['kimi', 'flash'], ['nvidia', 'flash']],
-  // Flash mode: high velocity, still competent. No 8B-class models first.
-  flash: [['groq', 'flash'], ['nvidia', 'flash'], ['qwen', 'flash'], ['kimi', 'flash'], ['openrouter', 'text']],
-  // Max mode (Arabic-heavy): strongest Arabic models first.
-  maxAr: [['qwen', 'text'], ['kimi', 'text'], ['groq', 'text'], ['gemini', 'text'], ['nvidia', 'text'], ['openrouter', 'text']],
+  lite: [['groq', 'flash'], ['llm7', 'flash'], ['qwen', 'flash'], ['kimi', 'flash']],
+  // Flash mode: high velocity, still competent. Groq first (primary).
+  flash: [['groq', 'flash'], ['llm7', 'flash'], ['qwen', 'flash'], ['kimi', 'text']],
+  // Max mode (Arabic-heavy): Qwen first — the pinned Arabic-quality fallback.
+  maxAr: [['qwen', 'text'], ['kimi', 'text'], ['llm7', 'text'], ['groq', 'text']],
   // Max mode (English / mixed): strongest general models first.
-  maxEn: [['groq', 'text'], ['qwen', 'text'], ['kimi', 'text'], ['gemini', 'text'], ['nvidia', 'text'], ['openrouter', 'text']],
-  // Code mode: code-first models.
-  code: [['kimi', 'code'], ['qwen', 'code'], ['groq', 'text'], ['nvidia', 'text'], ['gemini', 'text'], ['openrouter', 'text']],
+  maxEn: [['groq', 'text'], ['llm7', 'text'], ['qwen', 'text'], ['kimi', 'text']],
+  // Code mode: Groq gpt-oss-120b first, then Qwen code slot.
+  code: [['groq', 'text'], ['qwen', 'code'], ['llm7', 'text'], ['kimi', 'text']],
   // Vision requests: only vision-capable slots survive the filters.
-  vision: [['groq', 'vision'], ['gemini', 'vision'], ['qwen', 'vision'], ['nvidia', 'vision']]
+  vision: [['groq', 'vision'], ['qwen', 'vision']]
 };
 
 function normalizeMode(mode) {
@@ -277,7 +281,7 @@ function createRoutingEngine(deps) {
   function locateExplicitModel(modelName) {
     const target = String(modelName || '').trim();
     if (!target) return null;
-    for (const provider of ['groq', 'gemini', 'qwen', 'kimi', 'nvidia']) {
+    for (const provider of ['groq', 'llm7', 'qwen', 'kimi']) {
       if (!hasKeys(provider)) continue;
       for (const slot of ['flash', 'text', 'code', 'vision']) {
         const cap = slot[0].toUpperCase() + slot.slice(1);

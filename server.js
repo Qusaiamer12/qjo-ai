@@ -9,6 +9,7 @@ const rateLimit = require('express-rate-limit');
 const { create, all } = require('mathjs');
 const { createSearchService } = require('./src/services/searchService');
 const { createEmbeddingsService } = require('./src/services/embeddings');
+const { createKnowledgeBaseService } = require('./src/services/knowledgeBase');
 const { registerEmbeddingsRoutes } = require('./src/routes/embeddings');
 const { createJobQueue } = require('./src/services/jobQueue');
 const { registerJobRoutes } = require('./src/routes/jobs');
@@ -102,18 +103,32 @@ const IP_RATE_LIMIT_PER_MINUTE = Number(process.env.IP_RATE_LIMIT_PER_MINUTE || 
 const GROQ_FLASH_MODEL = process.env.GROQ_FLASH_MODEL || 'openai/gpt-oss-20b';
 const GROQ_TEXT_MODEL = process.env.GROQ_TEXT_MODEL || 'openai/gpt-oss-120b';
 const GROQ_VISION_MODEL = process.env.GROQ_VISION_MODEL || 'meta-llama/llama-4-scout-17b-16e-instruct';
-const GEMINI_FLASH_MODEL = process.env.GEMINI_FLASH_MODEL || 'gemini-2.0-flash';
-const GEMINI_TEXT_MODEL = process.env.GEMINI_TEXT_MODEL || 'gemini-2.0-flash';
+// Current stable Flash line as of 2026-09 (gemini-1.5/2.0 are legacy/retired;
+// llmService also auto-migrates any stale values coming from old envs).
+const GEMINI_FLASH_MODEL = process.env.GEMINI_FLASH_MODEL || 'gemini-3.8-flash';
+const GEMINI_TEXT_MODEL = process.env.GEMINI_TEXT_MODEL || 'gemini-3.8-flash';
 const GEMINI_VISION_MODEL = process.env.GEMINI_VISION_MODEL || GEMINI_TEXT_MODEL;
 const QWEN_FLASH_MODEL = process.env.QWEN_FLASH_MODEL || 'qwen-plus';
 const QWEN_TEXT_MODEL = process.env.QWEN_TEXT_MODEL || 'qwen-plus';
 const QWEN_CODE_MODEL = process.env.QWEN_CODE_MODEL || QWEN_TEXT_MODEL;
 const KIMI_BASE_URL = String(process.env.KIMI_BASE_URL || 'https://api.moonshot.ai/v1').replace(/\/$/, '');
+// Free-only policy: Kimi pinned to the free moonshot-v1-8k slot on the
+// official international endpoint (deliberately NOT migrated to the paid
+// kimi-k2.* generation; if retired upstream the chain moves on gracefully).
 const KIMI_FLASH_MODEL = process.env.KIMI_FLASH_MODEL || process.env.KIMI_MODEL || 'moonshot-v1-8k';
 const KIMI_TEXT_MODEL = process.env.KIMI_TEXT_MODEL || process.env.KIMI_MODEL || 'moonshot-v1-8k';
-const KIMI_CODE_MODEL = process.env.KIMI_CODE_MODEL || KIMI_TEXT_MODEL;
+const KIMI_CODE_MODEL = process.env.KIMI_CODE_MODEL || 'moonshot-v1-8k';
+// LLM7.io free aggregator (OpenAI-compatible). Works keyless via a placeholder
+// token (~30 RPM); set LLM7_API_KEY(S) with a free token from token.llm7.io
+// for higher limits. LLM7_ENABLED=false removes it from the chain.
+const LLM7_ENABLED = process.env.LLM7_ENABLED !== 'false';
+const LLM7_BASE_URL = String(process.env.LLM7_BASE_URL || 'https://api.llm7.io/v1').replace(/\/$/, '');
+const LLM7_API_KEYS = String(process.env.LLM7_API_KEYS || process.env.LLM7_API_KEY || '')
+  .split(',').map(s => s.trim()).filter(Boolean);
+const LLM7_FLASH_MODEL = process.env.LLM7_FLASH_MODEL || 'llama-3.3-70b-instruct';
+const LLM7_TEXT_MODEL = process.env.LLM7_TEXT_MODEL || 'deepseek-chat';
 const NVIDIA_FLASH_MODEL = process.env.NVIDIA_FLASH_MODEL || 'meta/llama-3.1-8b-instruct';
-const NVIDIA_TEXT_MODEL = process.env.NVIDIA_TEXT_MODEL || 'meta/llama-3.1-70b-instruct';
+const NVIDIA_TEXT_MODEL = process.env.NVIDIA_TEXT_MODEL || 'meta/llama-3.3-70b-instruct';
 // Vision-capable slots (image requests route here FIRST now — previously they
 // marched through text-only models and died). Leave empty to disable a slot.
 const QWEN_VISION_MODEL = process.env.QWEN_VISION_MODEL || 'qwen-vl-plus';
@@ -415,7 +430,9 @@ const llmService = createLlmService({
   nvidiaKeys: NVIDIA_API_KEYS,
   openRouterKeys: OPENROUTER_API_KEYS,
   agnesKeys: AGNES_API_KEYS,
+  llm7Keys: LLM7_ENABLED ? (LLM7_API_KEYS.length ? LLM7_API_KEYS : ['unused']) : [],
   kimiBaseUrl: KIMI_BASE_URL,
+  llm7BaseUrl: LLM7_BASE_URL,
   openRouterFreeModels: OPENROUTER_FREE_MODELS,
   agnesBaseUrl: AGNES_BASE_URL,
   agnesModel: AGNES_MODEL
@@ -425,34 +442,29 @@ const routingEngine = createRoutingEngine({
   llmService,
   safeCalculate,
   searchService: null,
+  // Free-only policy: the four active providers. Gemini / NVIDIA /
+  // OpenRouter / Agnes stay parsed from env but are OUT of every chain.
   keys: {
     groq: GROQ_API_KEYS.length,
-    gemini: GEMINI_API_KEYS.length,
+    llm7: LLM7_ENABLED ? Math.max(1, LLM7_API_KEYS.length) : 0,
     qwen: QWEN_API_KEYS.length,
-    kimi: KIMI_API_KEYS.length,
-    nvidia: NVIDIA_API_KEYS.length,
-    openRouter: OPENROUTER_API_KEYS.length,
-    agnes: AGNES_API_KEYS.length
+    kimi: KIMI_API_KEYS.length
   },
   models: {
     groqFlash: GROQ_FLASH_MODEL,
     groqText: GROQ_TEXT_MODEL,
     groqCode: GROQ_TEXT_MODEL,
     groqVision: GROQ_VISION_MODEL,
-    geminiText: GEMINI_TEXT_MODEL,
-    geminiFlash: GEMINI_FLASH_MODEL,
-    geminiVision: GEMINI_VISION_MODEL,
+    llm7Flash: LLM7_FLASH_MODEL,
+    llm7Text: LLM7_TEXT_MODEL,
     qwenFlash: QWEN_FLASH_MODEL,
     qwenText: QWEN_TEXT_MODEL,
     qwenCode: QWEN_CODE_MODEL,
     qwenVision: QWEN_VISION_MODEL,
     kimiFlash: KIMI_FLASH_MODEL,
     kimiText: KIMI_TEXT_MODEL,
-    kimiCode: KIMI_CODE_MODEL,
-    nvidiaFlash: NVIDIA_FLASH_MODEL,
-    nvidiaText: NVIDIA_TEXT_MODEL,
-    nvidiaCode: NVIDIA_TEXT_MODEL,
-    nvidiaVision: NVIDIA_VISION_MODEL
+    kimiCode: KIMI_CODE_MODEL
+
   }
 });
 
@@ -572,45 +584,40 @@ registerSystemRoutes(app, {
   getClientIp,
   lookupClientGeo,
   qjoProviders: () => ({
-    gemini: GEMINI_API_KEYS.length > 0,
     groq: GROQ_API_KEYS.length > 0,
+    llm7: LLM7_ENABLED,
     qwen: QWEN_API_KEYS.length > 0,
-    kimi: KIMI_API_KEYS.length > 0,
-    nvidia: NVIDIA_API_KEYS.length > 0,
-    openRouter: OPENROUTER_API_KEYS.length > 0,
-    agnes: AGNES_API_KEYS.length > 0
+    kimi: KIMI_API_KEYS.length > 0
   }),
   healthPayload: () => ({
-    geminiKeysConfigured: GEMINI_API_KEYS.length,
     groqKeysConfigured: GROQ_API_KEYS.length,
+    llm7KeysConfigured: LLM7_API_KEYS.length || 'keyless',
+    llm7Enabled: LLM7_ENABLED,
     qwenKeysConfigured: QWEN_API_KEYS.length,
     kimiKeysConfigured: KIMI_API_KEYS.length,
-    nvidiaKeysConfigured: NVIDIA_API_KEYS.length,
-    openRouterKeysConfigured: OPENROUTER_API_KEYS.length,
-    agnesKeysConfigured: AGNES_API_KEYS.length,
     guestDailyLimit: GUEST_DAILY_LIMIT,
     embeddingsConfigured: embeddingsService.configuredCount(),
     embeddingsProvider: embeddingsService.getEmbeddingProviderName(),
-    routerVersion: 'pipelines-v2',
+    routerVersion: 'pipelines-v3-free',
     chatPipelines: {
-      lite: ['groq:flash', 'gemini:flash', 'qwen:flash', 'kimi:flash', 'nvidia:flash'],
-      flash: ['gemini:flash', 'qwen:flash', 'groq:text', 'kimi:flash', 'nvidia:text', 'openrouter:free'],
-      maxAr: ['qwen:text', 'kimi:text', 'groq:text', 'gemini:text', 'nvidia:text', 'openrouter:free'],
-      maxEn: ['groq:text', 'qwen:text', 'kimi:text', 'gemini:text', 'nvidia:text', 'openrouter:free'],
-      code: ['kimi:code', 'qwen:code', 'groq:text', 'nvidia:text', 'gemini:text', 'openrouter:free'],
-      vision: ['groq:vision', 'gemini:vision', 'qwen:vision', 'nvidia:vision']
+      lite: ['groq:flash', 'llm7:flash', 'qwen:flash', 'kimi:flash'],
+      flash: ['groq:flash', 'llm7:flash', 'qwen:flash', 'kimi:text'],
+      maxAr: ['qwen:text', 'kimi:text', 'llm7:text', 'groq:text'],
+      maxEn: ['groq:text', 'llm7:text', 'qwen:text', 'kimi:text'],
+      code: ['groq:text', 'qwen:code', 'llm7:text', 'kimi:text'],
+      vision: ['groq:vision', 'qwen:vision']
     },
     models: {
       flash: GROQ_FLASH_MODEL,
       text: GROQ_TEXT_MODEL,
       vision: GROQ_VISION_MODEL,
+      llm7Flash: LLM7_FLASH_MODEL,
+      llm7Text: LLM7_TEXT_MODEL,
       qwenFlash: QWEN_FLASH_MODEL,
       qwenText: QWEN_TEXT_MODEL,
       qwenCode: QWEN_CODE_MODEL,
-      nvidiaFlash: NVIDIA_FLASH_MODEL,
-      nvidiaText: NVIDIA_TEXT_MODEL,
-      openRouterFreeModels: OPENROUTER_FREE_MODELS,
-      agnesModel: AGNES_MODEL
+      kimiFlash: KIMI_FLASH_MODEL,
+      kimiText: KIMI_TEXT_MODEL
     }
   }),
   featuresHealth: () => ({
@@ -672,8 +679,23 @@ routingEngine.searchService = searchService;
 
 const chatPromptBuilder = createChatPromptBuilder();
 
+// Qjo Knowledge Base (Q-KB v1): curated Arabic task-craft guidance injected
+// below the core system prompt. Zero-setup in-memory mode; switches to Qdrant
+// Cloud automatically when QDRANT_URL/QDRANT_API_KEY are set (run
+// `npm run kb:sync` once after creating the cluster). Failures are silent:
+// chat works with or without the KB.
+const knowledgeBaseService = createKnowledgeBaseService({
+  embeddingsService,
+  knowledgeDir: path.join(__dirname, 'knowledge'),
+  qdrantUrl: process.env.QDRANT_URL || '',
+  qdrantApiKey: process.env.QDRANT_API_KEY || '',
+  collection: process.env.QDRANT_KB_COLLECTION || 'qjo_kb_v1',
+  enabled: process.env.QKB_ENABLED !== 'false'
+});
+knowledgeBaseService.init().catch(error => console.warn('[knowledgeBase] init error:', error?.message || error));
+
 registerChatRoutes(app, {
-  hasAnyAiProvider: () => Boolean(GEMINI_API_KEYS.length || GROQ_API_KEYS.length || QWEN_API_KEYS.length || KIMI_API_KEYS.length || NVIDIA_API_KEYS.length || OPENROUTER_API_KEYS.length || AGNES_API_KEYS.length),
+  hasAnyAiProvider: () => Boolean(LLM7_ENABLED || GROQ_API_KEYS.length || QWEN_API_KEYS.length || KIMI_API_KEYS.length),
   verifyFirebaseRequest,
   enforceDailyUsage,
   allowedModels: ALLOWED_MODELS,
@@ -684,6 +706,7 @@ registerChatRoutes(app, {
   routingEngine,
   fullSystemPrompt: QJO_FULL_TRAINING_PROMPT,
   buildChatSystemPrompt: chatPromptBuilder.buildChatSystemPrompt,
+  knowledgeBaseService,
   defaultMaxTokens: 2600,
   getClientIp,
   lookupClientGeo,

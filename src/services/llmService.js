@@ -63,20 +63,34 @@ function clientAbortError() {
   return err;
 }
 
-// ── Model migration map ──
-// Groq deprecates model IDs over time (llama-3.1-8b-instant and
-// llama-3.3-70b-versatile shut down 2026-08-16 per console.groq.com/docs/
-// deprecations). If a provider answers "model decommissioned", we swap to the
+// ── Model migration map (cross-provider) ──
+// Providers deprecate model IDs over time (Groq's llama-3.1/3.3 line shut down
+// 2026-08-16; Gemini 1.5/2.0 Flash and Kimi moonshot-v1 are legacy now). If a
+// provider answers "model decommissioned"/"not found", we swap to the
 // recommended replacement ONCE and retry instead of failing the whole chain —
-// this keeps old env values (e.g. GROQ_FLASH_MODEL pinned long ago) working.
+// this keeps old env values (e.g. GEMINI_TEXT_MODEL pinned long ago) working.
 const MODEL_MIGRATIONS = {
   'llama-3.1-8b-instant': 'openai/gpt-oss-20b',
   'llama-3.3-70b-versatile': 'openai/gpt-oss-120b',
   'llama3-70b-8192': 'openai/gpt-oss-120b',
   'llama3-8b-8192': 'openai/gpt-oss-20b',
   'gemma2-9b-it': 'openai/gpt-oss-20b',
-  'mixtral-8x7b-32768': 'openai/gpt-oss-120b'
+  'mixtral-8x7b-32768': 'openai/gpt-oss-120b',
+  'gemini-1.5-flash': 'gemini-3.8-flash',
+  'gemini-1.5-flash-8b': 'gemini-3.8-flash',
+  'gemini-2.0-flash': 'gemini-3.8-flash',
+  'gemini-2.0-flash-lite': 'gemini-3.8-flash',
+  'kimi-k2-0711-preview': 'kimi-k2.6',
+  'kimi-k2-0905-preview': 'kimi-k2.6',
+  'kimi-k2-turbo-preview': 'kimi-k2.6',
+  'kimi-k2-thinking': 'kimi-k2.6',
+  'meta/llama-3.1-70b-instruct': 'meta/llama-3.3-70b-instruct'
 };
+// NOTE (free-only provider policy): moonshot-v1-* IDs are deliberately NOT
+// migrated anymore — the product pins them as the free Kimi slot, and
+// auto-swapping to kimi-k2.* (paid generation) would break the free-only
+// constraint. If the model is ever retired upstream the call simply fails and
+// the chain moves to the next free provider.
 
 function migratedModel(model) {
   return MODEL_MIGRATIONS[model] || null;
@@ -91,6 +105,7 @@ function createLlmService(config = {}) {
       case 'groq': return Array.isArray(config.groqKeys) ? config.groqKeys : [];
       case 'qwen': return Array.isArray(config.qwenKeys) ? config.qwenKeys : [];
       case 'kimi': return Array.isArray(config.kimiKeys) ? config.kimiKeys : [];
+      case 'llm7': return Array.isArray(config.llm7Keys) && config.llm7Keys.length ? config.llm7Keys : ['unused'];
       case 'nvidia': return Array.isArray(config.nvidiaKeys) ? config.nvidiaKeys : [];
       case 'openrouter': return Array.isArray(config.openRouterKeys) ? config.openRouterKeys : [];
       case 'agnes': return Array.isArray(config.agnesKeys) ? config.agnesKeys : [];
@@ -173,14 +188,13 @@ function createLlmService(config = {}) {
   }
 
   async function callOpenAICompatible({ provider, baseUrl, model, messages, temperature, max_tokens, tools, extraHeaders = {}, onChunk, timeoutMs, signal, _migrated = false }) {
-    // Proactive migration for known-deprecated Groq IDs (shutdown 2026-08-16);
-    // the reactive retry below catches anything unknown/non-Groq.
-    if (provider === 'groq') {
-      const mig = migratedModel(model);
-      if (mig) {
-        console.warn(`[llmService] model "${model}" is deprecated by Groq — using "${mig}" instead.`);
-        model = mig;
-      }
+    // Proactive migration for known-deprecated IDs on ANY OpenAI-compatible
+    // provider (map keys are unambiguous); the reactive retry below catches
+    // anything unknown.
+    const mig = migratedModel(model);
+    if (mig) {
+      console.warn(`[llmService] model "${model}" is deprecated by ${provider} — using "${mig}" instead.`);
+      model = mig;
     }
     const keys = rotateKeys(provider);
     if (!keys.length || !baseUrl || !model) return { ok: false, status: 501, error: `${provider} is not configured.` };
@@ -273,7 +287,12 @@ function createLlmService(config = {}) {
     const keys = rotateKeys('gemini');
     if (!keys.length) return { ok: false, status: 501, error: 'Gemini is not configured.' };
 
-    const geminiModel = model || 'gemini-2.0-flash';
+    let geminiModel = model || 'gemini-3.8-flash';
+    const geminiMig = migratedModel(geminiModel);
+    if (geminiMig) {
+      console.warn(`[llmService] model "${geminiModel}" is deprecated by Gemini — using "${geminiMig}" instead.`);
+      geminiModel = geminiMig;
+    }
     const geminiPayload = openAiMessagesToGemini(messages);
     if (!geminiPayload.contents.length) return { ok: false, status: 400, error: 'No Gemini-compatible content.' };
 
@@ -327,7 +346,10 @@ function createLlmService(config = {}) {
     if (res.ok) return { ok: true, upstream: { ok: true }, data: res.raw, ...res };
     return { ok: false, upstream: { ok: false, status: res.status }, data: { error: { message: res.error } }, ...res };
   }
-  async function callKimiChat(opts) { return callOpenAICompatible({ provider: 'kimi', baseUrl: config.kimiBaseUrl || 'https://api.moonshot.cn/v1', ...opts }); }
+  async function callKimiChat(opts) { return callOpenAICompatible({ provider: 'kimi', baseUrl: config.kimiBaseUrl || 'https://api.moonshot.ai/v1', ...opts }); }
+  // LLM7.io free aggregator — OpenAI-compatible, works keyless (Authorization:
+  // Bearer unused) at ~30 RPM; a free token from token.llm7.io raises limits.
+  async function callLlm7Chat(opts) { return callOpenAICompatible({ provider: 'llm7', baseUrl: config.llm7BaseUrl || 'https://api.llm7.io/v1', ...opts }); }
   async function callNvidiaChat(opts) { return callOpenAICompatible({ provider: 'nvidia', baseUrl: 'https://integrate.api.nvidia.com/v1', ...opts }); }
   async function callAgnesChat(opts) { return callOpenAICompatible({ provider: 'agnes', baseUrl: config.agnesBaseUrl, model: config.agnesModel, ...opts }); }
 
@@ -358,7 +380,8 @@ function createLlmService(config = {}) {
     kimi: callKimiChat,
     nvidia: callNvidiaChat,
     agnes: callAgnesChat,
-    openrouter: callOpenRouterFreeChat
+    openrouter: callOpenRouterFreeChat,
+    llm7: callLlm7Chat
   };
   async function dispatch(provider, opts) {
     const fn = PROVIDER_METHODS[provider];
@@ -374,6 +397,7 @@ function createLlmService(config = {}) {
     callNvidiaChat,
     callAgnesChat,
     callOpenRouterFreeChat,
+    callLlm7Chat,
     dispatch,
     hasKeys: (provider) => getKeys(provider).length > 0,
     normalizeProviderFinishReason,

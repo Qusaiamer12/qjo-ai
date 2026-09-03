@@ -11,8 +11,11 @@ See `docs/MIGRATION_QSPARK_QCODE.md`.
 
 ## What is included
 
-- Secure backend proxy for 7 AI providers (Groq, Gemini, Qwen, Kimi, NVIDIA,
-  OpenRouter, Agnes) with key rotation and automatic fallback chains.
+- Secure backend proxy for 4 free AI providers — Groq (primary, fastest),
+  LLM7 (free aggregator, keyless-capable), Kimi (moonshot free slot) and Qwen
+  (Arabic/code/vision fallback) — with key rotation and fallback chains.
+  Gemini / NVIDIA / OpenRouter / Agnes are parsed but out of every chain
+  (free-only policy).
 - No provider API key is ever exposed to the browser.
 - Firebase Authentication support (`REQUIRE_FIREBASE_AUTH`), enforced on
   `/api/chat`, `/api/search`, `/api/export/*`, `/api/embeddings`, `/api/jobs`.
@@ -226,16 +229,17 @@ The backend will rotate keys and automatically try the next key if one is rate-l
 
 
 # Optional model overrides. Use 70B only if your Groq plan can handle it.
-GROQ_FLASH_MODEL=llama-3.1-8b-instant
-GROQ_TEXT_MODEL=llama-3.1-8b-instant
+GROQ_FLASH_MODEL=openai/gpt-oss-20b
+GROQ_TEXT_MODEL=openai/gpt-oss-120b
 GROQ_VISION_MODEL=meta-llama/llama-4-scout-17b-16e-instruct
 
 
 # Gemini + Groq AI Router
-GEMINI_API_KEYS=AIza_your_gemini_key_here
-GEMINI_FLASH_MODEL=gemini-1.5-flash
-GEMINI_TEXT_MODEL=gemini-1.5-flash
-GEMINI_VISION_MODEL=gemini-1.5-flash
+LLM7_ENABLED=true
+LLM7_API_KEYS=
+LLM7_BASE_URL=https://api.llm7.io/v1
+LLM7_FLASH_MODEL=llama-3.3-70b-instruct
+LLM7_TEXT_MODEL=deepseek-chat
 
 
 # Qwen fallback provider
@@ -266,7 +270,7 @@ Gemini is intentionally not used in this final build.
 # Additional fallback providers
 NVIDIA_API_KEYS=nvapi_your_key_here
 NVIDIA_FLASH_MODEL=meta/llama-3.1-8b-instruct
-NVIDIA_TEXT_MODEL=meta/llama-3.1-70b-instruct
+NVIDIA_TEXT_MODEL=meta/llama-3.3-70b-instruct
 
 # OpenRouter fallback uses FREE models only; every model must include :free
 OPENROUTER_API_KEYS=sk-or-your_key_here

@@ -19,3 +19,6 @@ qcode-workspace/
 npm-debug.log*
 .DS_Store
 Thumbs.db
+
+# KB runtime vector cache (embedded once, rebuilt automatically if stale)
+knowledge/.vector-cache.json

@@ -2394,14 +2394,20 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
     }
 
 
-    async function getServerEmbeddingsForRetrieval(texts) {
+    async function getServerEmbeddingsForRetrieval(texts, roles) {
       const input = (Array.isArray(texts) ? texts : []).map(t => String(t || '').slice(0, 8000));
       if (!input.length) return null;
+      const body = { texts: input };
+      // Real Vector-First RAG v3: send per-text roles so e5-family models get
+      // their trained "query: "/"passage: " prefixes applied server-side.
+      if (Array.isArray(roles) && roles.length === input.length) {
+        body.roles = roles.map(role => (role === 'query' ? 'query' : 'passage'));
+      }
       try {
         const response = await fetch('/api/embeddings', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ texts: input })
+          body: JSON.stringify(body)
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok || !Array.isArray(data.embeddings) || data.embeddings.length !== input.length) return null;
@@ -2416,13 +2422,82 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
       return chunks.map(chunk => ({ ...chunk, vector: vectorizeText(chunk.text) }));
     }
 
-    async function retrieveHybridChunksFromChunks(rawChunks, userQuery) {
+
+    // Real Vector-First RAG v3: full-index real embeddings cached per record.
+    const recordVectorEmbedInflight = new Map();
+    const RECORD_VECTOR_INDEX_MAX_CHUNKS = 84;
+
+    function validStoredRecordVectors(record) {
+      const chunks = Array.isArray(record && record.chunks) ? record.chunks : [];
+      const vectors = Array.isArray(record && record.vectors) ? record.vectors : null;
+      if (!vectors || vectors.length !== chunks.length) return null;
+      if (!vectors.every(v => Array.isArray(v) && v.length >= 64 && v.every(Number.isFinite))) return null;
+      return vectors;
+    }
+
+    async function embedRecordChunksForVectorIndex(record) {
+      if (!record || !Array.isArray(record.chunks) || !record.chunks.length) return null;
+      const existing = validStoredRecordVectors(record);
+      if (existing) return existing;
+      if (record.chunks.length > RECORD_VECTOR_INDEX_MAX_CHUNKS) return null;
+      if (recordVectorEmbedInflight.has(record.id)) return recordVectorEmbedInflight.get(record.id);
+      const task = (async () => {
+        try {
+          const vectors = [];
+          const batchSize = 24;
+          for (let i = 0; i < record.chunks.length; i += batchSize) {
+            const batch = record.chunks.slice(i, i + batchSize).map(c => String(c.text || '').slice(0, 8000));
+            const part = await getServerEmbeddingsForRetrieval(batch, batch.map(() => 'passage'));
+            if (!part || part.length !== batch.length) return null;
+            vectors.push(...part);
+          }
+          const rounded = vectors.map(v => v.map(x => Number((Number(x) || 0).toFixed(4))));
+          record.vectors = rounded;
+          record.vectorMeta = { dims: rounded[0]?.length || 0, embeddedAt: Date.now() };
+          // Local IndexedDB only: cloud compact records stay vector-free by
+          // design (Firestore document size limits).
+          await saveRagRecord(record);
+          return rounded;
+        } catch (error) {
+          console.warn('Vector index build failed; keeping two-stage retrieval:', error?.message || error);
+          return null;
+        } finally {
+          recordVectorEmbedInflight.delete(record.id);
+        }
+      })();
+      recordVectorEmbedInflight.set(record.id, task);
+      return task;
+    }
+
+    async function retrieveHybridChunksFromChunks(rawChunks, userQuery, storedVectors) {
       const chunks = buildVectorIndexForChunks((rawChunks || []).map((c, i) => ({ index: c.index || i + 1, start: c.start || 0, end: c.end || String(c.text || '').length, text: c.text || '' })));
       const queryTerms = tokenizeForRetrieval(userQuery);
       const queryVector = vectorizeText(userQuery);
       if (chunks.length <= 3 || (!queryTerms.length && !String(userQuery || '').trim())) {
         const mid = chunks[Math.floor(chunks.length / 2)] || null;
         return [chunks[0], mid, chunks[chunks.length - 1]].filter(Boolean).map(c => ({ ...c, lexicalScore: 0, vectorScore: 0, serverVectorScore: null, hybridScore: 0, embeddingMode: 'balanced' }));
+      }
+
+      // Real Vector-First RAG v3 fast path: when full-index vectors are cached
+      // for every chunk, embed ONLY the query and score the whole document with
+      // real embeddings — no 28-candidate recall ceiling. Falls through to the
+      // two-stage path when vectors are missing, mismatched, or the server is
+      // unavailable.
+      if (Array.isArray(storedVectors) && storedVectors.length === chunks.length && storedVectors.every(v => Array.isArray(v) && v.length >= 64)) {
+        const queryEmbedding = await getServerEmbeddingsForRetrieval([userQuery], ['query']);
+        if (queryEmbedding && queryEmbedding.length === 1 && Array.isArray(queryEmbedding[0]) && queryEmbedding[0].length === storedVectors[0].length) {
+          const qVec = queryEmbedding[0];
+          const scored = chunks.map((chunk, i) => {
+            const lexicalScore = scoreRetrievedChunk(chunk, queryTerms);
+            const serverVectorScore = cosineSimilarity(qVec, storedVectors[i]);
+            const positionBoost = (chunk.index === 1 || chunk.index === chunks.length) ? 0.15 : 0;
+            const hybridScore = lexicalScore + (serverVectorScore * 10) + positionBoost;
+            return { ...chunk, lexicalScore, vectorScore: cosineSimilarity(queryVector, chunk.vector), serverVectorScore, hybridScore, embeddingMode: 'stored-real-embedding' };
+          });
+          const vectorFirst = scored.sort((a, b) => b.hybridScore - a.hybridScore).slice(0, 7);
+          if (!vectorFirst.some(c => c.index === 1)) vectorFirst.push({ ...chunks[0], lexicalScore: 0, vectorScore: 0, serverVectorScore: null, hybridScore: 0.05, embeddingMode: 'boundary' });
+          return vectorFirst.sort((a, b) => a.index - b.index).slice(0, 8);
+        }
       }
 
       const localScored = chunks.map(chunk => {
@@ -2434,7 +2509,7 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
       }).sort((a, b) => b.hybridScore - a.hybridScore);
 
       const candidates = localScored.slice(0, 28);
-      const serverEmbeddings = await getServerEmbeddingsForRetrieval([userQuery, ...candidates.map(c => c.text)]);
+      const serverEmbeddings = await getServerEmbeddingsForRetrieval([userQuery, ...candidates.map(c => c.text)], ['query', ...candidates.map(() => 'passage')]);
       if (serverEmbeddings && serverEmbeddings.length === candidates.length + 1) {
         const qVec = serverEmbeddings[0];
         candidates.forEach((candidate, i) => {
@@ -2483,12 +2558,29 @@ Active mode: Code. Elite senior full-stack engineer mode. Build and debug comple
 
         const chunks = source.chunks || chunkTextForRetrieval(source.sourceText);
         const overview = source.sourceText ? source.sourceText.slice(0, 1200) : (chunks[0]?.text || '').slice(0, 1200);
-        const selected = await retrieveHybridChunksFromChunks(chunks, userQuery);
+        // Real Vector-First RAG v3: lazily build + persist full-index vectors
+        // for persistent records, then retrieve with a single query embedding.
+        let storedVectors = null;
+        if (source.origin === 'persistent-index' && source.record) {
+          storedVectors = validStoredRecordVectors(source.record);
+          if (!storedVectors) {
+            if ((source.record.chunks || []).length <= 24) {
+              // Small index: one batch, build it inline (bounded latency).
+              storedVectors = await embedRecordChunksForVectorIndex(source.record);
+            } else {
+              // Large index: build in the background; this message uses the
+              // two-stage path and the next message gets full-index vectors.
+              embedRecordChunksForVectorIndex(source.record);
+            }
+          }
+        }
+        const selected = await retrieveHybridChunksFromChunks(chunks, userQuery, storedVectors);
+        const retrievalFlavor = selected.some(c => c.embeddingMode === 'stored-real-embedding') ? 'full-index real embeddings' : 'two-stage server re-rank';
         const chunkText = selected.map(c => `[Chunk ${c.index}/${chunks.length} | chars ${c.start}-${c.end} | lexical ${Number(c.lexicalScore || 0).toFixed(2)} | vector ${Number(c.vectorScore || 0).toFixed(3)} | hybrid ${Number(c.hybridScore || 0).toFixed(2)} | mode ${c.embeddingMode || 'local'}${c.serverVectorScore !== null && c.serverVectorScore !== undefined ? ` | realEmbedding ${Number(c.serverVectorScore).toFixed(3)}` : ''}]\n${c.text}`).join('\n\n');
-        parts.push(`Attachment Index ${index + 1}: ${source.name}\nOrigin: ${source.origin}\nType: ${source.type}\nSize: ${formatBytes(source.size)}\nRetrieval mode: Persistent Real Embeddings RAG v1 (${chunks.length} chunks, ${selected.length} selected, server embeddings when configured + local vector fallback)\nDocument overview/start:\n${overview}\n\nMost relevant retrieved sections for the user question:\n${chunkText}`);
+        parts.push(`Attachment Index ${index + 1}: ${source.name}\nOrigin: ${source.origin}\nType: ${source.type}\nSize: ${formatBytes(source.size)}\nRetrieval mode: Real Vector-First RAG v3 (${chunks.length} chunks, ${selected.length} selected, ${retrievalFlavor} + local vector fallback)\nDocument overview/start:\n${overview}\n\nMost relevant retrieved sections for the user question:\n${chunkText}`);
       }
 
-      return parts.length ? `\n\nUser attached or previously indexed files with retrieved evidence. Use Persistent Real Embeddings RAG v1 sections below: answer from the retrieved sections first, cite attachment/chunk labels when making claims, and state limits if the relevant section may be missing. Persistent indexes can come from local IndexedDB or cloud Firestore ragIndexes for files previously uploaded in this chat.\n${parts.join('\n\n---\n\n')}` : '';
+      return parts.length ? `\n\nUser attached or previously indexed files with retrieved evidence. Use Real Vector-First RAG v3 sections below: answer from the retrieved sections first, cite attachment/chunk labels when making claims, and state limits if the relevant section may be missing. Persistent indexes can come from local IndexedDB or cloud Firestore ragIndexes for files previously uploaded in this chat.\n${parts.join('\n\n---\n\n')}` : '';
     }
 
     async function buildAttachmentContext(userQuery = '') {

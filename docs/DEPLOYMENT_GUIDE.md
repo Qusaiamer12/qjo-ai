@@ -68,16 +68,16 @@ Hidden shortcuts like Ctrl+Shift+K are disabled.
 
 
 # Optional model overrides. Use 70B only if your Groq plan can handle it.
-GROQ_FLASH_MODEL=llama-3.1-8b-instant
-GROQ_TEXT_MODEL=llama-3.1-8b-instant
+GROQ_FLASH_MODEL=openai/gpt-oss-20b
+GROQ_TEXT_MODEL=openai/gpt-oss-120b
 GROQ_VISION_MODEL=meta-llama/llama-4-scout-17b-16e-instruct
 
 
 # Gemini + Groq AI Router
 GEMINI_API_KEYS=AIza_your_gemini_key_here
-GEMINI_FLASH_MODEL=gemini-1.5-flash
-GEMINI_TEXT_MODEL=gemini-1.5-flash
-GEMINI_VISION_MODEL=gemini-1.5-flash
+GEMINI_FLASH_MODEL=gemini-3.8-flash
+GEMINI_TEXT_MODEL=gemini-3.8-flash
+GEMINI_VISION_MODEL=gemini-3.8-flash
 
 
 # Qwen fallback provider
@@ -108,7 +108,7 @@ Gemini is intentionally not used in this final build.
 # Additional fallback providers
 NVIDIA_API_KEYS=nvapi_your_key_here
 NVIDIA_FLASH_MODEL=meta/llama-3.1-8b-instruct
-NVIDIA_TEXT_MODEL=meta/llama-3.1-70b-instruct
+NVIDIA_TEXT_MODEL=meta/llama-3.3-70b-instruct
 
 # OpenRouter fallback uses FREE models only; every model must include :free
 OPENROUTER_API_KEYS=sk-or-your_key_here
@@ -127,6 +127,6 @@ FIRECRAWL_API_KEY=fc_your_firecrawl_key_here
 # Kimi / Moonshot fallback provider
 KIMI_API_KEYS=sk-your_kimi_key_here
 KIMI_BASE_URL=https://api.moonshot.ai/v1
-KIMI_FLASH_MODEL=moonshot-v1-8k
-KIMI_TEXT_MODEL=moonshot-v1-8k
-KIMI_CODE_MODEL=moonshot-v1-8k
+KIMI_FLASH_MODEL=kimi-k2.6
+KIMI_TEXT_MODEL=kimi-k2.6
+KIMI_CODE_MODEL=kimi-k2.7-code

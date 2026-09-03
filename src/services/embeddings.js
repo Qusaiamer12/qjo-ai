@@ -53,11 +53,23 @@ function createEmbeddingsService(config) {
     return getEmbeddingProviderName() === 'huggingface' ? huggingFaceKeys.length : embeddingKeys.length;
   }
 
-  async function callEmbeddingProvider(texts) {
+  // Real Vector-First RAG v3: optional per-text roles ('query'|'passage').
+  // multilingual-e5 models are trained with "query: "/"passage: " input
+  // prefixes; adding them measurably improves retrieval quality. Prefixes are
+  // applied only for Hugging Face e5-family models and only when roles are
+  // provided, so OpenAI-compatible providers keep their raw inputs.
+  async function callEmbeddingProvider(texts, options = {}) {
     const input = (texts || []).map(t => String(t || '').slice(0, 8000));
     const provider = getEmbeddingProviderName();
     const model = provider === 'huggingface' ? deps.huggingFaceModel : deps.embeddingModel;
-    const cacheKey = deps.stableCacheKey('embeddings', provider + '|' + model + '|' + input.join('\n---\n'));
+    const roles = Array.isArray(options.roles) && options.roles.length === input.length
+      ? options.roles.map(role => (role === 'query' ? 'query' : 'passage'))
+      : null;
+    const useE5Prefixes = provider === 'huggingface' && /e5/i.test(String(model || '')) && !!roles;
+    const requestInput = useE5Prefixes
+      ? input.map((text, i) => `${roles[i] === 'query' ? 'query' : 'passage'}: ${text}`)
+      : input;
+    const cacheKey = deps.stableCacheKey('embeddings', provider + '|' + model + '|' + requestInput.join('\n---\n'));
     const cached = deps.cacheGet(deps.cache, cacheKey);
     if (cached) return { vectors: cached, cached: true, provider, model };
 
@@ -78,7 +90,7 @@ function createEmbeddingsService(config) {
             method: 'POST',
             signal: controller.signal,
             headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ inputs: input, options: { wait_for_model: true, use_cache: true } })
+            body: JSON.stringify({ inputs: requestInput, options: { wait_for_model: true, use_cache: true } })
           });
           clearTimeout(timeout);
           const data = await response.json().catch(() => ({}));
