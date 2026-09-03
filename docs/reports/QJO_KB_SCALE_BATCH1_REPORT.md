@@ -120,6 +120,21 @@ NY Daily News, centraljersey.com, July 2026).
   embeddings — triggers are authored as literal user phrasings to maximize
   e5 recall.
 
+## Advanced Formats Pack (b6 taskcraft): +35 entries → 568 total
+Second tranche of the 130-entry batch (first: football facts-b3, +113).
+- `qkb-taskcraft-b6.json` (35, formatting/*): business docs (contract, invoice
+  — with proper unit-price column, price-quote 3-tier, proposal, SOP, policy,
+  job-desc, interview-feedback, risk-register, status-update, meeting-invite),
+  engineering docs (spec, API reference, changelog, SQL layout, test case,
+  user story, requirements, ADR, runbook, release announcement), education
+  (lesson plan, rubric, quiz, flashcards, lab report, thesis outline, Cornell
+  notes), content (mind map, concept card, alt text), agile/support messaging
+  (standup, retro, support reply, live chat).
+- Each entry: opinionated structural rules + a concrete mini-exemplar in
+  final shape (tables, real numbers, Arabic-first).
+- Verified: 35 unique IDs, 0 CJK artifacts, kb:validate 568/5000 (11.4%)
+  0 warnings · lint 0 errors · npm test 34/34.
+
 ## Roadmap to 5,000
 Next batches (same pattern, ~250-400/session): b3 coding frameworks &
 languages, b4 writing/summarization expansion, b5 facts: tech deep-dive +
