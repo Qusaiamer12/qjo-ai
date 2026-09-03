@@ -738,18 +738,16 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
 
     function isTableSeparator(line) {
       const trimmed = String(line || '').trim();
-      if (!trimmed.includes('|')) return false;
+      if (!trimmed.includes('|') && !trimmed.includes('-')) return false;
       const cells = trimmed.replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
-      return cells.length >= 2 && cells.every(c => /^:?-{3,}:?$/.test(c));
+      return cells.length >= 2 && cells.every(c => /^:?-+:?$/.test(c));
     }
 
     function parseTableCells(line) {
-      return String(line || '')
-        .trim()
-        .replace(/^\|/, '')
-        .replace(/\|$/, '')
-        .split('|')
-        .map(cell => parseInlineMarkdown(cell.trim()));
+      const trimmed = String(line || '').trim();
+      const content = (trimmed.startsWith('|') ? trimmed.slice(1) : trimmed)
+        .replace(/\|$/, '');
+      return content.split('|').map(cell => parseInlineMarkdown(cell.trim()));
     }
 
     function renderMarkdownTable(lines, startIndex) {
@@ -763,7 +761,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       let index = startIndex + 2;
       while (index < lines.length) {
         const line = lines[index];
-        if (!line || !line.includes('|') || isTableSeparator(line)) break;
+        if (!line || !line.trim() || !line.includes('|') || isTableSeparator(line)) break;
         const cells = parseTableCells(line);
         if (cells.length < 2) break;
         rows.push(cells);
@@ -771,9 +769,11 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       }
 
       const thead = '<thead><tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr></thead>';
-      const tbody = '<tbody>' + rows.map(row => '<tr>' + headers.map((_, i) => `<td>${row[i] || ''}</td>`).join('') + '</tr>').join('') + '</tbody>';
-      const escapedCSVData = encodeURIComponent(JSON.stringify({ headers, rows }));
-      const exportBtn = `<button class="export-table-csv-btn" data-table-data="${escapedCSVData}" style="background: #123B7A; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; margin-top: 6px; display: inline-flex; align-items: center; gap: 4px;">📥 تصدير CSV/Excel</button>`;
+      const tbody = '<tbody>' + rows.map(row => '<tr>' + headers.map((_, i) => `<td>${row[i] !== undefined ? row[i] : ''}</td>`).join('') + '</tr>').join('') + '</tbody>';
+      const cleanHeaders = headers.map(h => h.replace(/<[^>]+>/g, ''));
+      const cleanRows = rows.map(r => r.map(c => String(c).replace(/<[^>]+>/g, '')));
+      const escapedCSVData = encodeURIComponent(JSON.stringify({ headers: cleanHeaders, rows: cleanRows }));
+      const exportBtn = `<button type="button" class="export-table-csv-btn" data-table-data="${escapedCSVData}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> تصدير جدول (CSV)</button>`;
       return { html: `<div class="md-table-wrap" id="table-instance-${startIndex}"><table class="md-table">${thead}${tbody}</table>${exportBtn}</div>`, nextIndex: index };
     }
 
@@ -922,16 +922,19 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     function getCurrentDateContext() {
       const { now, timeZone, utcOffset, inferred, ipGeo } = getBrowserTimeContext();
       const iso = now.toISOString();
-      const local = now.toLocaleString(qjoLanguage === 'ar' ? 'ar' : 'en', {
-        year: 'numeric', month: 'long', day: 'numeric',
-        hour: '2-digit', minute: '2-digit', second: '2-digit',
-        timeZoneName: 'short'
+      const local = now.toLocaleString(qjoLanguage === 'ar' ? 'ar-JO' : 'en-US', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
       });
       const locationParts = [];
-      if (ipGeo?.city || ipGeo?.country) locationParts.push(`Approximate IP location: ${[ipGeo.city, ipGeo.region, ipGeo.country].filter(Boolean).join(', ')}${ipGeo.timezone ? ` (${ipGeo.timezone})` : ''}`);
-      if (timeZone) locationParts.push(`Browser time zone: ${timeZone} (${utcOffset})`);
-      if (inferred) locationParts.push(`Timezone-inferred location: ${inferred.city}, ${inferred.country}`);
-      return `Current real date/time from user's browser: ${local} | ISO: ${iso}. ${locationParts.join(' | ')}. Use this for local time/date/location-context questions. Treat IP/timezone location as approximate. If the user asks for current facts beyond local time/date, use web search results when available; do not rely on training memory.`;
+      if (ipGeo?.city || ipGeo?.country) locationParts.push(`Approximate location: ${[ipGeo.city, ipGeo.region, ipGeo.country].filter(Boolean).join(', ')}`);
+      else if (inferred) locationParts.push(`Inferred location: ${inferred.labelAr || `${inferred.city}, ${inferred.country}`}`);
+      if (timeZone) locationParts.push(`Timezone: ${timeZone} (${utcOffset})`);
+      return `Exact real-world live time: ${local}. ${locationParts.join(' | ')}.
+Crucial temporal grounding:
+- The current year is 2026 (specifically late 2026).
+- The 2026 FIFA World Cup took place in June–July 2026 and has already completed in the past. The next World Cup is in 2030.
+- When the user asks about the day, date, time, or location, answer warmly, conversationally, and gracefully (مثال: "اليوم هو الأربعاء 2 سبتمبر 2026، والساعة الآن 3:05 فجراً بتوقيت عمّان 🌸"). Never dump dry diagnostic logs.`;
     }
 
     function latestUserTextForPrompt() {
@@ -2758,6 +2761,14 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
       const q = String(normalizedText || '').toLowerCase();
       const original = String(normalizedText || text || '').trim();
 
+      // Subjective debate, opinions, banter, poetry, compliments NEVER need web search
+      const opinionSignals = /(مين افضل|مين أحسن|مين احسن|مين بتتوقع|شو رأيك|شو رايك|شو بتتوقع|توقعك|مين بتشجع|من هو الأفضل|من الأفضل|فنان|قصيدة|شعر|نكتة|لغز|بحبك|احبك|كيفك|كيف الهمة)/i;
+      if (opinionSignals.test(q)) {
+        if (!/(ابحث|بحث|مصادر|المصدر|رابط|روابط|search|source|cite|إحصائيات|ارقام رسمية)/i.test(q)) {
+          return false;
+        }
+      }
+
       const explicitSearch = [
         'ابحث', 'بحث', 'دور', 'فتش', 'مصادر', 'المصدر', 'رابط', 'روابط', 'على النت', 'اونلاين', 'أونلاين',
         'search', 'look up', 'find online', 'source', 'sources', 'cite', 'citation', 'web'
@@ -2772,24 +2783,20 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
       const codeBuildRequest = /(اكتب|ابن|ابني|بناء|صمم|سوي|اعمل|create|build|write|implement).{0,80}(api|node|python|express|fastapi|react|كود|تطبيق|موقع|ملف|pdf)/i.test(q);
       if (codeBuildRequest && !/(مصادر|المصدر|ابحث|بحث|توثيق|docs|source|cite|latest|current|version|إصدار)/i.test(q)) return false;
 
-      const eventQuestion = /(متى|موعد|تاريخ|توقيت|ساعة|وين|أين|جدول|نهائي|نصف النهائي|ربع النهائي|مباراة|بطولة|كأس العالم|world cup|final|fixture|schedule|match|tournament)/i.test(q);
+      // Real live event schedules:
+      const eventQuestion = /(متى|موعد|توقيت|ساعة|وين|أين|جدول)\s+(مباراة|بطولة|نهائي|نصف النهائي|كأس العالم|كاس العالم|match|fixture|tournament)/i.test(q);
       if (eventQuestion) return true;
 
       const currentEntityQuestion = /(هل|ما هو|ما هي|مين|من هو|من هي|وين|أين|كم|قديش|متى|is|are|does|who|what|when|where|how much)\s+/.test(q)
         && /(api|model|نموذج|موديل|شركة|company|platform|منصة|render|firebase|groq|qwen|openai|gemini|deepseek|nvidia|tavily|firecrawl|سعر|price|خطة|plan|حد|limit|إصدار|version|release)/i.test(q);
       if (currentEntityQuestion) return true;
 
-      const hasYearOrFuture = /\b20(2[4-9]|3\d)\b/.test(q) || /(هذا العام|السنة|السنه|الشهر|الأسبوع|اسبوع|قريب|مستقب|upcoming|this year|this month|this week)/i.test(q);
+      const hasYearOrFuture = /\b20(2[5-9]|3\d)\b/.test(q) && /(سعر|موعد|إصدار|نسخة|نتيجة|تاريخ صدور|release|price)/i.test(q);
       if (hasYearOrFuture) return true;
 
-      const namedEntityLikely = /[A-Z][a-zA-Z0-9]+/.test(original) && /(ما|هل|كيف|متى|كم|قارن|اشرح|what|how|when|compare|best)/i.test(q);
-      if (namedEntityLikely && /(api|ai|app|tool|model|platform|service|pricing|limit|docs|deploy|host|cloud)/i.test(q)) return true;
-
       const patterns = [
-        'اليوم', 'الآن', 'حالي', 'اخر', 'آخر', 'حديث', 'جديد', 'سعر', 'أسعار', 'اسعار',
-        'مباراة', 'نتيجة', 'ترتيب', 'نهائي', 'كأس العالم', 'بطولة', 'جدول', 'موعد', 'توقيت',
-        'طقس', 'بورصة', 'سهم', 'دولار', 'عملة', 'قانون', 'سياسة', 'رئيس', 'ceo', 'إصدار', 'نسخة', 'توثيق', 'api',
-        'today', 'now', 'current', 'latest', 'recent', 'price', 'weather', 'score', 'standing', 'stock', 'law', 'policy', 'release', 'world cup', 'final', 'fixture', 'schedule', 'match', 'version', 'docs'
+        'أخبار اليوم', 'سعر اليوم', 'أسعار اليوم', 'طقس اليوم', 'بورصة اليوم', 'سعر الدولار', 'سعر الذهب',
+        'today news', 'current price', 'stock price', 'weather today', 'latest docs'
       ];
       return patterns.some(p => q.includes(p));
     }
@@ -3018,26 +3025,8 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
         return;
       }
 
-      if (!pendingAttachments.length && /(الساعة|الساعه|وقت|تاريخ|اليوم|موقعي|وين\s+(انا|أنا)|location|where am i|what time|date)/i.test(rawText)) {
-        await loadClientContext();
-        const localDateTime = getLocalDateTimeReply(rawText);
-        if (localDateTime) {
-          document.body.classList.remove('drawer-open');
-          inputEl.value = '';
-          clearDraft();
-          autoResize();
-          addMessage('user', rawText);
-          addMessage('assistant', localDateTime);
-          history.push({ role: 'user', content: rawText });
-          history.push({ role: 'assistant', content: localDateTime });
-          await ensureChatDocument(rawText || 'محادثة');
-          await safePersistMessage({ role: 'user', content: rawText });
-          await safePersistMessage({ role: 'assistant', content: localDateTime });
-          return;
-        }
-      }
-
-      const localSmallTalk = !pendingAttachments.length ? getLocalSmallTalkReply(rawText) : '';
+      // Offline fallback only: when online, allow the intelligent LLM to respond dynamically
+      const localSmallTalk = (!navigator.onLine && !pendingAttachments.length) ? getLocalSmallTalkReply(rawText) : '';
       if (localSmallTalk) {
         document.body.classList.remove('drawer-open');
         inputEl.value = '';
@@ -4030,7 +4019,13 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
       const safeTitle = (allChatsCache.find(chat => chat.id === currentChatId)?.title || 'Qjo Chat').replace(/[\\/:*?"<>|]/g, '-');
       const body = history.map((m, i) => {
         const role = m.role === 'user' ? 'User' : m.role === 'assistant' ? 'Qjo' : m.role;
-        return `## ${i + 1}. ${role}\n\n${m.content || ''}`;
+        const cleanContent = String(m.content || '')
+          .replace(/<think>[\s\S]*?<\/think>\s*/gi, '')
+          .replace(/Connected search executed[\s\S]*?SOURCE PACK:[\s\S]*?(?=\n\n|$)/gi, '')
+          .replace(/\[تم إرفاق صورة\/صور وتحليلها في وقت الإرسال\]/gi, '')
+          .replace(/User attached or previously indexed files[\s\S]*?\[Chunk[\s\S]*?(?=\n\n|$)/gi, '')
+          .trim();
+        return `## ${i + 1}. ${role}\n\n${cleanContent}`;
       }).join('\n\n---\n\n');
       downloadTextFile(`${safeTitle}.md`, `# ${safeTitle}\n\nExported from Qjo AI\n\n---\n\n${body}`);
     }

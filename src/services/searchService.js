@@ -32,6 +32,7 @@ function createSearchService(deps) {
       include_answer: true,
       include_raw_content: depth === 'advanced',
       include_images: false,
+      exclude_domains: ['facebook.com', 'instagram.com', 'tiktok.com', 'threads.net', 'pinterest.com'],
       // Mode-aware retrieval: news goes through the news topic with a
       // freshness window; pricing/market get a wider one. Previously
       // everything went out as topic:'general' with no date window.
@@ -53,16 +54,19 @@ function createSearchService(deps) {
       err.statusCode = upstream.status;
       throw err;
     }
-    return (data.results || []).map((r) => ({
-      title: String(r.title || '').slice(0, 180),
-      url: String(r.url || '').slice(0, 700),
-      content: String(r.content || '').slice(0, depth === 'advanced' ? 1800 : 1200),
-      rawContent: String(r.raw_content || '').slice(0, depth === 'advanced' ? 3000 : 0),
-      publishedDate: String(r.published_date || r.publishedDate || '').slice(0, 40),
-      score: Number(r.score || 0),
-      query,
-      providerAnswer: data.answer ? String(data.answer).slice(0, 1200) : ''
-    }));
+    const JUNK_DOMAINS = ['facebook.com', 'instagram.com', 'tiktok.com', 'threads.net', 'pinterest.com'];
+    return (data.results || [])
+      .filter(r => !JUNK_DOMAINS.some(d => String(r.url || '').toLowerCase().includes(d)))
+      .map((r) => ({
+        title: String(r.title || '').slice(0, 180),
+        url: String(r.url || '').slice(0, 700),
+        content: String(r.content || '').slice(0, depth === 'advanced' ? 1800 : 1200),
+        rawContent: String(r.raw_content || '').slice(0, depth === 'advanced' ? 3000 : 0),
+        publishedDate: String(r.published_date || r.publishedDate || '').slice(0, 40),
+        score: Number(r.score || 0),
+        query,
+        providerAnswer: data.answer ? String(data.answer).slice(0, 1200) : ''
+      }));
   }
 
   // Serper.dev — Google Search results via API (great Arabic/local coverage).

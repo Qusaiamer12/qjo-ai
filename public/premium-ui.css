@@ -1239,3 +1239,80 @@ body:not(.dark) .qjo-reasoning-step {
   border-color: rgba(245, 158, 11, 0.45) !important;
   box-shadow: 0 0 14px rgba(245, 158, 11, 0.25) !important;
 }
+
+/* ===== Responsive & Clean Markdown Table Styling ===== */
+.qjo-streamed-content {
+  width: 100%;
+  max-width: 100%;
+}
+
+.md-table-wrap,
+.md-table-wrap *,
+.md-table,
+.md-table * {
+  white-space: normal !important;
+}
+
+.md-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 14px 0 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(15, 23, 42, 0.45);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+
+.md-table {
+  width: 100%;
+  min-width: 440px;
+  border-collapse: collapse;
+  font-size: 13.5px;
+  direction: rtl;
+  text-align: right;
+}
+
+.md-table th {
+  background: rgba(30, 41, 59, 0.85);
+  color: #f8fafc !important;
+  font-weight: 750;
+  padding: 10px 14px;
+  border-bottom: 2px solid rgba(148, 163, 184, 0.28);
+  white-space: nowrap !important;
+}
+
+.md-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  color: #e2e8f0 !important;
+  line-height: 1.6;
+  vertical-align: middle;
+}
+
+.md-table tr:hover td {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.export-table-csv-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 12px 10px;
+  padding: 5px 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #93c5fd;
+  background: rgba(37, 99, 235, 0.18);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.export-table-csv-btn:hover {
+  background: rgba(37, 99, 235, 0.32);
+  color: #ffffff;
+  border-color: rgba(96, 165, 250, 0.55);
+}
