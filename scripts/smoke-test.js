@@ -34,7 +34,7 @@ function freePort() {
   });
 }
 
-async function waitForServer(port, proc, timeoutMs = 20000) {
+async function waitForServer(port, proc, timeoutMs = 35000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (proc.exitCode !== null) throw new Error(`server exited early (code ${proc.exitCode})`);

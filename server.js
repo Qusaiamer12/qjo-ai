@@ -25,6 +25,7 @@ const { createChatPromptBuilder } = require('./src/services/systemPrompt');
 const { registerSearchRoutes } = require('./src/routes/search');
 const { createSafeCalculate } = require('./src/tools/calculatorTool');
 const { registerChatRoutes } = require('./src/routes/chat');
+const { createKnowledgeBaseService } = require('./src/services/knowledgeBase');
 
 let admin = null;
 try { admin = require('firebase-admin'); } catch (_) { admin = null; }
@@ -651,6 +652,21 @@ routingEngine.searchService = searchService;
 
 const chatPromptBuilder = createChatPromptBuilder();
 
+// Qjo Knowledge Base (Q-KB v1): curated Arabic task-craft guidance injected
+// below the core system prompt. Zero-setup in-memory mode; switches to Qdrant
+// Cloud automatically when QDRANT_URL/QDRANT_API_KEY are set (run
+// `npm run kb:sync` once after creating the cluster). Failures are silent:
+// chat works with or without the KB.
+const knowledgeBaseService = createKnowledgeBaseService({
+  embeddingsService,
+  knowledgeDir: path.join(__dirname, 'knowledge'),
+  qdrantUrl: process.env.QDRANT_URL || '',
+  qdrantApiKey: process.env.QDRANT_API_KEY || '',
+  collection: process.env.QDRANT_KB_COLLECTION || 'qjo_kb_v1',
+  enabled: process.env.QKB_ENABLED !== 'false'
+});
+knowledgeBaseService.init().catch(error => console.warn('[knowledgeBase] init error:', error?.message || error));
+
 registerChatRoutes(app, {
   hasAnyAiProvider: () => Boolean(GROQ_API_KEYS.length || LLM7_API_KEYS.length || process.env.ENABLE_LLM7 === 'true' || QWEN_API_KEYS.length || KIMI_API_KEYS.length),
   verifyFirebaseRequest,
@@ -663,6 +679,7 @@ registerChatRoutes(app, {
   routingEngine,
   fullSystemPrompt: QJO_FULL_TRAINING_PROMPT,
   buildChatSystemPrompt: chatPromptBuilder.buildChatSystemPrompt,
+  knowledgeBaseService,
   defaultMaxTokens: 2600,
   getClientIp,
   lookupClientGeo,

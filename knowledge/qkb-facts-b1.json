@@ -1,0 +1,700 @@
+{
+  "version": "qkb-facts-b1-2026-09-03",
+  "layer": "facts",
+  "notes": "Factual reference layer (AI-generated, stable well-known facts only). Jordan local context first, then general tech reference. Answers are short and citable inside the model prompt. Dynamic facts (prices, schedules) are deliberately excluded — those belong to web search.",
+  "entries": [
+    {
+      "id": "jordan-capital",
+      "domain": "facts/jordan",
+      "triggers": ["شو عاصمة الأردن", "عاصمة الاردن", "capital of jordan"],
+      "keywords": ["عاصمة", "الأردن", "عمّان"],
+      "answer": "عاصمة الأردن هي عمّان، وهي أكبر مدنه وأكثرها سكاناً، وتُعرف تاريخياً بـ«فيلادلفيا» في العصور القديمة."
+    },
+    {
+      "id": "jordan-currency",
+      "domain": "facts/jordan",
+      "triggers": ["شو عملة الأردن", "الدينار الأردني", "jordan currency"],
+      "keywords": ["عملة", "دينار", "الأردن", "JOD"],
+      "answer": "العملة الرسمية هي الدينار الأردني (JOD)، وينقسم إلى 100 قرش، وهو مربوط بسعر ثابت تقريباً مع الدولار الأمريكي (نحو 0.709 دينار للدولار)."
+    },
+    {
+      "id": "jordan-independence",
+      "domain": "facts/jordan",
+      "triggers": ["متى استقل الأردن", "عيد استقلال الاردن", "jordan independence day"],
+      "keywords": ["استقلال", "1946", "25 أيار", "عيد"],
+      "answer": "استقل المملكة الأردنية الهاشمية في 25 أيار (مايو) 1946، وهو العيد الوطني الرسمي للملكة."
+    },
+    {
+      "id": "jordan-king",
+      "domain": "facts/jordan",
+      "triggers": ["مين ملك الأردن", "الملك عبدالله", "king of jordan"],
+      "keywords": ["ملك", "عبدالله الثاني", "الحسين"],
+      "answer": "الملك عبدالله الثاني بن الحسين يتولى الحكم منذ 7 شباط 1999، وخلفه ولي العهد الأمير الحسين بن عبدالله الثاني."
+    },
+    {
+      "id": "jordan-location",
+      "domain": "facts/jordan",
+      "triggers": ["وين الأردن", "حدود الاردن", "where is jordan"],
+      "keywords": ["موقع", "حدود", "جغرافيا", "المشرق"],
+      "answer": "الأردن دولة عربية في المشرق العربي، تحدها السعودية من الجنوب والشرق، والعراق من الشرق، وسوريا من الشمال، وفلسطين/إسرائيل من الغرب."
+    },
+    {
+      "id": "jordan-population",
+      "domain": "facts/jordan",
+      "triggers": ["كم سكان الأردن", "عدد سكان الاردن", "jordan population"],
+      "keywords": ["سكان", "عدد", "مليون"],
+      "answer": "يقدّر عدد سكان الأردن بنحو 11 مليون نسمة (2024-2025)، يشكل الأردنيون أغلبيتهم مع نسبة كبيرة من الجاليات المقيمة."
+    },
+    {
+      "id": "jordan-cities",
+      "domain": "facts/jordan",
+      "triggers": ["أكبر مدن الأردن", "مدن الاردن الرئيسية", "major jordan cities"],
+      "keywords": ["مدن", "عمّان", "الزرقاء", "إربد"],
+      "answer": "أكبر المدن: عمّان (العاصمة)، ثم الزرقاء وإربد. مدن مهمة أخرى: العقبة، الكرك، ومادبا، والسلط، ومعان."
+    },
+    {
+      "id": "jordan-aqaba",
+      "domain": "facts/jordan",
+      "triggers": ["منفذ الأردن البحري", "ميناء العقبة", "jordan seaport"],
+      "keywords": ["العقبة", "ميناء", "بحر", "منفذ"],
+      "answer": "مدينة العقبة على البحر الأحمر هي المنفذ البحري الوحيد للأردن، ومنطقة اقتصادية خاصة، ووجهة سياحية للغوص والشواطئ."
+    },
+    {
+      "id": "jordan-dead-sea",
+      "domain": "facts/jordan",
+      "triggers": ["البحر الميت", "أخفض نقطة على الأرض", "dead sea facts"],
+      "keywords": ["البحر الميت", "أخفض", "ملوحة"],
+      "answer": "البحر الميت أخفض نقطة على سطح الأرض اليابسة (نحو 430 متراً تحت سطح البحر)، وملوحته من الأعلى عالمياً، ما يجعل السباحة فيه طفواً لا غوصاً."
+    },
+    {
+      "id": "jordan-petra",
+      "domain": "facts/jordan",
+      "triggers": ["البتراء", "عجائب الدنيا البتراء", "petra jordan"],
+      "keywords": ["البتراء", "petra", "عجائب", "سياحة"],
+      "answer": "مدينة البتراء الأثرية في معان نحتها الأنباط في الصخر الوردي قبل أكثر من ألفي عام، واختيرت عام 2007 ضمن عجائب الدنيا السبع الجديدة."
+    },
+    {
+      "id": "jordan-wadi-rum",
+      "domain": "facts/jordan",
+      "triggers": ["وادي رم", "صحراء الأردن", "wadi rum"],
+      "keywords": ["وادي رم", "صحراء", "سياحة"],
+      "answer": "وادي رم في جنوب الأردن صحراء جبلية شهيرة بتشكيلاتها الصخرية، وموقع تراث عالمي، وصُوّرت فيه أفلام عالمية كثيرة مثل «المريخي» و«علاء الدين»."
+    },
+    {
+      "id": "jordan-jerash",
+      "domain": "facts/jordan",
+      "triggers": ["مدينة جرش", "آثار رومانية الأردن", "jerash roman city"],
+      "keywords": ["جرش", "روماني", "آثار", "مهرجان"],
+      "answer": "جرش من أفضل المدن الرومانية حفظاً خارج إيطاليا، وتضم شوارع أعمدة ومدرجات، ويقام فيها مهرجان جرش للثقافة والفنون سنوياً."
+    },
+    {
+      "id": "jordan-madaba",
+      "domain": "facts/jordan",
+      "triggers": ["مادبا", "خريطة مادبا", "madaba map"],
+      "keywords": ["مادبا", "فسيفساء", "خريطة"],
+      "answer": "مادبا «مدينة الفسيفساء» تشتهر بخريطة مادبا البيزنطية الأرضية — أقدم خريطة معروفة للأراضي المقدسة — وتجاور جبل نيبو المطل على وادي الأردن."
+    },
+    {
+      "id": "jordan-university-ju",
+      "domain": "facts/jordan",
+      "triggers": ["الجامعة الأردنية", "أول جامعة بالأردن", "university of jordan"],
+      "keywords": ["جامعة", "أردنية", "1962"],
+      "answer": "الجامعة الأردنية في عمّان تأسست عام 1962 وهي أول جامعة في المملكة، وتبقى الأكبر والأشهر تنافسياً."
+    },
+    {
+      "id": "jordan-university-just",
+      "domain": "facts/jordan",
+      "triggers": ["جامعة العلوم والتكنولوجيا", "just university jordan"],
+      "keywords": ["JUST", "علوم", "تكنولوجيا", "إربد"],
+      "answer": "جامعة العلوم والتكنولوجيا الأردنية (JUST) في إربد تأسست عام 1986، وتشتهر بكليات الطب والهندسة وبرامجها البحثية التنافسية."
+    },
+    {
+      "id": "jordan-university-yarmouk",
+      "domain": "facts/jordan",
+      "triggers": ["جامعة يرموك", "yarmouk university"],
+      "keywords": ["يرموك", "جامعة", "إربد"],
+      "answer": "جامعة يرموك في إربد تأسست عام 1976، ومعروفة بكلياتها الإنسانية والاقتصادية وحرمها الجامعي الكبير."
+    },
+    {
+      "id": "jordan-university-hashemite",
+      "domain": "facts/jordan",
+      "triggers": ["جامعة الحسينية", "the hashemite university"],
+      "keywords": ["حسينية", "الزرقاء", "جامعة"],
+      "answer": "جامعة الحسينية في الزرقاء (صارت جامعة عام 1995 بعد أن كانت كلية)، وتتميز ببرامجها التطبيقية وصحة المجتمع."
+    },
+    {
+      "id": "jordan-university-psut",
+      "domain": "facts/jordan",
+      "triggers": ["جامعة الأميرة سمية", "psut jordan"],
+      "keywords": ["الأميرة سمية", "تكنولوجيا", "ICT"],
+      "answer": "جامعة الأميرة سمية للتكنولوجيا (PSUT) في عمّان، بدأت 1991 مركزاً ثم جامعة 1995، وهي الجامعة الحكومية المتخصصة بتكنولوجيا المعلومات والاتصالات."
+    },
+    {
+      "id": "jordan-university-german",
+      "domain": "facts/jordan",
+      "triggers": ["الجامعة الألمانية الأردنية", "german jordanian university"],
+      "keywords": ["ألمانية", "أردنية", "GJU"],
+      "answer": "الجامعة الألمانية الأردنية (GJU) في منطقة مقبلان تأسست عام 2005 بنموذج تعاوني ألماني، وسنتها الدراسية تشمل فترة تدريب إلزامية في ألمانيا."
+    },
+    {
+      "id": "jordan-university-mutah",
+      "domain": "facts/jordan",
+      "triggers": ["جامعة مؤتة", "mutah university"],
+      "keywords": ["مؤتة", "الكرك", "جامعة"],
+      "answer": "جامعة مؤتة في الكرك تأسست عام 1981، وتُعد من الجامعات الحكومية الكبرى جنوب العاصمة."
+    },
+    {
+      "id": "jordan-university-balqa",
+      "domain": "facts/jordan",
+      "triggers": ["البلقاء التطبيقية", "al-balqa applied university"],
+      "keywords": ["البلقاء", "تطبيقية", "السلط"],
+      "answer": "جامعة البلقاء التطبيقية (مقرها السلط، 1997) تضم كليات جامعية ومجتمعية موزعة بالمحافظات وتركز على التعليم التطبيقي والمهني."
+    },
+    {
+      "id": "jordan-tawjihi",
+      "domain": "facts/jordan",
+      "triggers": ["التوجيهي", "الثانوية العامة الأردن", "tawjihi jordan"],
+      "keywords": ["توجيهي", "ثانوية", "معدل"],
+      "answer": "التوجيهي هو امتحان الثانوية العامة الأردني، ومعدله يحدد القبول الجامعي عبر مفاضلة الوحدات/المعدل التنافسي حسب التخصص (علمي/أدبي/صناعي...)."
+    },
+    {
+      "id": "jordan-anthem-flag",
+      "domain": "facts/jordan",
+      "triggers": ["علم الأردن", "النشيد الوطني الأردني", "jordan flag colors"],
+      "keywords": ["علم", "نشيد", "الثورة العربية"],
+      "answer": "علم الأردن بألوان الثورة العربية (أسود أبيض أخضر) ومثلث أحمر يمثل الهاشميين، والنشيد الوطني هو «السلام الملكي الأردني»."
+    },
+    {
+      "id": "jordan-great-revolt",
+      "domain": "facts/jordan",
+      "triggers": ["الثورة العربية الكبرى", "1916 revolts", "الشريف حسين"],
+      "keywords": ["الثورة", "1916", "الحجاز", "التاريخ"],
+      "answer": "الثورة العربية الكبرى انطلقت عام 1916 بقيادة الشريف حسين بن علي ضد الحكم العثماني، وألهمت العلم العربي الحديث ومهّدت لقيادة الأمير عبدالله الأولى التي أسست إمارة شرق الأردن 1921."
+    },
+    {
+      "id": "jordan-emirate",
+      "domain": "facts/jordan",
+      "triggers": ["إمارة شرق الأردن", "تأسيس الأردن 1921", "الأمير عبدالله الأول"],
+      "keywords": ["إمارة", "1921", "عبدالله"],
+      "answer": "تأسست إمارة شرق الأردن عام 1921 بقيادة الأمير عبدالله الأول بن الحسين، ثم صارت المملكة الأردنية الهاشمية المستقلة عام 1946."
+    },
+    {
+      "id": "jordan-food-mansaf",
+      "domain": "facts/jordan",
+      "triggers": ["المنسف", "الطبق الوطني الأردني", "mansaf jordan"],
+      "keywords": ["منسف", "طبق", "جميد", "وطني"],
+      "answer": "المنسف هو الطبق الوطني الأردني: لحم ضأن مطبوخ بمنقوع الجميد (لبن مجفف) يقدم مع الأرز والخبز، ورمز للكرم والمناسبات."
+    },
+    {
+      "id": "jordan-coffee",
+      "domain": "facts/jordan",
+      "triggers": ["القهوة العربية", "السادة البدوية", "arabic coffee jordan"],
+      "keywords": ["قهوة", "عربية", "ضيافة"],
+      "answer": "القهوة العربية (السادة) بالهيل رمز الضيافة الأردنية والبدوية، وتقدم بفناجين صغيرة في المناسبات، وعادةً يكفي الفنجان الأول للترحيب."
+    },
+    {
+      "id": "jordan-language",
+      "domain": "facts/jordan",
+      "triggers": ["لغة الأردن", "اللغة الرسمية الأردن", "language in jordan"],
+      "keywords": ["لغة", "عربية", "إنجليزية"],
+      "answer": "اللغة الرسمية هي العربية، واللهجة المحلية أردنية-شامية، والإنجليزية مستخدمة على نطاق واسع في التعليم والأعمال."
+    },
+    {
+      "id": "jordan-timezone",
+      "domain": "facts/jordan",
+      "triggers": ["توقيت الأردن", "الساعة بالأردن", "jordan time zone"],
+      "keywords": ["توقيت", "غرينتش", "GMT"],
+      "answer": "توقيت الأردن الرسمي غرينتش +3، وقد يطبّق التوقيت الصيفي بإعلان رسمي حسب كل عام."
+    },
+    {
+      "id": "jordan-airport",
+      "domain": "facts/jordan",
+      "triggers": ["مطار الأردن", "مطار الملكة علياء", "amman airport"],
+      "keywords": ["مطار", "الملكة علياء", "عمّان"],
+      "answer": "مطار الملكة علياء الدولي (AMM) هو المطار الرئيسي للأردن على بعد نحو 30 كم جنوب عمّان، وهناك مطار الملك حسين الدولي في العقبة."
+    },
+    {
+      "id": "jordan-calling-code",
+      "domain": "facts/jordan",
+      "triggers": ["رمز الأردن الهاتفي", "jordan calling code", "مفتاح الأردن"],
+      "keywords": ["هاتف", "+962", "رمز"],
+      "answer": "رمز الأردن الهاتفي الدولي هو +962، ونطاق النطاق الأعلى للإنترنت هو .jo."
+    },
+    {
+      "id": "jordan-weekend",
+      "domain": "facts/jordan",
+      "triggers": ["عطلة الأسبوع الأردن", "ويك اند الاردن", "jordan weekend days"],
+      "keywords": ["عطلة", "جمعة", "سبت"],
+      "answer": "عطلة نهاية الأسبوع الرسمية في الأردن هي الجمعة والسبت، والدوام الرسمي عادة من الأحد إلى الخميس."
+    },
+    {
+      "id": "jordan-water",
+      "domain": "facts/jordan",
+      "triggers": ["المياه بالأردن", "الأردن والمياه", "jordan water scarcity"],
+      "keywords": ["مياه", "شح", "فقر مائي"],
+      "answer": "الأردن من أفقر دول العالم بالمياه نصيباً للفرد، ويعتمد على مشاريع مثل مشروع الناقل الوطني (تحلية العقبة-عمّان) لتغطية الفجوة."
+    },
+    {
+      "id": "jordan-economy",
+      "domain": "facts/jordan",
+      "triggers": ["اقتصاد الأردن", "مصادر دخل الاردن", "jordan economy sectors"],
+      "keywords": ["اقتصاد", "فوسفات", "بوتاس", "سياحة"],
+      "answer": "اقتصاد الأردن خدمي بامتياز، وأهم مصادره: الخدمات والسياحة، الفوسفات والبوتاس، التحويلات المغتربين، والصناعات الدوائية."
+    },
+    {
+      "id": "jordan-football",
+      "domain": "facts/jordan",
+      "triggers": ["النشامى", "منتخب الأردن", "jordan national football team"],
+      "keywords": ["كرة", "منتخب", "نشامى"],
+      "answer": "منتخب الأردن لكرة القدم يُلقّب بـ«النشامى»، ووصل نهائي كأس آسيا 2023 (أقيم 2024) لأول مرة في تاريخه."
+    },
+    {
+      "id": "jordan-government",
+      "domain": "facts/jordan",
+      "triggers": ["نظام الحكم الأردن", "مجلس الأمة الأردني", "jordan government type"],
+      "keywords": ["ملكية", "برلمان", "نواب", "أعيان"],
+      "answer": "الأردن مملكة دستورية وراثية، والسلطة التشريعية لمجلس الأمة (مجلس النواب المنتخب + مجلس الأعيان المعيّن)."
+    },
+    {
+      "id": "jordan-education-system",
+      "domain": "facts/jordan",
+      "triggers": ["التعليم في الأردن", "نظام التعليم الاردني", "jordan education stages"],
+      "keywords": ["تعليم", "روضة", "أساسي", "ثانوي"],
+      "answer": "التعليم الأردني: روضة سنتين، ثم تعليم أساسي 10 سنوات، ثم ثانوي عام (توجيهي) أو مهني سنتان. التعليم إلزامي ومجاني بالمدارس الحكومية للأساسي."
+    },
+    {
+      "id": "jordan-nabataeans",
+      "domain": "facts/jordan",
+      "triggers": ["الأنباط", "من بنى البتراء", "nabataeans petra"],
+      "keywords": ["أنباط", "بتراء", "تجارة"],
+      "answer": "الأنباط قبيلة عربية قديمة أسست مملكة ازدهرت بتجارة البخور والتوابل، وعاصمتها البتراء التي نحتوها بالصخر قبل الميلاد."
+    },
+    {
+      "id": "jordan-decapolis",
+      "domain": "facts/jordan",
+      "triggers": ["المدن العشر", "الديكابولس", "roman cities jordan"],
+      "keywords": ["روماني", "ديكابولس", "جرش", "أم قيس"],
+      "answer": "خضع الأردن الشمالي للعصر الروماني ضمن حلف المدن العشر (الديكابولس) الذي ضم جرش (جراسا) وأم قيس (جدارا)، وما زالت آثارهم قائمة."
+    },
+    {
+      "id": "jordan-neighborhoods-amman",
+      "domain": "facts/jordan",
+      "triggers": ["مناطق عمّان", "أحياء العاصمة الأردن", "amman areas"],
+      "keywords": ["عمّان", "مناطق", "دوار", "جبل"],
+      "answer": "من أشهر مناطق عمّان: وسط البلد (القلب التاريخي والتجاري)، جبل عمان والويبده (تراثية)، عبدون ودوار الداخلية (حديثة وراقية)، وصويلح والخلدة سكنياً."
+    },
+    {
+      "id": "jordan-taxi",
+      "domain": "facts/jordan",
+      "triggers": ["المواصلات بالأردن", "تاكسي الأردن", "transportation jordan"],
+      "keywords": ["مواصلات", "تاكسي", "حافلات"],
+      "answer": "المواصلات في عمّان: تاكسيات بالعدّاد (لونها غالباً أصفر)، تطبيقات مثل Uber/Careem، وحافلات النقل العام وخط الباص السريع (BRT) بين السويلة وسوق الوظف."
+    },
+    {
+      "id": "jordan-religions",
+      "domain": "facts/jordan",
+      "triggers": ["الأديان في الأردن", "المسيحيون بالأردن", "religion jordan"],
+      "keywords": ["دين", "مسلمون", "مسيحيون"],
+      "answer": "أغلب سكان الأردن مسلمون سنة، مع أقلية مسيحية عربية عريقة (أغلبها أرثوذكس) تشارك في المجتمع والبرلمان، وتكفل حرية العبادة."
+    },
+    {
+      "id": "jordan-weather",
+      "domain": "facts/jordan",
+      "triggers": ["الجو بالأردن", "شتاء الاردن صيفها", "jordan climate"],
+      "keywords": ["طقس", "مناخ", "ثلوج"],
+      "answer": "مناخ الأردن متوسطي شمالاً وصحراوي جنوباً وشرقاً: صيف حار جاف وشتاء بارد ماطر، ويسقط الثلج على المرتفعات (عمّان، عجلون، الشوبك) بعض السنوات."
+    },
+    {
+      "id": "jordan-highlights",
+      "domain": "facts/jordan",
+      "triggers": ["أماكن سياحية بالأردن", "شنو احلى اماكن بالاردن", "best places jordan"],
+      "keywords": ["سياحة", "أماكن", "زيارة"],
+      "answer": "أبرز الوجهات: البتراء ووادي رم والبحر الميت والعقبة (جنوب)، جرش وعجلون وأم قيس (شمال)، ومادبا وجبل نيبو والمغطس (على درب الحج/السياحة الدينية)."
+    },
+    {
+      "id": "jordan-universities-private",
+      "domain": "facts/jordan",
+      "triggers": ["جامعات خاصة الأردن", "private universities jordan"],
+      "keywords": ["جامعات", "خاصة", "فيلادلفيا", "العلوم التطبيقية"],
+      "answer": "إلى جانب العشر حكومية تقريباً، توجد عشرات الجامعات الخاصة أبرزها فيلادلفيا، العلوم التطبيقية، الأهلية، الزيتونة، وجامعة عمّان الأهلية."
+    },
+    {
+      "id": "jordan-history-chronology",
+      "domain": "facts/jordan",
+      "triggers": ["تاريخ الأردن مختصر", "خط زمني تاريخ الاردن", "jordan history brief"],
+      "keywords": ["تاريخ", "تسلسل", "أنباط", "رومان", "عثماني"],
+      "answer": "تسلسل مختصر: الأنباط → الرومان والبيزنطيون → الفتح الإسلامي (الأموي/العباسي) → العثمانيون → الثورة الكبرى 1916 → الإمارة 1921 → الاستقلال والمملكة 1946."
+    },
+    {
+      "id": "jordan-amman-nickname",
+      "domain": "facts/jordan",
+      "triggers": ["لقب عمان", "مدينة التلال السبع", "amman seven hills"],
+      "keywords": ["عمّان", "تلال", "لقب"],
+      "answer": "تُلقّب عمّان تاريخياً بمدينة التلال السبع (جبال الأشرية)، وقد توسعت اليوم على عشرات التلال، وسكانها من أصل فلسطيني وأردني من كل المحافظات."
+    },
+    {
+      "id": "jordan-salt-heritage",
+      "domain": "facts/jordan",
+      "triggers": ["السلط الأردن", "as-salt jordan unesco"],
+      "keywords": ["السلط", "يونسكو", "تراث"],
+      "answer": "مدينة السلط أُدرجت على قائمة التراث العالمي لليونسكو عام 2021 نموذجاً للتعايش والعمارة المدنية العثمانية المتأخرة."
+    },
+    {
+      "id": "jordan-bethany",
+      "domain": "facts/jordan",
+      "triggers": ["المغطس", "موقع عماد السيد المسيح", "bethany beyond the jordan"],
+      "keywords": ["المغطس", "عماد", "سياحة دينية"],
+      "answer": "موقع المغطس (بيت عنيا) على نهر الأردن هو الموقع المعتمد حيث يُعتقد أن السيد المسيح اعتمد، وهو على قائمة التراث العالمي ومقصد حج عالمي."
+    },
+    {
+      "id": "tech-what-is-api",
+      "domain": "facts/tech",
+      "triggers": ["شو يعني api", "ما هو الـ api", "what is an api"],
+      "keywords": ["api", "واجهة", "برمجة"],
+      "answer": "API (واجهة برمجة التطبيقات) عقد يسمح لبرنامج بطلب خدمات برنامج آخر دون معرفة تفاصيله الداخلية — مثل قائمة طعام: تطلب منها ولا تدخل المطبخ."
+    },
+    {
+      "id": "tech-ram-storage",
+      "domain": "facts/tech",
+      "triggers": ["الفرق بين ram والهارد", "ram vs storage", "شو يعني رام"],
+      "keywords": ["ram", "ذاكرة", "تخزين", "هارد"],
+      "answer": "RAM ذاكرة مؤقتة سريعة جداً تفقد محتواها بإطفاء الجهاز وتستخدم للبرامج العاملة الآن، أما التخزين (SSD/HDD) دائم لكنه أبطأ — لذلك RAM كبيرة = تعدد مهام أنعم."
+    },
+    {
+      "id": "tech-cpu",
+      "domain": "facts/tech",
+      "triggers": ["شو هو المعالج", "cpu يعني", "what is a cpu"],
+      "keywords": ["cpu", "معالج", "نوى"],
+      "answer": "CPU (الوحدة المركزية) عقل الحاسوب الذي ينفذ الأوامر الحسابية والمنطقية؛ أداءه يتأثر بعدد الأنوية وترددها (GHz) وبكفاءة البرنامج نفسه."
+    },
+    {
+      "id": "tech-os",
+      "domain": "facts/tech",
+      "triggers": ["شو هو نظام التشغيل", "what is an operating system", "وظيفة الويندوز"],
+      "keywords": ["نظام تشغيل", "windows", "linux", "macos"],
+      "answer": "نظام التشغيل (Windows/Linux/macOS/Android/iOS) وسيط يدير العتاد ويقدم بيئة للبرامج: ملفات، ذاكرة، تعريفات، وواجهة مستخدم."
+    },
+    {
+      "id": "tech-https",
+      "domain": "facts/tech",
+      "triggers": ["شو يعني https", "ليش القفل بالمتصفح", "https vs http"],
+      "keywords": ["https", "تشفير", "ssl", "قفل"],
+      "answer": "HTTPS نسخة من HTTP مع تشفير (TLS): يمنع التجسس والتعديل على البيانات بينك وبين الموقع. القفل بالمتصفح يعني الاتصال مشفر لا أن الموقع صادق بذاته."
+    },
+    {
+      "id": "tech-dns",
+      "domain": "facts/tech",
+      "triggers": ["شو يعني dns", "كيف يترجم الرابط", "what is dns"],
+      "keywords": ["dns", "نطاق", "عنوان"],
+      "answer": "DNS «دفتر هاتف الإنترنت»: يترجم أسماء المواقع (google.com) إلى عناوين IP رقمية يستطيع الجهاز الاتصال بها. بطؤه يجعل التصفح يبدو بطيئاً رغم سرعة خطك."
+    },
+    {
+      "id": "tech-ip",
+      "domain": "facts/tech",
+      "triggers": ["شو يعني ip", "ip address meaning", "عنوان الاي بي"],
+      "keywords": ["ip", "عنوان", "شبكة"],
+      "answer": "عنوان IP رقم مميز لجهازك على الشبكة (IPv4 مثل 192.168.1.5 أو IPv6 أطول)، ويمكن أن يتغير (ديناميكي) أو يثبت (ثابت)."
+    },
+    {
+      "id": "tech-browser-render",
+      "domain": "facts/tech",
+      "triggers": ["كيف يعرض المتصفح صفحة", "how browsers work", "شو يصير لما افتح موقع"],
+      "keywords": ["متصفح", "html", "css", "عرض"],
+      "answer": "المتصفح يجلب HTML ثم CSS وJS، ويبني شجرة العناصر ويصفها بالأنماط ويرسمها — لهذا مواقع كثيرة JS تظهر بيضاء لحظة إنشاء عناصرها."
+    },
+    {
+      "id": "tech-cloud",
+      "domain": "facts/tech",
+      "triggers": ["شو يعني الحوسبة السحابية", "cloud computing meaning", "يعني ايش كلاود"],
+      "keywords": ["كلاود", "سحابة", "حوسبة"],
+      "answer": "الحوسبة السحابية استئجار موارد حوسبة (خوادم، تخزين، خدمات) حسب الطلب والدفع بالاستخدام — أشهر مزوديها AWS وAzure وGoogle Cloud."
+    },
+    {
+      "id": "tech-saas-paas-iaas",
+      "domain": "facts/tech",
+      "triggers": ["فرق saas iaas paas", "service models cloud", "شو يعني saas"],
+      "keywords": ["saas", "paas", "iaas", "خدمات"],
+      "answer": "IaaS تأجير البنية (خوادم افتراضية)، PaaS تأجير منصة جاهزة للتطوير (تنشر كودك فقط)، SaaS برنامج جاهز بالاشتراك (Gmail، Netflix)."
+    },
+    {
+      "id": "tech-ml-types",
+      "domain": "facts/tech",
+      "triggers": ["أنواع تعلم الآلة", "supervised unsupervised", "تعلم مع اشراف"],
+      "keywords": ["تعلم آلة", "supervised", "unsupervised", "reinforcement"],
+      "answer": "تعلم الآلة: بإشراف (بيانات مصنفة → تنبؤ)، بدون إشراف (اكتشاف أنماط بلا تصنيف)، ومعزز (تعلم بالمكافأة — أساس روبوتات وألعاب الذكاء)."
+    },
+    {
+      "id": "tech-embedding-vectors",
+      "domain": "facts/tech",
+      "triggers": ["شو يعني embedding", "متجهات دلالية", "what are embeddings"],
+      "keywords": ["embedding", "متجه", "دلالي", "بحث"],
+      "answer": "Embedding تحويل نص إلى قائمة أرقام (متجه) بحيث المتشابهة معنىً تتقارب هندسياً — أساس البحث الدلالي وأنظمة RAG."
+    },
+    {
+      "id": "tech-rag",
+      "domain": "facts/tech",
+      "triggers": ["شو يعني rag", "retrieval augmented generation", "الذكاء مع مصادر"],
+      "keywords": ["rag", "استرجاع", "توليد", "سياق"],
+      "answer": "RAG أسلوب يجعل نموذج اللغة يجيب من مستندات تُسترجع أولاً حسب سؤالك: يقلل الهلوسة ويسمح بإجابات محدثة من بياناتك الخاصة مع الإشارة لمصدرها."
+    },
+    {
+      "id": "tech-vector-db",
+      "domain": "facts/tech",
+      "triggers": ["قاعدة بيانات متجهات", "vector database", "مثل qdrant"],
+      "keywords": ["متجهات", "qdrant", "pinecone", "بحث"],
+      "answer": "قاعدة البيانات المتجهية تخزن الـ embeddings وتجيد البحث بأقرب جار (أكثر النصوص شبهاً بالسؤال) — أمثلتها Qdrant وPinecone وMilvus."
+    },
+    {
+      "id": "tech-ai-agent",
+      "domain": "facts/tech",
+      "triggers": ["شو هو ai agent", "وكيل ذكاء اصطناعي", "what is an ai agent"],
+      "keywords": ["agent", "وكيل", "أدوات", "استقلالية"],
+      "answer": "AI Agent نظام ذكي يقوم بحلقة: يخطط، يستدعي أدوات (بحث، كود، ملفات)، يلاحظ النتائج ويصحح مساره — لا مجرد سؤال وجواب واحد."
+    },
+    {
+      "id": "tech-sql-join",
+      "domain": "facts/tech",
+      "triggers": ["شو يعني join", "أنواع join sql", "sql joins explained"],
+      "keywords": ["join", "sql", "جداول"],
+      "answer": "JOIN دمج صفوف جدولين بعلاقة: INNER فقط المتطابق، LEFT كل الأيسر مع ما طابقه من الأيمن، RIGHT العكس، FULL الاثنان معاً."
+    },
+    {
+      "id": "tech-acid-transactions",
+      "domain": "facts/tech",
+      "triggers": ["acid يعني", "معاملات قواعد البيانات", "transactions acid"],
+      "keywords": ["acid", "معاملة", "قاعدة بيانات"],
+      "answer": "ACID ضمانات المعاملة: ذرية (الكل أو لا شيء)، اتساق، عزل، ودوام — لذلك التحويل البنكي لا يخصم إلا مع إيداع ناجح."
+    },
+    {
+      "id": "tech-git-vs-github",
+      "domain": "facts/tech",
+      "triggers": ["فرق git وgithub", "git vs github", "شو الفرق جيت وجيت هاب"],
+      "keywords": ["git", "github", "استضافة"],
+      "answer": "Git أداة تحكم إصدارات محلية على جهازك؛ GitHub موقع يستضيف مستودعات Git ويضيف تعاوناً (pull requests، issues). Git تعمل بدونه، والعكس لا."
+    },
+    {
+      "id": "tech-cicd",
+      "domain": "facts/tech",
+      "triggers": ["شو يعني ci cd", "continuous integration", "أتمتة النشر"],
+      "keywords": ["ci", "cd", "نشر", "أتمتة"],
+      "answer": "CI/CD أتمتة: كل تغيير يُبنى ويُختبر تلقائياً (الدمج المستمر) ثم يُنشر بضغطة أو تلقائياً (التسليم المستمر) — تقلل «عندي يشتغل!»."
+    },
+    {
+      "id": "tech-docker",
+      "domain": "facts/tech",
+      "triggers": ["شو يعني docker", "حاويات يعني", "what is docker"],
+      "keywords": ["docker", "حاوية", "container"],
+      "answer": "Docker يحزم التطبيق بكل اعتمادياته في «حاوية» تعمل بنفس الطريقة على أي جهاز — يحل مشكلة «يعمل على جهازي» ويسهل النشر والعزل."
+    },
+    {
+      "id": "tech-frontend-backend",
+      "domain": "facts/tech",
+      "triggers": ["فرق فرونت اند وباك اند", "frontend vs backend", "شو يعني فول ستاك"],
+      "keywords": ["frontend", "backend", "فول ستاك"],
+      "answer": "Frontend كل ما يراه المستخدم (واجهة بالمتصفح)، Backend الخادم الخفي (منطق، قواعد بيانات، مصادقة)، وFull-stack مطور يجيد الاثنين."
+    },
+    {
+      "id": "tech-json",
+      "domain": "facts/tech",
+      "triggers": ["شو يعني json", "what is json", "صيغة جيسون"],
+      "keywords": ["json", "صيغة", "بيانات"],
+      "answer": "JSON صيغة نصية خفيفة لتبادل البيانات {مفاتيح: قيم} وقوائم — لغة التفاهم الشائعة بين الواجهات والخوادم لأنها مقروءة للإنسان والآلة."
+    },
+    {
+      "id": "tech-rest-api",
+      "domain": "facts/tech",
+      "triggers": ["شو يعني rest api", "what is rest", "رست ايه بي اي"],
+      "keywords": ["rest", "api", "http"],
+      "answer": "REST أسلوب بناء APIs على HTTP: موارد بأسماء (users/5) وأفعال الـ HTTP (GET/POST/PUT/DELETE) وحالة بلا ذاكرة بين الطلبات — أبسط وأشهر النمطيات."
+    },
+    {
+      "id": "tech-big-o",
+      "domain": "facts/tech",
+      "triggers": ["شو يعني big o", "تعقيد o n", "big o notation"],
+      "keywords": ["big o", "تعقيد", "خوارزمية"],
+      "answer": "Big O وصف لنمو زمن التنفيذ مع حجم المدخلات: O(1) ثابت، O(log n) لوغاريتمي (بحث ثنائي)، O(n) خطي، O(n²) تربيعي (حلقات متداخلة)."
+    },
+    {
+      "id": "tech-recursion",
+      "domain": "facts/tech",
+      "triggers": ["شو يعني recursion", "الاستدعاء الذاتي", "what is recursion"],
+      "keywords": ["recursion", "استدعاء", "ذاتي"],
+      "answer": "Recursion دالة تستدعي نفسها على نسخة أصغر من المشكلة حتى حالة أساس توقفها — مثالها الطبيعي: اجتياز مجلدات متداخلة أو شجرة عائلة."
+    },
+    {
+      "id": "tech-compiler-interpreter",
+      "domain": "facts/tech",
+      "triggers": ["فرق مترجم ومفسر", "compiler vs interpreter", "شو يعني compile"],
+      "keywords": ["مترجم", "مفسر", "compile"],
+      "answer": "المترجم يترجم البرنامج كاملاً قبل التنفيذ (C، Rust) — أسرع تنفيذاً؛ المفسر ينفذ سطراً بسطر (Python، JS) — أسرع تجربة وتطويراً."
+    },
+    {
+      "id": "tech-open-source",
+      "domain": "facts/tech",
+      "triggers": ["شو يعني مفتوح المصدر", "open source meaning", "الرخص المفتوحة"],
+      "keywords": ["مفتوح المصدر", "license", "git"],
+      "answer": "المفتوح المصدر برمجية كودها متاح للقراءة والتعديل بشروط رخصة (MIT، Apache، GPL) — «مجاني» ليس مرادفاً دائماً: الرخصة تحدد الحقوق لا السعر فقط."
+    },
+    {
+      "id": "tech-vpn",
+      "domain": "facts/tech",
+      "triggers": ["شو يعني vpn", "فائدة الفي بي ان", "what does a vpn do"],
+      "keywords": ["vpn", "تشفير", "خصوصية"],
+      "answer": "VPN ينشئ نفقاً مشفراً بينك وبين خادمه فيخفي عنوانك عن المواقع ويرى مشغل الشبكة بيانات مشفرة فقط — لكنه لا يجعلك مجهولاً كاملاً ومزوده يرى حركتك."
+    },
+    {
+      "id": "tech-2fa",
+      "domain": "facts/tech",
+      "triggers": ["شو يعني التحقق بخطوتين", "two factor authentication", "2fa يعني"],
+      "keywords": ["2fa", "تحقق", "حساب"],
+      "answer": "التحقق بخطوتين يضيف «شيئا تملكه» (تطبيق مصادقة، رسالة) فوق «شيء تعرفه» (كلمة المرور) — حتى لو سرقت كلمتك يبقى الحساب محمياً. تطبيق Authenticator أأمن من الرسائل."
+    },
+    {
+      "id": "tech-phishing",
+      "domain": "facts/tech",
+      "triggers": ["شو يعني التصيد", "phishing scam", "رسائل مزيفة"],
+      "keywords": ["تصيد", "phishing", "احتيال"],
+      "answer": "التصيد رسالة/موقع ينتحل جهة موثوقة ليسرق بياناتك. علاماته: استعجال وتهديد، رابط غير مطابق، طلب كلمة مرور/رمز. القاعدة: ادخل للموقع يدوياً ولا تضغط الرابط."
+    },
+    {
+      "id": "tech-password-strength",
+      "domain": "facts/tech",
+      "triggers": ["كلمة سر قوية", "strong password tips", "شلون اعمل باسورد آمن"],
+      "keywords": ["كلمة مرور", "قوة", "أمان"],
+      "answer": "قوة كلمة المرور بالطول أولاً (12+ حرفاً) والتفرد لكل حساب — مدير كلمات المرور + التحقق بخطوتين يغيّران المعادلة أكثر من التعقيد الرمزي."
+    },
+    {
+      "id": "tech-encryption",
+      "domain": "facts/tech",
+      "triggers": ["شو يعني التشفير", "encryption explained", "مفاتيح التشفير"],
+      "keywords": ["تشفير", "مفتاح", "aes"],
+      "answer": "التشفير تحويل بيانات لغير مقروء بلا مفتاح: متماثل (مفتاح واحد سري — AES) وغير متماثل (عام للتشفير وخاص للفك — ما يحمي HTTPS والتوقيعات)."
+    },
+    {
+      "id": "tech-cookies",
+      "domain": "facts/tech",
+      "triggers": ["شو يعني كوكيز", "cookies explained", "ملفات تعريف"],
+      "keywords": ["cookies", "متصفح", "جلسة"],
+      "answer": "Cookies ملفات صغيرة يخزنها الموقع بمتصفحك لتذكّرك (جلسة الدخول، السلة) أو لتتبعك (إعلانات) — قانونياً تُستأذن في أوروبا ويمكن حجبها من المتصفح."
+    },
+    {
+      "id": "tech-cache",
+      "domain": "facts/tech",
+      "triggers": ["شو يعني كاش", "cache explained", "لسا بيشيل الكاش"],
+      "keywords": ["cache", "تخزين مؤقت", "أداء"],
+      "answer": "الكاش نسخة مؤقتة سريعة من بيانات أبطأ مصدراً (معالج→ذاكرة، متصفح→موقع) لرفع السرعة؛ مسحه يحل حالات «التحديث لا يظهر» لأنك كنت ترى النسخة القديمة."
+    },
+    {
+      "id": "tech-latency-bandwidth",
+      "domain": "facts/tech",
+      "triggers": ["فرق latency وbandwidth", "سرعة النت والتأخير", "latency vs bandwidth"],
+      "keywords": ["latency", "bandwidth", "سرعة"],
+      "answer": "Bandwidth سعة الأنبوب (كم بيانات بالثانية — للتنزيل)، Latency زمن وصول أول استجابة (للألعاب والمكالمات). نطاق ضخم بتأخير عالٍ = تنزيل سريع وتجربة راكدة."
+    },
+    {
+      "id": "tech-unicode",
+      "domain": "facts/tech",
+      "triggers": ["شو يعني utf-8", "unicode encoding", "ترميز النصوص"],
+      "keywords": ["utf-8", "unicode", "ترميز"],
+      "answer": "Unicode يرقّم كل حرف بكل اللغات برقم موحد، وUTF-8 أشهر طرق تخزينه — حله الجذري لمشاكل «???» و«Ø§Ù„Ø¹Ø±Ø¨ÙŠØ©» عند خلط الترميزات."
+    },
+    {
+      "id": "tech-bidi-rtl",
+      "domain": "facts/tech",
+      "triggers": ["مشكلة عربي انجليزي بنفس السطر", "bidi rtl mixed text", "اتجاه النص"],
+      "keywords": ["rtl", "bidi", "اتجاه", "عربي"],
+      "answer": "Bidi معيار اتجاه النص المختلط: الفقرة لها اتجاه أساسي والعناصر المعاكسة تُعرض بجيوب. علامات RLM/LRM وعزل المصطلحات اللاتينية بـ`backticks` تحل تشوهات النسخ."
+    },
+    {
+      "id": "tech-qr-code",
+      "domain": "facts/tech",
+      "triggers": ["شو هو qr code", "how qr codes work", "الباركود المربع"],
+      "keywords": ["qr", "باركود", "مسح"],
+      "answer": "رمز QR نمط مربع يخزن نصاً/رابطاً بتصحيح أخطاء مدمج (يقرأ حتى لو اتلف حتى 30%) — وسّع استخدامُه الهواتفُ لأن كاميرته قارئ دائم في الجيب."
+    },
+    {
+      "id": "tech-bluetooth-wifi",
+      "domain": "facts/tech",
+      "triggers": ["فرق بلوتوث وواي فاي", "bluetooth vs wifi", "شو الفرق"],
+      "keywords": ["بلوتوث", "wifi", "اتصال"],
+      "answer": "البلوتوث قصير المدى (أمتار) منخفض الطاقة — مثالي للسماعات وأجهزة الاستشعار؛ الواي فاي أبعد وأوسع نطاقاً — للإنترنت الفعلي وسرعات عالية."
+    },
+    {
+      "id": "tech-prompt-tips",
+      "domain": "facts/tech",
+      "triggers": ["كيف اكتب برومبت زين", "prompt writing tips", "افضل طريقة اسأل الذكاء"],
+      "keywords": ["prompt", "برومبت", "ذكاء"],
+      "answer": "برومبت فعال: حدد الدور والهدف والجمهور والصيغة، أعطِ سياقاً ومثالاً إن وجد، واطلب خطوات أو جدولاً عند الحاجة — «حسّن هذا النص» أضعف بكثير من مواصفات دقيقة."
+    },
+    {
+      "id": "tech-llm-limits",
+      "domain": "facts/tech",
+      "triggers": ["ليش الذكاء بهلوس", "hallucination ai", "حدود النماذج اللغوية"],
+      "keywords": ["هلوسة", "حدود", "نموذج", "hallucination"],
+      "answer": "النموذج اللغوي يتنبأ بأكثر النص احتمالاً لا بالحقائق بالضرورة، فقد يبتث معلومة خاطئة بثقة تامة. العلاج العملي: اطلب مصادر/استخدم أدوات بحث وتحقق من الأرقام والمواعيد دائماً."
+    },
+    {
+      "id": "tech-unicode-emojis",
+      "domain": "facts/tech",
+      "triggers": ["شو يعني emoji unicode", "الإيموجي كيف يشتغل", "emojis encoding"],
+      "keywords": ["emoji", "unicode", "محارف"],
+      "answer": "الإيموجي محارف Unicode حقيقية لكل منها كود — لذلك تختلف ملامحها بين آبل وجوجل ومايكروسوفت (كل يرسم خطه الخاص لنفس الكود)."
+    },
+    {
+      "id": "tech-semver",
+      "domain": "facts/tech",
+      "triggers": ["شو يعني اصدار 1.2.3", "semantic versioning", "semver يعني"],
+      "keywords": ["semver", "إصدار", "نسخة"],
+      "answer": "Semantic Versioning: major.minor.patch — major كسر توافق، minor إضافات متوافقة، patch إصلاحات. لذلك اعتماد ^1.2.3 يجلب 1.x آمنة لا 2.0 المختلفة."
+    },
+    {
+      "id": "tech-ide",
+      "domain": "facts/tech",
+      "triggers": ["شو يعني ide", "best code editor", "محرر أكواد"],
+      "keywords": ["ide", "محرر", "editor", "vscode"],
+      "answer": "IDE بيئة تطوير متكاملة (محرر + مصحح + أدوات)، ومحرر خفيف مثل VS Code يتحول لـIDE بالإضافات — الاختيار الشائع اليوم: VS Code، وPyCharm للبايثون الثقيل."
+    },
+    {
+      "id": "tech-unicode-dates",
+      "domain": "facts/tech",
+      "triggers": ["صيغة التاريخ iso", "iso 8601 date", "تنسيق التواريخ"],
+      "keywords": ["iso", "تاريخ", "تنسيق", "8601"],
+      "answer": "ISO 8601 (YYYY-MM-DD مثل 2026-09-03) صيغة التاريخ العالمية التي تُرتّب هجائياً زمنياً — أفضل خيار للتخزين والتبادل؛ التحويل للعرض المحلي لاحقاً."
+    },
+    {
+      "id": "tech-websocket",
+      "domain": "facts/tech",
+      "triggers": ["شو يعني websocket", "realtime how", "الاتصال اللحظي"],
+      "keywords": ["websocket", "لحظي", " realtime"],
+      "answer": "WebSocket قناة اتصال مفتوحة ثنائية الاتجاه بين المتصفح والخادم — أساس الدردشة والإشعارات اللحظية، بدل استطلاع HTTP المتكرر."
+    },
+    {
+      "id": "tech-ssl-certificates",
+      "domain": "facts/tech",
+      "triggers": ["شهادة ssl", "letsencrypt مجاني", "ssl certificate"],
+      "keywords": ["ssl", "شهادة", "lets encrypt"],
+      "answer": "شهادة SSL/TLS تثبت هوية الموقع وتتيح التشفير، وLet's Encrypt يصدرها مجاناً وتلقائياً — لا عذر اليوم لموقع بدون HTTPS."
+    },
+    {
+      "id": "tech-accessibility",
+      "domain": "facts/tech",
+      "triggers": ["شو يعني accessibility", "وصولية المواقع", "a11y web"],
+      "keywords": ["accessibility", "وصولية", "a11y", "قارئ شاشة"],
+      "answer": "الوصولية (a11y) جعل المنتج قابلاً للاستخدام للجميع: نص بديل للصور، تباين كافٍ، تنقل بلوحة المفاتيح، وعناوين منظمة تخدم قارئات الشاشة — وتحسين SEO مجاني."
+    },
+    {
+      "id": "tech-mvc",
+      "domain": "facts/tech",
+      "triggers": ["شو يعني mvc", "model view controller", "نمط معماري"],
+      "keywords": ["mvc", "نمط", "معمارية"],
+      "answer": "MVC فصل المسؤوليات: Model البيانات والقواعد، View العرض، Controller التنسيق بينهما — الفكرة الأم خلف معظم أطر الويب أن التغيير في طبقة لا يكسر الأخريات."
+    },
+    {
+      "id": "tech-api-keys",
+      "domain": "facts/tech",
+      "triggers": ["شو يعني api key", "لماذا لا تشارك مفتاح", "api key security"],
+      "keywords": ["api key", "مفتاح", "أمان"],
+      "answer": "مفتاح API كلمة سر برنامجك عند خدمة ما — لا يوضع بكود الواجهة أبداً (الكل يراه)، بل يمر عبر خادم وسيط، ويُدوَّر فوراً عند أي تسريب."
+    }
+  ]
+}

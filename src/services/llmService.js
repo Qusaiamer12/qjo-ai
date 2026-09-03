@@ -39,7 +39,16 @@ const MODEL_MIGRATIONS = {
   'llama3-70b-8192': 'openai/gpt-oss-120b',
   'llama3-8b-8192': 'openai/gpt-oss-20b',
   'gemma2-9b-it': 'openai/gpt-oss-20b',
-  'mixtral-8x7b-32768': 'openai/gpt-oss-120b'
+  'mixtral-8x7b-32768': 'openai/gpt-oss-120b',
+  'gemini-1.5-flash': 'gemini-3.8-flash',
+  'gemini-1.5-flash-8b': 'gemini-3.8-flash',
+  'gemini-2.0-flash': 'gemini-3.8-flash',
+  'gemini-2.0-flash-lite': 'gemini-3.8-flash',
+  'kimi-k2-0711-preview': 'kimi-k2.6',
+  'kimi-k2-0905-preview': 'kimi-k2.6',
+  'kimi-k2-turbo-preview': 'kimi-k2.6',
+  'kimi-k2-thinking': 'kimi-k2.6',
+  'meta/llama-3.1-70b-instruct': 'meta/llama-3.3-70b-instruct'
 };
 
 function migratedModel(model) {
@@ -227,11 +236,9 @@ function createLlmService(config = {}) {
   }
 
   async function callOpenAICompatible({ provider, baseUrl, model, messages, temperature, max_tokens, tools, extraHeaders = {}, onChunk, onReasoning, timeoutMs, signal, _migrated = false }) {
-    if (provider === 'groq') {
-      const mig = migratedModel(model);
-      if (mig) {
-        model = mig;
-      }
+    const mig = migratedModel(model);
+    if (mig) {
+      model = mig;
     }
     const keys = rotateKeys(provider);
     if (!keys.length || !baseUrl || !model) return { ok: false, status: 501, error: `${provider} is not configured.` };

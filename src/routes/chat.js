@@ -185,6 +185,17 @@ function registerChatRoutes(app, deps) {
           .replace(/\{\{current_datetime\}\}/g, `${localTimeString} (الموقع الجغرافي: ${locationText}, المنطقة الزمنية: ${timeZone})`);
       }
 
+      // Q-KB v1: attach curated Arabic task-craft & facts guidance when the last user
+      // message matches a knowledge entry. Best-effort and silent:
+      // any failure just leaves the prompt unchanged.
+      if (systemPrompt && typeof deps.knowledgeBaseService?.lookup === 'function') {
+        const lastUserText = [...userMessages].reverse().map(m => (typeof m.content === 'string' ? m.content : '')).find(Boolean) || '';
+        const kbResult = await deps.knowledgeBaseService.lookup(lastUserText);
+        if (kbResult && kbResult.found && kbResult.block) {
+          systemPrompt = `${systemPrompt}\n\n${kbResult.block}`;
+        }
+      }
+
       const systemMessages = [];
       if (systemPrompt) systemMessages.push({ role: 'system', content: systemPrompt });
       systemMessages.push(...clientSystemMessages);
