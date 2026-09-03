@@ -264,8 +264,9 @@ function createKnowledgeBaseService(config = {}) {
       try {
         await buildMemoryIndex();
       } catch (error) {
-        state.mode = 'disabled';
-        state.lastError = `KB index build failed: ${error.message}`;
+        state.mode = 'lexical';
+        state.ready = true;
+        state.lastError = `Embeddings offline (${error.message}) — operating in instant lexical KB mode.`;
         console.warn(`[knowledgeBase] ${state.lastError}`);
       }
     } catch (error) {
@@ -276,11 +277,66 @@ function createKnowledgeBaseService(config = {}) {
     return state;
   }
 
+  function normalizeText(str) {
+    return String(str || '')
+      .toLowerCase()
+      .replace(/[\u064B-\u065F\u0670]/g, '')
+      .replace(/[إأآا]/g, 'ا')
+      .replace(/ة/g, 'ه')
+      .replace(/ى/g, 'ي')
+      .replace(/[\.,\/#!$%\^&\*;:{}=\-_`~()؟?،!]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
   function isChitchat(query) {
     const text = String(query || '').trim();
-    if (text.length < 10 && !/[?؟]/.test(text)) return true;
+    if (text.length < 3) return true;
     if (text.length < 40 && isGreetingMessage(text)) return true;
     return false;
+  }
+
+  function searchLexical(query) {
+    const normQ = normalizeText(query);
+    const qTokens = normQ.split(' ').filter(t => t.length > 1);
+    if (!qTokens.length) return [];
+
+    const scored = [];
+    for (const entry of entries) {
+      let score = 0;
+      const normTriggers = (entry.triggers || []).map(normalizeText);
+      const normKeywords = (entry.keywords || []).map(normalizeText);
+
+      // 1. Exact trigger match or phrase inclusion
+      for (const tr of normTriggers) {
+        if (!tr) continue;
+        if (normQ.includes(tr) || tr.includes(normQ)) {
+          score = Math.max(score, 0.90);
+        } else {
+          const trTokens = tr.split(' ').filter(t => t.length > 1);
+          const overlap = trTokens.filter(t => normQ.includes(t)).length;
+          if (overlap >= 2 && overlap >= trTokens.length * 0.5) {
+            score = Math.max(score, 0.60 + 0.25 * (overlap / trTokens.length));
+          }
+        }
+      }
+
+      // 2. Keyword overlap
+      let kwHits = 0;
+      for (const kw of normKeywords) {
+        if (kw && normQ.includes(kw)) kwHits++;
+      }
+      if (kwHits > 0) {
+        const kwScore = Math.min(0.60, kwHits * 0.20);
+        score = Math.max(score, kwScore);
+      }
+
+      if (score >= 0.40) {
+        scored.push({ score, entry });
+      }
+    }
+
+    return scored.sort((a, b) => b.score - a.score).slice(0, topK);
   }
 
   async function searchQdrant(queryVector) {
@@ -337,20 +393,29 @@ function createKnowledgeBaseService(config = {}) {
     if (!text || isChitchat(text)) return { found: false, reason: 'chitchat' };
     if (state.mode === 'warming' || !state.ready) return { found: false, reason: 'warming' };
 
-    try {
-      const queryVectors = await withTimeout(embedTexts([text], ['query']));
-      const queryVector = queryVectors && queryVectors[0];
-      if (!queryVector || !queryVector.length) return { found: false, reason: 'embed-failed' };
-
-      const hits = await withTimeout(state.mode === 'qdrant' ? searchQdrant(queryVector) : searchMemory(queryVector));
-      if (!hits || !hits.length) return { found: false, reason: 'below-threshold' };
-
-      const block = buildSystemBlock(hits, text);
-      if (!block) return { found: false, reason: 'size-caps' };
-      return { found: true, block, mode: state.mode, hits: hits.map(h => ({ id: h.entry.id, domain: h.entry.domain, score: Number(h.score.toFixed(3)) })) };
-    } catch (error) {
-      return { found: false, reason: `error: ${error.message}` };
+    let hits = [];
+    if (state.mode === 'qdrant' || state.mode === 'memory') {
+      try {
+        const queryVectors = await withTimeout(embedTexts([text], ['query']));
+        const queryVector = queryVectors && queryVectors[0];
+        if (queryVector && queryVector.length) {
+          hits = (await withTimeout(state.mode === 'qdrant' ? searchQdrant(queryVector) : searchMemory(queryVector))) || [];
+        }
+      } catch (_) {
+        /* proceed to lexical fallback */
+      }
     }
+
+    // Fast, deterministic lexical fallback when vector matching yields no hits or embeddings offline
+    if (!hits || !hits.length) {
+      hits = searchLexical(text);
+    }
+
+    if (!hits || !hits.length) return { found: false, reason: 'below-threshold' };
+
+    const block = buildSystemBlock(hits, text);
+    if (!block) return { found: false, reason: 'size-caps' };
+    return { found: true, block, mode: state.mode, hits: hits.map(h => ({ id: h.entry.id, domain: h.entry.domain, score: Number(h.score.toFixed(3)) })) };
   }
 
   function stats() {

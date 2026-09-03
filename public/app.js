@@ -5083,6 +5083,8 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
         document.body.classList.remove('sheet-open');
       }
 
+      const triggerBtn = document.getElementById('mobileToolsTriggerBtn');
+      if (triggerBtn) triggerBtn.addEventListener('click', openSheet);
       notch.addEventListener('click', openSheet);
       if (closeBtn) closeBtn.addEventListener('click', closeSheet);
       backdrop.addEventListener('click', closeSheet);

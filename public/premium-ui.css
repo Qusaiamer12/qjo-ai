@@ -1442,90 +1442,110 @@ body:not(.dark) .qjo-reasoning-step {
 }
 
 /* =========================================================
-   Qjo Mobile Master Redesign (ChatGPT / Gemini Grade Experience)
+   Qjo Mobile Master Redesign v2 — Clean ChatGPT-style layout
+   Targets ACTUAL classes from index.html: .app, .main, .messages,
+   .composer-wrap, .composer-shell, .composer, .topbar
    ========================================================= */
 
-/* Desktop defaults: Hide mobile notch & sheet */
+/* Desktop defaults: Hide mobile notch, sheet & trigger button */
 .mobile-tools-notch,
 .mobile-tools-sheet,
-.mobile-tools-sheet-backdrop {
-  display: none;
+.mobile-tools-sheet-backdrop,
+.mobile-tools-trigger-btn {
+  display: none !important;
 }
 
 @media (max-width: 768px) {
-  /* 1. Global Viewport & Container Reset for Mobile Browsers */
+
+  /* ── 1. Viewport: NO position:fixed, NO overflow:hidden on body ── */
   html, body {
     height: 100dvh !important;
     min-height: 100dvh !important;
-    max-height: 100dvh !important;
     overflow: hidden !important;
-    position: fixed !important;
-    width: 100vw !important;
   }
 
-  .app-shell {
-    height: 100dvh !important;
+  /* ── 2. App Container: full-height flex column ── */
+  .app {
     display: flex !important;
     flex-direction: column !important;
+    height: 100dvh !important;
     overflow: hidden !important;
   }
 
-  .main-content {
-    height: 100dvh !important;
+  /* ── 3. Main Area: fills remaining space ── */
+  .main {
     display: flex !important;
     flex-direction: column !important;
-    overflow: hidden !important;
-  }
-
-  .chat-area {
     flex: 1 1 auto !important;
     min-height: 0 !important;
-    display: flex !important;
-    flex-direction: column !important;
     overflow: hidden !important;
     position: relative !important;
   }
 
+  /* ── 4. Topbar: slim, glassmorphic, non-intrusive ── */
+  .topbar {
+    flex-shrink: 0 !important;
+    padding: 6px 12px !important;
+    min-height: 46px !important;
+    max-height: 50px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    background: rgba(10, 8, 24, 0.85) !important;
+    backdrop-filter: blur(18px) saturate(160%) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(160%) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+    z-index: 50 !important;
+  }
+  body:not(.dark) .topbar {
+    background: rgba(251, 251, 251, 0.90) !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+  }
+
+  /* Topbar title — keep it compact */
+  .top-title { flex: 1; min-width: 0; }
+  .top-title strong { font-size: 16px !important; }
+  #topSubtitle { display: none !important; }
+
+  /* Topbar actions — keep new chat + export, hide sidebar toggle */
+  .top-actions .sidebar-toggle { display: none !important; }
+
+  /* ── 5. Messages: natural scrolling, proper padding ── */
   .messages {
     flex: 1 1 auto !important;
     min-height: 0 !important;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
-    padding: 10px 8px 85px !important;
-    scrollbar-width: none;
+    scrollbar-width: none !important;
+    padding-top: 10px !important;
+    padding-bottom: 12px !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
   }
-  .messages::-webkit-scrollbar {
-    display: none;
-  }
+  .messages::-webkit-scrollbar { display: none; }
 
-  /* 2. Hide Inline Clutter From Mobile Composer Shell */
-  .composer-shell .composer-function-toggles,
-  .composer-shell .quick-command-cats {
-    display: none !important;
-  }
-
-  /* 3. Sleek Floating Mobile Composer (Like ChatGPT / Gemini) */
+  /* ── 6. Composer: STATIC at bottom, NOT position:fixed ── */
   .composer-wrap {
-    position: fixed !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    width: 100vw !important;
-    max-width: 100vw !important;
+    flex-shrink: 0 !important;
+    position: relative !important;
+    bottom: auto !important;
+    left: auto !important;
+    right: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
     margin: 0 !important;
-    padding: 6px 10px calc(8px + env(safe-area-inset-bottom, 8px)) !important;
-    background: rgba(10, 8, 24, 0.88) !important;
-    backdrop-filter: blur(24px) saturate(190%) !important;
-    -webkit-backdrop-filter: blur(24px) saturate(190%) !important;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 6px)) !important;
+    background: rgba(10, 8, 24, 0.94) !important;
+    backdrop-filter: blur(20px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
     border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
-    z-index: 90 !important;
-    box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.3) !important;
+    z-index: 50 !important;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2) !important;
   }
-
   body:not(.dark) .composer-wrap {
-    background: rgba(255, 255, 255, 0.92) !important;
+    background: rgba(255, 255, 255, 0.96) !important;
     border-top: 1px solid rgba(15, 23, 42, 0.08) !important;
-    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.05) !important;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.04) !important;
   }
 
   .composer-shell {
@@ -1535,368 +1555,322 @@ body:not(.dark) .qjo-reasoning-step {
     padding: 0 !important;
   }
 
-  .composer {
-    display: flex !important;
-    align-items: center !important;
-    gap: 6px !important;
-    background: rgba(255, 255, 255, 0.07) !important;
-    border: 1px solid rgba(255, 255, 255, 0.14) !important;
-    border-radius: 26px !important;
-    padding: 5px 8px 5px 14px !important;
-    min-height: 48px !important;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15) !important;
+  /* ── 7. Hide inline clutter: toggles + quick commands go to bottom sheet ── */
+  #composerToggles,
+  .composer-function-toggles,
+  #quickCommandCats,
+  .quick-command-cats,
+  .composer-shell .composer-function-toggles,
+  .composer-shell .quick-command-cats {
+    display: none !important;
   }
 
+  /* ── 8. Composer input row — clean pill like ChatGPT ── */
+  body .composer,
+  body.dark .composer,
+  body:not(.dark) .composer,
+  body.qjo-input-focused .composer,
+  body.qjo-keyboard-open .composer,
+  .composer {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    grid-template-columns: none !important;
+    grid-template-areas: none !important;
+    gap: 5px !important;
+    background: rgba(255, 255, 255, 0.07) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-radius: 24px !important;
+    padding: 4px 6px 4px 12px !important;
+    min-height: 44px !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12) !important;
+  }
   body:not(.dark) .composer {
     background: #ffffff !important;
-    border: 1px solid rgba(15, 23, 42, 0.12) !important;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06) !important;
+    border: 1px solid rgba(15, 23, 42, 0.10) !important;
+    box-shadow: 0 1px 8px rgba(0, 0, 0, 0.05) !important;
   }
 
   .composer textarea#input {
     flex: 1 1 auto !important;
     border: none !important;
     background: transparent !important;
-    min-height: 24px !important;
-    max-height: 110px !important;
+    min-height: 22px !important;
+    max-height: 100px !important;
     font-size: 15px !important;
-    line-height: 1.45 !important;
+    line-height: 1.4 !important;
     padding: 6px 0 !important;
     margin: 0 !important;
     color: #f8fafc !important;
     -webkit-text-fill-color: #f8fafc !important;
     resize: none !important;
+    outline: none !important;
   }
-
   body:not(.dark) .composer textarea#input {
     color: #0f172a !important;
     -webkit-text-fill-color: #0f172a !important;
   }
-
   .composer textarea#input::placeholder {
-    font-size: 14.5px !important;
-    color: rgba(148, 163, 184, 0.75) !important;
-    -webkit-text-fill-color: rgba(148, 163, 184, 0.75) !important;
+    font-size: 14px !important;
+    color: rgba(148, 163, 184, 0.7) !important;
+    -webkit-text-fill-color: rgba(148, 163, 184, 0.7) !important;
   }
 
+  /* Action buttons inside composer */
+  body .composer-actions,
+  body.dark .composer-actions,
   .composer-actions {
     display: flex !important;
+    flex-direction: row !important;
     align-items: center !important;
     gap: 4px !important;
     margin: 0 !important;
+    flex-shrink: 0 !important;
+  }
+
+  body .send-btn,
+  body .attach-btn,
+  body .mic-btn,
+  body .mobile-tools-trigger-btn {
+    grid-area: auto !important;
   }
 
   .composer-actions button {
-    width: 36px !important;
-    height: 36px !important;
-    min-width: 36px !important;
-    min-height: 36px !important;
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    min-height: 34px !important;
     border-radius: 50% !important;
     display: grid !important;
     place-items: center !important;
     padding: 0 !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Mobile tools trigger (+) button inside composer */
+  .mobile-tools-trigger-btn {
+    display: grid !important;
+    place-items: center !important;
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+    border-radius: 50% !important;
+    background: rgba(139, 92, 246, 0.16) !important;
+    border: 1px solid rgba(139, 92, 246, 0.35) !important;
+    color: #c4b5fd !important;
+    cursor: pointer !important;
+    transition: transform 0.15s ease, background 0.15s ease !important;
+    flex-shrink: 0 !important;
+  }
+  .mobile-tools-trigger-btn:active {
+    transform: scale(0.92) !important;
+    background: rgba(139, 92, 246, 0.35) !important;
+  }
+  body:not(.dark) .mobile-tools-trigger-btn {
+    background: rgba(99, 102, 241, 0.10) !important;
+    border-color: rgba(99, 102, 241, 0.25) !important;
+    color: #4f46e5 !important;
   }
 
   .send-btn {
     background: linear-gradient(135deg, #7c3aed, #a855f7) !important;
     color: #ffffff !important;
-    box-shadow: 0 2px 10px rgba(124, 58, 237, 0.4) !important;
+    box-shadow: 0 2px 8px rgba(124, 58, 237, 0.35) !important;
   }
 
-  /* 4. Floating Mobile Tools Notch (ChatGPT / Gemini style) */
+  /* ── 9. Floating Mobile Tools Notch ── */
   .mobile-tools-notch {
     display: inline-flex !important;
     align-items: center;
     gap: 5px;
     position: fixed !important;
-    bottom: calc(66px + env(safe-area-inset-bottom, 8px)) !important;
-    inset-inline-start: 12px !important;
-    z-index: 92 !important;
-    padding: 6px 13px !important;
+    bottom: calc(64px + env(safe-area-inset-bottom, 6px)) !important;
+    inset-inline-start: 10px !important;
+    z-index: 60 !important;
+    padding: 5px 11px !important;
     border-radius: 999px !important;
-    font-size: 12px !important;
+    font-size: 11px !important;
     font-weight: 700 !important;
     background: rgba(15, 23, 42, 0.88) !important;
-    border: 1px solid rgba(139, 92, 246, 0.4) !important;
+    border: 1px solid rgba(139, 92, 246, 0.35) !important;
     color: #e2e8f0 !important;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35), 0 0 14px rgba(139, 92, 246, 0.25) !important;
-    backdrop-filter: blur(16px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3), 0 0 10px rgba(139, 92, 246, 0.2) !important;
+    backdrop-filter: blur(14px) !important;
+    -webkit-backdrop-filter: blur(14px) !important;
     cursor: pointer;
-    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s;
+    transition: transform 0.2s ease, box-shadow 0.2s;
   }
-
-  .mobile-tools-notch:active {
-    transform: scale(0.94);
-  }
-
+  .mobile-tools-notch:active { transform: scale(0.94); }
   body:not(.dark) .mobile-tools-notch {
     background: rgba(255, 255, 255, 0.94) !important;
     color: #4f46e5 !important;
-    border-color: rgba(99, 102, 241, 0.35) !important;
-    box-shadow: 0 4px 18px rgba(99, 102, 241, 0.2) !important;
+    border-color: rgba(99, 102, 241, 0.3) !important;
+    box-shadow: 0 3px 14px rgba(99, 102, 241, 0.18) !important;
   }
-
-  .notch-icon {
-    font-size: 13px;
-  }
-
+  .notch-icon { font-size: 12px; }
   .notch-indicator {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #a855f7;
-    box-shadow: 0 0 8px #a855f7;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #a855f7; box-shadow: 0 0 6px #a855f7;
     display: none;
   }
-
   .notch-indicator.active {
     display: inline-block !important;
     animation: qjo-pulse-indicator 1.5s infinite;
   }
-
   @keyframes qjo-pulse-indicator {
     0%, 100% { opacity: 1; transform: scale(1); }
     50% { opacity: 0.5; transform: scale(0.8); }
   }
 
-  /* 5. Mobile Tools Bottom Sheet / Drawer */
+  /* ── 10. Mobile Tools Bottom Sheet ── */
   .mobile-tools-sheet-backdrop {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-    z-index: 105;
-    opacity: 0;
+    display: none; position: fixed; inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+    z-index: 105; opacity: 0;
     transition: opacity 0.25s ease;
   }
-
   .mobile-tools-sheet-backdrop.show {
-    display: block !important;
-    opacity: 1 !important;
+    display: block !important; opacity: 1 !important;
   }
-
   .mobile-tools-sheet {
-    display: flex !important;
-    flex-direction: column !important;
-    position: fixed !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    max-height: 82vh !important;
+    display: flex !important; flex-direction: column !important;
+    position: fixed !important; bottom: 0 !important;
+    left: 0 !important; right: 0 !important;
+    max-height: 75vh !important;
     background: #0d111e !important;
-    border-top: 1px solid rgba(148, 163, 184, 0.2) !important;
-    border-radius: 24px 24px 0 0 !important;
-    padding: 12px 16px calc(24px + env(safe-area-inset-bottom, 12px)) !important;
+    border-top: 1px solid rgba(148, 163, 184, 0.18) !important;
+    border-radius: 20px 20px 0 0 !important;
+    padding: 10px 14px calc(20px + env(safe-area-inset-bottom, 10px)) !important;
     z-index: 110 !important;
     transform: translateY(105%) !important;
-    transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1) !important;
-    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.5) !important;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.45) !important;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
   }
-
   body:not(.dark) .mobile-tools-sheet {
     background: #ffffff !important;
-    border-top: 1px solid rgba(15, 23, 42, 0.12) !important;
-    box-shadow: 0 -12px 36px rgba(0, 0, 0, 0.15) !important;
+    border-top: 1px solid rgba(15, 23, 42, 0.10) !important;
+    box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.12) !important;
   }
-
-  .mobile-tools-sheet.show {
-    transform: translateY(0) !important;
-  }
-
+  .mobile-tools-sheet.show { transform: translateY(0) !important; }
   .sheet-drag-handle {
-    width: 40px;
-    height: 4px;
-    background: rgba(148, 163, 184, 0.4);
-    border-radius: 999px;
-    margin: 0 auto 12px;
+    width: 36px; height: 4px;
+    background: rgba(148, 163, 184, 0.35); border-radius: 999px;
+    margin: 0 auto 10px;
   }
-
   .sheet-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 14px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px; padding-bottom: 8px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.10);
   }
-
   .sheet-title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 15px;
-    font-weight: 750;
-    color: #f8fafc;
+    display: flex; align-items: center; gap: 6px;
+    font-size: 14px; font-weight: 750; color: #f8fafc;
   }
-
-  body:not(.dark) .sheet-title {
-    color: #0f172a;
-  }
-
+  body:not(.dark) .sheet-title { color: #0f172a; }
   .sheet-close-btn {
-    background: rgba(255, 255, 255, 0.08);
-    border: none;
-    color: #94a3b8;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    display: grid;
-    place-items: center;
-    font-size: 14px;
-    cursor: pointer;
+    background: rgba(255, 255, 255, 0.06); border: none;
+    color: #94a3b8; width: 26px; height: 26px; border-radius: 50%;
+    display: grid; place-items: center; font-size: 13px; cursor: pointer;
   }
-
   body:not(.dark) .sheet-close-btn {
-    background: rgba(15, 23, 42, 0.06);
-    color: #475569;
+    background: rgba(15, 23, 42, 0.05); color: #475569;
   }
-
   .sheet-section-title {
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: #818cf8;
-    margin: 14px 0 8px;
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.04em; color: #818cf8; margin: 12px 0 6px;
   }
-
-  body:not(.dark) .sheet-section-title {
-    color: #6366f1;
-  }
+  body:not(.dark) .sheet-section-title { color: #6366f1; }
 
   /* Sheet Toggles Grid */
-  .sheet-toggles-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
-  }
-
+  .sheet-toggles-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; }
   .sheet-toggle-card {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(148, 163, 184, 0.18);
-    border-radius: 14px;
-    cursor: pointer;
-    text-align: start;
-    transition: all 0.2s ease;
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 10px; background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(148, 163, 184, 0.15); border-radius: 12px;
+    cursor: pointer; text-align: start; transition: all 0.2s ease;
   }
-
   body:not(.dark) .sheet-toggle-card {
-    background: rgba(15, 23, 42, 0.03);
-    border-color: rgba(15, 23, 42, 0.1);
+    background: rgba(15, 23, 42, 0.03); border-color: rgba(15, 23, 42, 0.08);
   }
-
   .sheet-toggle-card.active {
-    background: rgba(124, 58, 237, 0.16) !important;
-    border-color: rgba(139, 92, 246, 0.45) !important;
-    box-shadow: 0 0 12px rgba(139, 92, 246, 0.25);
+    background: rgba(124, 58, 237, 0.14) !important;
+    border-color: rgba(139, 92, 246, 0.4) !important;
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.2);
   }
-
-  .sheet-toggle-icon {
-    font-size: 18px;
-    flex-shrink: 0;
-  }
-
-  .sheet-toggle-info {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-width: 0;
-  }
-
-  .sheet-toggle-name {
-    font-size: 13px;
-    font-weight: 700;
-    color: #f8fafc;
-  }
-
-  body:not(.dark) .sheet-toggle-name {
-    color: #0f172a;
-  }
-
+  .sheet-toggle-icon { font-size: 16px; flex-shrink: 0; }
+  .sheet-toggle-info { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+  .sheet-toggle-name { font-size: 12px; font-weight: 700; color: #f8fafc; }
+  body:not(.dark) .sheet-toggle-name { color: #0f172a; }
   .sheet-toggle-desc {
-    font-size: 10.5px;
-    color: #94a3b8;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: 10px; color: #94a3b8;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-
   .sheet-toggle-switch {
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    border: 2px solid rgba(148, 163, 184, 0.4);
-    flex-shrink: 0;
+    width: 12px; height: 12px; border-radius: 50%;
+    border: 2px solid rgba(148, 163, 184, 0.35); flex-shrink: 0;
   }
-
   .sheet-toggle-card.active .sheet-toggle-switch {
-    background: #a855f7;
-    border-color: #a855f7;
-    box-shadow: 0 0 8px #a855f7;
+    background: #a855f7; border-color: #a855f7; box-shadow: 0 0 6px #a855f7;
   }
 
   /* Sheet Categories Grid */
-  .sheet-cats-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
+  .sheet-cats-grid { display: flex; flex-wrap: wrap; gap: 6px; }
   .sheet-cat-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 12px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(148, 163, 184, 0.18);
-    color: #e2e8f0;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 7px 10px; border-radius: 999px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    color: #e2e8f0; font-size: 11px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s ease;
   }
-
   body:not(.dark) .sheet-cat-chip {
-    background: rgba(15, 23, 42, 0.04);
-    border-color: rgba(15, 23, 42, 0.12);
-    color: #1e293b;
+    background: rgba(15, 23, 42, 0.03);
+    border-color: rgba(15, 23, 42, 0.10); color: #1e293b;
+  }
+  .sheet-cat-chip:hover, .sheet-cat-chip:active {
+    background: rgba(124, 58, 237, 0.18);
+    border-color: rgba(139, 92, 246, 0.35); color: #ffffff;
   }
 
-  .sheet-cat-chip:hover,
-  .sheet-cat-chip:active {
-    background: rgba(124, 58, 237, 0.2);
-    border-color: rgba(139, 92, 246, 0.4);
-    color: #ffffff;
-  }
-
-  /* 6. Message Bubble Refinements for Mobile */
+  /* ── 11. Message Bubble Refinements ── */
   .msg {
-    width: 100% !important;
-    max-width: 100% !important;
-    margin: 6px 0 !important;
-    padding: 0 6px !important;
+    width: 100% !important; max-width: 100% !important;
+    margin: 5px 0 !important; padding: 0 6px !important;
   }
-
   .bubble {
-    max-width: 90% !important;
-    font-size: 14.5px !important;
-    line-height: 1.65 !important;
-    padding: 12px 14px !important;
-    border-radius: 18px !important;
+    max-width: 88% !important; font-size: 14.5px !important;
+    line-height: 1.6 !important; padding: 11px 13px !important;
+    border-radius: 16px !important;
   }
 
-  .topbar {
-    padding: 8px 12px !important;
-    min-height: 52px !important;
+  /* ── 12. Scroll-to-bottom button — sleek side float above composer on opposite side ── */
+  .scroll-bottom-btn {
+    position: fixed !important;
+    bottom: calc(64px + env(safe-area-inset-bottom, 6px)) !important;
+    inset-inline-end: 14px !important;
+    inset-inline-start: auto !important;
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 50% !important;
+    display: grid !important;
+    place-items: center !important;
+    background: rgba(15, 23, 42, 0.88) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(148, 163, 184, 0.25) !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3) !important;
+    z-index: 55 !important;
+  }
+
+  /* ── 13. Mode menu — compact inline ── */
+  .mode-menu, .mode-menu.open {
+    width: 100% !important;
+    min-width: 0 !important;
+    z-index: 55 !important;
   }
 }
+
