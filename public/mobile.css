@@ -1,0 +1,191 @@
+/* =============================================================================
+   Qjo — Mobile Polish Layer
+   =============================================================================
+   Purpose:
+     This file is the LAST stylesheet that loads (see index.html), so its rules
+     resolve any remaining cascade conflicts left by the many stacked mobile
+     patches in styles.css / premium-ui.css. It intentionally:
+
+       • Keeps the app usable and tappable on phones (no broken buttons).
+       • Respects device safe areas (notches, rounded corners, home indicator).
+       • Stops Safari from auto-zooming when focusing the composer.
+       • Allows pinch-zoom / text scaling (WCAG 1.4.4 / 1.4.10) instead of
+         locking the viewport with `user-scalable=0`.
+       • Keeps long words, URLs, and code from overflowing the bubbles.
+       • Tunes the tiniest screens (<= 380px) without breaking larger phones.
+
+   Mobile is defined as `max-width: 768px` because the runtime controller
+   (installMobileViewportController in app.js) uses the same breakpoint via
+   `matchMedia('(max-width: 768px)')`, so CSS and JS stay in sync.
+   ============================================================================= */
+
+
+/* ---------------------------------------------------------------------------
+   1. Global mobile viewport hygiene
+   --------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  html,
+  body {
+    /* Prevent the rubber-band scroll that shows a gap behind the fixed app. */
+    overscroll-behavior: none !important;
+    /* Keep text the same size as the CSS specifies (no renderer upscaling). */
+    -webkit-text-size-adjust: 100% !important;
+    text-size-adjust: 100% !important;
+  }
+
+  /* Certain Android browsers report a 100vw wider than the visual viewport
+     when the URL bar collapses; clamp width to stop a hidden scrollbar. */
+  .app,
+  .main {
+    min-width: 0 !important;
+    overflow-x: hidden !important;
+  }
+
+  /* On phones the sidebar is a drawer opened by the hamburger, so the desktop
+     "collapse sidebar" button is redundant and does nothing useful. Hiding it
+     keeps the top bar clean and leaves the drawer as the single entry point. */
+  .sidebar-toggle {
+    display: none !important;
+  }
+
+  /* Long words / URLs / code must wrap rather than push a horizontal scroll. */
+  .bubble,
+  .msg,
+  .thinking-content,
+  .message-content,
+  pre,
+  code,
+  td,
+  .source-card {
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+  }
+}
+
+
+/* ---------------------------------------------------------------------------
+   2. Stop iOS auto-zoom when the composer or a field is focused
+   ---------------------------------------------------------------------------
+   Safari zooms the page to a field when its computed font-size is < 16px.
+   The stacked patches left the composer at 15px, which causes a jarring zoom
+   on every focus. Forcing >= 16px on mobile keeps focus calm and layout stable.
+   --------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  /* Match the higher specificity of the existing 15px composer rules so this
+     rule (loaded last) actually wins the cascade. */
+  textarea#input,
+  .composer textarea#input,
+  .main #input,
+  #input,
+  input,
+  select,
+  .chat-search-input {
+    font-size: 16px !important;
+  }
+}
+
+
+/* ---------------------------------------------------------------------------
+   3. Reliable tap targets (Apple HIG / Material minimum of ~44px)
+   --------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  .icon-btn,
+  .mobile-menu,
+  .attach-btn,
+  .send-btn,
+  .mic-btn,
+  .quick-cat-btn,
+  .sheet-close-btn,
+  .func-toggle,
+  .account-settings,
+  .account-logout-direct,
+  .scroll-bottom-btn {
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+
+  /* Remove the grey flash on tap that some modern browsers add. */
+  button,
+  .func-toggle,
+  .quick-cat-btn,
+  .sheet-toggle-card,
+  .sheet-cat-chip {
+    -webkit-tap-highlight-color: transparent !important;
+  }
+
+  /* The composer row controls are already 36px circles; nudge them to 40px so
+     they stay comfortably tappable without blowing up the bar. */
+  .composer-actions button {
+    min-width: 40px !important;
+    min-height: 40px !important;
+  }
+}
+
+
+/* ---------------------------------------------------------------------------
+   4. Floating tools notch — keep it clear of the fixed composer
+   --------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  /* Raise the "أدوات" pill above the composer shell (composer shell top sits
+     around 66px on a normal phone). The JS sets --qjo-composer-height, which
+     tracks the real composer height, so anchor to that for perfect clearance. */
+  .mobile-tools-notch {
+    bottom: calc(var(--qjo-composer-height, 70px) + 10px + env(safe-area-inset-bottom, 8px)) !important;
+    max-width: calc(100vw - 24px) !important;
+  }
+
+  /* When the keyboard is open the key surface is nearly fullscreen — hide the
+     notch so it never floats over the keys or the composer. */
+  body.qjo-keyboard-open .mobile-tools-notch {
+    display: none !important;
+  }
+
+  /* Let the sheet dismiss itself over the keyboard too. */
+  .mobile-tools-sheet {
+    padding-bottom: calc(18px + env(safe-area-inset-bottom, 12px)) !important;
+  }
+}
+
+
+/* ---------------------------------------------------------------------------
+   5. Very small screens (<= 380px): tighten without breaking anything
+   --------------------------------------------------------------------------- */
+@media (max-width: 380px) {
+  .top-title strong {
+    font-size: 14px !important;
+  }
+
+  .top-title span {
+    display: none !important;
+  }
+
+  .composer-wrap {
+    padding-inline: 8px !important;
+  }
+
+  .composer {
+    padding-inline: 7px !important;
+  }
+
+  .quick-cat-btn span {
+    font-size: 11px !important;
+  }
+
+  .func-toggle {
+    padding: 8px 9px !important;
+  }
+}
+
+
+/* ---------------------------------------------------------------------------
+   6. Respect reduced-motion for the new sheet / drawer transitions
+   --------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .mobile-tools-sheet,
+  .mobile-tools-notch,
+  .sidebar,
+  .drawer-backdrop {
+    transition-duration: .001ms !important;
+    transition-delay: 0s !important;
+  }
+}
