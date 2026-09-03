@@ -123,6 +123,58 @@
 
 
 /* ---------------------------------------------------------------------------
+   3b. Composer layout integrity fix
+   ---------------------------------------------------------------------------
+   Root cause of the "squished composer" bug: an old patch at ~900px sets
+   `.composer-actions { width:100%; justify-content:space-between }` with no
+   !important. Nothing after it in the cascade resets those two properties,
+   so `.composer-actions` claims the full row width and shoves the textarea
+   down to ~0px, leaving only the 4 action icons spread edge-to-edge with the
+   message box invisible. This restores the actions group to its natural
+   (content) width so the textarea gets the rest of the row back.
+   --------------------------------------------------------------------------- */
+@media (max-width: 900px) {
+  .composer {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    grid-template-columns: none !important;
+    grid-template-areas: none !important;
+  }
+
+  .composer-actions {
+    width: auto !important;
+    flex: 0 0 auto !important;
+    justify-content: flex-start !important;
+  }
+
+  .composer textarea#input,
+  textarea#input {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    width: auto !important;
+    display: block !important;
+  }
+
+  .composer-actions button {
+    flex: 0 0 auto !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   3c. Send button icon — fix upside-down arrow in RTL
+   ---------------------------------------------------------------------------
+   A global RTL flip (`[dir="rtl"] .send-btn svg { transform: rotate(180deg) }`)
+   turns the up-arrow "send" icon into a down-arrow, which reads like a
+   download/scroll button instead of send. The send action itself is not
+   direction-dependent, so cancel the flip for this icon only.
+   --------------------------------------------------------------------------- */
+[dir="rtl"] .send-btn svg {
+  transform: none !important;
+}
+
+
+/* ---------------------------------------------------------------------------
    4. Floating tools notch — keep it clear of the fixed composer
    --------------------------------------------------------------------------- */
 @media (max-width: 768px) {
