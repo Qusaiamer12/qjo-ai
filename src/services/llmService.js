@@ -342,7 +342,7 @@ function createLlmService(config = {}) {
         markKeyFailure(key, { status: isTimeout ? 504 : 502, errorMsg: error.message });
         lastError = {
           status: isTimeout ? 504 : 502,
-          error: isTimeout ? `${provider} timeout (${effectiveTimeout}ms).` : (error.message || `${provider} request failed.`)
+          error: isTimeout ? `${provider} timeout (${connectTimeout}ms).` : (error.message || `${provider} request failed.`)
         };
         console.warn(`[llmService] ${provider} key #${attemptIndex}/${keys.length} error (${lastError.error}). Instant switch to next key.`);
         continue;
