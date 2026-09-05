@@ -34,7 +34,8 @@ on:
     #   - cron: '*/10 * * * *'
     # and set KEEP_ALIVE_START_HOUR=0 / KEEP_ALIVE_END_HOUR=0 on Render.
     # Read docs/RENDER_KEEP_AWAKE.md first: 24/7 is ~744 of the 750 free
-    # instance-hours, so one redeploy can tip the workspace into suspension.
+    # instance-hours in a 31-day month, leaving no room for a second free
+    # service in the workspace.
     - cron: '*/10 4-21 * * *'
   workflow_dispatch:
 

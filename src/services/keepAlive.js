@@ -14,8 +14,12 @@
 //   service is strictly worse than a sleeping one.
 //
 //   Therefore this pings only inside a configured daily active window. The
-//   default (07:00-01:00 Asia/Amman, 18h) costs ~548 h/month and leaves real
-//   headroom for redeploys and any second free service.
+//   default (07:00-01:00 Asia/Amman, 18h) costs ~558 h/month in the worst case
+//   and leaves ~192 h of headroom for any second free service in the workspace.
+//
+//   Deploys are NOT a meaningful cost here: builds bill to build minutes, not
+//   instance hours, and the old/new instance overlap during a zero-downtime
+//   deploy is only ~2-3 minutes. The real risk is simply running 24/7.
 //
 // TWO THINGS THAT SILENTLY BREAK NAIVE IMPLEMENTATIONS
 //   1. Pinging 127.0.0.1 does NOT work. The idle timer is reset by traffic
@@ -33,8 +37,8 @@
 'use strict';
 
 // 10 min, comfortably under Render's 15 min idle timer. The margin absorbs a
-// ping that is slow, times out, or lands during a redeploy without ever letting
-// the idle timer reach 15.
+// ping that is slow, times out, or is missed entirely without ever letting the
+// idle timer reach 15.
 const DEFAULT_INTERVAL_MS = 10 * 60 * 1000;
 const MIN_INTERVAL_MS = 60 * 1000;
 const MAX_SAFE_INTERVAL_MS = 14 * 60 * 1000;
@@ -44,8 +48,8 @@ const PING_TIMEOUT_MS = 20 * 1000;
 // 24/7 window overruns the cap in long months.
 const MAX_DAYS_PER_MONTH = 31;
 const FREE_HOURS_PER_MONTH = 750;
-// Leave room for redeploys, restarts and any other free service in the
-// workspace. Going past this is what gets a workspace suspended.
+// Leave room for restarts and any other free service in the workspace. Going
+// past this is what gets a workspace suspended.
 const BUDGET_WARN_HOURS = 700;
 
 function parseHour(value, fallback) {
@@ -203,12 +207,15 @@ function createKeepAliveService(options = {}) {
 
     if (alwaysOn || estimatedMonthlyHours > FREE_HOURS_PER_MONTH) {
       // 24/7 lands here: 24 * 31 = 744 h against a 750 h cap leaves 6 h for the
-      // whole workspace. One redeploy, or any second free service, overruns it.
+      // whole workspace, so a second free service or a stretch of unplanned
+      // restarts overruns it. A 30-day month (720 h) is comfortable; the risk
+      // is specifically the long months.
       log.warn(
         `[keep-alive] ⚠️ ALWAYS-ON: ${activeHours}h/day = ~${estimatedMonthlyHours} instance-hours in a 31-day month, ` +
         `leaving only ${FREE_HOURS_PER_MONTH - estimatedMonthlyHours}h of Render's ${FREE_HOURS_PER_MONTH}h free cap for the ENTIRE workspace. ` +
         'Running out SUSPENDS every free web service until the 1st of next month. ' +
-        'Safer: set KEEP_ALIVE_START_HOUR/KEEP_ALIVE_END_HOUR to a daily window, or upgrade to Starter ($7/mo).'
+        'Fine if this is the only free service and you watch Billing; otherwise set ' +
+        'KEEP_ALIVE_START_HOUR/KEEP_ALIVE_END_HOUR to a daily window, or upgrade to Starter ($7/mo).'
       );
     } else if (estimatedMonthlyHours > BUDGET_WARN_HOURS) {
       log.warn(
@@ -249,8 +256,8 @@ function createKeepAliveService(options = {}) {
       freeHoursCap: FREE_HOURS_PER_MONTH,
       // Negative means the configured window cannot fit inside the free tier.
       freeHoursMargin: FREE_HOURS_PER_MONTH - estimatedMonthlyHours,
-      // always-on is flagged over-cap even at 744 <= 750: a 6h margin for the
-      // whole workspace is consumed by a single redeploy.
+      // always-on is flagged over-cap even at 744 <= 750, because a 6h margin
+      // covers the whole workspace and leaves nothing for a second service.
       budgetRisk: (alwaysOn || estimatedMonthlyHours > FREE_HOURS_PER_MONTH)
         ? 'over-cap'
         : estimatedMonthlyHours > BUDGET_WARN_HOURS ? 'tight' : 'ok',
