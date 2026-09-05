@@ -1405,6 +1405,7 @@ body:not(.dark) .qjo-reasoning-step {
   padding: 10px 14px;
   border-bottom: 2px solid rgba(148, 163, 184, 0.28);
   white-space: nowrap !important;
+  min-width: 80px;
 }
 
 .md-table td {
@@ -1413,6 +1414,7 @@ body:not(.dark) .qjo-reasoning-step {
   color: #e2e8f0 !important;
   line-height: 1.6;
   vertical-align: middle;
+  min-width: 80px;
 }
 
 .md-table tr:hover td {

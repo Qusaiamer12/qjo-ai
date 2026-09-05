@@ -2839,6 +2839,7 @@ body.dark .nav-icon {
   text-align: start;
   vertical-align: top;
   line-height: 1.55;
+  min-width: 80px;
 }
 
 .md-table th {

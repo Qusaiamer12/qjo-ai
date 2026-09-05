@@ -303,13 +303,14 @@ function createRoutingEngine(deps) {
   // and forward compatibility.
   async function callAgent({
     agentType = 'chat', mode, messages, temperature = 0.7, max_tokens = 4000,
+    frequency_penalty, presence_penalty,
     useTools, routingDecision, onChunk, onReasoning, onToolCall, model,
     deadlineMs, budgetMs, signal
   } = {}) {
     if (!deadlineMs) {
       deadlineMs = Date.now() + (budgetMs || 40000);
     }
-    const base = { messages, temperature, max_tokens, onChunk, onReasoning, onToolCall, deadlineMs, signal };
+    const base = { messages, temperature, max_tokens, frequency_penalty, presence_penalty, onChunk, onReasoning, onToolCall, deadlineMs, signal };
 
     // ── Chat/General Smart Routing ──
     const originalQuestion = combinedUserText(messages);

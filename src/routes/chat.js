@@ -231,6 +231,8 @@ function registerChatRoutes(app, deps) {
         messages: builtMessages,
         temperature,
         max_tokens: maxTokens,
+        frequency_penalty: clampNumber(req.body.frequency_penalty, 0.25, 0, 2),
+        presence_penalty: clampNumber(req.body.presence_penalty, 0.15, 0, 2),
         useTools,
         mode,
         routingDecision,

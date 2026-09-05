@@ -235,7 +235,7 @@ function createLlmService(config = {}) {
     return { fullText, toolCalls, finishReason: finishReason || 'stop', chunksDelivered };
   }
 
-  async function callOpenAICompatible({ provider, baseUrl, model, messages, temperature, max_tokens, tools, extraHeaders = {}, onChunk, onReasoning, timeoutMs, signal, _migrated = false }) {
+  async function callOpenAICompatible({ provider, baseUrl, model, messages, temperature, max_tokens, frequency_penalty, presence_penalty, tools, extraHeaders = {}, onChunk, onReasoning, timeoutMs, signal, _migrated = false }) {
     const mig = migratedModel(model);
     if (mig) {
       model = mig;
@@ -255,6 +255,8 @@ function createLlmService(config = {}) {
       try {
         if (signal?.aborted) throw clientAbortError();
         const body = { model, messages, temperature, max_tokens };
+        body.presence_penalty = typeof presence_penalty === 'number' ? presence_penalty : 0.15;
+        body.frequency_penalty = typeof frequency_penalty === 'number' ? frequency_penalty : 0.25;
         if (tools) { body.tools = tools; body.tool_choice = 'auto'; }
         if (onChunk) body.stream = true;
 
