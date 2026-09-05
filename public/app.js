@@ -1507,6 +1507,60 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
       setTimeout(() => { btn.textContent = rating === 'up' ? '👍' : '👎'; }, 1300);
     }
 
+    // Robust relaxed JSON parser for interactive charts, quizzes, and LLM payloads
+    function safeParseRelaxedJson(rawStr) {
+      if (!rawStr || typeof rawStr !== 'string') return null;
+      let str = rawStr
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#039;/g, "'")
+        .replace(/&#39;/g, "'")
+        .trim();
+
+      str = str.replace(/^```[a-z0-9_-]*\s*/i, '').replace(/```\s*$/i, '').trim();
+
+      // 1. Direct standard parse
+      try {
+        return JSON.parse(str);
+      } catch (_) {}
+
+      // 2. Remove comments & fix trailing commas
+      let cleaned = str.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+      cleaned = cleaned.replace(/,\s*([\]}])/g, '$1');
+
+      // 3. Fix invalid backslash escapes (e.g. \-, \e, \^, \(, \), \ )
+      cleaned = cleaned.replace(/\\([^"\\\/bfnrtu]|u(?!([0-9a-fA-F]{4})))/g, '\\\\$1');
+
+      try {
+        return JSON.parse(cleaned);
+      } catch (_) {}
+
+      // 4. Fallback: parse via JavaScript object evaluator (handles single quotes, unquoted keys, math symbols)
+      try {
+        const fn = new Function('"use strict"; return (' + cleaned + ')');
+        const res = fn();
+        if (res && typeof res === 'object') return res;
+      } catch (_) {}
+
+      // 5. Try extracting outermost { ... } or [ ... ]
+      const objMatch = cleaned.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+      if (objMatch) {
+        try {
+          return JSON.parse(objMatch[0]);
+        } catch (_) {
+          try {
+            const fn = new Function('"use strict"; return (' + objMatch[0] + ')');
+            const res = fn();
+            if (res && typeof res === 'object') return res;
+          } catch (_) {}
+        }
+      }
+
+      return null;
+    }
+
     function initializeChartsInElement(element) {
       if (typeof Chart === 'undefined') {
         console.warn('Chart.js is not loaded yet.');
@@ -1520,14 +1574,10 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
         const errorEl = container.querySelector('.chart-error-note');
         const configRaw = decodeURIComponent(container.dataset.chartConfig || '{}');
         try {
-          const unescapedJson = configRaw
-            .replace(/&amp;/g, '&')
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>')
-            .replace(/&quot;/g, '"')
-            .replace(/&#039;/g, "'");
-          
-          let config = JSON.parse(unescapedJson);
+          let config = safeParseRelaxedJson(configRaw);
+          if (!config || typeof config !== 'object') {
+            throw new Error('صيغة بيانات المخطط غير صالحة.');
+          }
           
           // Detect and convert simplified user schema to Chart.js standard format
           if (config.data && Array.isArray(config.data) && !config.data.datasets && (config.xKey || config.yKey || (config.data[0] && typeof config.data[0] === 'object'))) {
@@ -1667,13 +1717,7 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
       containers.forEach(container => {
         try {
           const configRaw = decodeURIComponent(container.dataset.quizConfig || '[]');
-          const unescapedJson = configRaw
-            .replace(/&amp;/g, '&')
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>')
-            .replace(/&quot;/g, '"')
-            .replace(/&#039;/g, "'");
-          const questions = JSON.parse(unescapedJson);
+          const questions = safeParseRelaxedJson(configRaw);
           if (!Array.isArray(questions) || !questions.length) return;
           
           let html = '<div class="quiz-card-wrapper" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; margin: 14px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">';
