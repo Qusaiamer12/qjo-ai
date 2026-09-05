@@ -5036,7 +5036,9 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
               <span class="sheet-toggle-name">${def.title}</span>
               <span class="sheet-toggle-desc">${def.desc}</span>
             </div>
-            <div class="sheet-toggle-switch"></div>
+            <div class="sheet-toggle-switch">
+              <span class="sheet-toggle-knob"></span>
+            </div>
           `;
           item.addEventListener('click', () => {
             if (origBtn) origBtn.click();
@@ -5060,7 +5062,10 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
           const item = document.createElement('button');
           item.type = 'button';
           item.className = 'sheet-cat-chip';
-          item.innerHTML = `${iconSvg}<span>${label}</span>`;
+          item.innerHTML = `
+            <div class="sheet-cat-icon-wrap">${iconSvg}</div>
+            <span class="sheet-cat-label">${label}</span>
+          `;
           item.addEventListener('click', () => {
             catBtn.click();
             closeSheet();
