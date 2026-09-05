@@ -26,7 +26,9 @@ const NODE_GLOBALS = {
   URLSearchParams: 'readonly',
   TextEncoder: 'readonly',
   TextDecoder: 'readonly',
-  structuredClone: 'readonly'
+  structuredClone: 'readonly',
+  // Used by the keep-alive scheduler to resolve the hour in a named timezone.
+  Intl: 'readonly'
 };
 
 const BROWSER_GLOBALS = {

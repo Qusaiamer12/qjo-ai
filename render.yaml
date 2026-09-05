@@ -46,6 +46,27 @@ services:
       - key: IP_RATE_LIMIT_PER_MINUTE
         value: 0
 
+      # ---- Keep-alive (anti spin-down) --------------------------------------
+      # Free services sleep after 15 min idle; waking costs the next visitor
+      # ~50-60s. The in-app pinger keeps a running service awake.
+      #
+      # ⚠️ Budget: Render gives 750 free instance-hours per WORKSPACE per month
+      # and a month is 720-744 hours. Staying awake 24/7 burns the whole
+      # allowance, after which Render SUSPENDS all free web services until the
+      # 1st. The 07:00-01:00 window below is ~548 h/month, which is safe.
+      #
+      # Note: the in-app pinger cannot wake a service that ALREADY slept (it
+      # dies with the process). For that, enable the external pinger — see
+      # docs/RENDER_KEEP_AWAKE.md.
+      - key: KEEP_ALIVE_ENABLED
+        value: true
+      - key: KEEP_ALIVE_START_HOUR
+        value: 7
+      - key: KEEP_ALIVE_END_HOUR
+        value: 1
+      - key: KEEP_ALIVE_TIMEZONE
+        value: Asia/Amman
+
       # ---- Proxy awareness --------------------------------------------------
       # Render sets RENDER=true, which the server auto-detects to trust exactly
       # one proxy hop. Only set TRUST_PROXY explicitly if another CDN

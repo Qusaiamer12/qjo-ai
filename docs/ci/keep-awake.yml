@@ -1,0 +1,74 @@
+# Wakes / keeps awake the Render free instance from OUTSIDE the app.
+#
+# NOT ACTIVE WHERE IT SITS. Copy it into place to enable (same convention as
+# docs/ci/github-actions-ci.yml):
+#   mkdir -p .github/workflows
+#   cp docs/ci/keep-awake.yml .github/workflows/keep-awake.yml
+#
+# Why this exists in addition to src/services/keepAlive.js:
+#   The in-process pinger keeps a RUNNING service awake, but it dies when the
+#   service spins down — so it can never wake a service that already slept.
+#   Only an external caller can do that. This workflow is that caller.
+#
+# Cost awareness:
+#   Render grants 750 free instance-hours per WORKSPACE per month and a month is
+#   720-744 hours. Running this 24/7 would eat the entire allowance and get the
+#   service SUSPENDED until the 1st. So the schedule below covers the daytime
+#   window only (04:00-22:00 UTC == 07:00-01:00 Asia/Amman), matching the
+#   in-app default window.
+#
+# Caveat: GitHub's scheduled runners are best-effort and can be delayed well
+# past 15 minutes during peak load, and GitHub disables cron in repos with no
+# activity for 60 days. For a hard guarantee use an external monitor instead
+# (cron-job.org / UptimeRobot) — see docs/RENDER_KEEP_AWAKE.md.
+
+name: Keep Render awake
+
+on:
+  schedule:
+    # Every 10 minutes between 04:00 and 21:59 UTC (07:00-00:59 Asia/Amman).
+    # 10 min (not 14) buys slack against GitHub's scheduling delays.
+    - cron: '*/10 4-21 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keep-awake
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping health endpoint
+        env:
+          # Set this to your Render URL. Repo variable, not a secret:
+          #   Settings > Secrets and variables > Actions > Variables > New
+          # Falls back to the known deploy URL so the workflow is useful as-is.
+          TARGET: ${{ vars.RENDER_URL || 'https://qjo-ai-1.onrender.com' }}
+        run: |
+          set -euo pipefail
+          url="${TARGET%/}/api/health"
+          echo "Pinging $url"
+
+          # A cold start takes ~50-60s, so allow generously and retry.
+          for attempt in 1 2 3; do
+            code=$(curl -sS -o /tmp/body.json -w '%{http_code}' \
+                        --max-time 90 \
+                        -H 'User-Agent: qjo-keepalive-ci/1.0' \
+                        -H 'X-Qjo-Keepalive: 1' \
+                        "$url" || echo "000")
+            if [ "$code" = "200" ]; then
+              echo "OK on attempt $attempt (HTTP $code)"
+              head -c 400 /tmp/body.json || true
+              exit 0
+            fi
+            echo "Attempt $attempt failed (HTTP $code); retrying in 20s"
+            sleep 20
+          done
+
+          echo "::error::Health check never returned 200 after 3 attempts."
+          exit 1

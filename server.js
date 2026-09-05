@@ -26,6 +26,7 @@ const { registerSearchRoutes } = require('./src/routes/search');
 const { createSafeCalculate } = require('./src/tools/calculatorTool');
 const { registerChatRoutes } = require('./src/routes/chat');
 const { createKnowledgeBaseService } = require('./src/services/knowledgeBase');
+const { createKeepAliveService } = require('./src/services/keepAlive');
 
 let admin = null;
 try { admin = require('firebase-admin'); } catch (_) { admin = null; }
@@ -570,6 +571,7 @@ registerSystemRoutes(app, {
     guestDailyLimit: GUEST_DAILY_LIMIT,
     embeddingsConfigured: embeddingsService.configuredCount(),
     embeddingsProvider: embeddingsService.getEmbeddingProviderName(),
+    keepAlive: keepAliveService.health(),
     routerVersion: 'pipelines-v2',
     chatPipelines: {
       lite: ['groq:flash', 'llm7:flash', 'qwen:flash', 'kimi:flash'],
@@ -667,6 +669,10 @@ const knowledgeBaseService = createKnowledgeBaseService({
 });
 knowledgeBaseService.init().catch(error => console.warn('[knowledgeBase] init error:', error?.message || error));
 
+// Keeps Render's free instance from spinning down during the day. Budget-aware:
+// see src/services/keepAlive.js for why this is windowed rather than 24/7.
+const keepAliveService = createKeepAliveService();
+
 registerChatRoutes(app, {
   hasAnyAiProvider: () => Boolean(GROQ_API_KEYS.length || LLM7_API_KEYS.length || process.env.ENABLE_LLM7 === 'true' || QWEN_API_KEYS.length || KIMI_API_KEYS.length),
   verifyFirebaseRequest,
@@ -712,4 +718,9 @@ app.use((error, req, res, _next) => {
   res.status(status).json({ error: message });
 });
 
-app.listen(PORT, () => console.log(`Qjo production server running on ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Qjo production server running on ${PORT}`);
+  // Started only after the port is bound: pinging our own public URL before we
+  // can answer would just log a failure.
+  keepAliveService.start();
+});
