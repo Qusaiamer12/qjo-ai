@@ -138,7 +138,7 @@ function registerChatRoutes(app, deps) {
       if (!cleanedMessages.length) return res.status(400).json({ error: 'No valid messages.' });
 
       const useStreaming = req.body.stream === true || req.headers.accept === 'text/event-stream';
-      const temperature = clampNumber(req.body.temperature, 0.7, 0, 1);
+      const temperature = req.body.temperature !== undefined ? clampNumber(req.body.temperature, 0.7, 0, 1) : undefined;
       const maxTokens = clampNumber(req.body.max_tokens, deps.defaultMaxTokens || 2600, 64, 7992);
       const mode = String(req.body.mode || '');
       const routingDecision = req.body.routingDecision || null;

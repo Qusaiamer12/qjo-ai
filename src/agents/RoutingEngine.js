@@ -92,14 +92,18 @@ function validateRoutingDecision(raw) {
   };
 }
 
-// ── Smart Intent Classifier ──
+// ── Smart Intent Classifier (4-Pillar AI Intelligence Aware) ──
 function classifyQjoRequest({ messages, mode, routingDecision }) {
   const text = combinedUserText(messages);
   const systemText = String(messages?.[0]?.content || '').toLowerCase();
   const hasSearchContext = /source pack|connected search|connected deep search|web search note|search query used|url:\s*https?:\/\//i.test(text);
   const hasFileContext = /user attached files|pdf pages processed|ocr text extracted|extracted characters|extraction method|uploaded file|المرفقات/i.test(text);
-  const codeIntent = mode === 'code' || /(```|\bfunction\b|\bconst\b|\bclass\b|debug|bug|stack trace|api|react|node|typescript|javascript|python|firebase|render|كود|برمج|موقع|تطبيق)/i.test(text);
+  const codeIntent = mode === 'code' || /(```|\bfunction\b|\bconst\b|\bclass\b|debug|bug|stack trace|terminal|error|exception|syntax|npm|react|node|typescript|javascript|python|firebase|render|كود|برمج|برمجة|موقع|تطبيق|حل الخطأ|إصلاح|دالة)/i.test(text);
   const mathIntent = /(احسب|حساب|نسبة|معادلة|جذر|تكامل|تفاضل|matrix|probability|statistics|\d+\s*[+\-*/^%]\s*\d+)/i.test(text);
+  const tableIntent = /(جدول|جدولة|نظم في جدول|رتب في جدول|اعرض في جدول|markdown table|table format)/i.test(text);
+  const humanizeIntent = /(كاشف|كواشف|ai detector|humanize|كتابة بشرية|بدون كليشيه|burstiness|perplexity|أسلوب بشري)/i.test(text);
+  const socialIntent = /(فضفض|تعبان|مضايق|حزين|زعلان|استعطاف|اعتذار|قصف جبهة|رد عليه|شو قصده|شو قصدها|نية|بين السطور|عذر|اعذار|تصريفة|شريكي|شريكتي|محادثة بيننا)/i.test(text);
+  const creativeIntent = /(سكربت|سيناريو|ريلز|تيك توك|reels|tiktok|shorts|cover letter|رسالة عمل|سيرة ذاتية|ابتكر اسم|اسم تطبيق|اسم شركة|اسم علامة|تسمية|naming|وصفة طبخ|طبخة|طبخ)/i.test(text);
   const longContext = text.length > 18000;
   const researchIntent = hasSearchContext || /(بحث|مصادر|دراسة|تقرير|قارن|مقارنة|تحليل سوق|research|sources|compare|report|market analysis|literature)/i.test(text);
   const puzzleReasoningIntent = /(لغز|صناديق|ملصقات خاطئة|تفاح|برتقال|فاكهة واحدة|منطق|استنتاج|logic puzzle|riddle|boxes|labels|apples|oranges)/i.test(text);
@@ -110,6 +114,10 @@ function classifyQjoRequest({ messages, mode, routingDecision }) {
   else if (hasFileContext || longContext) intent = 'file';
   else if (codeIntent) intent = 'code';
   else if (mathIntent) intent = 'math';
+  else if (tableIntent) intent = 'table';
+  else if (humanizeIntent) intent = 'humanize';
+  else if (socialIntent) intent = 'social';
+  else if (creativeIntent) intent = 'creative';
   else if (researchIntent) intent = 'research';
   else if (advancedIntent || puzzleReasoningIntent) intent = 'reasoning';
 
@@ -117,7 +125,22 @@ function classifyQjoRequest({ messages, mode, routingDecision }) {
   if (routed.targetAgent === 'qcode' && routed.confidence >= 80) intent = 'code';
   if (routed.targetAgent === 'qspark' && routed.confidence >= 80 && !hasSearchContext && !hasFileContext) intent = 'research';
 
-  return { intent, hasSearchContext, hasFileContext, codeIntent, mathIntent, longContext, advancedIntent, systemText, routingDecision: routed };
+  return { intent, hasSearchContext, hasFileContext, codeIntent, mathIntent, tableIntent, creativeIntent, socialIntent, humanizeIntent, longContext, advancedIntent, systemText, routingDecision: routed };
+}
+
+// ── Adaptive Temperature Engine (Optimized for Accuracy & Street-Smart EQ) ──
+function getAdaptiveTemperature({ intent, mode, requestedTemp }) {
+  if (typeof requestedTemp === 'number' && Number.isFinite(requestedTemp)) {
+    return requestedTemp;
+  }
+  if (mode === 'code' || intent === 'code') return 0.1;
+  if (intent === 'math') return 0.1;
+  if (intent === 'table') return 0.05;
+  if (intent === 'humanize') return 0.85;
+  if (intent === 'social') return 0.8;
+  if (intent === 'creative') return 0.65;
+  if (mode === 'max' || intent === 'reasoning') return 0.4;
+  return 0.7;
 }
 
 // ── Lite Request Detector ──
@@ -310,7 +333,6 @@ function createRoutingEngine(deps) {
     if (!deadlineMs) {
       deadlineMs = Date.now() + (budgetMs || 40000);
     }
-    const base = { messages, temperature, max_tokens, frequency_penalty, presence_penalty, onChunk, onReasoning, onToolCall, deadlineMs, signal };
 
     // ── Chat/General Smart Routing ──
     const originalQuestion = combinedUserText(messages);
@@ -318,6 +340,14 @@ function createRoutingEngine(deps) {
     const route = classifyQjoRequest({ messages, mode, routingDecision });
     const normMode = normalizeMode(mode);
     const arabicHeavy = isArabicHeavyText(originalQuestion);
+
+    const effectiveTemperature = getAdaptiveTemperature({
+      intent: route.intent,
+      mode: normMode,
+      requestedTemp: temperature
+    });
+
+    const base = { messages, temperature: effectiveTemperature, max_tokens, frequency_penalty, presence_penalty, onChunk, onReasoning, onToolCall, deadlineMs, signal };
 
     // Tool attachment policy:
     //  • calculator whenever math is plausible (never for images)
@@ -471,5 +501,7 @@ module.exports = {
   routeUserRequestDeterministic,
   buildRouterSystemHint,
   addRouterSystemHint,
+  classifyQjoRequest,
+  getAdaptiveTemperature,
   PIPELINES
 };
