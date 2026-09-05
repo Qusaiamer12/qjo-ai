@@ -1,0 +1,32 @@
+# Qjo AI — https://qjo-ai-1.onrender.com
+# Goal: rank first for the branded query "Qjo" / "Qjo AI".
+
+User-agent: *
+Allow: /
+
+# Private surfaces: no value in search, and admin must never be indexed.
+Disallow: /admin.html
+Disallow: /qjo-diagnostic.html
+Disallow: /api/
+
+# AI crawlers allowed on purpose: being cited by assistants is now a real
+# discovery channel for a brand query.
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+Sitemap: https://qjo-ai-1.onrender.com/sitemap.xml

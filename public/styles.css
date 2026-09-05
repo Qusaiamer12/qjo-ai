@@ -6340,3 +6340,15 @@ body.dark .auth-card {
 html[dir="rtl"] .qjo-app-soon-badge {
   margin-inline-start: auto !important;
 }
+
+/* Brand token inside the hero headline. The h1 must contain "Qjo" for the
+   branded search query, and this keeps it looking deliberate rather than
+   bolted on. Mirrors .brand-name so the gradient rules above can't bleed in. */
+.welcome h1 .wt-brand {
+  background: none !important;
+  -webkit-background-clip: initial !important;
+  background-clip: initial !important;
+  color: var(--ui-text) !important;
+  font-weight: 820 !important;
+  letter-spacing: -0.01em;
+}

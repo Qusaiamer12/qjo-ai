@@ -3,7 +3,74 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Qjo</title>
+  <!-- ── SEO ──────────────────────────────────────────────────────────────
+       Target query: "Qjo" / "Qjo AI". The brand name leads the title because
+       Google weights the opening words most, and an exact-match title is the
+       strongest single signal for a branded search. -->
+  <title>Qjo AI — مساعد ذكاء اصطناعي عربي | Qjo</title>
+  <meta name="description" content="Qjo (كيو جو) مساعد ذكاء اصطناعي عربي يساعدك تفكر وتكتب وتتعلم وتبني. دردشة ذكية، بحث في الويب، تحليل ملفات وصور، وتصدير PDF وWord وPowerPoint — مجانًا." />
+  <link rel="canonical" href="https://qjo-ai-1.onrender.com/" />
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
+  <meta name="author" content="Qjo AI" />
+  <meta name="keywords" content="Qjo, Qjo AI, كيو جو, ذكاء اصطناعي عربي, مساعد ذكي, شات ذكاء اصطناعي, AI عربي" />
+
+  <!-- Open Graph — controls the card shown on WhatsApp, Facebook, LinkedIn -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Qjo AI" />
+  <meta property="og:locale" content="ar_AR" />
+  <meta property="og:locale:alternate" content="en_US" />
+  <meta property="og:url" content="https://qjo-ai-1.onrender.com/" />
+  <meta property="og:title" content="Qjo AI — مساعد ذكاء اصطناعي عربي" />
+  <meta property="og:description" content="Qjo مساعد ذكاء اصطناعي عربي يساعدك تفكر وتكتب وتتعلم وتبني بذكاء ووضوح." />
+  <meta property="og:image" content="https://qjo-ai-1.onrender.com/icon-512.png" />
+  <meta property="og:image:width" content="512" />
+  <meta property="og:image:height" content="512" />
+  <meta property="og:image:alt" content="شعار Qjo AI" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Qjo AI — مساعد ذكاء اصطناعي عربي" />
+  <meta name="twitter:description" content="Qjo مساعد ذكاء اصطناعي عربي يساعدك تفكر وتكتب وتتعلم وتبني بذكاء ووضوح." />
+  <meta name="twitter:image" content="https://qjo-ai-1.onrender.com/icon-512.png" />
+
+  <!-- Structured data: tells Google this is a named software product, which is
+       what produces a rich/brand result for the query "Qjo". -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://qjo-ai-1.onrender.com/#website",
+        "url": "https://qjo-ai-1.onrender.com/",
+        "name": "Qjo AI",
+        "alternateName": ["Qjo", "كيو جو", "Qjo Assistant"],
+        "description": "مساعد ذكاء اصطناعي عربي",
+        "inLanguage": "ar"
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://qjo-ai-1.onrender.com/#app",
+        "name": "Qjo AI",
+        "alternateName": "Qjo",
+        "url": "https://qjo-ai-1.onrender.com/",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web",
+        "inLanguage": "ar",
+        "description": "Qjo مساعد ذكاء اصطناعي عربي للدردشة والبحث وتحليل الملفات والتصدير.",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://qjo-ai-1.onrender.com/#org",
+        "name": "Qjo AI",
+        "alternateName": "Qjo",
+        "url": "https://qjo-ai-1.onrender.com/",
+        "logo": "https://qjo-ai-1.onrender.com/icon-512.png"
+      }
+    ]
+  }
+  </script>
+
   <link rel="icon" href="/favicon.ico" sizes="any" />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -165,7 +232,10 @@
       <section class="messages" id="messages">
         <div class="messages-inner" id="messagesInner">
           <section class="welcome" id="welcome">
-            <h1 id="welcomeTitle">ابنِ شيئًا <em>مذهلاً</em></h1>
+            <!-- The visible h1 stays the product voice, but it now contains the
+                 brand name: h1 is the strongest on-page signal for a branded
+                 query and "ابنِ شيئًا مذهلاً" alone never said "Qjo". -->
+            <h1 id="welcomeTitle"><span class="wt-brand">Qjo</span> — ابنِ شيئًا <em>مذهلاً</em></h1>
             <p id="welcomeText">ابدأ الكتابة بالأسفل، أو اختر من الأزرار لتبدأ بسرعة. Qjo يساعدك تفكر، تكتب، تتعلم وتبني بذكاء ووضوح.</p>
           </section>
         </div>
