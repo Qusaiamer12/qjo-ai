@@ -32,18 +32,29 @@
 // ─────────────────────────────────────────────────────────────────────────────
 'use strict';
 
-const DEFAULT_INTERVAL_MS = 14 * 60 * 1000; // 14 min < Render's 15 min idle timer
+// 10 min, comfortably under Render's 15 min idle timer. The margin absorbs a
+// ping that is slow, times out, or lands during a redeploy without ever letting
+// the idle timer reach 15.
+const DEFAULT_INTERVAL_MS = 10 * 60 * 1000;
 const MIN_INTERVAL_MS = 60 * 1000;
 const MAX_SAFE_INTERVAL_MS = 14 * 60 * 1000;
 const PING_TIMEOUT_MS = 20 * 1000;
-const AVG_DAYS_PER_MONTH = 30.44;
+// Budget is judged against the WORST case (a 31-day month = 744 h), not an
+// average. Using 30.44 would under-report by ~14 h and hide the fact that a
+// 24/7 window overruns the cap in long months.
+const MAX_DAYS_PER_MONTH = 31;
 const FREE_HOURS_PER_MONTH = 750;
 // Leave room for redeploys, restarts and any other free service in the
 // workspace. Going past this is what gets a workspace suspended.
 const BUDGET_WARN_HOURS = 700;
 
 function parseHour(value, fallback) {
-  const n = Number(String(value ?? '').trim());
+  // Guard the empty string explicitly: Number('') is 0, not NaN, so an unset or
+  // blank env var would otherwise parse as hour 0 and turn the intended
+  // 07:00-01:00 default into an unintended 24/7 window.
+  const raw = String(value ?? '').trim();
+  if (raw === '') return fallback;
+  const n = Number(raw);
   return Number.isInteger(n) && n >= 0 && n <= 23 ? n : fallback;
 }
 
@@ -108,7 +119,8 @@ function createKeepAliveService(options = {}) {
   const targetUrl = `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
 
   const activeHours = windowHours(startHour, endHour);
-  const estimatedMonthlyHours = Math.round(activeHours * AVG_DAYS_PER_MONTH);
+  const estimatedMonthlyHours = Math.round(activeHours * MAX_DAYS_PER_MONTH);
+  const alwaysOn = activeHours === 24;
 
   const state = {
     enabled,
@@ -189,7 +201,16 @@ function createKeepAliveService(options = {}) {
     }
     if (timer) return true;
 
-    if (estimatedMonthlyHours > BUDGET_WARN_HOURS) {
+    if (alwaysOn || estimatedMonthlyHours > FREE_HOURS_PER_MONTH) {
+      // 24/7 lands here: 24 * 31 = 744 h against a 750 h cap leaves 6 h for the
+      // whole workspace. One redeploy, or any second free service, overruns it.
+      log.warn(
+        `[keep-alive] ⚠️ ALWAYS-ON: ${activeHours}h/day = ~${estimatedMonthlyHours} instance-hours in a 31-day month, ` +
+        `leaving only ${FREE_HOURS_PER_MONTH - estimatedMonthlyHours}h of Render's ${FREE_HOURS_PER_MONTH}h free cap for the ENTIRE workspace. ` +
+        'Running out SUSPENDS every free web service until the 1st of next month. ' +
+        'Safer: set KEEP_ALIVE_START_HOUR/KEEP_ALIVE_END_HOUR to a daily window, or upgrade to Starter ($7/mo).'
+      );
+    } else if (estimatedMonthlyHours > BUDGET_WARN_HOURS) {
       log.warn(
         `[keep-alive] window of ${activeHours}h/day is ~${estimatedMonthlyHours} instance-hours/month, close to Render's ${FREE_HOURS_PER_MONTH}h free cap. ` +
         'Exhausting it SUSPENDS every free web service in the workspace until next month. Narrow KEEP_ALIVE_START_HOUR/KEEP_ALIVE_END_HOUR.'
@@ -223,8 +244,16 @@ function createKeepAliveService(options = {}) {
       window: `${String(startHour).padStart(2, '0')}:00-${String(endHour).padStart(2, '0')}:00`,
       timeZone,
       withinWindowNow: isWithinWindow(hourIn(timeZone), startHour, endHour),
+      alwaysOn,
       estimatedMonthlyHours,
       freeHoursCap: FREE_HOURS_PER_MONTH,
+      // Negative means the configured window cannot fit inside the free tier.
+      freeHoursMargin: FREE_HOURS_PER_MONTH - estimatedMonthlyHours,
+      // always-on is flagged over-cap even at 744 <= 750: a 6h margin for the
+      // whole workspace is consumed by a single redeploy.
+      budgetRisk: (alwaysOn || estimatedMonthlyHours > FREE_HOURS_PER_MONTH)
+        ? 'over-cap'
+        : estimatedMonthlyHours > BUDGET_WARN_HOURS ? 'tight' : 'ok',
       pings: state.pings,
       failures: state.failures,
       lastPingAt: state.lastPingAt,
