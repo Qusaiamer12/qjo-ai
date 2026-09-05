@@ -4626,7 +4626,11 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
       });
       inputEl.addEventListener('input', () => {
         schedule();
-        if (isMobileViewport()) setTimeout(() => scrollToBottom(false), 30);
+        // Only follow the user to the bottom if they were already there —
+        // yanking the view down on every keystroke (even while scrolled up
+        // reading earlier messages) is what produced the "flicker/jump"
+        // feeling while typing.
+        if (isMobileViewport() && isNearBottom()) setTimeout(() => scrollToBottom(false), 30);
       });
     }
 

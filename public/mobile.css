@@ -284,3 +284,46 @@ body:not(.dark) .assistant .bubble .md-table td {
     transition-delay: 0s !important;
   }
 }
+
+
+/* ---------------------------------------------------------------------------
+   7. Stable keyboard behaviour — stop the page from "jumping"/flickering
+   ---------------------------------------------------------------------------
+   The layout's core height (html/body/.app/.main/.messages) was driven by
+   `calc(var(--qjo-vh) * 100)`, a JS-computed variable refreshed via
+   `visualViewport` resize/scroll events + requestAnimationFrame. During the
+   keyboard's own open/close animation, iOS/Chrome fire many of those events
+   in quick succession, and each one forces a fresh layout recalculation on
+   top of the browser's *own* native keyboard-resize animation — the two
+   fight each other, which reads as the page "rising"/jumping instead of
+   moving smoothly, and as flicker while typing (every ResizeObserver +
+   `input` event reruns the same layout work).
+
+   `100dvh` is a viewport unit the browser itself keeps in sync with the
+   visual viewport, interpolated smoothly by the browser's compositor with
+   no JS in the loop — the same technique ChatGPT and other native-feeling
+   chat UIs rely on. Swapping the core containers to it removes the
+   competing system entirely. `--qjo-composer-height` / `--qjo-topbar-height`
+   are left as-is since those genuinely need JS (content-dependent height).
+   --------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  html,
+  body {
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+  }
+
+  .app,
+  .main {
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+  }
+
+  .messages {
+    height: 100dvh !important;
+  }
+
+  .messages-inner {
+    min-height: calc(100dvh - var(--qjo-topbar-height, 72px) - var(--qjo-composer-height, 154px)) !important;
+  }
+}
