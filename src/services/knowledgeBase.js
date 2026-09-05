@@ -141,7 +141,7 @@ function createKnowledgeBaseService(config = {}) {
   const collection = deps.collection || 'qjo_kb_v1';
   const threshold = Number.isFinite(deps.threshold) ? deps.threshold : 0.42;
   const topK = Math.max(1, Math.min(Number(deps.topK || 2), 3));
-  const maxBlockChars = Math.max(400, Number(deps.maxBlockChars || 1200));
+  const maxBlockChars = Math.max(400, Number(deps.maxBlockChars || 2400));
   const timeoutMs = Math.max(500, Number(deps.timeoutMs || 2500));
 
   const state = {
@@ -378,8 +378,11 @@ function createKnowledgeBaseService(config = {}) {
       const body = hit.entry.layer === 'facts'
         ? `${factsHeader}\n${payload.answer}`
         : `${header}\n${payload.guidance}\nمثال مرجعي مكثف:\n${payload.example}`;
-      const section = `### ${payload.domain} / ${payload.id} (تطابق ${Number(hit.score).toFixed(2)})\n${body}`;
-      if (total + section.length > maxBlockChars) break;
+      let section = `### ${payload.domain} / ${payload.id} (تطابق ${Number(hit.score).toFixed(2)})\n${body}`;
+      if (parts.length > 0 && total + section.length > maxBlockChars) break;
+      if (parts.length === 0 && section.length > maxBlockChars) {
+        section = section.slice(0, maxBlockChars - 40) + '...';
+      }
       parts.push(section);
       total += section.length;
     }
