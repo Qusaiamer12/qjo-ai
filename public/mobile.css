@@ -8,11 +8,12 @@
        • A rock-solid Flexbox column layout (100dvh) without overflow or jumping.
        • A bulletproof, non-collapsible composer bar (tools (+) -> input -> actions).
        • Clean bottom sheet for tools/features, eliminating inline clutter on phones.
-       • Smooth virtual keyboard behavior without viewport coordinate conflicts.
-       • Proper RTL/LTR drawer positioning and a clean, collision-free z-index stack.
+       • Elimination of redundant floating notches that clutter the viewport.
+       • High contrast readable message bubbles and reasoning cards in light & dark modes.
+       • Single horizontal toolbar row for copy and message reactions.
+       • Non-blurred, sharp off-canvas drawer with proper z-index ordering.
        • Touch target sizes (>= 40-44px) meeting Apple HIG / Material guidelines.
        • Safari auto-zoom prevention (>= 16px text input) while preserving pinch-zoom.
-       • High contrast readable markdown tables inside bubbles in both light & dark themes.
    ============================================================================= */
 
 
@@ -48,7 +49,6 @@
     grid-template-rows: none !important;
     grid-template-areas: none !important;
     overflow: hidden !important;
-    z-index: 1 !important;
     margin: 0 !important;
     padding: 0 !important;
     min-width: 0 !important;
@@ -181,9 +181,152 @@
   .bubble {
     max-width: 90% !important;
     font-size: 15px !important;
-    line-height: 1.55 !important;
-    padding: 10px 14px !important;
+    line-height: 1.6 !important;
+    padding: 11px 14px !important;
     border-radius: 18px !important;
+  }
+
+  /* -------------------------------------------------------------------------
+     3b. High Contrast Message Bubbles (Light vs Dark Themes)
+     ------------------------------------------------------------------------- */
+  /* Light Mode Theme */
+  body:not(.dark) .msg.user .bubble,
+  body:not(.dark) .user .bubble {
+    background: linear-gradient(135deg, #1d4ed8, #2563eb) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    box-shadow: 0 4px 14px rgba(29, 78, 216, 0.22) !important;
+  }
+
+  body:not(.dark) .msg.assistant .bubble,
+  body:not(.dark) .assistant .bubble {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
+    border: 1px solid rgba(15, 23, 42, 0.12) !important;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06) !important;
+  }
+
+  body:not(.dark) .assistant .bubble p,
+  body:not(.dark) .assistant .bubble li,
+  body:not(.dark) .assistant .bubble span:not(.qjo-typing-cursor):not(.tool-check),
+  body:not(.dark) .assistant .bubble div:not(.qjo-reasoning-pulse) {
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
+  }
+
+  body:not(.dark) .qjo-reasoning-card {
+    background: rgba(15, 23, 42, 0.035) !important;
+    border: 1px solid rgba(15, 23, 42, 0.10) !important;
+  }
+
+  body:not(.dark) .qjo-reasoning-title {
+    color: #475569 !important;
+    -webkit-text-fill-color: #475569 !important;
+  }
+
+  body:not(.dark) .qjo-reasoning-step {
+    color: #334155 !important;
+    -webkit-text-fill-color: #334155 !important;
+  }
+
+  body:not(.dark) .qjo-reasoning-timer {
+    color: #64748b !important;
+    -webkit-text-fill-color: #64748b !important;
+  }
+
+  /* Dark Mode Theme */
+  body.dark .msg.user .bubble,
+  body.dark .user .bubble {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.3) !important;
+  }
+
+  body.dark .msg.assistant .bubble,
+  body.dark .assistant .bubble {
+    background: rgba(15, 23, 42, 0.96) !important;
+    color: #f8fafc !important;
+    -webkit-text-fill-color: #f8fafc !important;
+    border: 1px solid rgba(148, 163, 184, 0.24) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
+  }
+
+  body.dark .assistant .bubble p,
+  body.dark .assistant .bubble li,
+  body.dark .assistant .bubble span:not(.qjo-typing-cursor):not(.tool-check),
+  body.dark .assistant .bubble div:not(.qjo-reasoning-pulse) {
+    color: #f8fafc !important;
+    -webkit-text-fill-color: #f8fafc !important;
+  }
+
+  body.dark .qjo-reasoning-card {
+    background: rgba(255, 255, 255, 0.04) !important;
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+  }
+
+  body.dark .qjo-reasoning-title {
+    color: #94a3b8 !important;
+    -webkit-text-fill-color: #94a3b8 !important;
+  }
+
+  body.dark .qjo-reasoning-step {
+    color: #cbd5e1 !important;
+    -webkit-text-fill-color: #cbd5e1 !important;
+  }
+
+  body.dark .qjo-reasoning-timer {
+    color: #94a3b8 !important;
+    -webkit-text-fill-color: #94a3b8 !important;
+  }
+
+  /* -------------------------------------------------------------------------
+     3c. Single Unified Message Action Toolbar
+     ------------------------------------------------------------------------- */
+  .msg-actions-toolbar {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 6px !important;
+    margin-top: 6px !important;
+    padding: 2px 4px !important;
+  }
+
+  .msg-action-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+    border-radius: 50% !important;
+    background: rgba(148, 163, 184, 0.12) !important;
+    border: 1px solid rgba(148, 163, 184, 0.20) !important;
+    color: var(--text-muted, #94a3b8) !important;
+    cursor: pointer !important;
+    font-size: 13px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    transition: transform 0.15s ease, background 0.15s ease !important;
+  }
+
+  body:not(.dark) .msg-action-btn {
+    background: rgba(15, 23, 42, 0.05) !important;
+    border-color: rgba(15, 23, 42, 0.12) !important;
+    color: #475569 !important;
+  }
+
+  .msg-action-btn:active {
+    transform: scale(0.9) !important;
+  }
+
+  .copy-icon-btn svg {
+    stroke: currentColor !important;
+    fill: none !important;
   }
 
   /* -------------------------------------------------------------------------
@@ -386,39 +529,9 @@
   }
 
   /* -------------------------------------------------------------------------
-     7. Floating Notch & Tools Bottom Sheet (ChatGPT / Gemini style)
+     7. Eliminate Floating Notch — Composer (+) button is the single tool trigger
      ------------------------------------------------------------------------- */
   .mobile-tools-notch {
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 5px !important;
-    position: fixed !important;
-    bottom: calc(66px + env(safe-area-inset-bottom, 8px)) !important;
-    inset-inline-start: 12px !important;
-    z-index: 45 !important;
-    padding: 5px 12px !important;
-    border-radius: 999px !important;
-    font-size: 12px !important;
-    font-weight: 700 !important;
-    background: rgba(15, 23, 42, 0.90) !important;
-    border: 1px solid rgba(139, 92, 246, 0.35) !important;
-    color: #e2e8f0 !important;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35) !important;
-    backdrop-filter: blur(14px) !important;
-    -webkit-backdrop-filter: blur(14px) !important;
-    cursor: pointer !important;
-    max-width: calc(100vw - 24px) !important;
-  }
-
-  body:not(.dark) .mobile-tools-notch {
-    background: rgba(255, 255, 255, 0.94) !important;
-    color: #4f46e5 !important;
-    border-color: rgba(99, 102, 241, 0.3) !important;
-    box-shadow: 0 3px 14px rgba(99, 102, 241, 0.2) !important;
-  }
-
-  /* Hide floating notch when keyboard is open to prevent blocking input */
-  body.qjo-keyboard-open .mobile-tools-notch {
     display: none !important;
   }
 
@@ -472,8 +585,25 @@
   }
 
   /* -------------------------------------------------------------------------
-     8. Sidebar (Off-Canvas Drawer)
+     8. Sidebar (Sharp, Non-blurred Off-Canvas Drawer)
      ------------------------------------------------------------------------- */
+  .drawer-backdrop {
+    display: none;
+    position: fixed !important;
+    inset: 0 !important;
+    background: rgba(0, 0, 0, 0.55) !important;
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+    z-index: 90 !important;
+    opacity: 0;
+    transition: opacity 0.25s ease !important;
+  }
+
+  body.drawer-open .drawer-backdrop {
+    display: block !important;
+    opacity: 1 !important;
+  }
+
   .sidebar {
     position: fixed !important;
     top: 0 !important;
@@ -482,16 +612,16 @@
     height: 100dvh !important;
     width: min(84vw, 320px) !important;
     z-index: 95 !important;
-    background: rgba(7, 16, 31, 0.98) !important;
-    backdrop-filter: blur(20px) !important;
-    -webkit-backdrop-filter: blur(20px) !important;
+    background: #0f172a !important;
     transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
-    box-shadow: 0 0 40px rgba(0, 0, 0, 0.45) !important;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.5) !important;
     padding: calc(14px + env(safe-area-inset-top, 0px)) 14px calc(14px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
   body:not(.dark) .sidebar {
-    background: rgba(255, 255, 255, 0.98) !important;
+    background: #ffffff !important;
+    box-shadow: -10px 0 40px rgba(0, 0, 0, 0.16) !important;
+    border-inline-start: 1px solid rgba(15, 23, 42, 0.10) !important;
   }
 
   /* In RTL: drawer slides from the right */
@@ -514,23 +644,6 @@
 
   body.drawer-open .sidebar {
     transform: translateX(0) !important;
-  }
-
-  .drawer-backdrop {
-    display: none;
-    position: fixed !important;
-    inset: 0 !important;
-    background: rgba(0, 0, 0, 0.5) !important;
-    backdrop-filter: blur(4px) !important;
-    -webkit-backdrop-filter: blur(4px) !important;
-    z-index: 90 !important;
-    opacity: 0;
-    transition: opacity 0.25s ease !important;
-  }
-
-  body.drawer-open .drawer-backdrop {
-    display: block !important;
-    opacity: 1 !important;
   }
 
   /* -------------------------------------------------------------------------
@@ -662,7 +775,6 @@
    --------------------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
   .mobile-tools-sheet,
-  .mobile-tools-notch,
   .sidebar,
   .drawer-backdrop,
   .mobile-tools-sheet-backdrop {

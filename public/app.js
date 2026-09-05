@@ -1830,58 +1830,55 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
       }
       wrap.appendChild(bubble);
 
-      // Friendly reaction bar (like / love / helpful) — non-AI, feels lively
+      // Friendly action & reaction toolbar in a single sleek row
       if (role === 'assistant' && !String(extraClass || '').includes('error')) {
-        const reactions = document.createElement('div');
-        reactions.className = 'msg-reactions';
+        const toolbar = document.createElement('div');
+        toolbar.className = 'msg-actions-toolbar';
+
+        // Copy button first
+        const copyBtn = document.createElement('button');
+        copyBtn.type = 'button';
+        copyBtn.className = 'msg-action-btn copy-icon-btn';
+        copyBtn.title = qjoLanguage === 'ar' ? 'نسخ الإجابة' : 'Copy Response';
+        const copySvg = `<svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="copy-icon-svg"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+        const checkSvg = `<svg viewBox="0 0 24 24" width="15" height="15" stroke="#10B981" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" class="check-icon-svg"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+        copyBtn.innerHTML = copySvg;
+        copyBtn.addEventListener('click', async () => {
+          const streamText = bubble.querySelector('.qjo-streamed-content')?.innerText || bubble.innerText || content;
+          const ok = await copyTextToClipboard(String(streamText || content).trim());
+          if (ok) {
+            copyBtn.innerHTML = checkSvg;
+            setTimeout(() => { copyBtn.innerHTML = copySvg; }, 1300);
+          }
+        });
+        toolbar.appendChild(copyBtn);
+
+        // Feedback / reaction buttons
         const react = (emoji, title) => {
           const b = document.createElement('button');
           b.type = 'button';
+          b.className = 'msg-action-btn msg-react-btn';
           b.title = title;
           b.textContent = emoji;
           b.addEventListener('click', () => {
             b.classList.toggle('reacted');
             b.animate([
               { transform: 'scale(1)' },
-              { transform: 'scale(1.5) rotate(-12deg)' },
-              { transform: 'scale(1.15)' }
-            ], { duration: 380, easing: 'cubic-bezier(.3,1.5,.4,1)' });
-            // tiny feedback toast
+              { transform: 'scale(1.4) rotate(-10deg)' },
+              { transform: 'scale(1.1)' }
+            ], { duration: 340, easing: 'cubic-bezier(.3,1.5,.4,1)' });
             showMicroToast(shuffle([
               'شكرًا 🙌','تمام، انتبهت 👌','يسعدني ذلك ✨','رائع! 🎉','تكرم عينك 💜','تمام، سآخذ بالحسبان 👀'
             ])[0]);
           });
           return b;
         };
-        reactions.appendChild(react('👍', qjoLanguage === 'ar' ? 'إجابة ممتازة' : 'Good answer'));
-        reactions.appendChild(react('💜', qjoLanguage === 'ar' ? 'أعجبتني' : 'Love it'));
-        reactions.appendChild(react('✨', qjoLanguage === 'ar' ? 'مفيدة' : 'Helpful'));
-        reactions.appendChild(react('🔁', qjoLanguage === 'ar' ? 'أعد الصياغة أقصر' : 'Regenerate shorter'));
-        wrap.appendChild(reactions);
-      }
+        toolbar.appendChild(react('🔁', qjoLanguage === 'ar' ? 'أعد الصياغة' : 'Regenerate'));
+        toolbar.appendChild(react('✨', qjoLanguage === 'ar' ? 'مفيدة' : 'Helpful'));
+        toolbar.appendChild(react('💜', qjoLanguage === 'ar' ? 'أعجبتني' : 'Love it'));
+        toolbar.appendChild(react('👍', qjoLanguage === 'ar' ? 'إجابة ممتازة' : 'Good answer'));
 
-      if (role === 'assistant' && !String(extraClass || '').includes('error')) {
-        const actions = document.createElement('div');
-        actions.className = 'export-actions';
-        const copyBtn = document.createElement('button');
-        copyBtn.type = 'button';
-        copyBtn.className = 'copy-icon-btn';
-        copyBtn.title = qjoLanguage === 'ar' ? 'نسخ الإجابة' : 'Copy Response';
-        
-        const copySvg = `<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="copy-icon-svg"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
-        const checkSvg = `<svg viewBox="0 0 24 24" width="16" height="16" stroke="#10B981" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" class="check-icon-svg"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
-        
-        copyBtn.innerHTML = copySvg;
-        copyBtn.addEventListener('click', async () => {
-          const ok = await copyTextToClipboard(content);
-          if (ok) {
-            copyBtn.innerHTML = checkSvg;
-            setTimeout(() => { copyBtn.innerHTML = copySvg; }, 1300);
-          }
-        });
-        
-        actions.appendChild(copyBtn);
-        wrap.appendChild(actions);
+        wrap.appendChild(toolbar);
       }
       messagesInner.appendChild(wrap);
       scrollToBottom(false);

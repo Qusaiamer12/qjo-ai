@@ -5574,9 +5574,7 @@ body.dark .memory-item { background: rgba(255,255,255,.05); }
     box-shadow: 0 14px 34px rgba(29,95,189,.24) !important;
   }
 
-  .msg.assistant .bubble,
-  .assistant .bubble,
-  body:not(.dark) .assistant .bubble,
+  body.dark .msg.assistant .bubble,
   body.dark .assistant .bubble {
     background: rgba(15, 23, 42, .96) !important;
     color: #f8fafc !important;
@@ -5585,10 +5583,19 @@ body.dark .memory-item { background: rgba(255,255,255,.05); }
     box-shadow: 0 18px 48px rgba(0,0,0,.28) !important;
   }
 
+  body:not(.dark) .msg.assistant .bubble,
+  body:not(.dark) .assistant .bubble {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
+    border: 1px solid rgba(15, 23, 42, .12) !important;
+    box-shadow: 0 4px 18px rgba(0,0,0,.06) !important;
+  }
+
   .msg.assistant .bubble *,
   .assistant .bubble * {
-    color: inherit !important;
-    -webkit-text-fill-color: inherit !important;
+    color: inherit;
+    -webkit-text-fill-color: inherit;
   }
 
   .assistant .bubble a,
