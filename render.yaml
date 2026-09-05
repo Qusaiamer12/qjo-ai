@@ -50,20 +50,25 @@ services:
       # Free services sleep after 15 min idle; waking costs the next visitor
       # ~50-60s. The in-app pinger keeps a running service awake.
       #
-      # ⚠️ Budget: Render gives 750 free instance-hours per WORKSPACE per month
-      # and a month is 720-744 hours. Staying awake 24/7 burns the whole
-      # allowance, after which Render SUSPENDS all free web services until the
-      # 1st. The 07:00-01:00 window below is ~548 h/month, which is safe.
+      # CONFIGURED 24/7 BY REQUEST: START_HOUR == END_HOUR means no window, so
+      # the pinger runs around the clock and the service never sleeps.
+      #
+      # ⚠️ Budget: 24 * 31 = 744 h against Render's 750 free instance-hours per
+      # WORKSPACE per month -- a 6 h margin in the seven 31-day months (30-day
+      # months are 720 h, a comfortable 30 h margin). This is safe ONLY while
+      # this is the only free service in the workspace. Adding a second one
+      # exhausts the pool, and Render then SUSPENDS every free web service
+      # until the 1st. Watch Dashboard > Billing > Monthly Included Usage.
       #
       # Note: the in-app pinger cannot wake a service that ALREADY slept (it
-      # dies with the process). For that, enable the external pinger — see
-      # docs/RENDER_KEEP_AWAKE.md.
+      # dies with the process), so the external pinger is what guarantees
+      # always-on -- see docs/RENDER_KEEP_AWAKE.md.
       - key: KEEP_ALIVE_ENABLED
         value: true
       - key: KEEP_ALIVE_START_HOUR
-        value: 7
+        value: 0
       - key: KEEP_ALIVE_END_HOUR
-        value: 1
+        value: 0
       - key: KEEP_ALIVE_TIMEZONE
         value: Asia/Amman
 

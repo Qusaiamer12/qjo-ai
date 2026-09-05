@@ -13,9 +13,11 @@
 //   SUSPENDS every free web service until the 1st of next month. A suspended
 //   service is strictly worse than a sleeping one.
 //
-//   Therefore this pings only inside a configured daily active window. The
-//   default (07:00-01:00 Asia/Amman, 18h) costs ~558 h/month in the worst case
-//   and leaves ~192 h of headroom for any second free service in the workspace.
+//   The default here is ALWAYS-ON (start === end === 0, no window): 744 h in a
+//   31-day month against the 750 h cap. That is deliberate and safe only while
+//   this is the workspace's only free service -- a second one exhausts the pool
+//   and suspends both. Set KEEP_ALIVE_START_HOUR/END_HOUR to a real window
+//   (e.g. 7 and 1 => 558 h/month) to buy headroom back.
 //
 //   Deploys are NOT a meaningful cost here: builds bill to build minutes, not
 //   instance hours, and the old/new instance overlap during a zero-downtime
@@ -111,8 +113,11 @@ function createKeepAliveService(options = {}) {
       : Boolean(env.RENDER && baseUrl);
 
   const timeZone = String(env.KEEP_ALIVE_TIMEZONE || 'Asia/Amman').trim() || 'Asia/Amman';
-  const startHour = parseHour(env.KEEP_ALIVE_START_HOUR, 7);
-  const endHour = parseHour(env.KEEP_ALIVE_END_HOUR, 1);
+  // Default 0/0 == always-on: start === end disables windowing entirely, so
+  // the service never sleeps. Set both to a real window (e.g. 7 and 1) to trade
+  // some uptime for free-hours headroom.
+  const startHour = parseHour(env.KEEP_ALIVE_START_HOUR, 0);
+  const endHour = parseHour(env.KEEP_ALIVE_END_HOUR, 0);
 
   const rawInterval = Number(env.KEEP_ALIVE_INTERVAL_MS);
   const intervalMs = Number.isFinite(rawInterval) && rawInterval >= MIN_INTERVAL_MS

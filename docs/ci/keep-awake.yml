@@ -26,17 +26,17 @@ name: Keep Render awake
 
 on:
   schedule:
-    # Every 10 minutes between 04:00 and 21:59 UTC (07:00-00:59 Asia/Amman),
-    # matching the in-app default window. 10 min (not 14) buys slack against
-    # GitHub's scheduling delays.
+    # Every 10 minutes, around the clock — matches the in-app 24/7 default so
+    # the service never sleeps. 10 min (not 14) buys slack against GitHub's
+    # scheduling delays.
     #
-    # For a true 24/7 never-sleeps setup, replace the line below with:
-    #   - cron: '*/10 * * * *'
-    # and set KEEP_ALIVE_START_HOUR=0 / KEEP_ALIVE_END_HOUR=0 on Render.
-    # Read docs/RENDER_KEEP_AWAKE.md first: 24/7 is ~744 of the 750 free
-    # instance-hours in a 31-day month, leaving no room for a second free
-    # service in the workspace.
-    - cron: '*/10 4-21 * * *'
+    # To trade uptime for free-hours headroom, narrow this to the daytime only:
+    #   - cron: '*/10 4-21 * * *'      # 07:00-00:59 Asia/Amman
+    # and set KEEP_ALIVE_START_HOUR=7 / KEEP_ALIVE_END_HOUR=1 on Render.
+    #
+    # Budget: 24/7 is ~744 of the 750 free instance-hours in a 31-day month, so
+    # it only fits while this is the workspace's only free service.
+    - cron: '*/10 * * * *'
   workflow_dispatch:
 
 permissions:
