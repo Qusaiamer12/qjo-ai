@@ -574,9 +574,9 @@ registerSystemRoutes(app, {
     chatPipelines: {
       lite: ['groq:flash', 'llm7:flash', 'qwen:flash', 'kimi:flash'],
       flash: ['groq:flash', 'llm7:flash', 'qwen:flash', 'kimi:flash'],
-      maxAr: ['qwen:text', 'kimi:text', 'llm7:text', 'groq:text'],
-      maxEn: ['groq:text', 'llm7:text', 'qwen:text', 'kimi:text'],
-      code: ['kimi:code', 'qwen:code', 'llm7:text', 'groq:text'],
+      maxAr: ['groq:text', 'llm7:text', 'qwen:text', 'kimi:text', 'groq:flash'],
+      maxEn: ['groq:text', 'llm7:text', 'qwen:text', 'kimi:text', 'groq:flash'],
+      code: ['groq:text', 'llm7:text', 'kimi:code', 'qwen:code', 'groq:flash'],
       vision: ['groq:vision', 'qwen:vision']
     },
     models: {

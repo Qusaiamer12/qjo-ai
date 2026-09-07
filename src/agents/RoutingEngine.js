@@ -166,17 +166,21 @@ function isLiteRequest(messages) {
 // ── Pipeline definitions ──
 // Order = quality × fit for the pipeline's job. Providers without keys (or
 // without a model configured for the requested slot) are skipped at runtime.
+// IMPORTANT: spread attempts across DIFFERENT providers first, never retry the
+// same provider account back-to-back — when one provider is rate-limited, all
+// its slots (flash/text/code) share the same quota and will fail instantly,
+// wasting precious deadline budget.
 const PIPELINES = {
-  // Lite track: fast/free models (Groq flash primary, Groq text fallback, LLM7 fallback).
-  lite: [['groq', 'flash'], ['groq', 'text'], ['llm7', 'flash']],
-  // Flash mode: high velocity (Groq flash primary, Groq text fallback, LLM7 fallback).
-  flash: [['groq', 'flash'], ['groq', 'text'], ['llm7', 'flash'], ['qwen', 'flash'], ['kimi', 'flash']],
-  // Max mode (Arabic-heavy): Groq text primary, Groq flash fallback, LLM7 fallback.
-  maxAr: [['groq', 'text'], ['groq', 'flash'], ['llm7', 'text'], ['qwen', 'text'], ['kimi', 'text']],
-  // Max mode (English / mixed): Groq text primary, Groq flash fallback, LLM7 fallback.
-  maxEn: [['groq', 'text'], ['groq', 'flash'], ['llm7', 'text'], ['qwen', 'text'], ['kimi', 'text']],
-  // Code mode: Groq text primary, Groq flash fallback, LLM7 fallback.
-  code: [['groq', 'text'], ['groq', 'flash'], ['llm7', 'text'], ['kimi', 'code'], ['qwen', 'code']],
+  // Lite track: greetings only — spread across all providers for max resilience.
+  lite: [['groq', 'flash'], ['llm7', 'flash'], ['qwen', 'flash'], ['kimi', 'flash']],
+  // Flash mode: high velocity — cross-provider fallback chain.
+  flash: [['groq', 'flash'], ['llm7', 'flash'], ['qwen', 'flash'], ['kimi', 'flash']],
+  // Max mode (Arabic-heavy): larger models, cross-provider.
+  maxAr: [['groq', 'text'], ['llm7', 'text'], ['qwen', 'text'], ['kimi', 'text'], ['groq', 'flash']],
+  // Max mode (English / mixed): larger models, cross-provider.
+  maxEn: [['groq', 'text'], ['llm7', 'text'], ['qwen', 'text'], ['kimi', 'text'], ['groq', 'flash']],
+  // Code mode: text-grade models first, cross-provider.
+  code: [['groq', 'text'], ['llm7', 'text'], ['kimi', 'code'], ['qwen', 'code'], ['groq', 'flash']],
   // Vision requests: vision-capable slots (Groq & Qwen vision).
   vision: [['groq', 'vision'], ['qwen', 'vision']]
 };
