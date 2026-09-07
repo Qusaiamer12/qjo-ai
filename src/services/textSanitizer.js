@@ -12,11 +12,13 @@ function sanitizeMathUnicode(text) {
 }
 
 // Strips accidental meta-prompt or upstream proxy thought leakages
-// (e.g. 'User: "..." Arabic: "..." We should respond warmly... But as ChatGPT...'):
+// (e.g. 'User says "..." which is Arabic slang meaning "..." According to developer instruction: reply briefly... So respond in Arabic: "..."'):
 function sanitizeThoughtLeakage(text) {
   let s = String(text || '');
-  s = s.replace(/^(?:User:\s*["'][^"']*["']\s*(?:Arabic|English)?:\s*["'][^"']*["']\.?\s*)?(?:We should respond[^]*?(?:Let's respond[^]*?\n\n|as ChatGPT[^]*?\n\n|in Arabic, brief\.\s*\n))/i, '');
-  return s.trimStart();
+  s = s.replace(/^User(?:\s+says)?\s*["'][^"']*["'][^]*?(?:According to developer instruction|So respond in Arabic|We should respond)[^:]*:\s*["']?/i, '');
+  s = s.replace(/^User:\s*["'][^"']*["'][^]*?(?:We should respond|Let's respond|as ChatGPT)[^]*?(?:\n\n|:\s*["']?)/i, '');
+  if (s.endsWith('"') && !s.slice(0, -1).includes('"')) s = s.slice(0, -1);
+  return s.trim();
 }
 
 // A couple of other frequent LLM math-notation glitches worth normalizing

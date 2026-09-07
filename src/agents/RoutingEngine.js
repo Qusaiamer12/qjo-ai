@@ -144,34 +144,39 @@ function getAdaptiveTemperature({ intent, mode, requestedTemp }) {
 }
 
 // ── Lite Request Detector ──
+// Only very simple greetings/pleasantries use the fast track.
+// Drawing, calculating, coding, writing, or questions must ALWAYS go to the full prompt pipeline.
 function isLiteRequest(messages) {
   const userMessages = (messages || []).filter(m => m.role === 'user');
   if (userMessages.length !== 1) return false;
 
   const text = textFromMessageContent(userMessages[0].content).trim();
-  const wordCount = text.split(/\s+/).length;
-
-  if (wordCount > 12) return false;
+  if (!text || text.length > 40) return false;
   if (containsImageContent(messages)) return false;
-  if (/(```|{|}|function|class|calculate|احسب|search|بحث|https?:\/\/)/i.test(text)) return false;
 
-  return true;
+  // Never fast-track any request involving drawing, math, code, or knowledge tasks
+  if (/(ارسم|رسم|منحنى|plot|graph|chart|كود|code|دالة|برمج|احسب|حل|اشرح|لخص|اكتب|قارن|search|بحث|https?:\/\/|```|\d+\s*[\+\-\*\/])/i.test(text)) {
+    return false;
+  }
+
+  // Strictly match common greetings
+  return /^(مرحبا|مرحباً|هلا|أهلاً|اهلا|سلام|السلام عليكم|صباح الخير|مساء الخير|كيفك|كيف حالك|كيفو|شلونك|شو أخبارك|شو اخبارك|شكرا|شكراً|يسلمو|يعطيك العافية|hi|hello|hey|bye|thanks)(\s+[؀-ۿa-zA-Z]+){0,3}[!?؟.]*$/i.test(text);
 }
 
 // ── Pipeline definitions ──
 // Order = quality × fit for the pipeline's job. Providers without keys (or
 // without a model configured for the requested slot) are skipped at runtime.
 const PIPELINES = {
-  // Lite track: fast/free models (Groq primary, LLM7 fallback).
-  lite: [['groq', 'flash'], ['llm7', 'flash'], ['qwen', 'flash'], ['kimi', 'flash']],
-  // Flash mode: high velocity (Groq primary, LLM7 fallback).
-  flash: [['groq', 'flash'], ['llm7', 'flash'], ['qwen', 'flash'], ['kimi', 'flash']],
-  // Max mode (Arabic-heavy): Groq text primary, LLM7 fallback.
-  maxAr: [['groq', 'text'], ['llm7', 'text'], ['qwen', 'text'], ['kimi', 'text']],
-  // Max mode (English / mixed): Groq text primary, LLM7 fallback.
-  maxEn: [['groq', 'text'], ['llm7', 'text'], ['qwen', 'text'], ['kimi', 'text']],
-  // Code mode: Groq text/code primary, LLM7 fallback.
-  code: [['groq', 'text'], ['llm7', 'text'], ['kimi', 'code'], ['qwen', 'code']],
+  // Lite track: fast/free models (Groq flash primary, Groq text fallback, LLM7 fallback).
+  lite: [['groq', 'flash'], ['groq', 'text'], ['llm7', 'flash']],
+  // Flash mode: high velocity (Groq flash primary, Groq text fallback, LLM7 fallback).
+  flash: [['groq', 'flash'], ['groq', 'text'], ['llm7', 'flash'], ['qwen', 'flash'], ['kimi', 'flash']],
+  // Max mode (Arabic-heavy): Groq text primary, Groq flash fallback, LLM7 fallback.
+  maxAr: [['groq', 'text'], ['groq', 'flash'], ['llm7', 'text'], ['qwen', 'text'], ['kimi', 'text']],
+  // Max mode (English / mixed): Groq text primary, Groq flash fallback, LLM7 fallback.
+  maxEn: [['groq', 'text'], ['groq', 'flash'], ['llm7', 'text'], ['qwen', 'text'], ['kimi', 'text']],
+  // Code mode: Groq text primary, Groq flash fallback, LLM7 fallback.
+  code: [['groq', 'text'], ['groq', 'flash'], ['llm7', 'text'], ['kimi', 'code'], ['qwen', 'code']],
   // Vision requests: vision-capable slots (Groq & Qwen vision).
   vision: [['groq', 'vision'], ['qwen', 'vision']]
 };
@@ -369,13 +374,9 @@ function createRoutingEngine(deps) {
       // from any extracted/attached text instead of hard failing.
     }
 
-    // 2) Lite fast track — single short casual message.
+    // 2) Lite fast track — single short greeting message.
     if (isLiteRequest(messages)) {
-      const liteMessages = [
-        { role: 'system', content: 'You are Qjo, a helpful Arabic-first AI assistant. Reply briefly and warmly in the user\'s language.' },
-        ...messages.filter(m => m.role !== 'system')
-      ];
-      const res = await runChain(PIPELINES.lite, { ...base, messages: liteMessages, tools: undefined, maxPerProviderMs: 8000 });
+      const res = await runChain(PIPELINES.lite, { ...base, messages, tools: undefined, maxPerProviderMs: 8000 });
       if (res.ok) return res;
       // fall through to full routing
     }
