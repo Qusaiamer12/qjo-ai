@@ -3897,6 +3897,7 @@ if len(__qjo_err_str) > 20000:
         await safePersistMessage(assistantMessage);
       } catch (error) {
         if (reasoningTimerInterval) clearInterval(reasoningTimerInterval);
+        console.error('[Qjo Chat Error]', error);
         let failMessage = 'تعذر الاتصال بالخدمة حاليًا. يرجى المحاولة لاحقًا.';
         if (error.name === 'AbortError') failMessage = 'تم إيقاف الطلب أو انتهت مهلته. حاول مرة أخرى.';
         else if (error.message === 'AI_BACKEND_MISSING') failMessage = 'خدمة الذكاء غير متصلة في هذه النسخة. شغّل نسخة الإنتاج عبر Node.js بدل فتح HTML فقط.';
@@ -3904,7 +3905,9 @@ if len(__qjo_err_str) > 20000:
         else if (error.message === 'RATE_LIMIT') failMessage = 'وصلنا لحد مزوّد الذكاء مؤقتًا. جرّب بعد قليل، أو استخدم رسالة أقصر.';
         else if (/rate.?limit|429|too many requests/i.test(error.message || '')) failMessage = 'مزودات الذكاء تحت ضغط حاليًا (وصلنا الحد المؤقت للطلبات). انتظر دقيقة وأعد المحاولة.';
         else if (/No provider configured|No AI provider is configured/i.test(error.message || '')) failMessage = 'مزودات الذكاء غير مضبوطة على الخادم. يرجى ضبط المفاتيح في لوحة التحكم.';
-        else if (/All AI providers failed|provider.*failed|upstream.*failed|service.*unavailable|503/i.test(error.message || '')) failMessage = 'خدمة الذكاء تواجه ضغطاً أو يُعاد تشغيلها حالياً. يرجى الانتظار بضع ثوانٍ وإعادة المحاولة 🔄.';
+        else if (/All AI providers failed|provider.*failed|upstream.*failed|service.*unavailable|503|502|504|SERVICE_FAILED|failed to fetch|network/i.test(error.message || '') || (error.status && error.status >= 500)) {
+          failMessage = 'الخادم كان قيد التحديث السريع أو إعادة التشغيل 🔄. اضغط على "إعادة المحاولة" أدناه، الخدمة جاهزة الآن!';
+        }
 
         if (bubble) {
           if (reasoningCard) reasoningCard.remove();
