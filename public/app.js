@@ -2388,6 +2388,20 @@ if len(__qjo_err_str) > 20000:
       setTimeout(updateScrollBottomButton, 220);
     }
 
+    let scrollRafPending = false;
+    function requestSmoothScroll() {
+      if (scrollRafPending) return;
+      scrollRafPending = true;
+      requestAnimationFrame(() => {
+        scrollRafPending = false;
+        if (isNearBottom()) {
+          messagesEl.scrollTop = messagesEl.scrollHeight;
+          window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'auto' });
+        }
+        updateScrollBottomButton();
+      });
+    }
+
 
 
     function formatBytes(bytes) {
@@ -3550,19 +3564,188 @@ if len(__qjo_err_str) > 20000:
       addMessage('user', displayText + attachmentNames);
       pendingAttachments = [];
       renderAttachments();
-      const typing = addTyping();
+
+      let started = false;
+      let bubble = null;
+      let assistantWrap = null;
+      let lastMetadata = {};
+
+      // Reasoning & Timeline Streaming Controller
+      let reasoningActive = false;
+      let reasoningRaw = '';
+      let reasoningStartTime = null;
+      let reasoningElapsed = '0.0s';
+      let reasoningTimerInterval = null;
+      let reasoningCard = null;
+      let reasoningTimeline = null;
+      let reasoningTimerEl = null;
+      let reasoningLabelEl = null;
+      let contentContainer = null;
+      let reasoningDivider = null;
+      let insideThinkTag = false;
+      let currentActiveStep = null;
+      let chunkRenderPending = false;
+
+      function ensureAssistantStreamElements() {
+        if (!started) {
+          assistantWrap = addMessage('assistant', '');
+          bubble = assistantWrap.querySelector('.bubble');
+          bubble.innerHTML = '';
+          started = true;
+        }
+      }
+
+      function ensureReasoningWidget() {
+        ensureAssistantStreamElements();
+        if (!reasoningCard) {
+          reasoningActive = true;
+          reasoningStartTime = Date.now();
+          reasoningCard = document.createElement('div');
+          reasoningCard.className = 'qjo-reasoning-card';
+          reasoningCard.innerHTML = `
+            <div class="qjo-reasoning-header">
+              <div class="qjo-reasoning-title">
+                <span class="qjo-reasoning-pulse"></span>
+                <span class="qjo-reasoning-label">${qjoLanguage === 'ar' ? 'التفكير...' : 'Reasoning...'}</span>
+                <span class="qjo-reasoning-timer">0.1s</span>
+              </div>
+              <button type="button" class="qjo-reasoning-toggle" aria-label="Toggle Reasoning">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+              </button>
+            </div>
+            <div class="qjo-reasoning-body">
+              <div class="qjo-reasoning-timeline"></div>
+            </div>
+          `;
+          reasoningTimeline = reasoningCard.querySelector('.qjo-reasoning-timeline');
+          reasoningTimerEl = reasoningCard.querySelector('.qjo-reasoning-timer');
+          reasoningLabelEl = reasoningCard.querySelector('.qjo-reasoning-label');
+
+          const header = reasoningCard.querySelector('.qjo-reasoning-header');
+          header.addEventListener('click', () => {
+            reasoningCard.classList.toggle('collapsed');
+          });
+
+          reasoningTimerInterval = setInterval(() => {
+            if (reasoningStartTime) {
+              reasoningElapsed = ((Date.now() - reasoningStartTime) / 1000).toFixed(1) + 's';
+              if (reasoningTimerEl) reasoningTimerEl.textContent = reasoningElapsed;
+            }
+          }, 100);
+
+          if (contentContainer) {
+            bubble.insertBefore(reasoningCard, contentContainer);
+          } else {
+            bubble.appendChild(reasoningCard);
+          }
+        }
+      }
+
+      function appendReasoningStep(text, isTool = false) {
+        ensureReasoningWidget();
+        const step = document.createElement('div');
+        step.className = 'qjo-reasoning-step' + (isTool ? ' tool-step' : '');
+        if (isTool) {
+          step.innerHTML = `<span class="qjo-step-dot"></span><span class="tool-check">✓</span><span>${escapeHtml(text)}</span>`;
+        } else {
+          step.innerHTML = `<span class="qjo-step-dot"></span><span>${escapeHtml(text)}</span>`;
+        }
+        reasoningTimeline.appendChild(step);
+        requestSmoothScroll();
+      }
+
+      function streamReasoningText(delta) {
+        ensureReasoningWidget();
+        reasoningRaw += delta;
+        const trimmed = delta.trim();
+        if (!trimmed) return;
+        if (!currentActiveStep || delta.includes('\n') || (delta.includes('.') && currentActiveStep.textContent.length > 55)) {
+          currentActiveStep = document.createElement('div');
+          currentActiveStep.className = 'qjo-reasoning-step';
+          currentActiveStep.innerHTML = `<span class="qjo-step-dot"></span><span class="step-content"></span>`;
+          reasoningTimeline.appendChild(currentActiveStep);
+        }
+        const contentEl = currentActiveStep.querySelector('.step-content');
+        if (contentEl) {
+          contentEl.textContent += delta.replace(/[\n\r]+/g, ' ');
+        }
+        requestSmoothScroll();
+      }
+
+      function finishReasoning() {
+        if (reasoningActive) {
+          reasoningActive = false;
+          if (reasoningTimerInterval) clearInterval(reasoningTimerInterval);
+          if (reasoningStartTime) {
+            reasoningElapsed = ((Date.now() - reasoningStartTime) / 1000).toFixed(1) + 's';
+          }
+          if (reasoningCard) {
+            const pulse = reasoningCard.querySelector('.qjo-reasoning-pulse');
+            if (pulse) pulse.remove();
+          }
+          if (reasoningLabelEl) {
+            reasoningLabelEl.textContent = qjoLanguage === 'ar' ? 'مسار التفكير' : 'Reasoning';
+          }
+          if (reasoningTimerEl) {
+            reasoningTimerEl.textContent = qjoLanguage === 'ar' ? `تم التفكير في ${reasoningElapsed}` : `Thought for ${reasoningElapsed}`;
+          }
+          if (!reasoningDivider) {
+            reasoningDivider = document.createElement('div');
+            reasoningDivider.className = 'qjo-reasoning-divider';
+            if (contentContainer) {
+              bubble.insertBefore(reasoningDivider, contentContainer);
+            } else {
+              bubble.appendChild(reasoningDivider);
+            }
+          }
+        }
+      }
+
+      function ensureContentContainer() {
+        ensureAssistantStreamElements();
+        if (!contentContainer) {
+          contentContainer = document.createElement('div');
+          contentContainer.className = 'qjo-streamed-content';
+          bubble.appendChild(contentContainer);
+        }
+      }
+
+      function scheduleContentRender() {
+        if (chunkRenderPending) return;
+        chunkRenderPending = true;
+        requestAnimationFrame(() => {
+          chunkRenderPending = false;
+          if (contentContainer) {
+            contentContainer.innerHTML = lightMarkdown(fullAnswer) + '<span class="qjo-typing-cursor"></span>';
+          }
+          requestSmoothScroll();
+        });
+      }
+
+      function appendContentChunk(text) {
+        ensureContentContainer();
+        fullAnswer += text;
+        scheduleContentRender();
+      }
+
+      // Launch Reasoning Card INSTANTLY upon sending message!
+      ensureReasoningWidget();
+      appendReasoningStep(qjoLanguage === 'ar' ? 'بدء التفكير واستحضار السياق...' : 'Analyzing request and context...');
+      requestSmoothScroll();
 
       try {
         const normalizedSearchText = normalizeUserQueryForSearch(rawText);
         lastSearchSources = [];
         const searchTextForDecision = normalizedSearchText || rawText;
         if (needsWebSearch(searchTextForDecision)) {
-          showRequestStatus(true, needsDeepSearch(searchTextForDecision)
-            ? (qjoLanguage === 'ar' ? 'Qjo يبحث بعمق لكن بسرعة...' : 'Qjo is running deep source research...')
-            : (qjoLanguage === 'ar' ? 'Qjo يبحث بسرعة في المصادر...' : 'Qjo is searching sources...'));
+          appendReasoningStep(needsDeepSearch(searchTextForDecision)
+            ? (qjoLanguage === 'ar' ? 'بحث عميق في المصادر والويب...' : 'Running deep web search...')
+            : (qjoLanguage === 'ar' ? 'بحث سريع في المصادر...' : 'Searching live sources...'), true);
         }
         const webSearchContext = await getWebSearchContext(searchTextForDecision);
-        if (webSearchContext) showRequestStatus(true, qjoLanguage === 'ar' ? 'Qjo يختار أقوى المصادر...' : 'Qjo is analyzing sources...');
+        if (webSearchContext) {
+          appendReasoningStep(qjoLanguage === 'ar' ? 'تم اختيار وتلخيص أقوى المصادر' : 'Synthesizing verified sources', true);
+        }
         const continuityHint = buildContextContinuityHint(rawText);
         const savedUserContent = text + clarificationContext + attachmentContext + webSearchContext + (hadImageAttachments ? '\n\n[تم إرفاق صورة/صور وتحليلها في وقت الإرسال]' : '');
         const apiUserContent = hadImageAttachments
@@ -3604,7 +3787,6 @@ if len(__qjo_err_str) > 20000:
         });
         clearTimeout(timeoutId);
 
-        typing.remove();
         showRequestStatus(false);
 
         if (!response.ok) {
@@ -3622,159 +3804,6 @@ if len(__qjo_err_str) > 20000:
         const decoder = new TextDecoder();
         let buffer = '';
         let fullAnswer = '';
-        let started = false;
-        let bubble = null;
-        let assistantWrap = null;
-        let lastMetadata = {};
-
-        // Reasoning & Timeline Streaming Controller
-        let reasoningActive = false;
-        let reasoningRaw = '';
-        let reasoningStartTime = null;
-        let reasoningElapsed = '0.0s';
-        let reasoningTimerInterval = null;
-        let reasoningCard = null;
-        let reasoningTimeline = null;
-        let reasoningTimerEl = null;
-        let reasoningLabelEl = null;
-        let contentContainer = null;
-        let reasoningDivider = null;
-        let insideThinkTag = false;
-        let currentActiveStep = null;
-
-        function ensureAssistantStreamElements() {
-          if (!started) {
-            assistantWrap = addMessage('assistant', '');
-            bubble = assistantWrap.querySelector('.bubble');
-            bubble.innerHTML = '';
-            started = true;
-          }
-        }
-
-        function ensureReasoningWidget() {
-          ensureAssistantStreamElements();
-          if (!reasoningCard) {
-            reasoningActive = true;
-            reasoningStartTime = Date.now();
-            reasoningCard = document.createElement('div');
-            reasoningCard.className = 'qjo-reasoning-card';
-            reasoningCard.innerHTML = `
-              <div class="qjo-reasoning-header">
-                <div class="qjo-reasoning-title">
-                  <span class="qjo-reasoning-pulse"></span>
-                  <span class="qjo-reasoning-label">${qjoLanguage === 'ar' ? 'التفكير...' : 'Reasoning...'}</span>
-                  <span class="qjo-reasoning-timer">0.1s</span>
-                </div>
-                <button type="button" class="qjo-reasoning-toggle" aria-label="Toggle Reasoning">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
-                </button>
-              </div>
-              <div class="qjo-reasoning-body">
-                <div class="qjo-reasoning-timeline"></div>
-              </div>
-            `;
-            reasoningTimeline = reasoningCard.querySelector('.qjo-reasoning-timeline');
-            reasoningTimerEl = reasoningCard.querySelector('.qjo-reasoning-timer');
-            reasoningLabelEl = reasoningCard.querySelector('.qjo-reasoning-label');
-
-            const header = reasoningCard.querySelector('.qjo-reasoning-header');
-            header.addEventListener('click', () => {
-              reasoningCard.classList.toggle('collapsed');
-            });
-
-            reasoningTimerInterval = setInterval(() => {
-              if (reasoningStartTime) {
-                reasoningElapsed = ((Date.now() - reasoningStartTime) / 1000).toFixed(1) + 's';
-                if (reasoningTimerEl) reasoningTimerEl.textContent = reasoningElapsed;
-              }
-            }, 100);
-
-            if (contentContainer) {
-              bubble.insertBefore(reasoningCard, contentContainer);
-            } else {
-              bubble.appendChild(reasoningCard);
-            }
-          }
-        }
-
-        function appendReasoningStep(text, isTool = false) {
-          ensureReasoningWidget();
-          const step = document.createElement('div');
-          step.className = 'qjo-reasoning-step' + (isTool ? ' tool-step' : '');
-          if (isTool) {
-            step.innerHTML = `<span class="qjo-step-dot"></span><span class="tool-check">✓</span><span>${escapeHtml(text)}</span>`;
-          } else {
-            step.innerHTML = `<span class="qjo-step-dot"></span><span>${escapeHtml(text)}</span>`;
-          }
-          reasoningTimeline.appendChild(step);
-          scrollToBottom(false);
-        }
-
-        function streamReasoningText(delta) {
-          ensureReasoningWidget();
-          reasoningRaw += delta;
-          const trimmed = delta.trim();
-          if (!trimmed) return;
-          if (!currentActiveStep || delta.includes('\n') || (delta.includes('.') && currentActiveStep.textContent.length > 55)) {
-            currentActiveStep = document.createElement('div');
-            currentActiveStep.className = 'qjo-reasoning-step';
-            currentActiveStep.innerHTML = `<span class="qjo-step-dot"></span><span class="step-content"></span>`;
-            reasoningTimeline.appendChild(currentActiveStep);
-          }
-          const contentEl = currentActiveStep.querySelector('.step-content');
-          if (contentEl) {
-            contentEl.textContent += delta.replace(/[\n\r]+/g, ' ');
-          }
-          scrollToBottom(false);
-        }
-
-        function finishReasoning() {
-          if (reasoningActive) {
-            reasoningActive = false;
-            if (reasoningTimerInterval) clearInterval(reasoningTimerInterval);
-            if (reasoningStartTime) {
-              reasoningElapsed = ((Date.now() - reasoningStartTime) / 1000).toFixed(1) + 's';
-            }
-            if (reasoningCard) {
-              const pulse = reasoningCard.querySelector('.qjo-reasoning-pulse');
-              if (pulse) pulse.remove();
-            }
-            if (reasoningLabelEl) {
-              reasoningLabelEl.textContent = qjoLanguage === 'ar' ? 'مسار التفكير' : 'Reasoning';
-            }
-            if (reasoningTimerEl) {
-              reasoningTimerEl.textContent = qjoLanguage === 'ar' ? `تم التفكير في ${reasoningElapsed}` : `Thought for ${reasoningElapsed}`;
-            }
-            if (!reasoningDivider) {
-              reasoningDivider = document.createElement('div');
-              reasoningDivider.className = 'qjo-reasoning-divider';
-              if (contentContainer) {
-                bubble.insertBefore(reasoningDivider, contentContainer);
-              } else {
-                bubble.appendChild(reasoningDivider);
-              }
-            }
-          }
-        }
-
-        function ensureContentContainer() {
-          ensureAssistantStreamElements();
-          if (!contentContainer) {
-            contentContainer = document.createElement('div');
-            contentContainer.className = 'qjo-streamed-content';
-            bubble.appendChild(contentContainer);
-          }
-        }
-
-        function appendContentChunk(text) {
-          ensureContentContainer();
-          const shouldFollow = isNearBottom();
-          fullAnswer += text;
-          contentContainer.innerHTML = lightMarkdown(fullAnswer) + '<span class="qjo-typing-cursor"></span>';
-          if (shouldFollow) {
-            scrollToBottom(false);
-          }
-        }
 
         while (true) {
           const { done, value } = await reader.read();
@@ -3836,6 +3865,10 @@ if len(__qjo_err_str) > 20000:
         }
 
         if (reasoningActive) finishReasoning();
+        // Flush any pending content render
+        if (contentContainer) {
+          contentContainer.innerHTML = lightMarkdown(fullAnswer);
+        }
         const cursorEl = bubble ? bubble.querySelector('.qjo-typing-cursor') : null;
         if (cursorEl) cursorEl.remove();
 
@@ -3863,7 +3896,7 @@ if len(__qjo_err_str) > 20000:
         renderAttachments();
         await safePersistMessage(assistantMessage);
       } catch (error) {
-        typing.remove();
+        if (reasoningTimerInterval) clearInterval(reasoningTimerInterval);
         let failMessage = 'تعذر الاتصال بالخدمة حاليًا. يرجى المحاولة لاحقًا.';
         if (error.name === 'AbortError') failMessage = 'تم إيقاف الطلب أو انتهت مهلته. حاول مرة أخرى.';
         else if (error.message === 'AI_BACKEND_MISSING') failMessage = 'خدمة الذكاء غير متصلة في هذه النسخة. شغّل نسخة الإنتاج عبر Node.js بدل فتح HTML فقط.';
@@ -3872,7 +3905,15 @@ if len(__qjo_err_str) > 20000:
         else if (/rate.?limit|429|too many requests/i.test(error.message || '')) failMessage = 'مزودات الذكاء تحت ضغط حاليًا (وصلنا الحد المؤقت للطلبات). انتظر دقيقة وأعد المحاولة.';
         else if (/No provider configured|No AI provider is configured/i.test(error.message || '')) failMessage = 'مزودات الذكاء غير مضبوطة على الخادم. يرجى ضبط المفاتيح في لوحة التحكم.';
         else if (/All AI providers failed|provider.*failed|upstream.*failed|service.*unavailable|503/i.test(error.message || '')) failMessage = 'خدمة الذكاء تواجه ضغطاً أو يُعاد تشغيلها حالياً. يرجى الانتظار بضع ثوانٍ وإعادة المحاولة 🔄.';
-        addMessage('assistant', failMessage, 'error');
+
+        if (bubble) {
+          if (reasoningCard) reasoningCard.remove();
+          if (contentContainer) contentContainer.remove();
+          bubble.parentElement.classList.add('error');
+          bubble.innerHTML = escapeHtml(failMessage);
+        } else {
+          addMessage('assistant', failMessage, 'error');
+        }
         const failStoredMessage = { role: 'assistant', content: failMessage };
         history.push(failStoredMessage);
         await safePersistMessage(failStoredMessage);
