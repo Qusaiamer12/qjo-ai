@@ -3586,6 +3586,7 @@ if len(__qjo_err_str) > 20000:
       let insideThinkTag = false;
       let currentActiveStep = null;
       let chunkRenderPending = false;
+      let renderRafId = null;
 
       function ensureAssistantStreamElements() {
         if (!started) {
@@ -3646,6 +3647,7 @@ if len(__qjo_err_str) > 20000:
         ensureReasoningWidget();
         const step = document.createElement('div');
         step.className = 'qjo-reasoning-step' + (isTool ? ' tool-step' : '');
+        step.setAttribute('dir', 'auto');
         if (isTool) {
           step.innerHTML = `<span class="qjo-step-dot"></span><span class="tool-check">✓</span><span>${escapeHtml(text)}</span>`;
         } else {
@@ -3663,6 +3665,7 @@ if len(__qjo_err_str) > 20000:
         if (!currentActiveStep || delta.includes('\n') || (delta.includes('.') && currentActiveStep.textContent.length > 55)) {
           currentActiveStep = document.createElement('div');
           currentActiveStep.className = 'qjo-reasoning-step';
+          currentActiveStep.setAttribute('dir', 'auto');
           currentActiveStep.innerHTML = `<span class="qjo-step-dot"></span><span class="step-content"></span>`;
           reasoningTimeline.appendChild(currentActiveStep);
         }
@@ -3714,7 +3717,7 @@ if len(__qjo_err_str) > 20000:
       function scheduleContentRender() {
         if (chunkRenderPending) return;
         chunkRenderPending = true;
-        requestAnimationFrame(() => {
+        renderRafId = requestAnimationFrame(() => {
           chunkRenderPending = false;
           if (contentContainer) {
             contentContainer.innerHTML = lightMarkdown(fullAnswer) + '<span class="qjo-typing-cursor"></span>';
@@ -3867,6 +3870,8 @@ if len(__qjo_err_str) > 20000:
 
         if (reasoningActive) finishReasoning();
         // Flush any pending content render
+        if (renderRafId) cancelAnimationFrame(renderRafId);
+        chunkRenderPending = false;
         if (contentContainer) {
           contentContainer.innerHTML = lightMarkdown(fullAnswer);
         }
