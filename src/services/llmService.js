@@ -180,6 +180,90 @@ function createLlmService(config = {}) {
     let chunksDelivered = 0;
     const toolAcc = new Map();
 
+    let contentBuffer = '';
+    let insideMinimax = false;
+    let insideThink = false;
+
+    function processContentBuffer(forceFlush = false) {
+      if (!contentBuffer) return;
+      
+      if (!forceFlush && contentBuffer.match(/<t(h(i(n(k(>)?)?)?)?)?$|<m(i(n(i(m(a(x(:)?)?)?)?)?)?)?$/)) {
+        return;
+      }
+      
+      if (contentBuffer.includes('<think>')) {
+        const parts = contentBuffer.split('<think>');
+        if (parts[0]) {
+          fullText += parts[0];
+          chunksDelivered++;
+          if (onChunk) onChunk(parts[0]);
+        }
+        insideThink = true;
+        contentBuffer = parts.slice(1).join('<think>');
+      }
+
+      if (insideThink) {
+        if (contentBuffer.includes('</think>')) {
+          const parts = contentBuffer.split('</think>');
+          const thinkText = parts[0];
+          insideThink = false;
+          contentBuffer = parts.slice(1).join('</think>');
+          
+          if (thinkText && onReasoning) onReasoning(thinkText);
+          processContentBuffer(forceFlush);
+        } else {
+          // Flush the ongoing think text immediately for live streaming!
+          if (onReasoning) onReasoning(contentBuffer);
+          contentBuffer = '';
+        }
+        return;
+      }
+      
+      if (contentBuffer.includes('<minimax:tool_call>')) {
+        const parts = contentBuffer.split('<minimax:tool_call>');
+        if (parts[0]) {
+          fullText += parts[0];
+          chunksDelivered++;
+          if (onChunk) onChunk(parts[0]);
+        }
+        insideMinimax = true;
+        contentBuffer = parts.slice(1).join('<minimax:tool_call>');
+      }
+      
+      if (insideMinimax) {
+        if (contentBuffer.includes('</minimax:tool_call>')) {
+          const parts = contentBuffer.split('</minimax:tool_call>');
+          const xml = parts[0];
+          insideMinimax = false;
+          contentBuffer = parts.slice(1).join('</minimax:tool_call>');
+          
+          const nameMatch = xml.match(/<invoke\s+name="([^"]+)"/);
+          if (nameMatch) {
+            const name = nameMatch[1];
+            const args = {};
+            const paramRegex = /<parameter\s+name="([^"]+)">([\s\S]*?)<\/parameter>/g;
+            let match;
+            while ((match = paramRegex.exec(xml)) !== null) {
+              args[match[1]] = match[2];
+            }
+            const idx = toolAcc.size;
+            toolAcc.set(idx, {
+              id: 'call_' + Math.random().toString(36).substr(2, 9),
+              name: name,
+              arguments: JSON.stringify(args)
+            });
+          }
+          processContentBuffer(forceFlush);
+        }
+        return;
+      }
+      
+      fullText += contentBuffer;
+      chunksDelivered++;
+      if (onChunk) onChunk(contentBuffer);
+      contentBuffer = '';
+    }
+
     function feedLine(cleanedLine) {
       if (!cleanedLine || cleanedLine === 'data: [DONE]' || !cleanedLine.startsWith('data: ')) return;
       let data;
@@ -187,16 +271,14 @@ function createLlmService(config = {}) {
       const choice = data?.choices?.[0] || {};
       const delta = choice.delta || {};
 
-      // Capture native reasoning tokens (DeepSeek, Groq, Qwen, etc.)
       const reasoningChunk = delta.reasoning_content || delta.reasoning;
       if (reasoningChunk && onReasoning) {
         onReasoning(reasoningChunk);
       }
 
       if (delta.content) {
-        fullText += delta.content;
-        chunksDelivered++;
-        if (onChunk) onChunk(delta.content);
+        contentBuffer += delta.content;
+        processContentBuffer(false);
       }
       for (const tc of (delta.tool_calls || [])) {
         const idx = tc.index ?? 0;
@@ -220,6 +302,7 @@ function createLlmService(config = {}) {
         for (const line of lines) feedLine(line.trim());
       }
       if (buffer.trim()) feedLine(buffer.trim());
+      processContentBuffer(true);
     } catch (streamErr) {
       // If we already started delivering tokens to the user, return what we have
       // rather than failing the response or duplicating output.
