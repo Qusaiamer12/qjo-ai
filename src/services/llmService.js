@@ -48,7 +48,8 @@ const MODEL_MIGRATIONS = {
   'kimi-k2-0905-preview': 'kimi-k2.6',
   'kimi-k2-turbo-preview': 'kimi-k2.6',
   'kimi-k2-thinking': 'kimi-k2.6',
-  'meta/llama-3.1-70b-instruct': 'meta/llama-3.3-70b-instruct'
+  'meta/llama-3.1-70b-instruct': 'meta/llama-3.3-70b-instruct',
+  'gpt-oss': 'minimax-m2.7'
 };
 
 function migratedModel(model) {

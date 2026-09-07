@@ -64,8 +64,8 @@ const LLM7_API_KEYS = String(process.env.LLM7_API_KEYS || process.env.LLM7_API_K
   .map(k => k.trim())
   .filter(Boolean);
 const LLM7_BASE_URL = String(process.env.LLM7_BASE_URL || 'https://api.llm7.io/v1').replace(/\/$/, '');
-const LLM7_FLASH_MODEL = process.env.LLM7_FLASH_MODEL || 'gpt-oss';
-const LLM7_TEXT_MODEL = process.env.LLM7_TEXT_MODEL || 'gpt-oss';
+const LLM7_FLASH_MODEL = process.env.LLM7_FLASH_MODEL || 'minimax-m2.7';
+const LLM7_TEXT_MODEL = process.env.LLM7_TEXT_MODEL || 'minimax-m2.7';
 
 // Kimi (Moonshot) Free tier
 const KIMI_API_KEYS = String(process.env.KIMI_API_KEYS || process.env.KIMI_API_KEY || '')
@@ -187,6 +187,8 @@ const ALLOWED_MODELS = new Set([
   // LLM7 models
   LLM7_FLASH_MODEL,
   LLM7_TEXT_MODEL,
+  'minimax-m2.7',
+  'mistral-Nemo-Instruct-2407',
   'gpt-oss',
   'deepseek-chat',
   'llama-3.3-70b-instruct',
