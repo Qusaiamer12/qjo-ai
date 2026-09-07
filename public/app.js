@@ -3569,6 +3569,7 @@ if len(__qjo_err_str) > 20000:
       let bubble = null;
       let assistantWrap = null;
       let lastMetadata = {};
+      let fullAnswer = '';
 
       // Reasoning & Timeline Streaming Controller
       let reasoningActive = false;
@@ -3803,7 +3804,7 @@ if len(__qjo_err_str) > 20000:
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
-        let fullAnswer = '';
+        fullAnswer = '';
 
         while (true) {
           const { done, value } = await reader.read();
