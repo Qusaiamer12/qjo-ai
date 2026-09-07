@@ -1227,3 +1227,44 @@
   }
 }
 
+/* ---------------------------------------------------------------------------
+   16. Python WASM Code Blocks & Terminal on Mobile
+   --------------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .code-block-header {
+    padding: 6px 10px !important;
+    gap: 6px !important;
+  }
+
+  .run-python-btn {
+    padding: 3px 7px !important;
+    font-size: 10.5px !important;
+  }
+
+  .copy-code-btn {
+    padding: 3px 7px !important;
+    font-size: 10.5px !important;
+  }
+
+  .python-terminal-header {
+    padding: 6px 8px !important;
+  }
+
+  .python-terminal-title {
+    font-size: 10px !important;
+    gap: 4px !important;
+  }
+
+  .python-terminal-body {
+    padding: 10px 10px !important;
+    font-size: 11px !important;
+    max-height: 240px !important;
+  }
+
+  .python-plot-wrap {
+    margin: 8px 6px 10px !important;
+    padding: 4px !important;
+  }
+}
+
+

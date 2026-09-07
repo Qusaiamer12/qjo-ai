@@ -234,6 +234,7 @@ app.use(helmet({
         "'self'",
         "'unsafe-inline'",
         "'unsafe-eval'",
+        "'wasm-unsafe-eval'",
         "https://www.gstatic.com",
         "https://apis.google.com",
         "https://cdnjs.cloudflare.com",

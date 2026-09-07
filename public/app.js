@@ -823,6 +823,32 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
           const quizDataEscaped = encodeURIComponent(code.trim());
           const placeholder = `<div class="interactive-quiz-container" id="quiz-instance-${id}" data-quiz-config="${quizDataEscaped}"></div>`;
           codeBlocks.push(placeholder);
+        } else if (normalizedLang === 'python' || normalizedLang === 'py') {
+          const codeEscaped = encodeURIComponent(code.trim());
+          const placeholder = `
+            <div class="code-block-wrapper python-block-wrapper">
+              <div class="code-block-header">
+                <div class="code-block-header-left">
+                  <span class="code-block-lang">python</span>
+                  <span class="python-wasm-badge">WASM</span>
+                </div>
+                <div class="code-block-actions">
+                  <button type="button" class="run-python-btn" data-code="${codeEscaped}" data-target="py-output-${id}">
+                    <svg class="run-icon" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                    <span class="run-spinner hidden"></span>
+                    <span class="run-label">${qjoLanguage === 'ar' ? 'تشغيل' : 'Run'}</span>
+                  </button>
+                  <button type="button" class="copy-code-btn" data-code="${codeEscaped}">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                    <span>${qjoLanguage === 'ar' ? 'نسخ' : 'Copy'}</span>
+                  </button>
+                </div>
+              </div>
+              <pre><code class="language-python">${escapeHtml(code.trim())}</code></pre>
+              <div class="python-output-container hidden" id="py-output-${id}"></div>
+            </div>
+          `.trim();
+          codeBlocks.push(placeholder);
         } else {
           const langDisplay = (lang || 'code').toLowerCase();
           const codeEscaped = encodeURIComponent(code.trim());
@@ -1813,6 +1839,269 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
             }
           } catch (err) {
             console.warn('Copy code failed:', err);
+          }
+        });
+      });
+      initializePythonRunButtons(element);
+    }
+
+    // ── Pyodide WebAssembly Python Execution Engine ──
+    let pyodideInstance = null;
+    let pyodideLoadPromise = null;
+
+    async function getPyodideInstance(onStatus) {
+      if (pyodideInstance) return pyodideInstance;
+      if (pyodideLoadPromise) return pyodideLoadPromise;
+
+      pyodideLoadPromise = (async () => {
+        if (typeof loadPyodide === 'undefined') {
+          if (onStatus) onStatus(qjoLanguage === 'ar' ? 'تحميل بيئة بايثون (WASM)...' : 'Loading Pyodide WASM...');
+          await new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js';
+            s.async = true;
+            s.onload = resolve;
+            s.onerror = () => reject(new Error(qjoLanguage === 'ar' ? 'فشل تحميل محرك بايثون من CDN. تحقق من اتصال الإنترنت.' : 'Failed to load Pyodide from CDN. Check connection.'));
+            document.head.appendChild(s);
+          });
+        }
+
+        if (onStatus) onStatus(qjoLanguage === 'ar' ? 'تهيئة محرك بايثون...' : 'Initializing Python engine...');
+        const py = await loadPyodide({
+          indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/'
+        });
+        pyodideInstance = py;
+        return py;
+      })();
+
+      try {
+        return await pyodideLoadPromise;
+      } catch (err) {
+        pyodideLoadPromise = null;
+        throw err;
+      }
+    }
+
+    async function executePythonCodeInSandbox(code, onStatus) {
+      const py = await getPyodideInstance(onStatus);
+      
+      if (onStatus) onStatus(qjoLanguage === 'ar' ? 'تحميل الحزم المستخدمة...' : 'Loading packages...');
+      try {
+        await py.loadPackagesFromImports(code);
+      } catch (pkgErr) {
+        console.warn('[Pyodide] package load warning:', pkgErr);
+      }
+
+      if (onStatus) onStatus(qjoLanguage === 'ar' ? 'جاري التشغيل...' : 'Running code...');
+      
+      py.globals.set('__qjo_user_code', code);
+      
+      const runnerScript = `
+import sys
+from io import StringIO
+
+__qjo_stdout = StringIO()
+__qjo_stderr = StringIO()
+__qjo_old_stdout = sys.stdout
+__qjo_old_stderr = sys.stderr
+sys.stdout = __qjo_stdout
+sys.stderr = __qjo_stderr
+
+__qjo_error = None
+__qjo_images = []
+
+if 'matplotlib' in __qjo_user_code:
+    try:
+        import matplotlib
+        matplotlib.use('Agg')
+    except Exception:
+        pass
+
+try:
+    __qjo_compiled = compile(__qjo_user_code, '<qjo-sandbox>', 'exec')
+    exec(__qjo_compiled, globals())
+    
+    if 'matplotlib.pyplot' in sys.modules:
+        import matplotlib.pyplot as plt
+        import base64
+        from io import BytesIO
+        for fig_num in plt.get_fignums():
+            fig = plt.figure(fig_num)
+            buf = BytesIO()
+            fig.savefig(buf, format='png', bbox_inches='tight', dpi=120)
+            buf.seek(0)
+            __qjo_images.append(base64.b64encode(buf.read()).decode('utf-8'))
+            plt.close(fig)
+except Exception:
+    import traceback
+    __qjo_error = traceback.format_exc()
+finally:
+    sys.stdout = __qjo_old_stdout
+    sys.stderr = __qjo_old_stderr
+
+__qjo_out_str = __qjo_stdout.getvalue()
+__qjo_err_str = __qjo_stderr.getvalue()
+if len(__qjo_out_str) > 40000:
+    __qjo_out_str = __qjo_out_str[:40000] + "\\n... [تم اقتطاع باقي المخرجات لتجاوز الحد الأقصى]"
+if len(__qjo_err_str) > 20000:
+    __qjo_err_str = __qjo_err_str[:20000] + "\\n... [تم اقتطاع رسائل التحذير]"
+
+{
+    "stdout": __qjo_out_str,
+    "stderr": __qjo_err_str,
+    "error": __qjo_error,
+    "images": __qjo_images
+}
+`;
+
+      const startTime = performance.now();
+      const pyResult = await py.runPythonAsync(runnerScript);
+      const durationMs = Math.round(performance.now() - startTime);
+      const result = pyResult.toJs({ dict_converter: Object.fromEntries });
+      
+      if (pyResult && typeof pyResult.destroy === 'function') {
+        try { pyResult.destroy(); } catch (_) {}
+      }
+      
+      return {
+        stdout: String(result.stdout || ''),
+        stderr: String(result.stderr || ''),
+        error: result.error ? String(result.error) : null,
+        images: Array.isArray(result.images) ? result.images : [],
+        durationMs
+      };
+    }
+
+    function initializePythonRunButtons(element) {
+      if (!element) return;
+      element.querySelectorAll('.run-python-btn').forEach(btn => {
+        if (btn.dataset.initialized) return;
+        btn.dataset.initialized = 'true';
+
+        btn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          const rawCode = decodeURIComponent(btn.dataset.code || '');
+          const targetId = btn.dataset.target;
+          const outputEl = targetId ? document.getElementById(targetId) : null;
+          if (!rawCode || !outputEl) return;
+
+          const runSpinner = btn.querySelector('.run-spinner');
+          const runIcon = btn.querySelector('.run-icon');
+          const runLabel = btn.querySelector('.run-label');
+
+          btn.disabled = true;
+          if (runSpinner) runSpinner.classList.remove('hidden');
+          if (runIcon) runIcon.classList.add('hidden');
+
+          outputEl.classList.remove('hidden');
+          outputEl.innerHTML = `
+            <div class="python-terminal-loading">
+              <span class="run-spinner"></span>
+              <span class="py-status-text">${qjoLanguage === 'ar' ? 'تحضير بايثون...' : 'Preparing Python...'}</span>
+            </div>
+          `;
+
+          const updateStatusText = (txt) => {
+            const statusTextEl = outputEl.querySelector('.py-status-text');
+            if (statusTextEl) statusTextEl.textContent = txt;
+          };
+
+          try {
+            const res = await executePythonCodeInSandbox(rawCode, updateStatusText);
+            const isSuccess = !res.error;
+            const statusText = isSuccess
+              ? (qjoLanguage === 'ar' ? '● اكتمل بنجاح' : '● Success')
+              : (qjoLanguage === 'ar' ? '● خطأ برمجيا' : '● Error');
+            const statusClass = isSuccess ? 'success' : 'error';
+
+            let bodyContent = '';
+            if (res.error) {
+              bodyContent = `<div class="python-terminal-body error-text">${escapeHtml(res.error)}</div>`;
+            } else {
+              let textOut = (res.stdout || '').trim();
+              if (res.stderr && res.stderr.trim()) {
+                textOut = (textOut ? textOut + '\n' : '') + res.stderr.trim();
+              }
+              if (!textOut && (!res.images || !res.images.length)) {
+                textOut = qjoLanguage === 'ar' ? '(تم تنفيذ الكود بنجاح - لا توجد مخرجات نصية)' : '(Code executed successfully - no stdout output)';
+              }
+              if (textOut) {
+                bodyContent += `<div class="python-terminal-body">${escapeHtml(textOut)}</div>`;
+              }
+              if (res.images && res.images.length) {
+                res.images.forEach(imgBase64 => {
+                  bodyContent += `
+                    <div class="python-plot-wrap">
+                      <img class="python-plot-img" src="data:image/png;base64,${imgBase64}" alt="Matplotlib Plot" />
+                    </div>
+                  `;
+                });
+              }
+            }
+
+            outputEl.innerHTML = `
+              <div class="python-terminal-header">
+                <div class="python-terminal-title">
+                  <span class="python-terminal-icon">🐍</span>
+                  <span>${qjoLanguage === 'ar' ? 'مخرجات بايثون' : 'Python Output'}</span>
+                  <span class="python-terminal-status ${statusClass}">${statusText}</span>
+                  <span class="python-terminal-time">⏱ ${res.durationMs}ms</span>
+                </div>
+                <div class="python-terminal-actions">
+                  <button type="button" class="python-terminal-copy" title="${qjoLanguage === 'ar' ? 'نسخ المخرجات' : 'Copy output'}">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                  </button>
+                  <button type="button" class="python-terminal-close" title="${qjoLanguage === 'ar' ? 'إغلاق' : 'Close'}">✕</button>
+                </div>
+              </div>
+              ${bodyContent}
+            `;
+
+            const closeBtn = outputEl.querySelector('.python-terminal-close');
+            if (closeBtn) {
+              closeBtn.addEventListener('click', () => {
+                outputEl.classList.add('hidden');
+                outputEl.innerHTML = '';
+              });
+            }
+
+            const copyBtn = outputEl.querySelector('.python-terminal-copy');
+            if (copyBtn) {
+              copyBtn.addEventListener('click', async () => {
+                const textToCopy = res.error || res.stdout || '';
+                if (textToCopy) {
+                  const ok = await copyTextToClipboard(textToCopy);
+                  if (ok) {
+                    copyBtn.classList.add('copied');
+                    setTimeout(() => copyBtn.classList.remove('copied'), 1500);
+                  }
+                }
+              });
+            }
+
+          } catch (execErr) {
+            outputEl.innerHTML = `
+              <div class="python-terminal-header">
+                <div class="python-terminal-title">
+                  <span class="python-terminal-icon">⚠️</span>
+                  <span>${qjoLanguage === 'ar' ? 'خطأ في تشغيل بايثون' : 'Python Execution Error'}</span>
+                </div>
+                <button type="button" class="python-terminal-close">✕</button>
+              </div>
+              <div class="python-terminal-body error-text">${escapeHtml(execErr?.message || String(execErr))}</div>
+            `;
+            const closeBtn = outputEl.querySelector('.python-terminal-close');
+            if (closeBtn) {
+              closeBtn.addEventListener('click', () => {
+                outputEl.classList.add('hidden');
+                outputEl.innerHTML = '';
+              });
+            }
+          } finally {
+            btn.disabled = false;
+            if (runSpinner) runSpinner.classList.add('hidden');
+            if (runIcon) runIcon.classList.remove('hidden');
+            if (runLabel) runLabel.textContent = qjoLanguage === 'ar' ? 'إعادة تشغيل' : 'Rerun';
           }
         });
       });
