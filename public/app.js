@@ -784,7 +784,37 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         const normalizedLang = String(lang || '').toLowerCase();
         if (normalizedLang === 'chart' || normalizedLang === 'json-chart') {
           const chartDataEscaped = encodeURIComponent(code.trim());
-          const placeholder = `<div class="interactive-chart-container" id="chart-instance-${id}" data-chart-config="${chartDataEscaped}"><canvas id="canvas-instance-${id}" style="max-height: 380px; width: 100%; margin: 14px 0;"></canvas><div class="chart-error-note text-rose-500 font-bold hidden text-xs p-2"></div></div>`;
+          let chartTitle = '';
+          try {
+            const parsed = safeParseRelaxedJson(code.trim());
+            if (parsed && parsed.title) chartTitle = String(parsed.title);
+            else if (parsed && parsed.options && parsed.options.plugins && parsed.options.plugins.title && parsed.options.plugins.title.text) {
+              chartTitle = String(parsed.options.plugins.title.text);
+            }
+          } catch (_) {}
+          if (chartTitle) {
+            chartTitle = chartTitle
+              .replace(/\$([^\$]+)\$/g, '$1')
+              .replace(/\\([a-zA-Z]+)/g, '$1')
+              .replace(/[\{\}]/g, '')
+              .trim();
+          }
+          const defaultTitle = qjoLanguage === 'ar' ? 'مخطط بياني تفاعلي' : 'Interactive Chart';
+          const displayTitle = chartTitle || defaultTitle;
+          const placeholder = `
+            <div class="interactive-chart-card">
+              <div class="interactive-chart-header">
+                <div class="interactive-chart-title-box">
+                  <span class="interactive-chart-icon">📈</span>
+                  <span class="interactive-chart-title">${escapeHtml(displayTitle)}</span>
+                </div>
+              </div>
+              <div class="interactive-chart-container" id="chart-instance-${id}" data-chart-config="${chartDataEscaped}">
+                <canvas id="canvas-instance-${id}"></canvas>
+              </div>
+              <div class="chart-error-note text-rose-500 font-bold hidden text-xs p-2"></div>
+            </div>
+          `.trim();
           codeBlocks.push(placeholder);
         } else if (normalizedLang === 'mermaid') {
           const placeholder = `<div class="mermaid" style="background: white; padding: 12px; border-radius: 8px; margin: 14px 0; overflow-x: auto; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); color: #0F172A;">${code.trim()}</div>`;
@@ -1569,15 +1599,28 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
       }
       const containers = element.querySelectorAll('.interactive-chart-container');
       containers.forEach(container => {
-        const id = container.id;
+        if (container.dataset.chartRendered === 'true') return;
         const canvas = container.querySelector('canvas');
-        const errorEl = container.querySelector('.chart-error-note');
+        if (!canvas) return;
+        const card = container.closest('.interactive-chart-card') || container;
+        const errorEl = card.querySelector('.chart-error-note') || container.querySelector('.chart-error-note');
         const configRaw = decodeURIComponent(container.dataset.chartConfig || '{}');
         try {
           let config = safeParseRelaxedJson(configRaw);
           if (!config || typeof config !== 'object') {
             throw new Error('صيغة بيانات المخطط غير صالحة.');
           }
+
+          // Clean LaTeX formatting in titles, dataset labels, and tooltips
+          const cleanChartString = (str) => {
+            if (typeof str !== 'string') return str;
+            return str
+              .replace(/\$([^\$]+)\$/g, '$1')
+              .replace(/\\(exp|ln|log|sin|cos|tan|times|cdot|approx|pm)/gi, '$1')
+              .replace(/\\([a-zA-Z]+)/g, '$1')
+              .replace(/[\{\}]/g, '')
+              .trim();
+          };
           
           // Detect and convert simplified user schema to Chart.js standard format
           if (config.data && Array.isArray(config.data) && !config.data.datasets && (config.xKey || config.yKey || (config.data[0] && typeof config.data[0] === 'object'))) {
@@ -1605,30 +1648,70 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
             };
           }
 
-          const chartThemeColor = qjoTheme === 'dark' ? '#38C7DD' : '#123B7A';
-          const textThemeColor = qjoTheme === 'dark' ? '#F8FAFC' : '#0F172A';
-          const gridColor = qjoTheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
+          if (config.title) config.title = cleanChartString(config.title);
+
+          const isDark = (typeof qjoTheme !== 'undefined' ? qjoTheme : 'light') === 'dark';
+          const chartThemeColor = isDark ? '#38C7DD' : '#0ea5e9';
+          const textThemeColor = isDark ? '#F8FAFC' : '#1e293b';
+          const gridColor = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)';
           
+          if (config.data && Array.isArray(config.data.labels)) {
+            config.data.labels = config.data.labels.map(lbl => {
+              if (typeof lbl === 'string') return cleanChartString(lbl);
+              return lbl;
+            });
+          }
+
           if (config.data && Array.isArray(config.data.datasets)) {
             config.data.datasets.forEach((dataset, index) => {
+              if (dataset.label) dataset.label = cleanChartString(dataset.label);
               if (!dataset.backgroundColor) {
-                dataset.backgroundColor = index === 0 ? 'rgba(56, 199, 221, 0.25)' : 'rgba(123, 63, 228, 0.25)';
+                dataset.backgroundColor = index === 0 ? 'rgba(6, 182, 212, 0.22)' : 'rgba(139, 92, 246, 0.22)';
               }
               if (!dataset.borderColor) {
-                dataset.borderColor = index === 0 ? '#38C7DD' : '#7B3FE4';
+                dataset.borderColor = index === 0 ? '#06b6d4' : '#8b5cf6';
               }
-              dataset.borderWidth = dataset.borderWidth || 2;
+              dataset.borderWidth = dataset.borderWidth || 2.5;
+              if (config.type === 'line' || !config.type) {
+                if (dataset.tension === undefined) dataset.tension = 0.35;
+                if (dataset.pointRadius === undefined) dataset.pointRadius = 4;
+                if (dataset.pointHoverRadius === undefined) dataset.pointHoverRadius = 6;
+                if (dataset.pointBackgroundColor === undefined) dataset.pointBackgroundColor = dataset.borderColor;
+              }
             });
           }
           
           config.options = config.options || {};
           config.options.responsive = true;
           config.options.maintainAspectRatio = false;
+          config.options.resizeDelay = 150; // Critical: debounces ResizeObserver to prevent any CPU spikes or infinite loops
+          config.options.devicePixelRatio = Math.min(window.devicePixelRatio || 1, 2); // HD retina crisp without memory bloat
+          
+          config.options.animation = {
+            duration: 400,
+            easing: 'easeOutQuart'
+          };
           
           config.options.plugins = config.options.plugins || {};
           config.options.plugins.legend = config.options.plugins.legend || {};
           config.options.plugins.legend.labels = config.options.plugins.legend.labels || {};
           config.options.plugins.legend.labels.color = textThemeColor;
+          config.options.plugins.legend.labels.font = {
+            family: "'IBM Plex Sans Arabic', 'Inter', sans-serif",
+            size: 12
+          };
+          
+          if (config.options.plugins.title) {
+            if (config.options.plugins.title.text) {
+              config.options.plugins.title.text = cleanChartString(config.options.plugins.title.text);
+            }
+            config.options.plugins.title.color = textThemeColor;
+            config.options.plugins.title.font = {
+              family: "'IBM Plex Sans Arabic', 'Inter', sans-serif",
+              size: 13,
+              weight: '600'
+            };
+          }
           
           config.options.scales = config.options.scales || {};
           ['x', 'y'].forEach(axis => {
@@ -1638,9 +1721,32 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
             config.options.scales[axis].grid.color = gridColor;
             config.options.scales[axis].ticks = config.options.scales[axis].ticks || {};
             config.options.scales[axis].ticks.color = textThemeColor;
+            config.options.scales[axis].ticks.font = {
+              family: "'JetBrains Mono', 'IBM Plex Sans Arabic', sans-serif",
+              size: 11
+            };
+            if (axis === 'x') {
+              const prevCb = config.options.scales.x.ticks.callback;
+              config.options.scales.x.ticks.callback = function(val, idx, ticks) {
+                let text = prevCb ? prevCb.call(this, val, idx, ticks) : this.getLabelForValue(val);
+                if (typeof text === 'string') {
+                  text = cleanChartString(text);
+                  // Ensure negative numbers don't reverse to '5-' in RTL context
+                  if (/^-|\d/.test(text)) return '\u200E' + text;
+                }
+                return text;
+              };
+            }
           });
+
+          // Clean up old instance if any
+          const oldChart = Chart.getChart(canvas);
+          if (oldChart) {
+            oldChart.destroy();
+          }
           
           new Chart(canvas, config);
+          container.dataset.chartRendered = 'true';
         } catch (error) {
           console.error('Failed to parse or build interactive chart:', error);
           if (errorEl) {
@@ -3373,9 +3479,12 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
 
         function appendContentChunk(text) {
           ensureContentContainer();
+          const shouldFollow = isNearBottom();
           fullAnswer += text;
           contentContainer.innerHTML = lightMarkdown(fullAnswer) + '<span class="qjo-typing-cursor"></span>';
-          scrollToBottom(false);
+          if (shouldFollow) {
+            scrollToBottom(false);
+          }
         }
 
         while (true) {
@@ -4622,23 +4731,40 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
       const topbar = document.querySelector('.topbar');
       let raf = 0;
 
+      let lastVhHeight = 0;
+      let lastComposerH = 0;
+      let lastTopbarH = 0;
+      let lastKeyboardOpen = false;
+
       const apply = () => {
         raf = 0;
         const vv = window.visualViewport;
         const height = Math.max(420, Math.round(vv ? vv.height : window.innerHeight));
-        root.style.setProperty('--qjo-vh', (height * 0.01) + 'px');
+        if (Math.abs(height - lastVhHeight) >= 1) {
+          lastVhHeight = height;
+          root.style.setProperty('--qjo-vh', (height * 0.01) + 'px');
+        }
 
         if (composerWrap) {
           const composerHeight = Math.ceil(composerWrap.getBoundingClientRect().height || 152);
-          root.style.setProperty('--qjo-composer-height', composerHeight + 'px');
+          if (Math.abs(composerHeight - lastComposerH) >= 1) {
+            lastComposerH = composerHeight;
+            root.style.setProperty('--qjo-composer-height', composerHeight + 'px');
+          }
         }
         if (topbar) {
           const topbarHeight = Math.ceil(topbar.getBoundingClientRect().height || 72);
-          root.style.setProperty('--qjo-topbar-height', topbarHeight + 'px');
+          if (Math.abs(topbarHeight - lastTopbarH) >= 1) {
+            lastTopbarH = topbarHeight;
+            root.style.setProperty('--qjo-topbar-height', topbarHeight + 'px');
+          }
         }
 
         const keyboardOpen = Boolean(vv && (window.innerHeight - vv.height - vv.offsetTop) > 120);
-        document.body.classList.toggle('qjo-keyboard-open', keyboardOpen);
+        if (keyboardOpen !== lastKeyboardOpen) {
+          lastKeyboardOpen = keyboardOpen;
+          document.body.classList.toggle('qjo-keyboard-open', keyboardOpen);
+        }
       };
 
       const schedule = () => {
@@ -4659,7 +4785,10 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
 
       inputEl.addEventListener('focus', () => {
         document.body.classList.add('qjo-input-focused');
-        setTimeout(() => { schedule(); scrollToBottom(false); }, 220);
+        schedule();
+        if (isMobileViewport() && isNearBottom()) {
+          setTimeout(() => scrollToBottom(false), 220);
+        }
       });
       inputEl.addEventListener('blur', () => {
         document.body.classList.remove('qjo-input-focused');

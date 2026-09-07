@@ -1214,3 +1214,16 @@
     transition-delay: 0s !important;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   15. Interactive Charts on Mobile Devices
+   --------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  .interactive-chart-container {
+    height: 270px !important;
+    min-height: 270px !important;
+    max-height: 270px !important;
+    padding: 8px 10px 12px !important;
+  }
+}
+
