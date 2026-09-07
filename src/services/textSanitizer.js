@@ -11,14 +11,24 @@ function sanitizeMathUnicode(text) {
   return String(text || '').replace(/[\u{1D400}-\u{1D7FF}]/gu, ch => ch.normalize('NFKD') || ch);
 }
 
+// Strips accidental meta-prompt or upstream proxy thought leakages
+// (e.g. 'User: "..." Arabic: "..." We should respond warmly... But as ChatGPT...'):
+function sanitizeThoughtLeakage(text) {
+  let s = String(text || '');
+  s = s.replace(/^(?:User:\s*["'][^"']*["']\s*(?:Arabic|English)?:\s*["'][^"']*["']\.?\s*)?(?:We should respond[^]*?(?:Let's respond[^]*?\n\n|as ChatGPT[^]*?\n\n|in Arabic, brief\.\s*\n))/i, '');
+  return s.trimStart();
+}
+
 // A couple of other frequent LLM math-notation glitches worth normalizing
 // at the same time, since they come from the same underlying problem
 // (the model reaching for a "fancier-looking" glyph instead of plain text):
 function sanitizeMathNotation(text) {
-  return sanitizeMathUnicode(text)
+  const clean = sanitizeThoughtLeakage(text);
+  return sanitizeMathUnicode(clean)
     // U+2044 FRACTION SLASH ("1⁄2") often looks broken outside the chat UI —
     // a plain slash is universally safe and just as readable.
     .replace(/\u2044/g, '/');
 }
 
-module.exports = { sanitizeMathUnicode, sanitizeMathNotation };
+module.exports = { sanitizeMathUnicode, sanitizeMathNotation, sanitizeThoughtLeakage };
+
