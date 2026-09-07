@@ -3950,6 +3950,7 @@ if len(__qjo_err_str) > 20000:
     }
 
     function clearChat() {
+      if (busy) cancelActiveRequest();
       if (currentChatId) localStorage.removeItem(activeChatStorageKey());
       currentChatId = null;
       activeRagIndexes = [];
@@ -4731,6 +4732,7 @@ if len(__qjo_err_str) > 20000:
 
     async function loadChat(chatId) {
       if (!firebaseReady || !currentUser || !chatId) return;
+      if (busy) cancelActiveRequest();
 
       try {
         const chatRef = userChatsRef().doc(chatId);
