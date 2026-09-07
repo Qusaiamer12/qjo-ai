@@ -57,6 +57,18 @@ function containsImageContent(messages) {
   return (messages || []).some(m => Array.isArray(m.content) && m.content.some(part => part?.type === 'image_url'));
 }
 
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// 5xx / gateway-style failures are usually a one-off blip (a free-tier
+// aggregator restarting, a momentary upstream hiccup) — worth one quick
+// retry before burning the whole provider slot. 429/401/501 are not: those
+// need a real cooldown or a config fix, not a retry a second later.
+function isTransientStatus(status) {
+  return status === 500 || status === 502 || status === 503 || status === 504;
+}
+
 function isTruncatedProviderResponse(ai) {
   if (!ai || !ai.ok) return false;
   const finish = String(ai.finish_reason || ai.finishReason || '').toLowerCase();
@@ -273,8 +285,20 @@ function createRoutingEngine(deps) {
         if (remaining < 2500) break;
         params.timeoutMs = Math.min(params.maxPerProviderMs || 12000, remaining - 1000);
       }
-      const res = await tryProvider(provider, slot, params);
-      if (!res.ok) { last = res; failures.push({ provider, status: res.status }); continue; }
+      let res = await tryProvider(provider, slot, params);
+
+      // One quick retry for transient failures (5xx / gateway timeouts) before
+      // giving up on this provider entirely. Free aggregators like llm7 and
+      // momentary upstream restarts are usually gone within a second — this
+      // avoids burning a whole provider slot (and surfacing the generic
+      // "service unavailable" message to the user) over a one-off blip.
+      if (!res.ok && isTransientStatus(res.status) && !(params.deadlineMs && params.deadlineMs - Date.now() < 2500)) {
+        console.warn(`[RoutingEngine] ${provider}/${slot} failed (${res.status}: ${String(res.error).slice(0, 100)}) — retrying once after 600ms.`);
+        await sleep(600);
+        res = await tryProvider(provider, slot, params);
+      }
+
+      if (!res.ok) { last = res; failures.push({ provider, status: res.status, error: res.error }); continue; }
 
       // Non-streaming providers: deliver the whole answer
       // as one instant chunk so SSE clients never stare at an empty bubble.
@@ -304,6 +328,12 @@ function createRoutingEngine(deps) {
     const error = allLimited
       ? `All AI providers rate-limited (429). Retry in ~1 minute. [${detail}]`
       : `All AI providers failed. Last: ${String(last?.error || 'unknown').slice(0, 160)} [${detail}]`;
+
+    // Single grep-able summary line for Render logs. Before this, diagnosing a
+    // full-chain failure meant scrolling through every per-key llmService
+    // warning to reconstruct what was even tried — now it's one line.
+    console.error(`[RoutingEngine] CHAIN FAILED at ${new Date().toISOString()} — ${error}`);
+
     return last ? { ...last, status, error } : { ok: false, status: 503, error };
   }
 
