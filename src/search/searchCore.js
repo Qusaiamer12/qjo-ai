@@ -224,7 +224,7 @@ function buildSearchBeastPlan(question, deep = false) {
     queries: finalQueries,
     maxResultsPerQuery: deep ? 8 : 6,
     keepResults: deep ? 16 : 7,
-    enrichPages: deep ? (mode === 'academic' || mode === 'technical' ? 4 : 3) : 1
+    enrichPages: deep ? (mode === 'academic' || mode === 'technical' ? 4 : 3) : 0
   };
 }
 

@@ -235,7 +235,7 @@ function createSearchService(deps) {
     try {
       const res = await deps.llmService.dispatch(rewriter.provider, {
         model: rewriter.model,
-        timeoutMs: 4500,
+        timeoutMs: 2000,
         messages: [
           { role: 'system', content: 'Convert the user question (any language or dialect) into two precise web search queries. Reply with STRICT JSON only: {"native":"query in the user\'s language","english":"same query in English"}. Keep named entities, versions and places EXACTLY intact. If time-sensitive, add the current year or date words. No explanation, no markdown.' },
           { role: 'user', content: String(original || '').slice(0, 600) }
@@ -286,7 +286,7 @@ function createSearchService(deps) {
   }
 
   async function enrichResultsWithFirecrawl(results, maxPages = 4) {
-    if (!firecrawlApiKey() || !Array.isArray(results) || !results.length) return results;
+    if (!firecrawlApiKey() || !Array.isArray(results) || !results.length || maxPages <= 0) return results;
     const enriched = results.slice();
     const targets = enriched.filter(r => r.url && /^https?:\/\//i.test(r.url)).slice(0, maxPages);
     const scraped = await Promise.allSettled(targets.map(r => firecrawlScrape(r.url)));
@@ -306,7 +306,8 @@ function createSearchService(deps) {
   async function buildQuerySet(rawOriginal, baseQuery, plan, maxQueries) {
     const queries = [];
     const original = String(rawOriginal || '').trim();
-    if (original) {
+    const isDirectConcise = original.length <= 70 && baseQuery && baseQuery.length >= 4;
+    if (original && !isDirectConcise) {
       const rewritten = await rewriteQueryWithLLM(original);
       if (rewritten) {
         if (rewritten.native) queries.push(rewritten.native);

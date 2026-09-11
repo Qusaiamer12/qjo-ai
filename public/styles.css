@@ -86,16 +86,16 @@
     .brand-mark {
       width: 38px;
       height: 38px;
-      border-radius: 13px;
-      display: grid;
-      place-items: center;
-      background: var(--text);
-      color: var(--bg);
-      font-weight: 800;
-      font-size: 19px;
+      border-radius: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
       cursor: default;
       user-select: none;
-      letter-spacing: -0.06em;
     }
 
     .brand-name {
@@ -865,29 +865,28 @@
     }
 
     .brand-mark {
-      width: 46px !important;
-      height: 46px !important;
-      border-radius: 15px !important;
-      background: linear-gradient(145deg, rgba(255,255,255,.9), rgba(237,246,251,.75)) !important;
-      color: transparent !important;
-      border: 1px solid rgba(15,55,105,.10);
+      width: 38px !important;
+      height: 38px !important;
+      border-radius: 11px !important;
+      background: transparent !important;
+      border: none !important;
       box-shadow: 0 14px 32px rgba(11,42,102,.12) !important;
       overflow: hidden;
-      padding: 4px;
+      padding: 0 !important;
     }
 
     body.dark .brand-mark {
-      background: linear-gradient(145deg, rgba(19,35,60,.9), rgba(7,16,31,.75)) !important;
-      border-color: rgba(125,210,230,.16);
-      box-shadow: 0 16px 40px rgba(0,0,0,.26) !important;
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
     }
 
     .brand-mark img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important;
       display: block;
-      filter: drop-shadow(0 6px 12px rgba(11,42,102,.14));
+      border-radius: 11px;
     }
 
     .brand-name {
@@ -1662,7 +1661,7 @@
 
     .chat-row {
       display: grid;
-      grid-template-columns: 1fr 28px;
+      grid-template-columns: 1fr auto auto;
       align-items: center;
       gap: 4px;
       border-radius: 12px;
@@ -2279,8 +2278,26 @@ body.dark .thinking-content {
 }
 
 .chat-history-group .chat-list {
-  max-height: 132px !important;
-  overflow: hidden !important;
+  max-height: 380px !important;
+  overflow-y: auto !important;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  padding-inline-end: 2px;
+}
+.chat-history-group .chat-list::-webkit-scrollbar {
+  width: 5px;
+}
+.chat-history-group .chat-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chat-history-group .chat-list::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 999px;
+}
+.chat-history-group .chat-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.6);
 }
 
 .chat-delete-btn {
@@ -2388,9 +2405,7 @@ body.dark .thinking-content {
     min-height: 46px;
   }
 
-  .chat-history-group .chat-list {
-    max-height: 132px !important;
-  }
+  .chat-history-group .chat-list { max-height: 380px !important; overflow-y: auto !important; }
 
   .nav-group {
     margin-top: 14px !important;
@@ -2768,7 +2783,7 @@ body.dark .nav-icon {
   .sidebar { width: min(340px, 90vw) !important; grid-template-rows: minmax(0,1fr) auto !important; }
   .sidebar > div:first-child { overflow-y: auto !important; min-height: 0 !important; }
   .sidebar-bottom-area { flex-shrink: 0 !important; }
-  .chat-history-group .chat-list { max-height: 128px !important; overflow: hidden !important; }
+  .chat-history-group .chat-list { max-height: 380px !important; overflow-y: auto !important; }
   .account-card.bottom-account { grid-template-columns: 38px 1fr auto !important; }
   .account-email { max-width: 155px; }
 }
@@ -2843,10 +2858,24 @@ body.dark .nav-icon {
 }
 
 .md-table th {
-  background: var(--ui-muted-surface, var(--panel-2));
-  color: var(--ui-text, var(--text));
-  font-weight: 750;
+  background: #f8fafc;
+  color: #0f172a;
+  font-weight: 700;
+  border-bottom: 2px solid #e2e8f0;
   white-space: nowrap;
+}
+
+.md-table td {
+  color: #1e293b;
+  background: #ffffff;
+}
+
+.md-table tbody tr:nth-child(even) td {
+  background: #fbfcfe;
+}
+
+.md-table tbody tr:hover td {
+  background: #f1f5f9;
 }
 
 .md-table tr:last-child td {
@@ -3211,10 +3240,7 @@ body.dark .nav-icon {
     display: none !important;
   }
 
-  .chat-history-group .chat-list {
-    max-height: 128px !important;
-    overflow: hidden !important;
-  }
+  .chat-history-group .chat-list { max-height: 380px !important; overflow-y: auto !important; }
 
   .account-card.bottom-account {
     grid-template-columns: 38px minmax(0, 1fr) auto !important;
@@ -4631,7 +4657,7 @@ body.dark .auth-browser-tip {
   .sidebar > div:first-child { min-height: 0 !important; overflow-y: auto !important; }
   .sidebar-bottom-area { background: #0b1220 !important; flex-shrink: 0 !important; }
   .sidebar-card { display: none !important; }
-  .chat-history-group .chat-list { max-height: 128px !important; overflow: hidden !important; }
+  .chat-history-group .chat-list { max-height: 380px !important; overflow-y: auto !important; }
   .account-card.bottom-account { grid-template-columns: 38px minmax(0,1fr) auto !important; }
   .account-email { max-width: 145px !important; }
 
@@ -5236,7 +5262,7 @@ body:not(.dark) .composer textarea::placeholder {
   .drawer-backdrop { z-index: 130 !important; background: rgba(0,0,0,.48) !important; backdrop-filter: blur(4px) !important; }
   .sidebar > div:first-child { min-height: 0 !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch !important; }
   .sidebar-bottom-area { flex-shrink: 0 !important; background: rgba(15,23,42,.94) !important; }
-  .chat-history-group .chat-list { max-height: 132px !important; overflow: hidden !important; }
+  .chat-history-group .chat-list { max-height: 380px !important; overflow-y: auto !important; }
 
   .modal-backdrop {
     z-index: 180 !important;

@@ -173,16 +173,28 @@ body.dark { background: var(--ds-bg) !important; color: var(--ds-ink) !important
   width: 38px !important;
   height: 38px !important;
   border-radius: 11px !important;
-  background: var(--ds-ink) !important;
+  background: transparent !important;
   border: none !important;
   box-shadow: none !important;
   overflow: hidden !important;
-  display: grid !important;
-  place-items: center !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
 }
-.brand-mark img { width: 76% !important; height: 76% !important; object-fit: contain !important; filter: invert(1) brightness(2); }
-body.dark .brand-mark { background: var(--ds-ink) !important; }
-body.dark .brand-mark img { filter: invert(0) brightness(0); }
+.brand-mark img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 11px !important;
+  filter: none !important;
+}
+body.dark .brand-mark {
+  background: transparent !important;
+}
+body.dark .brand-mark img {
+  filter: none !important;
+}
 
 .brand-name {
   font-size: 19px !important;

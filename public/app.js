@@ -717,6 +717,17 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         .replaceAll("'", '&#039;');
     }
 
+    function sanitizeStoredMessageContent(content, role) {
+      if (role !== 'user' || typeof content !== 'string') return content;
+      // Strip any leaked internal search injection, source pack, or scraper excerpts
+      const searchMarkerRegex = /\n\n(?:Connected\s+(?:Deep\s+)?Search\s+executed|Web\s+search\s+note:|SOURCE\s+PACK:|Search\s+instructions:|تعليمات\s+البحث:)/i;
+      const match = content.match(searchMarkerRegex);
+      if (match && match.index !== undefined) {
+        return content.slice(0, match.index).trim();
+      }
+      return content;
+    }
+
     function parseInlineMarkdown(text) {
       let value = String(text);
 
@@ -773,7 +784,8 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       const cleanHeaders = headers.map(h => h.replace(/<[^>]+>/g, ''));
       const cleanRows = rows.map(r => r.map(c => String(c).replace(/<[^>]+>/g, '')));
       const escapedCSVData = encodeURIComponent(JSON.stringify({ headers: cleanHeaders, rows: cleanRows }));
-      const exportBtn = `<button type="button" class="export-table-csv-btn" data-table-data="${escapedCSVData}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> تصدير جدول (CSV)</button>`;
+      const csvBtnLabel = qjoLanguage === 'ar' ? 'تصدير جدول (CSV)' : 'Export table (CSV)';
+      const exportBtn = `<button type="button" class="export-table-csv-btn" data-table-data="${escapedCSVData}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> <span>${csvBtnLabel}</span></button>`;
       return { html: `<div class="md-table-wrap" id="table-instance-${startIndex}"><table class="md-table">${thead}${tbody}</table>${exportBtn}</div>`, nextIndex: index };
     }
 
@@ -1123,14 +1135,40 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
         newChat: 'محادثة جديدة', shortcuts: 'اختصارات', structuredThinking: 'رتّب أفكاري', professionalWriting: 'اكتب محتوى', executionPlan: 'درّبني', system: 'النظام', darkMode: 'الوضع الداكن', lightMode: 'الوضع الفاتح',
         topSubtitle: 'ذكاء واضح بتجربة راقية', welcomeKicker: 'Qjo Assistant', welcomeTitle: 'ابنِ شيئًا <em>مذهلاً</em>', welcomeText: 'ابدأ الكتابة بالأسفل، أو اختر من الأزرار لتبدأ بسرعة. Qjo يساعدك تفكر، تكتب، تتعلم وتبني بذكاء ووضوح.',
         suggest1Title: 'اقترح فكرة مشروع', suggest1Text: 'أفكار عملية قابلة للتنفيذ مع خطوات بداية واضحة.', suggest2Title: 'نظّم يومي', suggest2Text: 'خطة مختصرة تساعدك ترتب الأولويات بسرعة.', suggest3Title: 'اشرح مفهومًا', suggest3Text: 'شرح واضح وبسيط لأي موضوع تريد فهمه.',
-        placeholder: 'اكتب رسالتك هنا...', normal: 'Flash', advanced: 'Max', code: 'Code', hint: 'Enter للإرسال · Shift + Enter لسطر جديد', settingsTitle: 'الإعدادات', close: 'إغلاق', languageTitle: 'اللغة', languageDesc: 'اختر لغة واجهة Qjo.', appearanceTitle: 'المظهر', appearanceDesc: 'بدّل بين الوضع الفاتح والداكن.', toggleAppearance: 'تبديل المظهر', accountTitle: 'الحساب', logout: 'تسجيل الخروج', notSigned: 'غير مسجل'
+        placeholder: 'اكتب رسالتك هنا...', normal: 'Flash', advanced: 'Max', code: 'Code', hint: 'Enter للإرسال · Shift + Enter لسطر جديد', settingsTitle: 'الإعدادات', close: 'إغلاق', languageTitle: 'اللغة', languageDesc: 'اختر لغة واجهة Qjo.', appearanceTitle: 'المظهر', appearanceDesc: 'بدّل بين الوضع الفاتح والداكن.', toggleAppearance: 'تبديل المظهر', accountTitle: 'الحساب', logout: 'تسجيل الخروج', notSigned: 'غير مسجل',
+        chatsListLabel: 'المحادثات', sidebarText: 'مساعد ذكي يساعدك تفكر، تكتب، تتعلم، وتبني بسرعة ووضوح.', logoutDirectBtn: 'خروج', noInternet: 'لا يوجد اتصال بالإنترنت. سيتم تعطيل الإرسال مؤقتًا.', statusReading: 'Qjo يقرأ...', statusThinking: 'Qjo يفكر...', cancelBtn: 'إلغاء', searchBtn: 'بحث', deepSearchBtn: 'بحث عميق', reasonBtn: 'تفكير', polishBtn: 'صياغة أدبية', attachMenuUpload: 'رفع ملف', attachMenuDrive: 'من جوجل درايف', attachMenuUi: 'تصميم UI', attachMenuWeb: 'قراءة صفحة', attachMenuChart: 'رسم بياني', attachMenuQuiz: 'صنع اختبار', attachMenuSearch: 'بحث يوتيوب', attachMenuTts: 'صوت ذكي', qsHeader: 'اقتراحات', soon: 'قريبًا',
+        currentAssistant: 'المساعد الحالي', showAllChats: 'عرض كل المحادثات', emptyChats: 'لا توجد محادثات بعد', qsparkSoon: 'Q-Spark — قريبًا', qcodeSoon: 'Qcode — قريبًا', defaultUserName: 'مستخدم', toggleSidebar: 'إخفاء/إظهار الشريط الجانبي', exportChat: 'تصدير المحادثة', scrollToBottom: 'النزول لآخر المحادثة', mobileToolsTitle: 'أدوات وتصنيفات الذكاء', tools: 'أدوات', searchTitle: 'بحث في الويب', deepSearchTitle: 'بحث عميق متعمق', reasonTitle: 'تفكير منطقي موسع', polishTitle: 'صياغة وترتيب أدبي وبلاغي للنصوص المبعثرة', attachFile: 'إرفاق ملف', voiceInput: 'تسجيل صوتي', sendBtn: 'إرسال',
+        catCode: 'توليد كود', catLaunch: 'إطلاق تطبيق', catUi: 'مكونات UI', catTheme: 'أفكار ثيمات', catDashboard: 'لوحة مستخدم', catLanding: 'صفحة هبوط', catDocs: 'رفع مستندات', catAssets: 'صور وأصول', catIdeas: 'اقتراحات',
+        drawerTitle: 'أدوات وميزات Qjo', drawerBlockAi: 'ميزات الذكاء النشطة', drawerBlockCats: 'التصنيفات والإنشاء السريع',
+        allChatsTitle: 'كل المحادثات', searchChats: 'ابحث في أسماء المحادثات...', deleteChatPrompt: 'هل أنت متأكد من حذف هذه المحادثة؟', renameChatPrompt: 'أدخل العنوان الجديد للمحادثة:', chatNotFound: 'هذه المحادثة غير موجودة أو تم حذفها.', chatDeleted: 'هذه المحادثة محذوفة.', renameBtnTitle: 'إعادة تسمية', deleteBtnTitle: 'حذف المحادثة', noMatchingChats: 'لا توجد نتائج مطابقة',
+        customizationTitle: 'تخصيص Qjo', customizationDesc: 'هذه التفضيلات تحفظ لحسابك وتساعد Qjo يخصص إجاباته لك.', responseStyle: 'أسلوب الرد', styleBalanced: 'متوازن', styleConcise: 'مختصر جدًا', styleDetailed: 'تفصيلي', styleFriendly: 'ودود', styleFormal: 'رسمي',
+        expertiseLevel: 'مستوى الخبرة', expGeneral: 'عام', expBeginner: 'مبتدئ', expIntermediate: 'متوسط', expAdvanced: 'متقدم', expExpert: 'خبير', addressingStyle: 'صيغة الخطاب', addrNeutral: 'محايد', addrMasculine: 'مذكر', addrFeminine: 'مؤنث',
+        interestsLabel: 'اهتماماتك أو مجالاتك', interestsPlaceholder: 'مثال: برمجة، رياضيات، شبكات عصبية، بزنس...', notesLabel: 'ملاحظات شخصية لـ Qjo', notesPlaceholder: 'مثال: أحب الإجابات المرتبة بجداول، لا تطوّل إلا عند الحاجة...', savePreferences: 'حفظ التفضيلات',
+        memoryTitle: 'ذاكرة Qjo المحلية', memoryDesc: 'تصحيحاتك وتعليماتك المحلية المحفوظة على هذا الجهاز. يمكنك مراجعتها أو مسحها.', refreshMemory: 'تحديث الذاكرة', clearMemory: 'مسح الذاكرة المحلية',
+        authTitle: 'تسجيل الدخول إلى Qjo', authSub: 'سجّل دخولك لحفظ محادثاتك والوصول لكامل مزايا المنصة.', authOrEmail: 'أو بالبريد الإلكتروني', authEmailLabel: 'البريد الإلكتروني', authPasswordLabel: 'كلمة المرور', authRemember: 'تذكرني على هذا الجهاز', authLoginBtn: 'تسجيل الدخول', authSignupBtn: 'إنشاء حساب جديد', authNote: 'Qjo يحفظ جلساتك بأمان ومحمي بأعلى معايير التشفير.',
+        authHeroTitle: 'فكّر بعمق.<br>ابْتَكِر بلا حدود.<br><span>أنجِز بذكاء فائق.</span>', authHeroDesc: 'مساحة العمل المتكاملة للمطورين والمبدعين. سرعة فائقة، دقة استثنائية، وأدوات متقدمة ترتقي بإنتاجيتك إلى أعلى مستوى.', authHeroQuote: '« الإبداع الحقيقي يبدأ عندما تلتقي فكرتك مع الأداة الصحيحة. »',
+        avatarTitle: 'اختر صورتك', avatarSub: 'اختر صورة شخصية من الأفاتارات الجاهزة، أو استخدم صورتك من جوجل إذا سجّلت الدخول بها.', avatarMe: 'أنا', avatarChooseFav: 'اختر أفاتارك المفضل', avatarUseGoogle: 'استخدام صورة جوجل', avatarResetInitial: 'إعادة للحرف',
+        reasoning: 'مسار التفكير', thinking: 'التفكير...', thoughtFor: 'تم التفكير في', reasoningInit: 'بدء التفكير واستحضار السياق...', stopGen: 'تم إيقاف التوليد.', copyCode: 'نسخ الكود', copied: 'تم النسخ!', generatingResponse: 'جاري توليد الرد...', searchDesc: 'معلومات حية ومصادر', deepSearchDesc: 'تحليل دقيق وموسع', reasonDesc: 'استدلال تسلسلي عميق', polishDesc: 'فصاحة وبلاغة وتنسيق'
       },
       en: {
         dir: 'ltr', lang: 'en',
         newChat: 'New chat', shortcuts: 'Shortcuts', structuredThinking: 'Organize ideas', professionalWriting: 'Create content', executionPlan: 'Coach me', system: 'System', darkMode: 'Dark mode', lightMode: 'Light mode',
         topSubtitle: 'Clear intelligence, refined experience', welcomeKicker: 'Qjo Assistant', welcomeTitle: 'How can I <em>help you</em> today?', welcomeText: 'Ask, write, plan, learn, or build something new. Qjo is designed to give clear, practical answers without unnecessary complexity.',
         suggest1Title: 'Suggest a project idea', suggest1Text: 'Practical ideas with clear first steps.', suggest2Title: 'Organize my day', suggest2Text: 'A concise plan to help prioritize quickly.', suggest3Title: 'Explain a concept', suggest3Text: 'A clear, simple explanation of any topic.',
-        placeholder: 'Message Qjo...', normal: 'Flash', advanced: 'Max', code: 'Code', hint: 'Enter to send · Shift + Enter for new line', settingsTitle: 'Settings', close: 'Close', languageTitle: 'Language', languageDesc: 'Choose Qjo interface language.', appearanceTitle: 'Appearance', appearanceDesc: 'Switch between light and dark mode.', toggleAppearance: 'Toggle theme', accountTitle: 'Account', logout: 'Log out', notSigned: 'Not signed in'
+        placeholder: 'Message Qjo...', normal: 'Flash', advanced: 'Max', code: 'Code', hint: 'Enter to send · Shift + Enter for new line', settingsTitle: 'Settings', close: 'Close', languageTitle: 'Language', languageDesc: 'Choose Qjo interface language.', appearanceTitle: 'Appearance', appearanceDesc: 'Switch between light and dark mode.', toggleAppearance: 'Toggle theme', accountTitle: 'Account', logout: 'Log out', notSigned: 'Not signed in',
+        chatsListLabel: 'Chats', sidebarText: 'A smart assistant that helps you think, write, learn, and build with speed and clarity.', logoutDirectBtn: 'Log out', noInternet: 'No internet connection. Sending is temporarily disabled.', statusReading: 'Qjo is reading...', statusThinking: 'Qjo is thinking...', cancelBtn: 'Cancel', searchBtn: 'Search', deepSearchBtn: 'Deep Search', reasonBtn: 'Think', polishBtn: 'Polish', attachMenuUpload: 'Upload file', attachMenuDrive: 'Google Drive', attachMenuUi: 'UI Design', attachMenuWeb: 'Read Page', attachMenuChart: 'Chart', attachMenuQuiz: 'Create Quiz', attachMenuSearch: 'Search YouTube', attachMenuTts: 'Smart Voice', qsHeader: 'Shortcuts', soon: 'Soon',
+        currentAssistant: 'Current Assistant', showAllChats: 'Show all chats', emptyChats: 'No chats yet', qsparkSoon: 'Q-Spark — Coming soon', qcodeSoon: 'Qcode — Coming soon', defaultUserName: 'User', toggleSidebar: 'Toggle sidebar', exportChat: 'Export chat', scrollToBottom: 'Scroll to bottom', mobileToolsTitle: 'AI Tools & Categories', tools: 'Tools', searchTitle: 'Search the web', deepSearchTitle: 'Deep search', reasonTitle: 'Extended reasoning', polishTitle: 'Refine and polish text', attachFile: 'Attach file', voiceInput: 'Voice input', sendBtn: 'Send',
+        catCode: 'Code Gen', catLaunch: 'Launch App', catUi: 'UI Components', catTheme: 'Themes', catDashboard: 'Dashboard', catLanding: 'Landing Page', catDocs: 'Upload Docs', catAssets: 'Assets', catIdeas: 'Ideas',
+        drawerTitle: 'Qjo Tools & Features', drawerBlockAi: 'Active AI Features', drawerBlockCats: 'Categories & Quick Actions',
+        allChatsTitle: 'All Chats', searchChats: 'Search chats...', deleteChatPrompt: 'Are you sure you want to delete this chat?', renameChatPrompt: 'Enter new chat title:', chatNotFound: 'This chat does not exist or was deleted.', chatDeleted: 'This chat has been deleted.', renameBtnTitle: 'Rename', deleteBtnTitle: 'Delete chat', noMatchingChats: 'No matching chats found',
+        customizationTitle: 'Qjo Customization', customizationDesc: 'These preferences are saved to your account and help Qjo tailor responses.', responseStyle: 'Response Style', styleBalanced: 'Balanced', styleConcise: 'Concise', styleDetailed: 'Detailed', styleFriendly: 'Friendly', styleFormal: 'Formal',
+        expertiseLevel: 'Expertise Level', expGeneral: 'General', expBeginner: 'Beginner', expIntermediate: 'Intermediate', expAdvanced: 'Advanced', expExpert: 'Expert', addressingStyle: 'Addressing Style', addrNeutral: 'Neutral', addrMasculine: 'Masculine', addrFeminine: 'Feminine',
+        interestsLabel: 'Your interests or fields', interestsPlaceholder: 'e.g. coding, math, AI, business...', notesLabel: 'Personal notes for Qjo', notesPlaceholder: 'e.g. prefer structured tables, concise answers...', savePreferences: 'Save Preferences',
+        memoryTitle: 'Qjo Local Memory', memoryDesc: 'Your local corrections and instructions saved on this device. You can review or clear them.', refreshMemory: 'Refresh Memory', clearMemory: 'Clear Local Memory',
+        authTitle: 'Sign in to Qjo', authSub: 'Sign in to save your chats and access all features.', authOrEmail: 'or with email', authEmailLabel: 'Email address', authPasswordLabel: 'Password', authRemember: 'Remember me on this device', authLoginBtn: 'Sign In', authSignupBtn: 'Create New Account', authNote: 'Qjo keeps your sessions secure and protected.',
+        authHeroTitle: 'Think deeply.<br>Create without limits.<br><span>Achieve with super intelligence.</span>', authHeroDesc: 'The integrated workspace for developers and creators. Blazing speed, exceptional precision, and advanced tools elevating your productivity.', authHeroQuote: '“True creativity begins when your idea meets the right tool.”',
+        avatarTitle: 'Choose Your Avatar', avatarSub: 'Choose a profile avatar, or use your Google profile photo.', avatarMe: 'Me', avatarChooseFav: 'Choose your avatar', avatarUseGoogle: 'Use Google photo', avatarResetInitial: 'Reset to initial',
+        reasoning: 'Thought Process', thinking: 'Thinking...', thoughtFor: 'Thought for', reasoningInit: 'Analyzing request and context...', stopGen: 'Generation stopped.', copyCode: 'Copy code', copied: 'Copied!', generatingResponse: 'Generating response...', searchDesc: 'Live info & sources', deepSearchDesc: 'Deep & detailed analysis', reasonDesc: 'Sequential deep reasoning', polishDesc: 'Refinement, clarity & tone'
       }
     };
 
@@ -1143,10 +1181,26 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
       document.documentElement.lang = tr.lang;
       document.documentElement.dir = tr.dir;
       document.body.dir = tr.dir;
-      languageSelect.value = qjoLanguage;
+      if (languageSelect) languageSelect.value = qjoLanguage;
 
       document.querySelectorAll('[data-i18n]').forEach(node => {
         node.textContent = t(node.dataset.i18n);
+      });
+
+      document.querySelectorAll('[data-i18n-html]').forEach(node => {
+        node.innerHTML = t(node.dataset.i18nHtml);
+      });
+
+      document.querySelectorAll('[data-i18n-placeholder]').forEach(node => {
+        node.placeholder = t(node.dataset.i18nPlaceholder);
+      });
+
+      document.querySelectorAll('[data-i18n-title]').forEach(node => {
+        node.title = t(node.dataset.i18nTitle);
+      });
+
+      document.querySelectorAll('[data-i18n-aria-label]').forEach(node => {
+        node.setAttribute('aria-label', t(node.dataset.i18nAriaLabel));
       });
 
       const map = [
@@ -1155,19 +1209,50 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
         ['suggest1Title', 'suggest1Title'], ['suggest1Text', 'suggest1Text'], ['suggest2Title', 'suggest2Title'], ['suggest2Text', 'suggest2Text'], ['suggest3Title', 'suggest3Title'], ['suggest3Text', 'suggest3Text'],
         ['normalModeText', 'normal'], ['advancedModeText', 'advanced'], ['codeModeText', 'code'], ['modeCurrentText', qjoMode === 'code' ? 'code' : (qjoMode === 'advanced' ? 'advanced' : 'normal')], ['hintText', 'hint']
       ];
-      // A tiny allowlist of strings that carry inline markup for the accented
-      // word in the hero headline. These are developer-authored constants from
-      // the i18n table above — never user input — so innerHTML is safe here.
-      const RICH_TEXT_IDS = new Set(['welcomeTitle']);
+      const RICH_TEXT_IDS = new Set(['welcomeTitle', 'authHeroTitle']);
       map.forEach(([id, key]) => {
         const node = document.getElementById(id);
         if (!node) return;
         if (RICH_TEXT_IDS.has(id)) node.innerHTML = t(key);
         else node.textContent = t(key);
       });
-      if (inputEl && !busy) inputEl.placeholder = t('placeholder');
+
+      if (inputEl) {
+        inputEl.placeholder = (typeof busy !== 'undefined' && busy) ? t('generatingResponse') : t('placeholder');
+      }
+
       if (settingsAccountEmail && currentUser) settingsAccountEmail.textContent = currentUser.email || currentUser.displayName || t('notSigned');
       else if (settingsAccountEmail) settingsAccountEmail.textContent = t('notSigned');
+
+      // Update select option labels
+      const toneMap = { balanced: 'styleBalanced', concise: 'styleConcise', detailed: 'styleDetailed', friendly: 'styleFriendly', formal: 'styleFormal' };
+      const expMap = { general: 'expGeneral', beginner: 'expBeginner', intermediate: 'expIntermediate', advanced: 'expAdvanced', expert: 'expExpert' };
+      const addrMap = { neutral: 'addrNeutral', masculine: 'addrMasculine', feminine: 'addrFeminine' };
+
+      const updateSelectOptions = (selId, optMap) => {
+        const sel = document.getElementById(selId);
+        if (!sel) return;
+        Array.from(sel.options).forEach(opt => {
+          if (optMap[opt.value]) opt.textContent = t(optMap[opt.value]);
+        });
+      };
+      updateSelectOptions('prefTone', toneMap);
+      updateSelectOptions('prefExpertise', expMap);
+      updateSelectOptions('prefAddressing', addrMap);
+
+      // Re-render chat list to update default titles and action titles
+      if (typeof allChatsCache !== 'undefined' && typeof renderChatList === 'function') {
+        renderChatList(allChatsCache);
+      }
+
+      // Re-render mobile sheet toggles
+      if (typeof renderSheetToggles === 'function') {
+        renderSheetToggles();
+      }
+
+      // Update quick categories active header
+      const qsHeader = document.getElementById('qsHeader');
+      if (qsHeader) qsHeader.textContent = t('qsHeader');
     }
 
     function setLanguage(lang) {
@@ -1176,7 +1261,7 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
       applyLanguage();
     }
 
-    function updateModeUI() {
+        function updateModeUI() {
       if (normalModeBtn) normalModeBtn.classList.toggle('active', qjoMode === 'normal');
       if (advancedModeBtn) advancedModeBtn.classList.toggle('active', qjoMode === 'advanced');
       if (codeModeBtn) codeModeBtn.classList.toggle('active', qjoMode === 'code');
@@ -2234,6 +2319,7 @@ if len(__qjo_err_str) > 20000:
     }
 
     function addMessage(role, content, extraClass = '') {
+      content = sanitizeStoredMessageContent(content, role);
       if (welcomeEl) welcomeEl.style.display = 'none';
       messagesInner.classList.add('has-messages');
       const wrap = document.createElement('div');
@@ -3302,7 +3388,7 @@ if len(__qjo_err_str) > 20000:
         'compare', 'comparison', 'market analysis', 'strategy', 'research report', 'pricing comparison', 'review', 'alternatives', 'versus'
       ];
       const complex = complexSignals.some(p => q.includes(p));
-      return complex || q.length > 170;
+      return explicitDeep || (qjoMode === 'advanced' && complex) || (complex && q.length > 120);
     }
 
     function distillSearchQuery(text) {
@@ -3751,7 +3837,7 @@ if len(__qjo_err_str) > 20000:
           appendReasoningStep(qjoLanguage === 'ar' ? 'تم اختيار وتلخيص أقوى المصادر' : 'Synthesizing verified sources', true);
         }
         const continuityHint = buildContextContinuityHint(rawText);
-        const savedUserContent = text + clarificationContext + attachmentContext + webSearchContext + (hadImageAttachments ? '\n\n[تم إرفاق صورة/صور وتحليلها في وقت الإرسال]' : '');
+        const savedUserContent = text + clarificationContext + attachmentContext + (hadImageAttachments ? '\n\n[تم إرفاق صورة/صور وتحليلها في وقت الإرسال]' : '');
         const apiUserContent = hadImageAttachments
           ? buildCurrentUserApiContent(text + clarificationContext + webSearchContext, attachmentContext)
           : text + clarificationContext + attachmentContext + webSearchContext;
@@ -4515,7 +4601,7 @@ if len(__qjo_err_str) > 20000:
 
     async function renameChat(chatId, currentTitle) {
       if (!firebaseReady || !currentUser || !chatId) return;
-      const nextTitle = prompt('اسم المحادثة الجديد:', currentTitle || 'محادثة جديدة');
+      const nextTitle = prompt(t('renameChatPrompt'), currentTitle || t('newChat'));
       if (!nextTitle) return;
       const cleanTitle = nextTitle.trim().slice(0, 80);
       if (!cleanTitle) return;
@@ -4576,32 +4662,33 @@ if len(__qjo_err_str) > 20000:
       const openBtn = document.createElement('button');
       openBtn.className = 'chat-open-btn';
       openBtn.type = 'button';
-      openBtn.innerHTML = '<span>' + escapeHtml(chat.title || 'محادثة جديدة') + '</span>';
+      openBtn.innerHTML = '<span>' + escapeHtml(chat.title || t('newChat')) + '</span>';
       openBtn.addEventListener('click', () => {
         loadChat(chat.id);
         if (!compact) allChatsModal.classList.remove('show');
+        if (window.innerWidth <= 768) document.body.classList.remove('drawer-open');
       });
 
       const renameBtn = document.createElement('button');
       renameBtn.className = 'chat-action-btn chat-rename-btn';
       renameBtn.type = 'button';
-      renameBtn.title = 'إعادة تسمية';
-      renameBtn.setAttribute('aria-label', 'إعادة تسمية المحادثة');
+      renameBtn.title = t('renameBtnTitle');
+      renameBtn.setAttribute('aria-label', t('renameBtnTitle'));
       renameBtn.textContent = '✎';
       renameBtn.addEventListener('click', (event) => {
         event.stopPropagation();
-        renameChat(chat.id, chat.title || 'محادثة جديدة');
+        renameChat(chat.id, chat.title || t('newChat'));
       });
 
       const deleteBtn = document.createElement('button');
       deleteBtn.className = 'chat-action-btn chat-delete-btn';
       deleteBtn.type = 'button';
-      deleteBtn.title = 'حذف المحادثة';
-      deleteBtn.setAttribute('aria-label', 'حذف المحادثة');
+      deleteBtn.title = t('deleteBtnTitle');
+      deleteBtn.setAttribute('aria-label', t('deleteBtnTitle'));
       deleteBtn.innerHTML = '×';
       deleteBtn.addEventListener('click', (event) => {
         event.stopPropagation();
-        deleteChat(chat.id, chat.title || 'محادثة جديدة');
+        deleteChat(chat.id, chat.title || t('newChat'));
       });
 
       row.appendChild(openBtn);
@@ -4615,18 +4702,17 @@ if len(__qjo_err_str) > 20000:
       chatList.innerHTML = '';
 
       if (!allChatsCache.length) {
-        chatList.innerHTML = '<div class="empty-chats">لا توجد محادثات بعد</div>';
-        showAllChatsBtn.style.display = 'none';
+        chatList.innerHTML = `<div class="empty-chats">${qjoLanguage === 'ar' ? 'لا توجد محادثات بعد' : 'No chats yet'}</div>`;
+        if (showAllChatsBtn) showAllChatsBtn.style.display = 'none';
         renderAllChatsModal();
         return;
       }
 
-      allChatsCache.slice(0, 3).forEach(chat => {
+      allChatsCache.forEach(chat => {
         chatList.appendChild(createChatRow(chat, true));
       });
 
-      showAllChatsBtn.style.display = allChatsCache.length > 3 ? 'block' : 'none';
-      showAllChatsBtn.textContent = `عرض كل المحادثات (${allChatsCache.length})`;
+      if (showAllChatsBtn) showAllChatsBtn.style.display = 'none';
       renderAllChatsModal();
     }
 
@@ -4646,7 +4732,7 @@ if len(__qjo_err_str) > 20000:
 
     async function deleteChat(chatId, title) {
       if (!firebaseReady || !currentUser || !chatId) return;
-      const ok = confirm('حذف المحادثة؟\n' + title);
+      const ok = confirm((qjoLanguage === 'ar' ? 'حذف المحادثة؟\n' : 'Delete chat?\n') + title);
       if (!ok) return;
 
       const previousChats = allChatsCache.slice();
@@ -4762,7 +4848,7 @@ if len(__qjo_err_str) > 20000:
           messagesSnap.forEach(mdoc => {
             const m = mdoc.data() || {};
             if (m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string') {
-              history.push({ role: m.role, content: m.content });
+              history.push({ role: m.role, content: sanitizeStoredMessageContent(m.content, m.role) });
             }
           });
         } catch (messageReadError) {
@@ -4774,7 +4860,7 @@ if len(__qjo_err_str) > 20000:
         if (!history.length && Array.isArray(data.messages)) {
           data.messages.forEach(m => {
             if (m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string') {
-              history.push({ role: m.role, content: m.content });
+              history.push({ role: m.role, content: sanitizeStoredMessageContent(m.content, m.role) });
             }
           });
 
@@ -5189,7 +5275,7 @@ if len(__qjo_err_str) > 20000:
 
     // --- Quick command categories (Learn / Code / Write / Plan) ---
     function installQuickCategories(){
-      const suggestions = {
+      const suggestionsAr = {
         code: [
           'أنشئ لي مكون React حديث لقائمة مهام (Todo List) بتصميم زجاجي داكن',
           'اكتب لي دالة Python لقراءة ملف CSV وتحليل البيانات بـ pandas',
@@ -5247,10 +5333,68 @@ if len(__qjo_err_str) > 20000:
           'أفكار لصور أيقونية (illustrations) بنفسجية للـ empty states'
         ]
       };
+      const suggestionsEn = {
+        code: [
+          'Build a modern React Todo List component with dark glassmorphism',
+          'Write a Python function to read a CSV and analyze data with pandas',
+          'Create a modern login UI using Next.js and Tailwind CSS',
+          'Write a CSS button animation with ripple effect on click',
+          'Build a simple Node.js + Express REST API for task management'
+        ],
+        launch: [
+          'How do I deploy a Next.js app on Vercel step by step?',
+          'I want to launch an MVP quickly, what is the best hosting?',
+          'Create a mobile app launch plan for App Store and Google Play',
+          'What is the difference between Vercel, Netlify, and Render?',
+          'Write a Dockerfile and docker-compose config for a Node.js app'
+        ],
+        ui: [
+          'Create a button system with glassmorphism styling',
+          'Write a responsive Navbar with a mobile hamburger menu',
+          'I need a modern card component with hover lift and glow',
+          'Design a dashboard layout with CSS Grid and a collapsible sidebar',
+          'Create a sleek login form with focus animations'
+        ],
+        theme: [
+          'Suggest a purple/pink aurora color palette for an AI chat app',
+          'What are the best dark gradients for a luxury modern UI?',
+          'Suggest paired English and Arabic fonts for a productivity app',
+          'Ideas for an elegant, non-glaring off-white light theme',
+          'How to implement clean dark/light mode with CSS variables?'
+        ],
+        dashboard: [
+          'Design a statistical dashboard interface with charts',
+          'Build a users table with search, filtering, and pagination',
+          'I need a settings page with tabbed navigation',
+          'Design a user profile page with metric cards',
+          'Create an elegant dropdown notifications panel'
+        ],
+        landing: [
+          'Write a high-converting Hero section for an AI app with CTA',
+          'Build a pricing section with 3 tiers (Free / Pro / Enterprise)',
+          'Design an accessible FAQ accordion with HTML/CSS/JS',
+          'Write a testimonials section with customer review cards',
+          'Create a modern footer with social links and newsletter signup'
+        ],
+        docs: [
+          'Write a professional README.md for my GitHub project',
+          'How do I prepare a PDF file for AI analysis and RAG?',
+          'Create a documentation template page with sidebar navigation',
+          'Write a CHANGELOG.md following the Keep a Changelog standard',
+          'How can I extract text from Word or Excel files in the browser?'
+        ],
+        images: [
+          'Give me a prompt to generate a purple aurora hero image for an AI app',
+          'Create a minimal SVG icon set for a chat application',
+          'How to optimize and compress images for web using WebP/AVIF?',
+          'Write CSS for a circular avatar with animated gradient border',
+          'Ideas for modern purple illustrations for empty states'
+        ]
+      };
       const panel = document.getElementById('quickSuggestionsPanel');
       const list = document.getElementById('qsList');
       const header = document.getElementById('qsHeader');
-      const categoryLabels = {
+      const categoryLabelsAr = {
         code: '💻 توليد كود',
         launch: '🚀 إطلاق تطبيقات',
         ui: '🎨 مكونات واجهة',
@@ -5260,14 +5404,32 @@ if len(__qjo_err_str) > 20000:
         docs: '📄 رفع مستندات',
         images: '🖼️ صور وأصول'
       };
+      const categoryLabelsEn = {
+        code: '💻 Code Gen',
+        launch: '🚀 App Launch',
+        ui: '🎨 UI Components',
+        theme: '🎭 Themes & Colors',
+        dashboard: '👤 Dashboard UI',
+        landing: '🖥️ Landing Pages',
+        docs: '📄 Upload Docs',
+        images: '🖼️ Images & Assets'
+      };
       let activeCat = null;
+
+      function getCategoryLabel(cat) {
+        return (qjoLanguage === 'en' ? categoryLabelsEn[cat] : categoryLabelsAr[cat]) || cat;
+      }
+      function getSuggestions(cat) {
+        return (qjoLanguage === 'en' ? suggestionsEn[cat] : suggestionsAr[cat]) || [];
+      }
 
       document.querySelectorAll('.quick-cat-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
           const cat = btn.dataset.cat;
-          if (!suggestions[cat]) return;
+          const currentSuggestions = getSuggestions(cat);
+          if (!currentSuggestions.length) return;
           if (activeCat === cat && panel && !panel.hidden){
             activeCat = null;
             panel.hidden = true;
@@ -5277,9 +5439,9 @@ if len(__qjo_err_str) > 20000:
           document.querySelectorAll('.quick-cat-btn').forEach(b => b.classList.remove('active'));
           activeCat = cat;
           btn.classList.add('active');
-          if (header) header.textContent = categoryLabels[cat] || cat;
+          if (header) header.textContent = getCategoryLabel(cat);
           if (list) {
-            list.innerHTML = suggestions[cat].map(s => `<li>${escapeHtml(s)}</li>`).join('');
+            list.innerHTML = currentSuggestions.map(s => `<li>${escapeHtml(s)}</li>`).join('');
             if (panel) panel.hidden = false;
             list.querySelectorAll('li').forEach((li, i) => {
               li.style.animation = `qjoRise .25s cubic-bezier(.2,.8,.2,1) ${i*0.03}s both`;
@@ -5524,10 +5686,10 @@ if len(__qjo_err_str) > 20000:
       if (!notch || !sheet || !backdrop) return;
 
       const toggleDefs = [
-        { id: 'toggleSearch', icon: '🔍', title: 'بحث في الويب', desc: 'معلومات حية ومصادر' },
-        { id: 'toggleDeep', icon: '🎯', title: 'بحث عميق', desc: 'تحليل دقيق وموسع' },
-        { id: 'toggleReason', icon: '🧠', title: 'تفكير منطقي', desc: 'استدلال تسلسلي عميق' },
-        { id: 'togglePolish', icon: '🖋️', title: 'صياغة أدبية', desc: 'فصاحة وبلاغة وتنسيق' }
+        { id: 'toggleSearch', icon: '🔍', titleKey: 'searchTitle', descKey: 'searchDesc' },
+        { id: 'toggleDeep', icon: '🎯', titleKey: 'deepSearchTitle', descKey: 'deepSearchDesc' },
+        { id: 'toggleReason', icon: '🧠', titleKey: 'reasonTitle', descKey: 'reasonDesc' },
+        { id: 'togglePolish', icon: '🖋️', titleKey: 'polishTitle', descKey: 'polishDesc' }
       ];
 
       function updateIndicator() {
@@ -5547,8 +5709,8 @@ if len(__qjo_err_str) > 20000:
           item.innerHTML = `
             <div class="sheet-toggle-icon">${def.icon}</div>
             <div class="sheet-toggle-info">
-              <span class="sheet-toggle-name">${def.title}</span>
-              <span class="sheet-toggle-desc">${def.desc}</span>
+              <span class="sheet-toggle-name">${t(def.titleKey)}</span>
+              <span class="sheet-toggle-desc">${t(def.descKey)}</span>
             </div>
             <div class="sheet-toggle-switch">
               <span class="sheet-toggle-knob"></span>

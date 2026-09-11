@@ -92,9 +92,18 @@ function sendCachedResponse(res, cached, useStreaming) {
 // Chat history trim: last 12 messages, 12k chars per message. Long archives
 // are the client's Firestore concern; the model call should stay lean.
 function trimForChat(messages) {
-  return (messages || []).slice(-12).map(m => {
-    if (typeof m.content === 'string' && m.content.length > 12000) {
-      return { ...m, content: m.content.slice(0, 12000) };
+  return (messages || []).slice(-12).map((m, idx, arr) => {
+    if (typeof m.content === 'string') {
+      let c = m.content;
+      // Strip any legacy search pack from previous conversation turns
+      if (idx < arr.length - 1 && m.role === 'user') {
+        const idxSearch = c.search(/\n\n(?:Connected\s+(?:Deep\s+)?Search\s+executed|Web\s+search\s+note:|SOURCE\s+PACK:|Search\s+instructions:|تعليمات\s+البحث:)/i);
+        if (idxSearch !== -1) c = c.slice(0, idxSearch).trim();
+      }
+      if (c.length > 12000) {
+        c = c.slice(0, 12000);
+      }
+      return { ...m, content: c };
     }
     return m;
   });
@@ -169,10 +178,22 @@ function registerChatRoutes(app, deps) {
       const now = new Date();
       const localTimeString = now.toLocaleString('ar-JO', { timeZone, dateStyle: 'full', timeStyle: 'short' });
       const runtimeLine = `${localTimeString} (الموقع التقريبي: ${locationText}، المنطقة الزمنية: ${timeZone})`;
-
       const userMessages = trimForChat(cleanedMessages.filter(m => m.role !== 'system'));
-      const clientSystemMessages = cleanedMessages.filter(m => m.role === 'system').slice(0, 2);
       const needs = detectNeeds(userMessages.map(m => (typeof m.content === 'string' ? m.content : '')).join('\n'));
+      const clientSystemMessages = cleanedMessages
+        .filter(m => m.role === 'system')
+        .slice(0, 2)
+        .map(m => {
+          if (typeof m.content === 'string') {
+            let c = m.content;
+            if (c.includes('You are Qjo (كيوجي)') || c.includes('You are Qjo, a public Arabic-first') || c.includes('You live and operate in 2026')) {
+              c = c.replace(/You are Qjo[\s\S]*?(?=(Owner-provided instructions|Admin-managed global instructions|USER PREFERENCES|ACTIVE LITERARY|Saved user corrections|$))/i, '').trim();
+            }
+            return c ? { role: 'system', content: c } : null;
+          }
+          return m;
+        })
+        .filter(Boolean);
 
       // Modular server-side system prompt (mode + need overlays, ~3k tokens
       // instead of the full 12k monolith). Falls back to the legacy full
