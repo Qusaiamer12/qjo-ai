@@ -579,6 +579,192 @@ body.sidebar-collapsed .topbar{ padding-inline:32px !important; }
   gap: 6px;
 }
 
+/* Live Web Component Artifacts Preview (v0 / Claude Style) */
+.code-block-tabs {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.code-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #94a3b8 !important;
+  -webkit-text-fill-color: #94a3b8 !important;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.code-tab-btn:hover {
+  color: #f1f5f9 !important;
+  -webkit-text-fill-color: #f1f5f9 !important;
+}
+
+.code-tab-btn.active {
+  background: rgba(99, 102, 241, 0.4) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.preview-expand-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #c9d1d9 !important;
+  -webkit-text-fill-color: #c9d1d9 !important;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.preview-expand-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.live-preview-container {
+  background: #090d16;
+  border-top: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 0 0 12px 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: #111827;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  font-size: 11px;
+}
+
+.preview-viewport-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.preview-size-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.4;
+}
+
+.preview-size-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.preview-size-btn.active {
+  background: rgba(99, 102, 241, 0.4);
+  border-color: #6366f1;
+}
+
+.preview-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.preview-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+}
+
+.preview-reload-btn {
+  background: transparent;
+  border: none;
+  font-size: 13px;
+  cursor: pointer;
+  opacity: 0.75;
+  transition: transform 0.2s ease, opacity 0.2s;
+  padding: 2px 4px;
+}
+
+.preview-reload-btn:hover {
+  opacity: 1;
+  transform: rotate(90deg);
+}
+
+.preview-viewport {
+  width: 100%;
+  min-height: 340px;
+  max-height: 560px;
+  background: #ffffff;
+  transition: max-width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  margin: 0 auto;
+  overflow: hidden;
+  display: flex;
+}
+
+.preview-viewport.desktop-view {
+  max-width: 100%;
+}
+
+.preview-viewport.mobile-view {
+  max-width: 375px;
+  box-shadow: 0 0 24px rgba(0, 0, 0, 0.6);
+  border-inline: 1px solid #cbd5e1;
+}
+
+.live-preview-iframe {
+  width: 100%;
+  height: 380px;
+  border: none;
+  background: #ffffff;
+  display: block;
+}
+
+/* Fullscreen Preview Mode */
+.live-preview-container.is-fullscreen {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 100000 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  border-radius: 0 !important;
+}
+
+.live-preview-container.is-fullscreen .preview-viewport {
+  flex: 1 !important;
+  max-height: none !important;
+  height: calc(100vh - 44px) !important;
+}
+
+.live-preview-container.is-fullscreen .live-preview-iframe {
+  height: 100% !important;
+}
+
 .run-python-btn {
   display: inline-flex;
   align-items: center;
@@ -777,6 +963,11 @@ body.dark .bubble pre {
   border: none !important;
   border-radius: 0 !important;
   box-shadow: none !important;
+}
+
+.code-block-wrapper pre.hidden,
+.code-block-wrapper .hidden {
+  display: none !important;
 }
 
 .bubble pre code,
