@@ -783,17 +783,31 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       const tbody = '<tbody>' + rows.map(row => '<tr>' + headers.map((_, i) => `<td>${row[i] !== undefined ? row[i] : ''}</td>`).join('') + '</tr>').join('') + '</tbody>';
       const cleanHeaders = headers.map(h => h.replace(/<[^>]+>/g, ''));
       const cleanRows = rows.map(r => r.map(c => String(c).replace(/<[^>]+>/g, '')));
-      const escapedCSVData = encodeURIComponent(JSON.stringify({ headers: cleanHeaders, rows: cleanRows }));
-      const csvBtnLabel = qjoLanguage === 'ar' ? 'تصدير جدول (CSV)' : 'Export table (CSV)';
-      const exportBtn = `<button type="button" class="export-table-csv-btn" data-table-data="${escapedCSVData}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> <span>${csvBtnLabel}</span></button>`;
-      return { html: `<div class="md-table-wrap" id="table-instance-${startIndex}"><table class="md-table">${thead}${tbody}</table>${exportBtn}</div>`, nextIndex: index };
+      return { html: `<div class="md-table-wrap" id="table-instance-${startIndex}"><table class="md-table">${thead}${tbody}</table></div>`, nextIndex: index };
     }
 
     function lightMarkdown(text) {
       const codeBlocks = [];
-      let safe = escapeHtml(text || '').replace(/```(\w+)?\n?([\s\S]*?)```/g, (_, lang, code) => {
+      let safe = String(text || '').replace(/```([^\n\r`]*)\n?([\s\S]*?)```/g, (_, rawLangHeader, code) => {
         const id = codeBlocks.length;
-        const normalizedLang = String(lang || '').toLowerCase();
+        const rawLang = String(rawLangHeader || '').trim();
+        let normalizedLang = rawLang.toLowerCase();
+        let extractedPath = '';
+
+        if (rawLang.includes(':')) {
+          const parts = rawLang.split(':');
+          normalizedLang = parts[0].trim().toLowerCase();
+          extractedPath = parts.slice(1).join(':').trim();
+        }
+
+        if (!extractedPath) {
+          const firstLine = String(code || '').trim().split('\n')[0] || '';
+          const pathMatch = firstLine.match(/^(?:\/\/|#|\/\*)\s*(?:path|file|filepath):\s*`?([^\s`*]+)/i);
+          if (pathMatch && pathMatch[1]) {
+            extractedPath = pathMatch[1].trim();
+          }
+        }
+
         if (normalizedLang === 'chart' || normalizedLang === 'json-chart') {
           const chartDataEscaped = encodeURIComponent(code.trim());
           let chartTitle = '';
@@ -837,10 +851,16 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
           codeBlocks.push(placeholder);
         } else if (normalizedLang === 'python' || normalizedLang === 'py') {
           const codeEscaped = encodeURIComponent(code.trim());
+          const fileChipHtml = extractedPath ? `
+            <div class="code-block-file-chip" title="${escapeHtml(extractedPath)}">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+              <span class="code-block-filepath">${escapeHtml(extractedPath)}</span>
+            </div>` : '';
           const placeholder = `
             <div class="code-block-wrapper python-block-wrapper">
               <div class="code-block-header">
                 <div class="code-block-header-left">
+                  ${fileChipHtml}
                   <span class="code-block-lang">python</span>
                   <span class="python-wasm-badge">WASM</span>
                 </div>
@@ -862,12 +882,20 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
           `.trim();
           codeBlocks.push(placeholder);
         } else {
-          const langDisplay = (lang || 'code').toLowerCase();
+          const langDisplay = (normalizedLang || 'code').toLowerCase();
           const codeEscaped = encodeURIComponent(code.trim());
+          const fileChipHtml = extractedPath ? `
+            <div class="code-block-file-chip" title="${escapeHtml(extractedPath)}">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+              <span class="code-block-filepath">${escapeHtml(extractedPath)}</span>
+            </div>` : '';
           const placeholder = `
             <div class="code-block-wrapper">
               <div class="code-block-header">
-                <span class="code-block-lang">${escapeHtml(langDisplay)}</span>
+                <div class="code-block-header-left">
+                  ${fileChipHtml}
+                  <span class="code-block-lang">${escapeHtml(langDisplay)}</span>
+                </div>
                 <button type="button" class="copy-code-btn" data-code="${codeEscaped}">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                   <span>${qjoLanguage === 'ar' ? 'نسخ' : 'Copy'}</span>
@@ -881,6 +909,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         return `@@CODE_BLOCK_${id}@@`;
       });
 
+      safe = escapeHtml(safe);
       const lines = safe.replace(/\r\n/g, '\n').split('\n');
       const out = [];
       const paragraph = [];
@@ -1085,7 +1114,7 @@ Active mode: Max. Strongest expert mode with minimum delay. Internally do a very
       if (qjoMode === 'code') {
         modeInstruction = `
 
-Active mode: Code. Elite senior full-stack engineer mode. Build and debug complex websites, SaaS apps, dashboards, APIs, Firebase apps, AI assistants, games, and mobile-first interfaces. Start with root cause or architecture, then exact implementation. Provide file paths, patches, complete components/modules when needed, commands, tests, security, performance, accessibility, responsive design, deployment and rollback checks. For existing codebases, prefer precise targeted patches unless a rewrite is clearly safer. When building projects, output a clear file tree and label each code block with its file path so the user can download a ZIP.`;
+Active mode: Code. Elite Principal Software Architect & Full-Stack Engineer. Zero Laziness: Output 100% complete, fully implemented, runnable code without placeholders or "// rest of code" omissions. Label every code block with its exact file path (e.g. \`\`\`typescript:src/components/Header.tsx or // path: src/app.js) so the user can easily export the project. When building multi-file projects, provide an ASCII file tree first. Ensure production-grade security, error handling, Big-O performance, and accessibility. Provide exact shell commands to install dependencies and run.`;
       }
 
       const ownerKnowledge = qjoTraining.trim()
@@ -1495,16 +1524,26 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
       return String(info || '').trim().replace(/^language-/, '');
     }
 
-    function inferFilePathFromContext(before, info, index) {
+    function inferFilePathFromContext(before, info, index, codeSnippet) {
       const cleanedInfo = cleanCodeFenceInfo(info);
+      if (cleanedInfo.includes(':')) {
+        const afterColon = cleanedInfo.split(':').slice(1).join(':').trim();
+        if (afterColon && (afterColon.includes('.') || afterColon.includes('/'))) return afterColon;
+      }
       const pathFromInfo = cleanedInfo.match(/(?:path|file|filename)=([^\s`]+)|^([\w@./-]+\.[a-zA-Z0-9]+)$/);
       if (pathFromInfo) return (pathFromInfo[1] || pathFromInfo[2] || '').trim();
+      if (codeSnippet) {
+        const firstLine = String(codeSnippet).trim().split('\n')[0] || '';
+        const mCode = firstLine.match(/^(?:\/\/|#|\/\*)\s*(?:path|file|filepath):\s*`?([^\s`*]+)/i);
+        if (mCode && mCode[1]) return mCode[1].trim();
+      }
       const lines = String(before || '').split('\n').slice(-5).reverse();
       for (const line of lines) {
         const m = line.match(/(?:^|[#*\-\s`])(?:file|path|ملف)?\s*[:：]?\s*`?([\w@./-]+\.[a-zA-Z0-9]+)`?\s*$/i);
         if (m) return m[1];
       }
-      const ext = extensionForLang(cleanedInfo);
+      const baseLang = cleanedInfo.split(':')[0].trim();
+      const ext = extensionForLang(baseLang);
       return ext === 'Dockerfile' ? `Dockerfile-${index + 1}` : `snippet-${index + 1}.${ext}`;
     }
 
@@ -1515,7 +1554,7 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
       let match;
       while ((match = regex.exec(text)) && files.length < 80) {
         const before = text.slice(Math.max(0, match.index - 300), match.index);
-        const path = inferFilePathFromContext(before, match[1], files.length);
+        const path = inferFilePathFromContext(before, match[1], files.length, match[2]);
         const content = String(match[2] || '').replace(/^\n/, '').trimEnd();
         if (!content.trim()) continue;
         files.push({ path, content });

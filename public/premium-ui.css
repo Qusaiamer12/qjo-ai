@@ -534,6 +534,30 @@ body.sidebar-collapsed .topbar{ padding-inline:32px !important; }
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+}
+
+.code-block-file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  padding: 2px 8px;
+  border-radius: 6px;
+  color: #e2e8f0 !important;
+  -webkit-text-fill-color: #e2e8f0 !important;
+  font-size: 11.5px;
+  font-weight: 500;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.code-block-file-chip svg {
+  stroke: #94a3b8 !important;
+  flex-shrink: 0;
 }
 
 .python-wasm-badge {
