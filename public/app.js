@@ -840,10 +840,20 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
 </html>`;
     }
 
+    function formatCodeLines(rawCode) {
+      return escapeHtml(String(rawCode || '').trim())
+        .split('\n')
+        .map(line => `<span class="code-line">${line || ' '}</span>`)
+        .join('\n');
+    }
+
+    let _qjoGlobalBlockCounter = 0;
+
     function lightMarkdown(text) {
       const codeBlocks = [];
       let safe = String(text || '').replace(/```([^\n\r`]*)\n?([\s\S]*?)```/g, (_, rawLangHeader, code) => {
-        const id = codeBlocks.length;
+        const localId = codeBlocks.length;
+        const id = ++_qjoGlobalBlockCounter;
         const rawLang = String(rawLangHeader || '').trim();
         let normalizedLang = rawLang.toLowerCase();
         let extractedPath = '';
@@ -862,21 +872,17 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
           }
         }
 
-        if (normalizedLang === 'chart' || normalizedLang === 'json-chart') {
+        if (normalizedLang === 'json-chart' || normalizedLang === 'chart') {
           const chartDataEscaped = encodeURIComponent(code.trim());
           let chartTitle = '';
-          try {
-            const parsed = safeParseRelaxedJson(code.trim());
-            if (parsed && parsed.title) chartTitle = String(parsed.title);
-            else if (parsed && parsed.options && parsed.options.plugins && parsed.options.plugins.title && parsed.options.plugins.title.text) {
-              chartTitle = String(parsed.options.plugins.title.text);
-            }
-          } catch (_) {}
-          if (chartTitle) {
-            chartTitle = chartTitle
-              .replace(/\$([^\$]+)\$/g, '$1')
-              .replace(/\\([a-zA-Z]+)/g, '$1')
-              .replace(/[\{\}]/g, '')
+          const titleMatch = code.match(/"title"\s*:\s*"([^"]+)"/i);
+          if (titleMatch && titleMatch[1]) {
+            chartTitle = titleMatch[1].trim();
+          } else {
+            chartTitle = String(code)
+              .split('\n')[0]
+              .replace(/[\{\}"\',]/g, '')
+              .replace(/title\s*:/i, '')
               .trim();
           }
           const defaultTitle = qjoLanguage === 'ar' ? 'مخطط بياني تفاعلي' : 'Interactive Chart';
@@ -911,7 +917,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
               <span class="code-block-filepath">${escapeHtml(extractedPath)}</span>
             </div>` : '';
           const placeholder = `
-            <div class="code-block-wrapper python-block-wrapper">
+            <div class="code-block-wrapper python-block-wrapper" id="code-block-${id}">
               <div class="code-block-header">
                 <div class="code-block-header-left">
                   ${fileChipHtml}
@@ -919,6 +925,10 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
                   <span class="python-wasm-badge">WASM</span>
                 </div>
                 <div class="code-block-actions">
+                  <button type="button" class="toggle-lines-btn" data-id="${id}" title="${qjoLanguage === 'ar' ? 'تبديل أرقام الأسطر' : 'Toggle line numbers'}">#</button>
+                  <button type="button" class="code-expand-btn" data-id="${id}" title="${qjoLanguage === 'ar' ? 'ملء الشاشة' : 'Fullscreen'}">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+                  </button>
                   <button type="button" class="run-python-btn" data-code="${codeEscaped}" data-target="py-output-${id}">
                     <svg class="run-icon" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
                     <span class="run-spinner hidden"></span>
@@ -930,7 +940,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
                   </button>
                 </div>
               </div>
-              <pre><code class="language-python">${escapeHtml(code.trim())}</code></pre>
+              <pre><code class="language-python">${formatCodeLines(code)}</code></pre>
               <div class="python-output-container hidden" id="py-output-${id}"></div>
             </div>
           `.trim();
@@ -939,6 +949,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
           const langDisplay = (normalizedLang || 'code').toLowerCase();
           const codeEscaped = encodeURIComponent(code.trim());
           const isPreviewable = isPreviewableHtml(normalizedLang, code, extractedPath);
+          const isRunnableJs = !isPreviewable && (normalizedLang === 'javascript' || normalizedLang === 'js' || normalizedLang === 'node');
           const fileChipHtml = extractedPath ? `
             <div class="code-block-file-chip" title="${escapeHtml(extractedPath)}">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
@@ -948,6 +959,8 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
           let tabsHtml = '';
           let previewContainerHtml = '';
           let expandBtnHtml = '';
+          let runJsBtnHtml = '';
+          let jsOutputContainerHtml = '';
 
           if (isPreviewable) {
             tabsHtml = `
@@ -985,31 +998,53 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
                 </div>
               </div>
             `;
+          } else {
+            expandBtnHtml = `
+              <button type="button" class="toggle-lines-btn" data-id="${id}" title="${qjoLanguage === 'ar' ? 'تبديل أرقام الأسطر' : 'Toggle line numbers'}">#</button>
+              <button type="button" class="code-expand-btn" data-id="${id}" title="${qjoLanguage === 'ar' ? 'ملء الشاشة' : 'Fullscreen'}">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+              </button>
+            `;
+            if (isRunnableJs) {
+              runJsBtnHtml = `
+                <button type="button" class="run-code-btn run-js-btn" data-code="${codeEscaped}" data-target="js-output-${id}">
+                  <svg class="run-icon" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                  <span class="run-spinner hidden"></span>
+                  <span class="run-label">${qjoLanguage === 'ar' ? 'تشغيل' : 'Run'}</span>
+                </button>
+              `;
+              jsOutputContainerHtml = `<div class="python-output-container js-output-container hidden" id="js-output-${id}"></div>`;
+            }
           }
 
+          const jsBadgeHtml = isRunnableJs ? '<span class="js-engine-badge">JS</span>' : '';
+
           const placeholder = `
-            <div class="code-block-wrapper ${isPreviewable ? 'has-live-preview' : ''}">
+            <div class="code-block-wrapper ${isPreviewable ? 'has-live-preview' : ''}" id="code-block-${id}">
               <div class="code-block-header">
                 <div class="code-block-header-left">
                   ${fileChipHtml}
                   <span class="code-block-lang">${escapeHtml(langDisplay)}</span>
+                  ${jsBadgeHtml}
                   ${tabsHtml}
                 </div>
                 <div class="code-block-actions">
                   ${expandBtnHtml}
+                  ${runJsBtnHtml}
                   <button type="button" class="copy-code-btn" data-code="${codeEscaped}">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                     <span>${qjoLanguage === 'ar' ? 'نسخ' : 'Copy'}</span>
                   </button>
                 </div>
               </div>
-              <pre id="code-content-${id}"><code class="language-${escapeHtml(langDisplay)}">${escapeHtml(code.trim())}</code></pre>
+              <pre id="code-content-${id}"><code class="language-${escapeHtml(langDisplay)}">${formatCodeLines(code)}</code></pre>
               ${previewContainerHtml}
+              ${jsOutputContainerHtml}
             </div>
           `.trim();
           codeBlocks.push(placeholder);
         }
-        return `@@CODE_BLOCK_${id}@@`;
+        return `@@CODE_BLOCK_${localId}@@`;
       });
 
       safe = escapeHtml(safe);
@@ -2070,7 +2105,11 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
         });
       });
       initializePythonRunButtons(element);
+      initializeJavaScriptRunButtons(element);
       initializeLivePreviewTabs(element);
+      initializeLineNumberToggles(element);
+      initializeCodeFullscreenButtons(element);
+      initializeAutoFixButtons(element);
     }
 
     function initializeLivePreviewTabs(element) {
@@ -2343,7 +2382,17 @@ if len(__qjo_err_str) > 20000:
 
             let bodyContent = '';
             if (res.error) {
-              bodyContent = `<div class="python-terminal-body error-text">${escapeHtml(res.error)}</div>`;
+              bodyContent = `
+                <div class="python-terminal-body error-text">${escapeHtml(res.error)}</div>
+                <div class="terminal-autofix-bar">
+                  <button type="button" class="autofix-code-btn" data-lang="python" data-code="${btn.dataset.code}" data-error="${encodeURIComponent(res.error)}">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+                    </svg>
+                    <span>${qjoLanguage === 'ar' ? '🛠️ إصلاح الخطأ تلقائيًا عبر Qjo' : '🛠️ Auto-Fix Error with Qjo'}</span>
+                  </button>
+                </div>
+              `;
             } else {
               let textOut = (res.stdout || '').trim();
               if (res.stderr && res.stderr.trim()) {
@@ -2384,6 +2433,8 @@ if len(__qjo_err_str) > 20000:
               ${bodyContent}
             `;
 
+            initializeAutoFixButtons(outputEl);
+
             const closeBtn = outputEl.querySelector('.python-terminal-close');
             if (closeBtn) {
               closeBtn.addEventListener('click', () => {
@@ -2407,6 +2458,7 @@ if len(__qjo_err_str) > 20000:
             }
 
           } catch (execErr) {
+            const errStr = execErr?.message || String(execErr);
             outputEl.innerHTML = `
               <div class="python-terminal-header">
                 <div class="python-terminal-title">
@@ -2415,8 +2467,17 @@ if len(__qjo_err_str) > 20000:
                 </div>
                 <button type="button" class="python-terminal-close">✕</button>
               </div>
-              <div class="python-terminal-body error-text">${escapeHtml(execErr?.message || String(execErr))}</div>
+              <div class="python-terminal-body error-text">${escapeHtml(errStr)}</div>
+              <div class="terminal-autofix-bar">
+                <button type="button" class="autofix-code-btn" data-lang="python" data-code="${btn.dataset.code}" data-error="${encodeURIComponent(errStr)}">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+                  </svg>
+                  <span>${qjoLanguage === 'ar' ? '🛠️ إصلاح الخطأ تلقائيًا عبر Qjo' : '🛠️ Auto-Fix Error with Qjo'}</span>
+                </button>
+              </div>
             `;
+            initializeAutoFixButtons(outputEl);
             const closeBtn = outputEl.querySelector('.python-terminal-close');
             if (closeBtn) {
               closeBtn.addEventListener('click', () => {
@@ -2433,6 +2494,391 @@ if len(__qjo_err_str) > 20000:
         });
       });
     }
+
+    // ── JavaScript Sandboxed Browser Execution Engine ──
+    function executeJavaScriptInSandbox(rawCode, timeoutMs = 3500) {
+      return new Promise((resolve) => {
+        if (typeof Worker !== 'undefined' && typeof Blob !== 'undefined') {
+          try {
+            const workerScript = `
+              self.onmessage = function(e) {
+                var code = e.data;
+                var logs = [];
+                function serialize(val) {
+                  if (val === undefined) return 'undefined';
+                  if (val === null) return 'null';
+                  if (typeof val === 'function') return val.toString();
+                  if (typeof val === 'object') {
+                    try { return JSON.stringify(val, null, 2); } catch (_) { return String(val); }
+                  }
+                  return String(val);
+                }
+                self.console = {
+                  log: function() {
+                    var args = Array.prototype.slice.call(arguments);
+                    logs.push(args.map(serialize).join(' '));
+                  },
+                  info: function() {
+                    var args = Array.prototype.slice.call(arguments);
+                    logs.push('[info] ' + args.map(serialize).join(' '));
+                  },
+                  warn: function() {
+                    var args = Array.prototype.slice.call(arguments);
+                    logs.push('[warn] ' + args.map(serialize).join(' '));
+                  },
+                  error: function() {
+                    var args = Array.prototype.slice.call(arguments);
+                    logs.push('[error] ' + args.map(serialize).join(' '));
+                  },
+                  table: function(data) {
+                    try { logs.push(JSON.stringify(data, null, 2)); } catch (_) { logs.push(String(data)); }
+                  }
+                };
+
+                try {
+                  var result;
+                  try {
+                    result = (0, eval)(code);
+                  } catch (evalErr) {
+                    if (evalErr instanceof SyntaxError && /await/i.test(evalErr.message)) {
+                      var asyncFn = new Function('console', 'return (async function() {\\n' + code + '\\n})()');
+                      result = asyncFn(customConsole);
+                    } else {
+                      throw evalErr;
+                    }
+                  }
+
+                  if (result && typeof result.then === 'function') {
+                    result.then(function(resolved) {
+                      if (resolved !== undefined) {
+                        logs.push('=> ' + serialize(resolved));
+                      }
+                      self.postMessage({ stdout: logs.join('\\n'), error: null });
+                    }).catch(function(asyncErr) {
+                      self.postMessage({ stdout: logs.join('\\n'), error: String(asyncErr && asyncErr.stack ? asyncErr.stack : asyncErr) });
+                    });
+                  } else {
+                    if (result !== undefined) {
+                      logs.push('=> ' + serialize(result));
+                    }
+                    self.postMessage({ stdout: logs.join('\\n'), error: null });
+                  }
+                } catch (err) {
+                  self.postMessage({ stdout: logs.join('\\n'), error: String(err && err.stack ? err.stack : err) });
+                }
+              };
+            `;
+
+            var blob = new Blob([workerScript], { type: 'application/javascript' });
+            var blobUrl = URL.createObjectURL(blob);
+            var worker = new Worker(blobUrl);
+            var completed = false;
+            var startTime = performance.now();
+
+            var timer = setTimeout(function() {
+              if (!completed) {
+                completed = true;
+                try { worker.terminate(); } catch (_) {}
+                try { URL.revokeObjectURL(blobUrl); } catch (_) {}
+                resolve({
+                  stdout: '',
+                  error: qjoLanguage === 'ar'
+                    ? 'خطأ مهلة التنفيذ (Timeout): استغرق الكود أكثر من 3.5 ثانية (احتمالية وجود حلقة لا نهائية Infinite Loop).'
+                    : 'Execution Timeout: Code took more than 3.5s (potential infinite loop).',
+                  durationMs: timeoutMs
+                });
+              }
+            }, timeoutMs);
+
+            worker.onmessage = function(e) {
+              if (!completed) {
+                completed = true;
+                clearTimeout(timer);
+                var durationMs = Math.round(performance.now() - startTime);
+                try { worker.terminate(); } catch (_) {}
+                try { URL.revokeObjectURL(blobUrl); } catch (_) {}
+                resolve({
+                  stdout: String(e.data.stdout || ''),
+                  error: e.data.error ? String(e.data.error) : null,
+                  durationMs: durationMs
+                });
+              }
+            };
+
+            worker.onerror = function(err) {
+              if (!completed) {
+                completed = true;
+                clearTimeout(timer);
+                var durationMs = Math.round(performance.now() - startTime);
+                try { worker.terminate(); } catch (_) {}
+                try { URL.revokeObjectURL(blobUrl); } catch (_) {}
+                resolve({
+                  stdout: '',
+                  error: err?.message || 'JavaScript execution failed',
+                  durationMs: durationMs
+                });
+              }
+            };
+
+            worker.postMessage(rawCode);
+            return;
+          } catch (workerErr) {
+            console.warn('Sandbox worker failed, falling back to direct eval:', workerErr);
+          }
+        }
+
+        // Fallback execution
+        try {
+          var logs = [];
+          function serialize(val) {
+            if (val === undefined) return 'undefined';
+            if (val === null) return 'null';
+            if (typeof val === 'object') {
+              try { return JSON.stringify(val, null, 2); } catch (_) { return String(val); }
+            }
+            return String(val);
+          }
+          var customConsole = {
+            log: function() { logs.push(Array.prototype.slice.call(arguments).map(serialize).join(' ')); },
+            warn: function() { logs.push('[warn] ' + Array.prototype.slice.call(arguments).map(serialize).join(' ')); },
+            error: function() { logs.push('[error] ' + Array.prototype.slice.call(arguments).map(serialize).join(' ')); }
+          };
+          var start = performance.now();
+          var fn = new Function('console', rawCode);
+          var res = fn(customConsole);
+          if (res !== undefined) logs.push('=> ' + serialize(res));
+          var durationMs = Math.round(performance.now() - start);
+          resolve({ stdout: logs.join('\n'), error: null, durationMs: durationMs });
+        } catch (err) {
+          resolve({ stdout: '', error: String(err?.stack || err), durationMs: 0 });
+        }
+      });
+    }
+
+    function initializeJavaScriptRunButtons(element) {
+      if (!element) return;
+      element.querySelectorAll('.run-js-btn').forEach(btn => {
+        if (btn.dataset.initialized) return;
+        btn.dataset.initialized = 'true';
+
+        btn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          const rawCode = decodeURIComponent(btn.dataset.code || '');
+          const targetId = btn.dataset.target;
+          const outputEl = targetId ? document.getElementById(targetId) : null;
+          if (!rawCode || !outputEl) return;
+
+          const runSpinner = btn.querySelector('.run-spinner');
+          const runIcon = btn.querySelector('.run-icon');
+          const runLabel = btn.querySelector('.run-label');
+
+          btn.disabled = true;
+          if (runSpinner) runSpinner.classList.remove('hidden');
+          if (runIcon) runIcon.classList.add('hidden');
+
+          outputEl.classList.remove('hidden');
+          outputEl.innerHTML = `
+            <div class="python-terminal-loading">
+              <span class="run-spinner"></span>
+              <span>${qjoLanguage === 'ar' ? 'جاري تشغيل جافاسكريبت...' : 'Running JavaScript...'}</span>
+            </div>
+          `;
+
+          try {
+            const res = await executeJavaScriptInSandbox(rawCode);
+            const isSuccess = !res.error;
+            const statusText = isSuccess
+              ? (qjoLanguage === 'ar' ? '● اكتمل بنجاح' : '● Success')
+              : (qjoLanguage === 'ar' ? '● خطأ برمجي' : '● Error');
+            const statusClass = isSuccess ? 'success' : 'error';
+
+            let bodyContent = '';
+            if (res.error) {
+              bodyContent = `
+                <div class="python-terminal-body error-text">${escapeHtml(res.error)}</div>
+                <div class="terminal-autofix-bar">
+                  <button type="button" class="autofix-code-btn" data-lang="javascript" data-code="${btn.dataset.code}" data-error="${encodeURIComponent(res.error)}">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+                    </svg>
+                    <span>${qjoLanguage === 'ar' ? '🛠️ إصلاح الخطأ تلقائيًا عبر Qjo' : '🛠️ Auto-Fix Error with Qjo'}</span>
+                  </button>
+                </div>
+              `;
+            } else {
+              let textOut = (res.stdout || '').trim();
+              if (!textOut) {
+                textOut = qjoLanguage === 'ar' ? '(تم تنفيذ الكود بنجاح - لا توجد مخرجات نصية)' : '(Executed successfully - no stdout output)';
+              }
+              bodyContent = `<div class="python-terminal-body">${escapeHtml(textOut)}</div>`;
+            }
+
+            outputEl.innerHTML = `
+              <div class="python-terminal-header">
+                <div class="python-terminal-title">
+                  <span class="python-terminal-icon">⚡</span>
+                  <span>${qjoLanguage === 'ar' ? 'مخرجات جافاسكريبت' : 'JavaScript Output'}</span>
+                  <span class="python-terminal-status ${statusClass}">${statusText}</span>
+                  <span class="python-terminal-time">⏱ ${res.durationMs}ms</span>
+                </div>
+                <div class="python-terminal-actions">
+                  <button type="button" class="python-terminal-copy" title="${qjoLanguage === 'ar' ? 'نسخ المخرجات' : 'Copy output'}">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                  </button>
+                  <button type="button" class="python-terminal-close" title="${qjoLanguage === 'ar' ? 'إغلاق' : 'Close'}">✕</button>
+                </div>
+              </div>
+              ${bodyContent}
+            `;
+
+            initializeAutoFixButtons(outputEl);
+
+            const closeBtn = outputEl.querySelector('.python-terminal-close');
+            if (closeBtn) {
+              closeBtn.addEventListener('click', () => {
+                outputEl.classList.add('hidden');
+                outputEl.innerHTML = '';
+              });
+            }
+
+            const copyBtn = outputEl.querySelector('.python-terminal-copy');
+            if (copyBtn) {
+              copyBtn.addEventListener('click', async () => {
+                const textToCopy = res.error || res.stdout || '';
+                if (textToCopy) {
+                  const ok = await copyTextToClipboard(textToCopy);
+                  if (ok) {
+                    copyBtn.classList.add('copied');
+                    setTimeout(() => copyBtn.classList.remove('copied'), 1500);
+                  }
+                }
+              });
+            }
+
+          } catch (err) {
+            const errStr = err?.message || String(err);
+            outputEl.innerHTML = `
+              <div class="python-terminal-header">
+                <div class="python-terminal-title">
+                  <span class="python-terminal-icon">⚠️</span>
+                  <span>${qjoLanguage === 'ar' ? 'خطأ في تشغيل جافاسكريبت' : 'JavaScript Execution Error'}</span>
+                </div>
+                <button type="button" class="python-terminal-close">✕</button>
+              </div>
+              <div class="python-terminal-body error-text">${escapeHtml(errStr)}</div>
+              <div class="terminal-autofix-bar">
+                <button type="button" class="autofix-code-btn" data-lang="javascript" data-code="${btn.dataset.code}" data-error="${encodeURIComponent(errStr)}">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+                  </svg>
+                  <span>${qjoLanguage === 'ar' ? '🛠️ إصلاح الخطأ تلقائيًا عبر Qjo' : '🛠️ Auto-Fix Error with Qjo'}</span>
+                </button>
+              </div>
+            `;
+            initializeAutoFixButtons(outputEl);
+            const closeBtn = outputEl.querySelector('.python-terminal-close');
+            if (closeBtn) {
+              closeBtn.addEventListener('click', () => {
+                outputEl.classList.add('hidden');
+                outputEl.innerHTML = '';
+              });
+            }
+          } finally {
+            btn.disabled = false;
+            if (runSpinner) runSpinner.classList.add('hidden');
+            if (runIcon) runIcon.classList.remove('hidden');
+            if (runLabel) runLabel.textContent = qjoLanguage === 'ar' ? 'إعادة تشغيل' : 'Rerun';
+          }
+        });
+      });
+    }
+
+    function initializeLineNumberToggles(element) {
+      if (!element) return;
+      element.querySelectorAll('.toggle-lines-btn').forEach(btn => {
+        if (btn.dataset.initialized) return;
+        btn.dataset.initialized = 'true';
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const wrapper = btn.closest('.code-block-wrapper');
+          if (!wrapper) return;
+          const isActive = wrapper.classList.toggle('show-line-numbers');
+          btn.classList.toggle('active', isActive);
+          btn.title = isActive
+            ? (qjoLanguage === 'ar' ? 'إخفاء أرقام الأسطر' : 'Hide line numbers')
+            : (qjoLanguage === 'ar' ? 'إظهار أرقام الأسطر' : 'Show line numbers');
+        });
+      });
+    }
+
+    function initializeCodeFullscreenButtons(element) {
+      if (!element) return;
+      element.querySelectorAll('.code-expand-btn').forEach(btn => {
+        if (btn.dataset.initialized) return;
+        btn.dataset.initialized = 'true';
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const wrapper = btn.closest('.code-block-wrapper');
+          if (!wrapper) return;
+          const isFs = wrapper.classList.toggle('is-fullscreen');
+          document.body.classList.toggle('has-fullscreen-code', isFs);
+          btn.classList.toggle('active', isFs);
+          btn.title = isFs
+            ? (qjoLanguage === 'ar' ? 'تصغير' : 'Exit fullscreen')
+            : (qjoLanguage === 'ar' ? 'ملء الشاشة' : 'Fullscreen');
+          btn.innerHTML = isFs
+            ? `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="4 14 10 14 10 20"></polyline><polyline points="20 10 14 10 14 4"></polyline><line x1="14" y1="10" x2="21" y2="3"></line><line x1="10" y1="14" x2="3" y2="21"></line></svg>`
+            : `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>`;
+        });
+      });
+    }
+
+    function initializeAutoFixButtons(element) {
+      if (!element) return;
+      element.querySelectorAll('.autofix-code-btn').forEach(btn => {
+        if (btn.dataset.initialized) return;
+        btn.dataset.initialized = 'true';
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const lang = btn.dataset.lang || 'code';
+          const rawCode = decodeURIComponent(btn.dataset.code || '');
+          const rawErr = decodeURIComponent(btn.dataset.error || '');
+          if (!rawCode) return;
+
+          const isAr = (typeof qjoLanguage !== 'undefined' && qjoLanguage === 'ar');
+          const prompt = isAr
+            ? `واجهت هذا الخطأ أثناء تشغيل كود ${lang}:\n\n\`\`\`${lang}\n${rawCode}\n\`\`\`\n\nرسالة الخطأ / Error Traceback:\n\`\`\`\n${rawErr}\n\`\`\`\n\nيرجى تشخيص سبب الخطأ بدقة، وحل المشكلة، وإعادة كتابة الكود كاملاً ومصححاً بدون كسل أو اختصارات مع توضيح سبب المشكلة وكيف تم تفاديها.`
+            : `I encountered this error while executing this ${lang} code:\n\n\`\`\`${lang}\n${rawCode}\n\`\`\`\n\nError output / Traceback:\n\`\`\`\n${rawErr}\n\`\`\`\n\nPlease diagnose the root cause, fix the issue completely without omitting any code, and provide the corrected full code with a brief explanation.`;
+
+          if (typeof sendMessage === 'function') {
+            sendMessage(prompt);
+          } else if (inputEl && sendBtn) {
+            inputEl.value = prompt;
+            sendBtn.click();
+          }
+          if (typeof showMicroToast === 'function') {
+            showMicroToast(isAr ? 'جاري إرسال الخطأ إلى Qjo لتصحيحه 🛠️' : 'Sending error to Qjo for auto-fix 🛠️');
+          }
+        });
+      });
+    }
+
+    // Window Escape key handler to exit fullscreen code blocks
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const fullBlock = document.querySelector('.code-block-wrapper.is-fullscreen');
+        if (fullBlock) {
+          fullBlock.classList.remove('is-fullscreen');
+          document.body.classList.remove('has-fullscreen-code');
+          const btn = fullBlock.querySelector('.code-expand-btn');
+          if (btn) {
+            btn.classList.remove('active');
+            btn.title = qjoLanguage === 'ar' ? 'ملء الشاشة' : 'Fullscreen';
+            btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>`;
+          }
+        }
+      }
+    });
 
     function initializeQuizzesInElement(element) {
       const containers = element.querySelectorAll('.interactive-quiz-container');
