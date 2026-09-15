@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      # --ignore-scripts skips Puppeteer's Chromium download (~150MB). Nothing
+      # in lint or the smoke test launches a browser; the PDF export path that
+      # needs Chromium is exercised in the deploy-verify eval, not here.
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      # Runs before everything else: a leaked credential is the one failure
+      # that cannot be fixed by a follow-up commit.
+      - name: Secret scan
+        run: npm run scan-secrets
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Smoke test
+        run: npm test
+
+      - name: Stability audit
+        run: npm run audit
+
+      # Resolves every relative require() in server.js + src/ so a module that
+      # moves or is deleted fails here instead of at boot on Render.
+      - name: Module resolution check
+        run: node scripts/check_deps.js
+
+      # Boots the server and asserts the public JSON endpoints behave. This is
+      # the check that catches a route handler calling an injected dependency
+      # the server never passed (which is how /api/status started 500ing).
+      - name: Backend regression eval
+        run: |
+          PORT=4123 npm start &
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:4123/api/health > /dev/null && break
+            sleep 1
+          done
+          QJO_BASE_URL=http://127.0.0.1:4123 npm run backend-regression
+
+      # Advisory only: the remaining findings sit in transitive deps of
+      # firebase-admin/puppeteer and need major upgrades, so a hard failure
+      # here would block every unrelated PR.
+      - name: Security audit (advisory)
+        run: npm audit --audit-level=high || true

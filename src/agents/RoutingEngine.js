@@ -429,9 +429,11 @@ function createRoutingEngine(deps) {
       ? [explicit, ...pipeline.filter(([p, s]) => !(p === explicit[0] && s === explicit[1]))]
       : pipeline;
 
+    // normalizeMode only ever returns 'code' | 'max' | 'flash', so the old
+    // extra `normMode === 'normal'` test here could never be true.
     return runChain(chain, {
       ...base,
-      tools: (hasImages || normMode === 'normal') ? undefined : tools,
+      tools: hasImages ? undefined : tools,
       maxPerProviderMs: normMode === 'flash' ? 18000 : 25000
     }, { withTools: Boolean(tools), originalQuestion });
   }

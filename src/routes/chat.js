@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const { addContextContinuitySystemHint } = require('../agents/contextContinuity');
 const { addRouterSystemHint } = require('../agents/RoutingEngine');
 const { addCalculatorSystemHint } = require('../tools/calculatorTool');
@@ -117,6 +118,69 @@ function detectNeeds(userText) {
   };
 }
 
+// The client ships its own system message carrying per-user personalization
+// (saved preferences, learned corrections, owner/admin training, skill
+// capsules). Two users can send byte-identical last-3 messages while carrying
+// completely different personalization, so the cache key must cover it —
+// otherwise user B can be served an answer shaped by user A's profile.
+// Hashing (rather than keying on uid) keeps the cache shared between callers
+// whose personalization really is identical, e.g. fresh anonymous visitors.
+function personalizationFingerprint(messages) {
+  const systemText = (messages || [])
+    .filter(m => m.role === 'system' && typeof m.content === 'string')
+    .map(m => m.content)
+    .join('\n');
+  if (!systemText) return 'none';
+  return crypto.createHash('sha256').update(systemText).digest('hex').slice(0, 16);
+}
+
+// Strips the client's bundled system prompt, keeping only the personalization
+// tail it appends after it.
+//
+// The client used to ship a prose prompt starting "You are Qjo …", and this
+// route stripped it so the compact server-side prompt in services/systemPrompt
+// could replace it. The client has since moved to a ~36KB
+// <system_instructions> XML prompt, so the old prose test never matched and
+// nothing was stripped: every request carried the client's 36KB prompt AND the
+// server's core prompt AND the KB block — the exact duplication the modular
+// prompt builder exists to prevent.
+//
+// The client appends its extras AFTER </system_instructions>, so cut there and
+// keep from the first personalization anchor onward. The client's own runtime
+// date line and mode instruction are dropped too: the server injects both.
+const CLIENT_PROMPT_END = '</system_instructions>';
+const PERSONALIZATION_ANCHORS = [
+  'ACTIVE LITERARY',
+  'Task-specific skill capsules',
+  'Owner-provided instructions',
+  'Admin-managed global instructions',
+  'User personalization context',
+  'Saved user corrections'
+];
+
+function stripClientBasePrompt(content) {
+  let text = String(content || '');
+
+  const endIndex = text.indexOf(CLIENT_PROMPT_END);
+  if (endIndex !== -1) {
+    text = text.slice(endIndex + CLIENT_PROMPT_END.length);
+  } else if (/You are Qjo|You live and operate in 2026/i.test(text)) {
+    // Legacy prose prompt, still accepted from older cached clients.
+    text = text.replace(/You are Qjo[\s\S]*?(?=(Owner-provided instructions|Admin-managed global instructions|User personalization context|ACTIVE LITERARY|Task-specific skill capsules|Saved user corrections|$))/i, '');
+  } else {
+    return text.trim(); // not a Qjo base prompt — pass through untouched
+  }
+
+  const anchorIndex = PERSONALIZATION_ANCHORS
+    .map(anchor => text.indexOf(anchor))
+    .filter(i => i !== -1)
+    .sort((a, b) => a - b)[0];
+
+  // No personalization present: everything left is date/mode boilerplate the
+  // server already supplies, so drop it entirely.
+  return anchorIndex === undefined ? '' : text.slice(anchorIndex).trim();
+}
+
 function lastUserLanguage(messages) {
   const last = [...(messages || [])].reverse().find(m => m?.role === 'user');
   const text = typeof last?.content === 'string' ? last.content : '';
@@ -165,7 +229,7 @@ function registerChatRoutes(app, deps) {
       // Cache lookup (mode + language + coarse country bucket aware)
       const countryBucket = (geo && geo.countryCode) || (geoCacheGet(ip)?.countryCode) || 'na';
       const cacheKey = (deps.stableCacheKey && deps.memoryCaches?.completions)
-        ? deps.stableCacheKey('chat', [model, mode || 'default', lang, countryBucket, JSON.stringify(cleanedMessages.slice(-3))].join('|'))
+        ? deps.stableCacheKey('chat', [model, mode || 'default', lang, countryBucket, personalizationFingerprint(cleanedMessages), JSON.stringify(cleanedMessages.slice(-3))].join('|'))
         : null;
       if (cacheKey && deps.cacheGet) {
         const cached = deps.cacheGet(deps.memoryCaches.completions, cacheKey);
@@ -185,10 +249,7 @@ function registerChatRoutes(app, deps) {
         .slice(0, 2)
         .map(m => {
           if (typeof m.content === 'string') {
-            let c = m.content;
-            if (c.includes('You are Qjo (كيوجي)') || c.includes('You are Qjo, a public Arabic-first') || c.includes('You live and operate in 2026')) {
-              c = c.replace(/You are Qjo[\s\S]*?(?=(Owner-provided instructions|Admin-managed global instructions|USER PREFERENCES|ACTIVE LITERARY|Saved user corrections|$))/i, '').trim();
-            }
+            const c = stripClientBasePrompt(m.content);
             return c ? { role: 'system', content: c } : null;
           }
           return m;
@@ -328,4 +389,7 @@ function registerChatRoutes(app, deps) {
   });
 }
 
-module.exports = { registerChatRoutes };
+// The prompt-dedup and cache-key helpers are exported so they can be asserted
+// directly: both are silent failure modes (one bloats every request, the other
+// leaks a cached answer across users) that no endpoint response reveals.
+module.exports = { registerChatRoutes, stripClientBasePrompt, personalizationFingerprint };

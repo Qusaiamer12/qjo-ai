@@ -72,7 +72,12 @@ const BROWSER_GLOBALS = {
   Tesseract: 'readonly',
   indexedDB: 'readonly',
   TextDecoder: 'readonly',
-  TextEncoder: 'readonly'
+  TextEncoder: 'readonly',
+  // Standard browser globals the original list simply missed, plus Pyodide,
+  // which public/index.html loads from a CDN for the in-page Python runner.
+  performance: 'readonly',
+  cancelAnimationFrame: 'readonly',
+  loadPyodide: 'readonly'
 };
 
 const SHARED_RULES = {

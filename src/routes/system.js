@@ -1,15 +1,20 @@
 function registerSystemRoutes(app, deps) {
   if (!deps?.adminConfigService) throw new Error('registerSystemRoutes missing adminConfigService');
+  if (!deps?.verifyAdminRequest) throw new Error('registerSystemRoutes missing verifyAdminRequest');
 
   app.get('/api/public-config', (_, res) => {
     res.setHeader('Cache-Control', 'no-store');
     res.json(deps.adminConfigService.readAdminConfig());
   });
 
+  // Q-Spark moved to its own repo (docs/MIGRATION_QSPARK_QCODE.md) and
+  // server.js stopped injecting `qSparkProviders` — but this handler still
+  // called it, so every request to /api/status crashed with a 500. The
+  // qSpark readiness flag is meaningless in this repo now, so it is gone
+  // rather than stubbed.
   app.get('/api/status', (_, res) => {
     res.setHeader('Cache-Control', 'no-store');
     const qjoProviders = deps.qjoProviders();
-    const qSparkProviders = deps.qSparkProviders();
     res.json({
       ok: true,
       version: deps.version,
@@ -18,12 +23,10 @@ function registerSystemRoutes(app, deps) {
         search: Boolean(deps.tavilyApiKey || deps.serperApiKey),
         searchFallbackWithoutKeys: true,
         deepSearchExtraction: Boolean(deps.firecrawlApiKey),
-        qSpark: Object.values(qSparkProviders).some(Boolean),
         embeddings: deps.embeddingsService.configuredCount() > 0,
         admin: deps.hasFirebaseAdmin() && deps.adminEmailsSize() > 0
       },
       providers: qjoProviders,
-      qSparkProviders,
       publicMessage: 'Qjo status endpoint. No secrets are exposed.'
     });
   });
@@ -74,7 +77,11 @@ function registerSystemRoutes(app, deps) {
       features: deps.featuresHealth()
     });
   });
+  // Admin-only: this fires FOUR live LLM calls per request. Left public it was
+  // a free quota-drain vector (and it echoes raw provider error messages), so
+  // it now sits behind the same gate as /api/admin/diagnostics.
   app.get('/api/diagnostics', async (req, res) => {
+    if (!(await deps.verifyAdminRequest(req, res))) return;
     res.setHeader('Cache-Control', 'no-store');
     if (!deps.llmService) return res.status(500).json({ error: 'llmService not injected to system routes' });
 

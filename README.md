@@ -52,9 +52,10 @@ Enable the pre-commit secret scan once per clone:
 git config core.hooksPath .githooks
 ```
 
-A ready-to-use GitHub Actions pipeline running all three lives in
-`docs/ci/github-actions-ci.yml` — copy it to `.github/workflows/ci.yml` to
-activate it (see `docs/ci/README.md`).
+CI is active in `.github/workflows/ci.yml` and runs all of the above on every
+push, plus `node scripts/check_deps.js` (resolves every relative `require()`)
+and the backend regression eval against a booted server. The template it was
+derived from stays in `docs/ci/github-actions-ci.yml` (see `docs/ci/README.md`).
 
 ## Run locally without server-side Firebase verification
 
@@ -157,7 +158,13 @@ Tracked in `docs/reports/QJO_FULL_REPO_SCAN_REPORT.md` (full repo scan + fix log
   only — horizontal scaling would need Redis or similar.
 - Remaining `npm audit` findings sit in transitive deps of `firebase-admin`
   and `puppeteer` and need major upgrades.
-- `public/app.js` (~4.2k lines) should be split into modules.
+- `public/app.js` (~6k lines) should be split into modules.
+- **Mode switcher UI is missing.** `public/index.html` has no markup for
+  `modeCurrentBtn` / `modeMenu` / `normalModeBtn` / `advancedModeBtn` /
+  `codeModeBtn`, so the handlers in `app.js` are permanently null-guarded and
+  `qjoMode` is stuck on `normal`. Max and Code modes — and their server-side
+  pipelines and prompt overlays — are therefore unreachable from the UI. The
+  stability audit reports this as a warning rather than a failure.
 - Move Firebase web config to `/api/public-config` instead of duplicating it
   across five frontend files.
 - Add billing/subscriptions if this will be paid.

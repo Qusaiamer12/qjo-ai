@@ -1,3 +1,6 @@
+// Every read/mutate path passes the caller's uid so the job queue can scope
+// results to their owner. A job belonging to someone else is reported as 404,
+// not 403, so the endpoint does not confirm that the id exists.
 function registerJobRoutes(app, deps) {
   if (!deps?.jobQueue) throw new Error('registerJobRoutes missing jobQueue');
   const verify = deps.verifyFirebaseRequest || (async () => true);
@@ -17,7 +20,7 @@ function registerJobRoutes(app, deps) {
   app.get('/api/jobs', async (req, res) => {
     try {
       if (!(await verify(req, res))) return;
-      res.json({ ok: true, jobs: deps.jobQueue.listJobs({ limit: req.query.limit, type: req.query.type, status: req.query.status }) });
+      res.json({ ok: true, jobs: deps.jobQueue.listJobs({ limit: req.query.limit, type: req.query.type, status: req.query.status, uid: req.user?.uid || null }) });
     } catch (error) {
       res.status(500).json({ ok: false, error: error.message || 'Could not list jobs.' });
     }
@@ -26,7 +29,7 @@ function registerJobRoutes(app, deps) {
   app.get('/api/jobs/:id', async (req, res) => {
     try {
       if (!(await verify(req, res))) return;
-      const job = deps.jobQueue.getJob(req.params.id);
+      const job = deps.jobQueue.getJob(req.params.id, req.user?.uid || null);
       if (!job) return res.status(404).json({ ok: false, error: 'Job not found.' });
       res.json({ ok: true, job });
     } catch (error) {
@@ -37,7 +40,7 @@ function registerJobRoutes(app, deps) {
   app.post('/api/jobs/:id/cancel', async (req, res) => {
     try {
       if (!(await verify(req, res))) return;
-      const job = deps.jobQueue.cancelJob(req.params.id);
+      const job = deps.jobQueue.cancelJob(req.params.id, req.user?.uid || null);
       if (!job) return res.status(404).json({ ok: false, error: 'Job not found.' });
       res.json({ ok: true, job });
     } catch (error) {
@@ -48,7 +51,7 @@ function registerJobRoutes(app, deps) {
   app.post('/api/jobs/:id/retry', async (req, res) => {
     try {
       if (!(await verify(req, res))) return;
-      const job = deps.jobQueue.retryJob(req.params.id);
+      const job = deps.jobQueue.retryJob(req.params.id, req.user?.uid || null);
       if (!job) return res.status(404).json({ ok: false, error: 'Job not found.' });
       res.json({ ok: true, job });
     } catch (error) {

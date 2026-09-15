@@ -543,6 +543,7 @@ registerJobRoutes(app, { verifyFirebaseRequest, jobQueue });
 
 registerSystemRoutes(app, {
   adminConfigService,
+  verifyAdminRequest,
   llmService,
   version: QJO_VERSION,
   authRequired: REQUIRE_FIREBASE_AUTH,

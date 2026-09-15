@@ -56,6 +56,30 @@ function migratedModel(model) {
   return MODEL_MIGRATIONS[model] || null;
 }
 
+// ── Streaming tag boundary guard ──
+// Providers stream token-by-token, so a control tag is routinely split across
+// SSE deltas ("</" + "think" + ">"). The buffer must therefore hold back any
+// trailing text that could still grow into one of these tags.
+//
+// The previous guard only covered partial OPENING tags, so a split "</think>"
+// was never recognised: the closing tag leaked into the reasoning channel and
+// every token after it followed, leaving the answer itself empty.
+const STREAM_CONTROL_TAGS = ['<think>', '</think>', '<minimax:tool_call>', '</minimax:tool_call>'];
+const LONGEST_CONTROL_TAG = Math.max(...STREAM_CONTROL_TAGS.map(t => t.length));
+
+// True when `buffer` ends with a PROPER prefix of a control tag (a complete
+// tag is not held back — it is ready to be processed).
+function endsWithPartialControlTag(buffer) {
+  const tail = buffer.slice(-LONGEST_CONTROL_TAG);
+  for (const tag of STREAM_CONTROL_TAGS) {
+    const maxLen = Math.min(tag.length - 1, tail.length);
+    for (let len = maxLen; len > 0; len--) {
+      if (tail.endsWith(tag.slice(0, len))) return true;
+    }
+  }
+  return false;
+}
+
 function createLlmService(config = {}) {
   // ── High-Performance Key Circuit Breaker & Round-Robin Health Tracker ──
   // Keeps track of per-key failures, cooldown timers, and request distributions.
@@ -187,7 +211,7 @@ function createLlmService(config = {}) {
     function processContentBuffer(forceFlush = false) {
       if (!contentBuffer) return;
       
-      if (!forceFlush && contentBuffer.match(/<t(h(i(n(k(>)?)?)?)?)?$|<m(i(n(i(m(a(x(:)?)?)?)?)?)?)?$/)) {
+      if (!forceFlush && endsWithPartialControlTag(contentBuffer)) {
         return;
       }
       

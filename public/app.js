@@ -1377,11 +1377,6 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
         renderChatList(allChatsCache);
       }
 
-      // Re-render mobile sheet toggles
-      if (typeof renderSheetToggles === 'function') {
-        renderSheetToggles();
-      }
-
       // Update quick categories active header
       const qsHeader = document.getElementById('qsHeader');
       if (qsHeader) qsHeader.textContent = t('qsHeader');
@@ -1469,28 +1464,6 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
       setActivationStatus('active', 'آمن');
     }
 
-
-    async function testRuntimeToken(token) {
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Bearer ' + token,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: GROQ_MODEL,
-          messages: [{ role: 'user', content: 'Reply with only: OK' }],
-          max_tokens: 5,
-          temperature: 0
-        })
-      });
-
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(data?.error?.message || data?.message || 'فشل فحص رمز التشغيل.');
-      }
-      return true;
-    }
 
     function updateTrainingStatus() {
       const count = qjoTraining.trim().length;

@@ -101,9 +101,25 @@ function createJobQueue({ maxJobs = 100 } = {}) {
     }
   }
 
-  function getJob(id) { return serialize(jobs.get(id)); }
-  function listJobs({ limit = 50, type = '', status = '' } = {}) {
+  // Ownership: jobs record the creating uid in meta.uid. Reads are scoped to
+  // that uid so one signed-in user cannot pull another user's job results —
+  // `source-stats` results carry document titles and extracted top terms, and
+  // `embedding-batch` can carry vectors. When auth is disabled every job has
+  // uid null, so null matches null and single-user/local setups are unchanged.
+  function ownsJob(job, uid) {
+    if (uid === undefined) return true; // caller opted out of scoping
+    return (job?.meta?.uid || null) === (uid || null);
+  }
+
+  function getJob(id, uid) {
+    const job = jobs.get(id);
+    if (!job || !ownsJob(job, uid)) return null;
+    return serialize(job);
+  }
+
+  function listJobs({ limit = 50, type = '', status = '', uid } = {}) {
     return [...jobs.values()]
+      .filter(j => ownsJob(j, uid))
       .filter(j => !type || j.type === type)
       .filter(j => !status || j.status === status)
       .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
@@ -112,9 +128,9 @@ function createJobQueue({ maxJobs = 100 } = {}) {
   }
 
 
-  function retryJob(id) {
+  function retryJob(id, uid) {
     const old = jobs.get(id);
-    if (!old) return null;
+    if (!old || !ownsJob(old, uid)) return null;
     if (!handlers.has(old.type)) {
       const err = new Error(`Unsupported job type: ${old.type}`);
       err.statusCode = 400;
@@ -123,9 +139,9 @@ function createJobQueue({ maxJobs = 100 } = {}) {
     return createJob(old.type, old.payload || {}, { ...(old.meta || {}), retriedFrom: old.id });
   }
 
-  function cancelJob(id) {
+  function cancelJob(id, uid) {
     const job = jobs.get(id);
-    if (!job) return null;
+    if (!job || !ownsJob(job, uid)) return null;
     if (['completed', 'failed', 'cancelled'].includes(job.status)) return serialize(job);
     job.cancelRequested = true;
     job.cancelledAt = now();
