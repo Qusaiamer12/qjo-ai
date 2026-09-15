@@ -949,6 +949,22 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
           let previewContainerHtml = '';
           let expandBtnHtml = '';
 
+          // JavaScript runs in a Web Worker (separate thread), so an infinite
+          // loop stalls the worker and not the page — the worker is terminated
+          // by a watchdog instead. Previewable HTML blocks keep the live
+          // preview instead of a Run button.
+          const isRunnableJs = !isPreviewable && ['javascript', 'js', 'node', 'nodejs', 'mjs', 'cjs'].includes(langDisplay);
+          const runJsBtnHtml = isRunnableJs ? `
+              <button type="button" class="run-js-btn" data-code="${codeEscaped}" data-target="js-output-${id}">
+                <svg class="run-icon" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                <span class="run-spinner hidden"></span>
+                <span class="run-label">${qjoLanguage === 'ar' ? 'تشغيل' : 'Run'}</span>
+              </button>
+            ` : '';
+          const jsOutputHtml = isRunnableJs
+            ? `<div class="python-output-container hidden" id="js-output-${id}"></div>`
+            : '';
+
           if (isPreviewable) {
             tabsHtml = `
               <div class="code-block-tabs">
@@ -996,6 +1012,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
                   ${tabsHtml}
                 </div>
                 <div class="code-block-actions">
+                  ${runJsBtnHtml}
                   ${expandBtnHtml}
                   <button type="button" class="copy-code-btn" data-code="${codeEscaped}">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
@@ -1005,6 +1022,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
               </div>
               <pre id="code-content-${id}"><code class="language-${escapeHtml(langDisplay)}">${escapeHtml(code.trim())}</code></pre>
               ${previewContainerHtml}
+              ${jsOutputHtml}
             </div>
           `.trim();
           codeBlocks.push(placeholder);
@@ -2043,6 +2061,7 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
         });
       });
       initializePythonRunButtons(element);
+      initializeJsRunButtons(element);
       initializeLivePreviewTabs(element);
     }
 
@@ -2272,6 +2291,338 @@ if len(__qjo_err_str) > 20000:
       };
     }
 
+    // ── JavaScript sandbox (Web Worker) ──────────────────────────────────
+    // The worker runs on its own thread, so user code cannot touch the page's
+    // DOM, and an infinite loop blocks only the worker — the watchdog below
+    // terminates it instead of freezing the tab. The worker is built from a
+    // blob: URL, which the app's CSP allows via `worker-src 'self' blob:`.
+    const JS_SANDBOX_TIMEOUT_MS = 5000;
+
+    const JS_WORKER_SOURCE = `
+      self.onmessage = function (event) {
+        var logs = [];
+        var MAX_ENTRIES = 300;
+
+        function format(value, depth) {
+          depth = depth || 0;
+          if (value === null) return 'null';
+          if (value === undefined) return 'undefined';
+          var type = typeof value;
+          if (type === 'string') return depth === 0 ? value : JSON.stringify(value);
+          if (type === 'number' || type === 'boolean') return String(value);
+          if (type === 'function') return '[Function: ' + (value.name || 'anonymous') + ']';
+          if (type === 'symbol' || type === 'bigint') return String(value);
+          if (value instanceof Error) return value.name + ': ' + value.message;
+          try {
+            var seen = new WeakSet();
+            return JSON.stringify(value, function (key, val) {
+              if (typeof val === 'object' && val !== null) {
+                if (seen.has(val)) return '[Circular]';
+                seen.add(val);
+              }
+              if (typeof val === 'function') return '[Function: ' + (val.name || 'anonymous') + ']';
+              if (typeof val === 'bigint') return String(val);
+              return val;
+            }, 2);
+          } catch (e) {
+            return String(value);
+          }
+        }
+
+        function push(kind, args) {
+          if (logs.length >= MAX_ENTRIES) return;
+          logs.push({ kind: kind, text: args.map(function (a) { return format(a, 0); }).join(' ') });
+        }
+
+        // console.table renders as aligned columns, matching the browser.
+        function renderTable(data) {
+          if (data === null || typeof data !== 'object') return format(data, 0);
+          var isArray = Array.isArray(data);
+          var rowKeys = isArray ? data.map(function (_, i) { return String(i); }) : Object.keys(data);
+          var columns = [];
+          var primitiveOnly = true;
+          rowKeys.forEach(function (rk) {
+            var row = isArray ? data[Number(rk)] : data[rk];
+            if (row !== null && typeof row === 'object') {
+              primitiveOnly = false;
+              Object.keys(row).forEach(function (c) {
+                if (columns.indexOf(c) === -1) columns.push(c);
+              });
+            }
+          });
+          if (primitiveOnly) columns = ['Values'];
+          var header = ['(index)'].concat(columns);
+          var body = rowKeys.map(function (rk) {
+            var row = isArray ? data[Number(rk)] : data[rk];
+            var cells = columns.map(function (c) {
+              if (primitiveOnly) return format(row, 1);
+              if (row === null || typeof row !== 'object') return '';
+              return Object.prototype.hasOwnProperty.call(row, c) ? format(row[c], 1) : '';
+            });
+            return [rk].concat(cells);
+          });
+          var widths = header.map(function (h, i) {
+            return Math.max(String(h).length, body.reduce(function (m, r) {
+              return Math.max(m, String(r[i] === undefined ? '' : r[i]).length);
+            }, 0));
+          });
+          function line(cells) {
+            return '| ' + cells.map(function (c, i) {
+              return String(c === undefined ? '' : c).padEnd(widths[i]);
+            }).join(' | ') + ' |';
+          }
+          var divider = '|-' + widths.map(function (w) { return '-'.repeat(w); }).join('-|-') + '-|';
+          // Escaped: this source lives inside a template literal, so a bare
+          // \\n would become a real newline and break the emitted worker.
+          return [line(header), divider].concat(body.map(line)).join('\\n');
+        }
+
+        self.console = {
+          log: function () { push('log', [].slice.call(arguments)); },
+          info: function () { push('log', [].slice.call(arguments)); },
+          debug: function () { push('log', [].slice.call(arguments)); },
+          warn: function () { push('warn', [].slice.call(arguments)); },
+          error: function () { push('error', [].slice.call(arguments)); },
+          table: function (data) {
+            if (logs.length >= MAX_ENTRIES) return;
+            logs.push({ kind: 'table', text: renderTable(data) });
+          }
+        };
+
+        var started = Date.now();
+        try {
+          var result = (0, eval)(event.data.code);
+          if (result !== undefined) {
+            logs.push({ kind: 'return', text: format(result, 0) });
+          }
+          self.postMessage({ ok: true, logs: logs, durationMs: Date.now() - started });
+        } catch (error) {
+          self.postMessage({
+            ok: false,
+            logs: logs,
+            error: (error && error.stack) ? String(error.stack) : String(error && error.message ? error.message : error),
+            durationMs: Date.now() - started
+          });
+        }
+      };
+    `;
+
+    // Resolves to { ok, logs, error, durationMs, timedOut }. Never rejects:
+    // a failure is data the caller renders, including the auto-fix affordance.
+    function executeJavaScriptInSandbox(code) {
+      return new Promise((resolve) => {
+        let worker = null;
+        let blobUrl = '';
+        let settled = false;
+        let watchdog = null;
+
+        const cleanup = () => {
+          if (watchdog) clearTimeout(watchdog);
+          try { if (worker) worker.terminate(); } catch (_) { /* already gone */ }
+          try { if (blobUrl) URL.revokeObjectURL(blobUrl); } catch (_) { /* ignore */ }
+        };
+
+        const finish = (payload) => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          resolve(payload);
+        };
+
+        try {
+          blobUrl = URL.createObjectURL(new Blob([JS_WORKER_SOURCE], { type: 'application/javascript' }));
+          worker = new Worker(blobUrl);
+        } catch (err) {
+          finish({ ok: false, logs: [], error: `Sandbox unavailable: ${err?.message || err}`, durationMs: 0 });
+          return;
+        }
+
+        const startedAt = Date.now();
+        worker.onmessage = (event) => finish(event.data);
+        worker.onerror = (event) => {
+          event.preventDefault?.();
+          finish({ ok: false, logs: [], error: event.message || 'Worker error.', durationMs: Date.now() - startedAt });
+        };
+
+        watchdog = setTimeout(() => {
+          finish({
+            ok: false,
+            logs: [],
+            timedOut: true,
+            error: qjoLanguage === 'ar'
+              ? `تم إيقاف التنفيذ بعد ${JS_SANDBOX_TIMEOUT_MS / 1000} ثوانٍ. غالبًا يوجد حلقة لا نهائية (Infinite Loop) في الكود.`
+              : `Execution halted after ${JS_SANDBOX_TIMEOUT_MS / 1000}s. The code most likely contains an infinite loop.`,
+            durationMs: Date.now() - startedAt
+          });
+        }, JS_SANDBOX_TIMEOUT_MS);
+
+        worker.postMessage({ code });
+      });
+    }
+
+    // ── Auto-fix: hand a failing snippet + its error straight to Qjo ──────
+    // Without this the user has to copy the traceback out of the terminal and
+    // retype it. The button composes both sides of the report itself.
+    function buildAutoFixPrompt({ language, code, errorText }) {
+      const isArabic = qjoLanguage === 'ar';
+      const intro = isArabic
+        ? `فشل تشغيل كود ${language} التالي عندي. شخّص السبب الجذري بدقة، ثم أعطني الكود كاملاً بعد التصحيح (ملف كامل بدون اختصارات)، وبعدها اشرح سبب الخطأ بجملتين.`
+        : `Running the ${language} snippet below failed. Diagnose the root cause precisely, return the FULL corrected code (complete file, no omissions), then explain the cause in two sentences.`;
+      const codeLabel = isArabic ? 'الكود:' : 'Code:';
+      const errorLabel = isArabic ? 'رسالة الخطأ:' : 'Error output:';
+      const fence = language === 'python' ? 'python' : 'javascript';
+      return `${intro}\n\n${codeLabel}\n\`\`\`${fence}\n${code}\n\`\`\`\n\n${errorLabel}\n\`\`\`text\n${String(errorText || '').slice(0, 4000)}\n\`\`\``;
+    }
+
+    function autoFixButtonHtml() {
+      return `
+        <button type="button" class="qjo-autofix-btn">
+          <span class="qjo-autofix-icon">🛠️</span>
+          <span>${qjoLanguage === 'ar' ? 'إصلاح الخطأ تلقائيًا عبر Qjo' : 'Auto-fix this error with Qjo'}</span>
+        </button>
+      `;
+    }
+
+    function wireAutoFixButton(outputEl, { language, code, errorText }) {
+      const btn = outputEl?.querySelector('.qjo-autofix-btn');
+      if (!btn) return;
+      btn.addEventListener('click', () => {
+        if (busy) return;
+        btn.disabled = true;
+        btn.classList.add('sent');
+        const span = btn.querySelector('span:last-child');
+        if (span) span.textContent = qjoLanguage === 'ar' ? 'تم الإرسال إلى Qjo…' : 'Sent to Qjo…';
+        sendMessage(buildAutoFixPrompt({ language, code, errorText }));
+      });
+    }
+
+    function renderRunTerminal(outputEl, { icon, title, statusText, statusClass, durationMs, bodyContent, autoFix }) {
+      outputEl.innerHTML = `
+        <div class="python-terminal-header">
+          <div class="python-terminal-title">
+            <span class="python-terminal-icon">${icon}</span>
+            <span>${title}</span>
+            <span class="python-terminal-status ${statusClass}">${statusText}</span>
+            ${Number.isFinite(durationMs) ? `<span class="python-terminal-time">⏱ ${durationMs}ms</span>` : ''}
+          </div>
+          <div class="python-terminal-actions">
+            <button type="button" class="python-terminal-copy" title="${qjoLanguage === 'ar' ? 'نسخ المخرجات' : 'Copy output'}">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            </button>
+            <button type="button" class="python-terminal-close" title="${qjoLanguage === 'ar' ? 'إغلاق' : 'Close'}">✕</button>
+          </div>
+        </div>
+        ${bodyContent}
+        ${autoFix ? autoFixButtonHtml() : ''}
+      `;
+
+      const closeBtn = outputEl.querySelector('.python-terminal-close');
+      if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+          outputEl.classList.add('hidden');
+          outputEl.innerHTML = '';
+        });
+      }
+      if (autoFix) wireAutoFixButton(outputEl, autoFix);
+      return outputEl;
+    }
+
+    function initializeJsRunButtons(element) {
+      if (!element) return;
+      element.querySelectorAll('.run-js-btn').forEach(btn => {
+        if (btn.dataset.initialized) return;
+        btn.dataset.initialized = 'true';
+
+        btn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          const rawCode = decodeURIComponent(btn.dataset.code || '');
+          const outputEl = btn.dataset.target ? document.getElementById(btn.dataset.target) : null;
+          if (!rawCode || !outputEl) return;
+
+          const runSpinner = btn.querySelector('.run-spinner');
+          const runIcon = btn.querySelector('.run-icon');
+          const runLabel = btn.querySelector('.run-label');
+
+          btn.disabled = true;
+          if (runSpinner) runSpinner.classList.remove('hidden');
+          if (runIcon) runIcon.classList.add('hidden');
+
+          outputEl.classList.remove('hidden');
+          outputEl.innerHTML = `
+            <div class="python-terminal-loading">
+              <span class="run-spinner"></span>
+              <span class="py-status-text">${qjoLanguage === 'ar' ? 'جاري التنفيذ في بيئة معزولة…' : 'Running in a sandboxed worker…'}</span>
+            </div>
+          `;
+
+          try {
+            const res = await executeJavaScriptInSandbox(rawCode);
+            const logLines = (res.logs || []).map(entry => {
+              if (entry.kind === 'table') return entry.text;
+              if (entry.kind === 'return') return `⟵ ${entry.text}`;
+              if (entry.kind === 'warn') return `⚠ ${entry.text}`;
+              if (entry.kind === 'error') return `✖ ${entry.text}`;
+              return entry.text;
+            });
+
+            let bodyContent = '';
+            if (logLines.length) {
+              bodyContent += `<div class="python-terminal-body">${escapeHtml(logLines.join('\n'))}</div>`;
+            }
+            if (res.error) {
+              bodyContent += `<div class="python-terminal-body error-text">${escapeHtml(res.error)}</div>`;
+            } else if (!logLines.length) {
+              bodyContent += `<div class="python-terminal-body">${escapeHtml(qjoLanguage === 'ar'
+                ? '(تم التنفيذ بنجاح — لا توجد مخرجات. استخدم console.log لعرض القيم)'
+                : '(Executed successfully — no output. Use console.log to print values)')}</div>`;
+            }
+
+            renderRunTerminal(outputEl, {
+              icon: res.ok ? '🟨' : '⚠️',
+              title: qjoLanguage === 'ar' ? 'مخرجات جافاسكريبت' : 'JavaScript Output',
+              statusText: res.ok
+                ? (qjoLanguage === 'ar' ? '● اكتمل بنجاح' : '● Success')
+                : res.timedOut
+                  ? (qjoLanguage === 'ar' ? '● تجاوز المهلة' : '● Timed out')
+                  : (qjoLanguage === 'ar' ? '● خطأ برمجي' : '● Error'),
+              statusClass: res.ok ? 'success' : 'error',
+              durationMs: res.durationMs,
+              bodyContent,
+              // A timeout is an infinite loop, not a syntax fault Qjo can patch
+              // from the trace alone — but it is still worth fixing, so offer it.
+              autoFix: res.ok ? null : { language: 'javascript', code: rawCode, errorText: res.error }
+            });
+
+            const copyBtn = outputEl.querySelector('.python-terminal-copy');
+            if (copyBtn) {
+              copyBtn.addEventListener('click', async () => {
+                const text = res.error || logLines.join('\n');
+                if (text && await copyTextToClipboard(text)) {
+                  copyBtn.classList.add('copied');
+                  setTimeout(() => copyBtn.classList.remove('copied'), 1500);
+                }
+              });
+            }
+          } catch (execErr) {
+            renderRunTerminal(outputEl, {
+              icon: '⚠️',
+              title: qjoLanguage === 'ar' ? 'خطأ في تشغيل جافاسكريبت' : 'JavaScript Execution Error',
+              statusText: qjoLanguage === 'ar' ? '● خطأ' : '● Error',
+              statusClass: 'error',
+              durationMs: undefined,
+              bodyContent: `<div class="python-terminal-body error-text">${escapeHtml(execErr?.message || String(execErr))}</div>`,
+              autoFix: { language: 'javascript', code: rawCode, errorText: execErr?.message || String(execErr) }
+            });
+          } finally {
+            btn.disabled = false;
+            if (runSpinner) runSpinner.classList.add('hidden');
+            if (runIcon) runIcon.classList.remove('hidden');
+            if (runLabel) runLabel.textContent = qjoLanguage === 'ar' ? 'إعادة تشغيل' : 'Rerun';
+          }
+        });
+      });
+    }
+
     function initializePythonRunButtons(element) {
       if (!element) return;
       element.querySelectorAll('.run-python-btn').forEach(btn => {
@@ -2339,31 +2690,15 @@ if len(__qjo_err_str) > 20000:
               }
             }
 
-            outputEl.innerHTML = `
-              <div class="python-terminal-header">
-                <div class="python-terminal-title">
-                  <span class="python-terminal-icon">🐍</span>
-                  <span>${qjoLanguage === 'ar' ? 'مخرجات بايثون' : 'Python Output'}</span>
-                  <span class="python-terminal-status ${statusClass}">${statusText}</span>
-                  <span class="python-terminal-time">⏱ ${res.durationMs}ms</span>
-                </div>
-                <div class="python-terminal-actions">
-                  <button type="button" class="python-terminal-copy" title="${qjoLanguage === 'ar' ? 'نسخ المخرجات' : 'Copy output'}">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                  </button>
-                  <button type="button" class="python-terminal-close" title="${qjoLanguage === 'ar' ? 'إغلاق' : 'Close'}">✕</button>
-                </div>
-              </div>
-              ${bodyContent}
-            `;
-
-            const closeBtn = outputEl.querySelector('.python-terminal-close');
-            if (closeBtn) {
-              closeBtn.addEventListener('click', () => {
-                outputEl.classList.add('hidden');
-                outputEl.innerHTML = '';
-              });
-            }
+            renderRunTerminal(outputEl, {
+              icon: '🐍',
+              title: qjoLanguage === 'ar' ? 'مخرجات بايثون' : 'Python Output',
+              statusText,
+              statusClass,
+              durationMs: res.durationMs,
+              bodyContent,
+              autoFix: isSuccess ? null : { language: 'python', code: rawCode, errorText: res.error }
+            });
 
             const copyBtn = outputEl.querySelector('.python-terminal-copy');
             if (copyBtn) {
@@ -2380,23 +2715,15 @@ if len(__qjo_err_str) > 20000:
             }
 
           } catch (execErr) {
-            outputEl.innerHTML = `
-              <div class="python-terminal-header">
-                <div class="python-terminal-title">
-                  <span class="python-terminal-icon">⚠️</span>
-                  <span>${qjoLanguage === 'ar' ? 'خطأ في تشغيل بايثون' : 'Python Execution Error'}</span>
-                </div>
-                <button type="button" class="python-terminal-close">✕</button>
-              </div>
-              <div class="python-terminal-body error-text">${escapeHtml(execErr?.message || String(execErr))}</div>
-            `;
-            const closeBtn = outputEl.querySelector('.python-terminal-close');
-            if (closeBtn) {
-              closeBtn.addEventListener('click', () => {
-                outputEl.classList.add('hidden');
-                outputEl.innerHTML = '';
-              });
-            }
+            renderRunTerminal(outputEl, {
+              icon: '⚠️',
+              title: qjoLanguage === 'ar' ? 'خطأ في تشغيل بايثون' : 'Python Execution Error',
+              statusText: qjoLanguage === 'ar' ? '● خطأ' : '● Error',
+              statusClass: 'error',
+              durationMs: undefined,
+              bodyContent: `<div class="python-terminal-body error-text">${escapeHtml(execErr?.message || String(execErr))}</div>`,
+              autoFix: { language: 'python', code: rawCode, errorText: execErr?.message || String(execErr) }
+            });
           } finally {
             btn.disabled = false;
             if (runSpinner) runSpinner.classList.add('hidden');

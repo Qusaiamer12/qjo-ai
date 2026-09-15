@@ -1293,3 +1293,17 @@
 }
 
 
+
+@media (max-width: 820px) {
+  .run-js-btn {
+    padding: 3px 7px !important;
+    font-size: 10.5px !important;
+  }
+
+  .qjo-autofix-btn {
+    font-size: 11px !important;
+    padding: 8px 10px !important;
+    margin: 4px 8px 10px !important;
+    width: calc(100% - 16px) !important;
+  }
+}

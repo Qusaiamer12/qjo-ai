@@ -2477,3 +2477,94 @@ body.dark .export-table-csv-btn:hover svg {
   }
 }
 
+
+/* ─────────────────────────────────────────────────────────────────────────
+   JavaScript sandbox runner + auto-fix affordance
+   The JS Run button mirrors .run-python-btn's geometry but uses JavaScript's
+   yellow so the two runners are distinguishable at a glance in a mixed answer.
+   ───────────────────────────────────────────────────────────────────────── */
+.run-js-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(234, 179, 8, 0.15);
+  border: 1px solid rgba(234, 179, 8, 0.35);
+  color: #facc15 !important;
+  -webkit-text-fill-color: #facc15 !important;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.run-js-btn:hover:not(:disabled) {
+  background: rgba(234, 179, 8, 0.3);
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  border-color: rgba(234, 179, 8, 0.6);
+  box-shadow: 0 0 10px rgba(234, 179, 8, 0.35);
+}
+
+.run-js-btn:disabled {
+  opacity: 0.75;
+  cursor: wait;
+}
+
+.run-js-btn .run-spinner {
+  width: 10px;
+  height: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #facc15;
+  border-radius: 50%;
+  animation: qjo-run-spin 0.7s linear infinite;
+}
+
+@keyframes qjo-run-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Auto-fix sits directly under the failing output so the error and the remedy
+   read as one unit. Full width because it is the obvious next action. */
+.qjo-autofix-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: calc(100% - 20px);
+  margin: 4px 10px 12px;
+  padding: 9px 14px;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.22), rgba(236, 72, 153, 0.22));
+  border: 1px solid rgba(167, 139, 250, 0.45);
+  border-radius: 9px;
+  color: #ddd6fe !important;
+  -webkit-text-fill-color: #ddd6fe !important;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.qjo-autofix-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.4), rgba(236, 72, 153, 0.4));
+  border-color: rgba(167, 139, 250, 0.8);
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: 0 0 16px rgba(139, 92, 246, 0.35);
+  transform: translateY(-1px);
+}
+
+.qjo-autofix-btn:disabled,
+.qjo-autofix-btn.sent {
+  opacity: 0.6;
+  cursor: default;
+  transform: none;
+  box-shadow: none;
+}
+
+.qjo-autofix-icon {
+  font-size: 14px;
+  line-height: 1;
+}

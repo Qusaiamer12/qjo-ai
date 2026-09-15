@@ -77,7 +77,9 @@ const BROWSER_GLOBALS = {
   // which public/index.html loads from a CDN for the in-page Python runner.
   performance: 'readonly',
   cancelAnimationFrame: 'readonly',
-  loadPyodide: 'readonly'
+  loadPyodide: 'readonly',
+  // Web Worker sandbox used to run user JavaScript off the main thread.
+  Worker: 'readonly'
 };
 
 const SHARED_RULES = {
