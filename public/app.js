@@ -781,8 +781,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
 
       const thead = '<thead><tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr></thead>';
       const tbody = '<tbody>' + rows.map(row => '<tr>' + headers.map((_, i) => `<td>${row[i] !== undefined ? row[i] : ''}</td>`).join('') + '</tr>').join('') + '</tbody>';
-      const cleanHeaders = headers.map(h => h.replace(/<[^>]+>/g, ''));
-      const cleanRows = rows.map(r => r.map(c => String(c).replace(/<[^>]+>/g, '')));
       return { html: `<div class="md-table-wrap" id="table-instance-${startIndex}"><table class="md-table">${thead}${tbody}</table></div>`, nextIndex: index };
     }
 
@@ -919,6 +917,8 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
                   <span class="python-wasm-badge">WASM</span>
                 </div>
                 <div class="code-block-actions">
+                  <button type="button" class="toggle-linenums-btn" title="${qjoLanguage === 'ar' ? 'أرقام الأسطر' : 'Toggle line numbers'}">#</button>
+                  <button type="button" class="code-focus-btn" title="${qjoLanguage === 'ar' ? 'ملء الشاشة' : 'Focus mode'}">⛶</button>
                   <button type="button" class="run-python-btn" data-code="${codeEscaped}" data-target="py-output-${id}">
                     <svg class="run-icon" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
                     <span class="run-spinner hidden"></span>
@@ -964,6 +964,15 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
           const jsOutputHtml = isRunnableJs
             ? `<div class="python-output-container hidden" id="js-output-${id}"></div>`
             : '';
+
+          // Line numbers live in a CSS-generated gutter rather than in the
+          // markup, so toggling them never contaminates a copy or a ZIP export.
+          const lineNumbersBtnHtml = `
+              <button type="button" class="toggle-linenums-btn" title="${qjoLanguage === 'ar' ? 'أرقام الأسطر' : 'Toggle line numbers'}">#</button>
+            `;
+          const codeFocusBtnHtml = `
+              <button type="button" class="code-focus-btn" title="${qjoLanguage === 'ar' ? 'ملء الشاشة' : 'Focus mode'}">⛶</button>
+            `;
 
           if (isPreviewable) {
             tabsHtml = `
@@ -1013,6 +1022,8 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
                 </div>
                 <div class="code-block-actions">
                   ${runJsBtnHtml}
+                  ${lineNumbersBtnHtml}
+                  ${codeFocusBtnHtml}
                   ${expandBtnHtml}
                   <button type="button" class="copy-code-btn" data-code="${codeEscaped}">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
@@ -2001,40 +2012,6 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
       });
     }
 
-    function initializeTableExportsInElement(element) {
-      const buttons = element.querySelectorAll('.export-table-csv-btn');
-      buttons.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.preventDefault();
-          try {
-            const data = JSON.parse(decodeURIComponent(btn.dataset.tableData || '{}'));
-            if (!data.headers || !data.rows) return;
-            
-            const csvRows = [
-              data.headers.join(','),
-              ...data.rows.map(row => row.map(cell => {
-                const escaped = String(cell || '').replace(/"/g, '""');
-                return `"${escaped}"`;
-              }).join(','))
-            ];
-            
-            const csvContent = "\uFEFF" + csvRows.join('\n'); // add BOM for Arabic Excel support!
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.setAttribute('href', url);
-            link.setAttribute('download', 'qjo-table-export.csv');
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-          } catch (err) {
-            console.error('Failed to export table to CSV:', err);
-          }
-        });
-      });
-    }
-
     function initializeCodeBlockCopyButtons(element) {
       if (!element) return;
       element.querySelectorAll('.copy-code-btn').forEach(btn => {
@@ -2062,6 +2039,7 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
       });
       initializePythonRunButtons(element);
       initializeJsRunButtons(element);
+      initializeCodeViewToggles(element);
       initializeLivePreviewTabs(element);
     }
 
@@ -2527,6 +2505,88 @@ if len(__qjo_err_str) > 20000:
       return outputEl;
     }
 
+    // ── Developer affordances: line numbers + focus mode ─────────────────
+    // Both are pure presentation toggles on the wrapper. The line numbers are
+    // drawn by CSS counters in a gutter, so the <code> text stays exactly what
+    // the model produced — copy, ZIP export and the live preview are unaffected.
+    let escFocusHandler = null;
+
+    // Wraps each line in its own element so a CSS counter can number it. Done
+    // lazily on first toggle, so a block the user never numbers keeps exactly
+    // the markup the renderer produced. Uses textContent for both read and
+    // write, so the code is never HTML-parsed and nothing can be injected.
+    // pre is white-space: pre with horizontal scroll, so lines never wrap and
+    // the numbering stays aligned with the source.
+    function splitCodeIntoLines(wrapper) {
+      const codeEl = wrapper.querySelector('pre > code');
+      if (!codeEl) return false;
+      if (codeEl.dataset.linesSplit === 'true') return true;
+
+      const lines = codeEl.textContent.split('\n');
+      const fragment = document.createDocumentFragment();
+      lines.forEach((line, index) => {
+        const span = document.createElement('span');
+        span.className = 'qjo-code-line';
+        // A zero-width space keeps an empty line from collapsing to zero
+        // height, which would desynchronise the gutter from the code.
+        span.textContent = line || '\u200b';
+        fragment.appendChild(span);
+        if (index < lines.length - 1) fragment.appendChild(document.createTextNode('\n'));
+      });
+
+      codeEl.textContent = '';
+      codeEl.appendChild(fragment);
+      codeEl.dataset.linesSplit = 'true';
+      return true;
+    }
+
+    function exitCodeFocus() {
+      document.querySelectorAll('.code-block-wrapper.is-code-focused').forEach(w => {
+        w.classList.remove('is-code-focused');
+      });
+      document.body.classList.remove('has-focused-code');
+      if (escFocusHandler) {
+        document.removeEventListener('keydown', escFocusHandler);
+        escFocusHandler = null;
+      }
+    }
+
+    function initializeCodeViewToggles(element) {
+      if (!element) return;
+
+      element.querySelectorAll('.toggle-linenums-btn').forEach(btn => {
+        if (btn.dataset.initialized) return;
+        btn.dataset.initialized = 'true';
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const wrapper = btn.closest('.code-block-wrapper');
+          if (!wrapper) return;
+          if (!splitCodeIntoLines(wrapper)) return;
+          const on = wrapper.classList.toggle('show-line-numbers');
+          btn.classList.toggle('active', on);
+          btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+      });
+
+      element.querySelectorAll('.code-focus-btn').forEach(btn => {
+        if (btn.dataset.initialized) return;
+        btn.dataset.initialized = 'true';
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const wrapper = btn.closest('.code-block-wrapper');
+          if (!wrapper) return;
+          const entering = !wrapper.classList.contains('is-code-focused');
+          exitCodeFocus(); // only ever one focused block at a time
+          if (!entering) return;
+
+          wrapper.classList.add('is-code-focused');
+          document.body.classList.add('has-focused-code');
+          escFocusHandler = (ev) => { if (ev.key === 'Escape') exitCodeFocus(); };
+          document.addEventListener('keydown', escFocusHandler);
+        });
+      });
+    }
+
     function initializeJsRunButtons(element) {
       if (!element) return;
       element.querySelectorAll('.run-js-btn').forEach(btn => {
@@ -2884,7 +2944,6 @@ if len(__qjo_err_str) > 20000:
       if (role === 'assistant') {
         typesetMath(bubble);
         initializeChartsInElement(bubble);
-        initializeTableExportsInElement(bubble);
         initializeCodeBlockCopyButtons(bubble);
         initializeQuizzesInElement(bubble);
         if (typeof mermaid !== 'undefined') {
@@ -4509,7 +4568,6 @@ if len(__qjo_err_str) > 20000:
         if (started && bubble) {
           typesetMath(bubble);
           initializeChartsInElement(bubble);
-          initializeTableExportsInElement(bubble);
           initializeCodeBlockCopyButtons(bubble);
           initializeQuizzesInElement(bubble);
           if (typeof mermaid !== 'undefined') {

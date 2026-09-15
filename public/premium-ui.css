@@ -2568,3 +2568,104 @@ body.dark .export-table-csv-btn:hover svg {
   font-size: 14px;
   line-height: 1;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Line numbers + focus mode
+   The gutter is drawn entirely with CSS counters on ::before, so the <code>
+   text node stays byte-identical to what the model produced. Selecting or
+   copying the block therefore never picks up the numbers — which is exactly
+   why this is not implemented as markup.
+   ───────────────────────────────────────────────────────────────────────── */
+.toggle-linenums-btn,
+.code-focus-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 22px;
+  padding: 0 6px;
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 6px;
+  color: #cbd5e1 !important;
+  -webkit-text-fill-color: #cbd5e1 !important;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: inherit;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.toggle-linenums-btn:hover,
+.code-focus-btn:hover {
+  background: rgba(148, 163, 184, 0.28);
+  border-color: rgba(148, 163, 184, 0.5);
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.toggle-linenums-btn.active {
+  background: rgba(139, 92, 246, 0.25);
+  border-color: rgba(167, 139, 250, 0.55);
+  color: #ddd6fe !important;
+  -webkit-text-fill-color: #ddd6fe !important;
+}
+
+.code-block-wrapper.show-line-numbers pre > code {
+  counter-reset: qjo-line;
+  display: block;
+}
+
+.code-block-wrapper.show-line-numbers pre > code > .qjo-code-line {
+  counter-increment: qjo-line;
+  display: block;
+  position: relative;
+  padding-inline-start: 3.25em;
+}
+
+.code-block-wrapper.show-line-numbers pre > code > .qjo-code-line::before {
+  content: counter(qjo-line);
+  position: absolute;
+  inset-inline-start: 0;
+  width: 2.4em;
+  text-align: end;
+  color: rgba(148, 163, 184, 0.55);
+  -webkit-text-fill-color: rgba(148, 163, 184, 0.55);
+  border-inline-end: 1px solid rgba(148, 163, 184, 0.18);
+  padding-inline-end: 0.55em;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+}
+
+/* Focus mode: lift one block above everything. Kept well under the auth
+   overlay's z-index (220) so it can never cover the sign-in screen. */
+.code-block-wrapper.is-code-focused {
+  position: fixed;
+  inset: max(2vh, env(safe-area-inset-top, 0px)) 2vw max(2vh, env(safe-area-inset-bottom, 0px));
+  z-index: 180;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.code-block-wrapper.is-code-focused pre {
+  flex: 1;
+  max-height: none !important;
+  overflow: auto;
+}
+
+body.has-focused-code::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 2, 12, 0.72);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  z-index: 179;
+  pointer-events: none;
+}
