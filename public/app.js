@@ -4929,15 +4929,19 @@ if len(__qjo_err_str) > 20000:
 
     function updateAuthBrowserTip() {
       if (!authBrowserTip) return;
-      const direct = !isEmbeddedPreview() && !isInAppBrowser();
-      if (direct && !isIOSDevice()) {
+      // Only warn when the user can actually act on it. Plain Safari and iOS
+      // used to get a notice telling them sign-in might fail and to fall back
+      // to email — which read as a block, and is no longer true now that those
+      // browsers take the redirect flow. An in-app webview is the one case
+      // where the advice is real: opening the link in a real browser fixes it.
+      if (!isInAppBrowser() && !isEmbeddedPreview()) {
         authBrowserTip.hidden = true;
         return;
       }
       authBrowserTip.hidden = false;
       authBrowserTip.textContent = isInAppBrowser()
-        ? 'لأفضل تسجيل دخول، افتح Qjo من Safari أو Chrome مباشرة وليس من داخل واتساب/إنستغرام.'
-        : 'على iPhone قد يطلب المتصفح السماح بالنوافذ أو التحويل. إذا لم ينجح Google/GitHub، استخدم البريد الإلكتروني.';
+        ? 'لأفضل تجربة، افتح Qjo من Safari أو Chrome مباشرة بدل متصفح التطبيقات الداخلي.'
+        : 'أنت تتصفح داخل إطار مضمّن. افتح Qjo من الرابط المباشر ليثبت تسجيل الدخول.';
     }
 
     function setAuthGrace(ms = AUTH_GRACE_MS) {
@@ -4973,9 +4977,6 @@ if len(__qjo_err_str) > 20000:
     async function initializeFirebase() {
       showAuthOverlay(false);
       updateAuthBrowserTip();
-      if (isEmbeddedPreview()) {
-        setAuthMessage('افتح Qjo من الرابط المباشر في نافذة جديدة. تسجيل الدخول قد لا يثبت داخل المعاينة أو iframe.');
-      }
       if (!window.firebase) {
         firebaseInitAttempts += 1;
         if (firebaseInitAttempts <= 40) {
@@ -5229,16 +5230,47 @@ if len(__qjo_err_str) > 20000:
       return false;
     }
 
-    async function signInWithGoogle() {
+    // Popup failures that mean "this browser will not give you a popup" rather
+    // than "the user changed their mind". Safari and iOS raise these routinely.
+    const POPUP_UNAVAILABLE = new Set([
+      'auth/popup-blocked',
+      'auth/operation-not-supported-in-this-environment',
+      'auth/cancelled-popup-request',
+      'auth/web-storage-unsupported',
+      'auth/internal-error'
+    ]);
+
+    // shouldUseRedirectAuth() existed but was never called: the app decided iOS
+    // and in-app browsers needed the redirect flow and then always opened a
+    // popup anyway, which Safari blocks — so social sign-in simply failed there
+    // with no way through. getRedirectResult() was already handled at startup,
+    // so only the outbound half was missing.
+    async function startProviderSignIn(provider) {
       if (authInProgress) return;
       if (!firebaseReady && !(await ensureFirebaseReady())) return;
       try {
         setAuthBusy(true);
         setAuthGrace(30000);
         await applyAuthPersistence(true);
-        const provider = new firebase.auth.GoogleAuthProvider();
-        provider.setCustomParameters({ prompt: 'select_account' });
-        await auth.signInWithPopup(provider);
+
+        if (shouldUseRedirectAuth()) {
+          // The page navigates away here; getRedirectResult() completes it on
+          // the way back, so the grace window must stay open.
+          await auth.signInWithRedirect(provider);
+          return;
+        }
+
+        try {
+          await auth.signInWithPopup(provider);
+        } catch (popupError) {
+          if (POPUP_UNAVAILABLE.has(popupError?.code)) {
+            // Second chance rather than a dead end: a desktop browser that
+            // blocks the popup can still complete the redirect flow.
+            await auth.signInWithRedirect(provider);
+            return;
+          }
+          throw popupError;
+        }
         clearAuthGrace();
       } catch (error) {
         clearAuthGrace();
@@ -5247,22 +5279,16 @@ if len(__qjo_err_str) > 20000:
       }
     }
 
+    async function signInWithGoogle() {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      return startProviderSignIn(provider);
+    }
+
     async function signInWithGitHub() {
-      if (authInProgress) return;
-      if (!firebaseReady && !(await ensureFirebaseReady())) return;
-      try {
-        setAuthBusy(true);
-        setAuthGrace(30000);
-        await applyAuthPersistence(true);
-        const provider = new firebase.auth.GithubAuthProvider();
-        provider.addScope('read:user');
-        await auth.signInWithPopup(provider);
-        clearAuthGrace();
-      } catch (error) {
-        clearAuthGrace();
-        setAuthBusy(false);
-        setAuthMessage(cleanAuthError(error));
-      }
+      const provider = new firebase.auth.GithubAuthProvider();
+      provider.addScope('read:user');
+      return startProviderSignIn(provider);
     }
 
     async function signInWithEmail() {
@@ -6449,6 +6475,7 @@ if len(__qjo_err_str) > 20000:
       const backdrop = document.getElementById('mobileToolsBackdrop');
       const closeBtn = document.getElementById('closeToolsSheetBtn');
       const togglesGrid = document.getElementById('mobileSheetToggles');
+      const modeRow = document.getElementById('mobileSheetMode');
       const catsGrid = document.getElementById('mobileSheetCats');
       const indicator = document.getElementById('notchIndicator');
 
@@ -6462,6 +6489,33 @@ if len(__qjo_err_str) > 20000:
       function updateIndicator() {
         const anyActive = toggleDefs.some(t => document.getElementById(t.id)?.classList.contains('active'));
         if (indicator) indicator.classList.toggle('active', anyActive);
+      }
+
+      function renderSheetMode() {
+        if (!modeRow) return;
+        const options = [
+          { mode: 'normal', icon: '⚡', labelKey: 'normal', descKey: 'flashModeTitle' },
+          { mode: 'advanced', icon: '◆', labelKey: 'advanced', descKey: 'maxModeTitle' }
+        ];
+        modeRow.innerHTML = '';
+        options.forEach(opt => {
+          const active = (opt.mode === 'advanced') === (qjoMode === 'advanced');
+          const card = document.createElement('button');
+          card.type = 'button';
+          card.className = 'sheet-mode-card' + (active ? ' active' : '');
+          card.setAttribute('role', 'radio');
+          card.setAttribute('aria-checked', active ? 'true' : 'false');
+          card.innerHTML = `
+            <span class="sheet-mode-icon">${opt.icon}</span>
+            <span class="sheet-mode-name">${t(opt.labelKey)}</span>
+            <span class="sheet-mode-desc">${t(opt.descKey)}</span>
+          `;
+          card.addEventListener('click', () => {
+            setMode(opt.mode);
+            renderSheetMode();
+          });
+          modeRow.appendChild(card);
+        });
       }
 
       function renderSheetToggles() {
@@ -6519,6 +6573,7 @@ if len(__qjo_err_str) > 20000:
       }
 
       function openSheet() {
+        renderSheetMode();
         renderSheetToggles();
         renderSheetCats();
         sheet.classList.add('show');

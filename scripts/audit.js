@@ -144,8 +144,15 @@ console.log('--------------------');
 must(app.includes('DEFAULT_FIREBASE_CONFIG'), 'Default Firebase config exists');
 must(app.includes('loadPublicConfig'), 'loadPublicConfig exists');
 must(app.includes('initializeFirebase'), 'initializeFirebase exists');
-must((app.match(/signInWithPopup/g) || []).length >= 2, 'Google/GitHub use signInWithPopup');
-must(!app.includes('signInWithRedirect'), 'signInWithRedirect is not present');
+// Social sign-in needs BOTH flows. Popup-only was the reason Safari and iOS
+// could not sign in at all: those browsers block the popup, and the redirect
+// branch the app already had (shouldUseRedirectAuth + getRedirectResult) was
+// never actually entered. Locking popup-only in here is what let that ship.
+must(app.includes('signInWithPopup'), 'Popup sign-in is available for desktop browsers');
+must(app.includes('signInWithRedirect'), 'Redirect sign-in is available for Safari/iOS/in-app browsers');
+must(app.includes('shouldUseRedirectAuth()'), 'The redirect decision is actually called, not just defined');
+must(app.includes('getRedirectResult'), 'The redirect flow is completed on return');
+must(app.includes('POPUP_UNAVAILABLE'), 'A blocked popup falls back to redirect instead of dead-ending');
 must(app.includes('signInWithEmailAndPassword'), 'Email login exists');
 must(app.includes('createUserWithEmailAndPassword'), 'Email signup exists');
 must(server.includes("'unsafe-eval'") || server.includes('"unsafe-eval"'), 'CSP keeps unsafe-eval for Firebase compat');
