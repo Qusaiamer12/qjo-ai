@@ -953,9 +953,13 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
           // loop stalls the worker and not the page — the worker is terminated
           // by a watchdog instead. Previewable HTML blocks keep the live
           // preview instead of a Run button.
-          const isRunnableJs = !isPreviewable && ['javascript', 'js', 'node', 'nodejs', 'mjs', 'cjs'].includes(langDisplay);
+          // TypeScript is transpiled (type-stripped) before it reaches the same
+          // worker. `tsx` is deliberately excluded along with jsx: those render
+          // components and there is no DOM inside a worker to render into.
+          const isRunnableTs = !isPreviewable && ['typescript', 'ts'].includes(langDisplay);
+          const isRunnableJs = !isPreviewable && (isRunnableTs || ['javascript', 'js', 'node', 'nodejs', 'mjs', 'cjs'].includes(langDisplay));
           const runJsBtnHtml = isRunnableJs ? `
-              <button type="button" class="run-js-btn" data-code="${codeEscaped}" data-target="js-output-${id}">
+              <button type="button" class="run-js-btn" data-code="${codeEscaped}" data-target="js-output-${id}" data-lang="${isRunnableTs ? 'typescript' : 'javascript'}">
                 <svg class="run-icon" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
                 <span class="run-spinner hidden"></span>
                 <span class="run-label">${qjoLanguage === 'ar' ? 'تشغيل' : 'Run'}</span>
@@ -2385,6 +2389,47 @@ if len(__qjo_err_str) > 20000:
       };
     `;
 
+    // ── TypeScript transpiler (lazy) ─────────────────────────────────────
+    // @babel/standalone is 2.3MB against the TypeScript compiler's 8.7MB, and
+    // type-stripping is all that is needed to run a snippet — so Babel it is.
+    // Loaded only when someone actually clicks Run on a TS block, mirroring how
+    // Pyodide is pulled in, and cached for the rest of the session.
+    //
+    // This is transpile-only: it strips types, it does not type-check. That is
+    // the same trade `ts-node --transpileOnly` and esbuild make, and it is why a
+    // type error surfaces at runtime here rather than before it.
+    const BABEL_STANDALONE_URL = 'https://cdn.jsdelivr.net/npm/@babel/standalone@8.0.5/babel.min.js';
+    let babelLoadPromise = null;
+
+    function loadBabelStandalone(onStatus) {
+      if (typeof window.Babel !== 'undefined') return Promise.resolve(window.Babel);
+      if (babelLoadPromise) return babelLoadPromise;
+
+      babelLoadPromise = new Promise((resolve, reject) => {
+        if (onStatus) onStatus(qjoLanguage === 'ar' ? 'تحميل محوّل TypeScript…' : 'Loading TypeScript transpiler…');
+        const script = document.createElement('script');
+        script.src = BABEL_STANDALONE_URL;
+        script.async = true;
+        script.onload = () => resolve(window.Babel);
+        script.onerror = () => reject(new Error(qjoLanguage === 'ar'
+          ? 'فشل تحميل محوّل TypeScript من CDN. تحقق من الاتصال.'
+          : 'Failed to load the TypeScript transpiler from CDN. Check your connection.'));
+        document.head.appendChild(script);
+      }).catch(err => {
+        babelLoadPromise = null; // let a later click retry
+        throw err;
+      });
+
+      return babelLoadPromise;
+    }
+
+    async function transpileTypeScript(code, onStatus) {
+      const Babel = await loadBabelStandalone(onStatus);
+      if (!Babel?.transform) throw new Error('TypeScript transpiler is unavailable.');
+      // The .ts filename is what tells the preset to parse types but not JSX.
+      return Babel.transform(code, { presets: ['typescript'], filename: 'snippet.ts' }).code;
+    }
+
     // Resolves to { ok, logs, error, durationMs, timedOut }. Never rejects:
     // a failure is data the caller renders, including the auto-fix affordance.
     function executeJavaScriptInSandbox(code) {
@@ -2448,7 +2493,9 @@ if len(__qjo_err_str) > 20000:
         : `Running the ${language} snippet below failed. Diagnose the root cause precisely, return the FULL corrected code (complete file, no omissions), then explain the cause in two sentences.`;
       const codeLabel = isArabic ? 'الكود:' : 'Code:';
       const errorLabel = isArabic ? 'رسالة الخطأ:' : 'Error output:';
-      const fence = language === 'python' ? 'python' : 'javascript';
+      // The fence tag decides what Qjo hands back, so a TypeScript failure must
+      // not be relabelled as JavaScript — the fix would come back untyped.
+      const fence = language === 'python' ? 'python' : language === 'typescript' ? 'typescript' : 'javascript';
       return `${intro}\n\n${codeLabel}\n\`\`\`${fence}\n${code}\n\`\`\`\n\n${errorLabel}\n\`\`\`text\n${String(errorText || '').slice(0, 4000)}\n\`\`\``;
     }
 
@@ -2599,6 +2646,7 @@ if len(__qjo_err_str) > 20000:
           const outputEl = btn.dataset.target ? document.getElementById(btn.dataset.target) : null;
           if (!rawCode || !outputEl) return;
 
+          const isTypeScript = btn.dataset.lang === 'typescript';
           const runSpinner = btn.querySelector('.run-spinner');
           const runIcon = btn.querySelector('.run-icon');
           const runLabel = btn.querySelector('.run-label');
@@ -2614,9 +2662,32 @@ if len(__qjo_err_str) > 20000:
               <span class="py-status-text">${qjoLanguage === 'ar' ? 'جاري التنفيذ في بيئة معزولة…' : 'Running in a sandboxed worker…'}</span>
             </div>
           `;
+          const updateStatusText = (txt) => {
+            const statusTextEl = outputEl.querySelector('.py-status-text');
+            if (statusTextEl) statusTextEl.textContent = txt;
+          };
 
           try {
-            const res = await executeJavaScriptInSandbox(rawCode);
+            let executable = rawCode;
+            if (isTypeScript) {
+              try {
+                executable = await transpileTypeScript(rawCode, updateStatusText);
+              } catch (tsErr) {
+                // A syntax error here is the user's TypeScript, so it is worth
+                // handing to auto-fix exactly like a runtime failure.
+                renderRunTerminal(outputEl, {
+                  icon: '⚠️',
+                  title: qjoLanguage === 'ar' ? 'خطأ في تحويل TypeScript' : 'TypeScript Transpile Error',
+                  statusText: qjoLanguage === 'ar' ? '● خطأ' : '● Error',
+                  statusClass: 'error',
+                  durationMs: undefined,
+                  bodyContent: `<div class="python-terminal-body error-text">${escapeHtml(tsErr?.message || String(tsErr))}</div>`,
+                  autoFix: { language: 'typescript', code: rawCode, errorText: tsErr?.message || String(tsErr) }
+                });
+                return;
+              }
+            }
+            const res = await executeJavaScriptInSandbox(executable);
             const logLines = (res.logs || []).map(entry => {
               if (entry.kind === 'table') return entry.text;
               if (entry.kind === 'return') return `⟵ ${entry.text}`;
@@ -2638,8 +2709,10 @@ if len(__qjo_err_str) > 20000:
             }
 
             renderRunTerminal(outputEl, {
-              icon: res.ok ? '🟨' : '⚠️',
-              title: qjoLanguage === 'ar' ? 'مخرجات جافاسكريبت' : 'JavaScript Output',
+              icon: res.ok ? (isTypeScript ? '🟦' : '🟨') : '⚠️',
+              title: isTypeScript
+                ? (qjoLanguage === 'ar' ? 'مخرجات TypeScript' : 'TypeScript Output')
+                : (qjoLanguage === 'ar' ? 'مخرجات جافاسكريبت' : 'JavaScript Output'),
               statusText: res.ok
                 ? (qjoLanguage === 'ar' ? '● اكتمل بنجاح' : '● Success')
                 : res.timedOut
@@ -2650,7 +2723,7 @@ if len(__qjo_err_str) > 20000:
               bodyContent,
               // A timeout is an infinite loop, not a syntax fault Qjo can patch
               // from the trace alone — but it is still worth fixing, so offer it.
-              autoFix: res.ok ? null : { language: 'javascript', code: rawCode, errorText: res.error }
+              autoFix: res.ok ? null : { language: isTypeScript ? 'typescript' : 'javascript', code: rawCode, errorText: res.error }
             });
 
             const copyBtn = outputEl.querySelector('.python-terminal-copy');
@@ -2666,12 +2739,14 @@ if len(__qjo_err_str) > 20000:
           } catch (execErr) {
             renderRunTerminal(outputEl, {
               icon: '⚠️',
-              title: qjoLanguage === 'ar' ? 'خطأ في تشغيل جافاسكريبت' : 'JavaScript Execution Error',
+              title: isTypeScript
+                ? (qjoLanguage === 'ar' ? 'خطأ في تشغيل TypeScript' : 'TypeScript Execution Error')
+                : (qjoLanguage === 'ar' ? 'خطأ في تشغيل جافاسكريبت' : 'JavaScript Execution Error'),
               statusText: qjoLanguage === 'ar' ? '● خطأ' : '● Error',
               statusClass: 'error',
               durationMs: undefined,
               bodyContent: `<div class="python-terminal-body error-text">${escapeHtml(execErr?.message || String(execErr))}</div>`,
-              autoFix: { language: 'javascript', code: rawCode, errorText: execErr?.message || String(execErr) }
+              autoFix: { language: isTypeScript ? 'typescript' : 'javascript', code: rawCode, errorText: execErr?.message || String(execErr) }
             });
           } finally {
             btn.disabled = false;

@@ -192,6 +192,31 @@ When `TAVILY_API_KEY` is configured, Qjo supports two levels of search:
 In Max mode or for complex questions, the frontend automatically uses Deep Search, deduplicates sources server-side, and sends source summaries to Qjo.
 
 
+## In-browser code execution
+
+Assistant code blocks carry a Run button that executes in the browser, never on
+the server:
+
+| Language | Engine | Loaded from |
+|---|---|---|
+| `python`, `py` | Pyodide (WASM), with matplotlib plots captured as images | `cdn.jsdelivr.net`, lazily on first run |
+| `javascript`, `js`, `node`, `mjs`, `cjs` | Web Worker sandbox | no download |
+| `typescript`, `ts` | `@babel/standalone` type-stripping, then the same Web Worker | `cdn.jsdelivr.net`, lazily on first run |
+
+The JavaScript sandbox runs on a worker thread with no DOM access, captures
+`console.log`/`warn`/`error`/`table` plus the expression's return value, and is
+terminated by a 5s watchdog — so an infinite loop in a snippet cannot freeze the
+tab. Output is capped at 300 entries.
+
+TypeScript is **transpiled, not type-checked** (the same trade `ts-node
+--transpileOnly` and esbuild make), so a type error surfaces at runtime rather
+than before it. `tsx`/`jsx` blocks get no Run button: they render components and
+a worker has no DOM — those use the live HTML preview instead.
+
+When a run fails — Python traceback, JS/TS exception, transpile error or a
+watchdog timeout — an "auto-fix" button sends the snippet and its error to Qjo
+as one diagnostic request, so the error never has to be copied by hand.
+
 ## Calculator Tool
 
 The backend includes a deterministic `calculate` tool powered by mathjs. The AI can call it through tool calling for precise arithmetic, statistics, powers, roots, trigonometry, and matrix-like calculations. This reduces hallucinated math answers.
