@@ -480,7 +480,11 @@ function routeUserRequestDeterministic(messagesOrText) {
   const q = `${recent}\n${latest}`.toLowerCase();
 
   const explicitQcode = /(qcode|q-code|code lab|كيو\s*كود|كيوكود)/i.test(q);
-  const codingIntent = /(كود|برمج|برمجة|موقع|تطبيق|api|sdk|debug|bug|stack trace|error|exception|react|next\.js|vue|node|express|fastapi|python|javascript|typescript|firebase|render|deploy|github|git|terminal|npm|package\.json|docker|sql|database|backend|frontend|full[- ]?stack|هندسة\s+برمجيات|تصحيح\s+خطأ|اكتب\s+دالة|اكتب\s+كلاس|اكتب\s+برنامج)/i.test(q);
+  // Arabic gaps this used to miss, now that the classifier actually drives
+  // routing: transliterated language names (بايثون/جافاسكريبت), Levantine verb
+  // forms that fuse the pronoun (اكتبلي/سويلي/اعمللي — so "اكتب\s+دالة" never
+  // matched), and bare code nouns (دالة/كلاس/متغير/مصفوفة).
+  const codingIntent = /(كود|برمج|برمجة|مبرمج|سكربت|سكريبت|موقع|تطبيق|api|sdk|debug|bug|stack trace|traceback|error|exception|compile|refactor|react|next\.js|vue|angular|svelte|node|express|fastapi|django|flask|laravel|python|javascript|typescript|golang|rust|kotlin|swift|firebase|supabase|render|deploy|github|git|terminal|npm|yarn|pnpm|package\.json|docker|kubernetes|sql|nosql|mongodb|postgres|database|قاعدة\s+بيانات|backend|frontend|full[- ]?stack|هندسة\s+برمجيات|تصحيح\s+خطأ|بايثون|جافا|جافاسكريبت|جافا\s*سكريبت|تايب\s*سكريبت|ريأكت|رياكت|نود|دالة|كلاس|متغير|مصفوفة|خوارزمي|اكتب(?:لي|لنا)?\s+(?:دالة|كلاس|برنامج|كود|سكربت)|سوي(?:لي|لنا)?\s+(?:دالة|كود|برنامج)|اعمل(?:لي|لنا)?\s+(?:دالة|كود|برنامج|تطبيق))/i.test(q);
   const fileEditIntent = /(اقرأ\s+ملف|اكتب\s+ملف|عدّل\s+ملف|عدل\s+ملف|حرر\s+ملف|read_file|write_file|edit_file|run\s+tests|شغل\s+اختبار|نفذ\s+أمر)/i.test(q);
 
   if (explicitQcode || fileEditIntent || codingIntent) {

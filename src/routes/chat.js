@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const { addContextContinuitySystemHint } = require('../agents/contextContinuity');
-const { addRouterSystemHint } = require('../agents/RoutingEngine');
+const { addRouterSystemHint, routeUserRequestDeterministic } = require('../agents/RoutingEngine');
 const { addCalculatorSystemHint } = require('../tools/calculatorTool');
 const { sanitizeMathNotation } = require('../services/textSanitizer');
 
@@ -219,7 +219,16 @@ function registerChatRoutes(app, deps) {
       const temperature = req.body.temperature !== undefined ? clampNumber(req.body.temperature, 0.7, 0, 1) : undefined;
       const maxTokens = clampNumber(req.body.max_tokens, deps.defaultMaxTokens || 2600, 64, 7992);
       const mode = String(req.body.mode || '');
-      const routingDecision = req.body.routingDecision || null;
+      // Computed here rather than taken from the request body. The router lives
+      // in a CommonJS server module the browser cannot import, so a client-side
+      // decision would mean duplicating the classifier — and a body field would
+      // be caller-controlled, letting anyone pin their own routing. The server
+      // already holds the messages, so it just classifies them itself.
+      //
+      // This was dead until now: nothing ever populated req.body.routingDecision,
+      // so addRouterSystemHint() never ran and classifyQjoRequest()'s
+      // high-confidence intent overrides could never fire.
+      let routingDecision = null;
       const useTools = req.body.useTools !== false;
 
       const ip = deps.getClientIp ? deps.getClientIp(req) : '';
@@ -286,6 +295,15 @@ function registerChatRoutes(app, deps) {
       const systemMessages = [];
       if (systemPrompt) systemMessages.push({ role: 'system', content: systemPrompt });
       systemMessages.push(...clientSystemMessages);
+
+      try {
+        routingDecision = routeUserRequestDeterministic(userMessages);
+      } catch (error) {
+        // Routing is an enhancement, never a gate: a classifier failure must not
+        // cost the user their answer.
+        console.warn('[chat] routing classification failed:', error?.message || error);
+        routingDecision = null;
+      }
 
       let builtMessages = [...systemMessages, ...userMessages];
       builtMessages = addContextContinuitySystemHint(builtMessages);
