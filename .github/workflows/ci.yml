@@ -38,6 +38,12 @@ jobs:
       - name: Stability audit
         run: npm run audit
 
+      # Asserts the HTML the PDF renderer is built from: math, images, lists,
+      # bidi isolation and self-containment. Every export defect so far has
+      # lived there and none of it is visible from an endpoint response.
+      - name: PDF export suite
+        run: npm run test:pdf
+
       # Resolves every relative require() in server.js + src/ so a module that
       # moves or is deleted fails here instead of at boot on Render.
       - name: Module resolution check
