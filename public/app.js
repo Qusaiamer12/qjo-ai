@@ -1264,24 +1264,6 @@ Crucial temporal grounding:
     }
 
     function buildSystemPrompt() {
-      const currentDateContext = `\n\nRuntime date context:\n${getCurrentDateContext()}`;
-
-      let modeInstruction = `
-
-Active mode: Flash. Ultra-fast but still strong. Answer with high signal, direct conclusion, key reason, and practical next step. For current/search questions, use fast source search and cite 2-4 best links; do not sound generic or shallow. Keep it compact.`;
-
-      if (qjoMode === 'advanced') {
-        modeInstruction = `
-
-Active mode: Max. Strongest expert mode with minimum delay. Internally do a very quick self-check for assumptions, weak logic, hallucination risk, and edge cases, then output the refined answer only. Prefer concise expert structure: الخلاصة → التحليل → القرار/الخطوة. Use Deep Search only when the request is explicitly research-heavy, source-heavy, comparative, or complex; otherwise use fast connected search or answer directly. Be rigorous and fast.`;
-      }
-
-      if (qjoMode === 'code') {
-        modeInstruction = `
-
-Active mode: Code. Elite Principal Software Architect & Full-Stack Engineer. Zero Laziness: Output 100% complete, fully implemented, runnable code without placeholders or "// rest of code" omissions. Label every code block with its exact file path (e.g. \`\`\`typescript:src/components/Header.tsx or // path: src/app.js) so the user can easily export the project. When building multi-file projects, provide an ASCII file tree first. Ensure production-grade security, error handling, Big-O performance, and accessibility. Provide exact shell commands to install dependencies and run.`;
-      }
-
       const ownerKnowledge = qjoTraining.trim()
         ? `\n\nOwner-provided instructions:\n${qjoTraining.trim()}\n\nApply only when relevant and safe.`
         : '';
@@ -1297,7 +1279,18 @@ Active mode: Code. Elite Principal Software Architect & Full-Stack Engineer. Zer
         ? `\n\nSaved user corrections:\n${qjoLearning.slice(-20).map((note, i) => `${i + 1}. ${note}`).join('\n')}\n\nApply only when relevant and safe.`
         : '';
 
-      return QJO_SYSTEM_PROMPT + currentDateContext + modeInstruction + skillCapsules + ownerKnowledge + remoteTraining + preferenceContext + learnedCorrections;
+      // Only the per-user layer travels. The base prompt, the runtime date line
+      // and the mode overlay are all built server-side by services/systemPrompt,
+      // which strips this client copy on arrival anyway — so uploading it bought
+      // nothing and the model never saw it. Measured: a 28-byte question was
+      // shipping a 39.1KB request, 97.8% of it discarded server-side.
+      //
+      // QJO_SYSTEM_PROMPT stays defined as the canonical client-side reference
+      // (kept in sync with docs/QJO_SYSTEM_PROMPT_VNEXT_XML.md by
+      // scripts/sync_prompts.py and locked by the stability audit); it is simply
+      // no longer part of the request.
+      const personalization = skillCapsules + ownerKnowledge + remoteTraining + preferenceContext + learnedCorrections;
+      return personalization.trim();
     }
 
     function applyTheme() {
@@ -3160,9 +3153,14 @@ if len(__qjo_err_str) > 20000:
       return messageNearBottom && pageNearBottom;
     }
 
-    function updateScrollBottomButton() {
+    // Accepts a precomputed result so callers that already measured do not pay
+    // for a second forced layout. isNearBottom() flushes layout, and this used
+    // to run immediately after requestSmoothScroll() had just measured AND
+    // written scroll positions — two full layout flushes per scroll request.
+    function updateScrollBottomButton(nearBottom) {
       if (!scrollBottomBtn) return;
-      scrollBottomBtn.classList.toggle('show', !isNearBottom());
+      const near = typeof nearBottom === 'boolean' ? nearBottom : isNearBottom();
+      scrollBottomBtn.classList.toggle('show', !near);
     }
 
     function scrollToBottom(smooth = true) {
@@ -3177,11 +3175,13 @@ if len(__qjo_err_str) > 20000:
       scrollRafPending = true;
       requestAnimationFrame(() => {
         scrollRafPending = false;
-        if (isNearBottom()) {
+        // One measurement, reused for both the scroll decision and the button.
+        const near = isNearBottom();
+        if (near) {
           messagesEl.scrollTop = messagesEl.scrollHeight;
           window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'auto' });
         }
-        updateScrollBottomButton();
+        updateScrollBottomButton(near);
       });
     }
 
@@ -4384,7 +4384,6 @@ if len(__qjo_err_str) > 20000:
       let reasoningDivider = null;
       let insideThinkTag = false;
       let currentActiveStep = null;
-      let chunkRenderPending = false;
       let renderRafId = null;
 
       function ensureAssistantStreamElements() {
@@ -4456,11 +4455,22 @@ if len(__qjo_err_str) > 20000:
         requestSmoothScroll();
       }
 
-      function streamReasoningText(delta) {
-        ensureReasoningWidget();
-        reasoningRaw += delta;
-        const trimmed = delta.trim();
-        if (!trimmed) return;
+      // Reasoning deltas arrive as fast as tokens (100+/sec). Touching the DOM
+      // and then calling requestSmoothScroll() on each one meant a forced
+      // synchronous layout per delta — measured at 2.53ms each, 28x the cost of
+      // the DOM write itself, which is where most of the streaming jank lived.
+      // Deltas are now coalesced onto the same cadence as the answer render.
+      // reasoningRaw still accumulates every delta synchronously, so the saved
+      // transcript is complete regardless of how the UI is paced.
+      let reasoningBuffer = '';
+      let reasoningFlushTimer = null;
+
+      function flushReasoningBuffer() {
+        if (reasoningFlushTimer) { clearTimeout(reasoningFlushTimer); reasoningFlushTimer = null; }
+        const delta = reasoningBuffer;
+        reasoningBuffer = '';
+        if (!delta || !reasoningTimeline) return;
+
         if (!currentActiveStep || delta.includes('\n') || (delta.includes('.') && currentActiveStep.textContent.length > 55)) {
           currentActiveStep = document.createElement('div');
           currentActiveStep.className = 'qjo-reasoning-step';
@@ -4475,7 +4485,18 @@ if len(__qjo_err_str) > 20000:
         requestSmoothScroll();
       }
 
+      function streamReasoningText(delta) {
+        ensureReasoningWidget();
+        reasoningRaw += delta;
+        if (!delta.trim()) return;
+        reasoningBuffer += delta;
+        if (!reasoningFlushTimer) {
+          reasoningFlushTimer = setTimeout(flushReasoningBuffer, STREAM_RENDER_INTERVAL_MS);
+        }
+      }
+
       function finishReasoning() {
+        flushReasoningBuffer();
         if (reasoningActive) {
           reasoningActive = false;
           if (reasoningTimerInterval) clearInterval(reasoningTimerInterval);
@@ -4513,16 +4534,49 @@ if len(__qjo_err_str) > 20000:
         }
       }
 
+      // Streaming render budget.
+      //
+      // This used to re-parse the ENTIRE accumulated answer through
+      // lightMarkdown() and replace the whole subtree on every animation frame.
+      // Each frame then forced a synchronous layout read (scrollHeight) right
+      // after invalidating layout, so the cost grew with the answer and repeated
+      // 60x/sec: measured 32.9ms median frames (~30fps) with 48% of frames over
+      // 33ms during a 4s stream.
+      //
+      // Re-rendering faster than the eye can read buys nothing, so renders are
+      // now paced and skipped when nothing changed. Token capture is untouched —
+      // fullAnswer still accumulates every chunk — so nothing is lost or
+      // reordered; only how often the DOM is rebuilt changes.
+      const STREAM_RENDER_INTERVAL_MS = 90;
+      let lastRenderAt = 0;
+      let lastRenderedLength = -1;
+      let renderTimerId = null;
+
+      function renderStreamedContent() {
+        if (!contentContainer) return;
+        if (fullAnswer.length === lastRenderedLength) return; // nothing new
+        lastRenderedLength = fullAnswer.length;
+        lastRenderAt = performance.now();
+        contentContainer.innerHTML = lightMarkdown(fullAnswer) + '<span class="qjo-typing-cursor"></span>';
+        requestSmoothScroll();
+      }
+
       function scheduleContentRender() {
-        if (chunkRenderPending) return;
-        chunkRenderPending = true;
-        renderRafId = requestAnimationFrame(() => {
-          chunkRenderPending = false;
-          if (contentContainer) {
-            contentContainer.innerHTML = lightMarkdown(fullAnswer) + '<span class="qjo-typing-cursor"></span>';
-          }
-          requestSmoothScroll();
-        });
+        if (renderTimerId) return; // a render is already queued
+        // The first chunk renders immediately (lastRenderAt starts at 0), so
+        // time-to-first-visible-token is unchanged.
+        const elapsed = performance.now() - lastRenderAt;
+        const delay = Math.max(0, STREAM_RENDER_INTERVAL_MS - elapsed);
+        renderTimerId = setTimeout(() => {
+          renderTimerId = null;
+          // Align the write with a paint so it never lands mid-frame.
+          renderRafId = requestAnimationFrame(renderStreamedContent);
+        }, delay);
+      }
+
+      function flushContentRender() {
+        if (renderTimerId) { clearTimeout(renderTimerId); renderTimerId = null; }
+        if (renderRafId) { cancelAnimationFrame(renderRafId); renderRafId = null; }
       }
 
       function appendContentChunk(text) {
@@ -4570,6 +4624,9 @@ if len(__qjo_err_str) > 20000:
 
         const userMessage = { role: 'user', content: savedUserContent };
         history.push(userMessage);
+        // Built after the push: buildSkillCapsules() keys off the newest user
+        // turn in history, so building earlier matched the previous message.
+        const systemPersonalization = buildSystemPrompt();
         // Persist in background without delaying AI streaming
         ensureChatDocument(text)
           .then(() => safePersistMessage(userMessage))
@@ -4590,7 +4647,7 @@ if len(__qjo_err_str) > 20000:
           body: JSON.stringify({
             model: apiModel,
             messages: [
-              { role: 'system', content: buildSystemPrompt() },
+              ...(systemPersonalization ? [{ role: 'system', content: systemPersonalization }] : []),
               ...(continuityHint ? [{ role: 'system', content: continuityHint }] : []),
               ...history.slice(-12, -1), // lean payloads; older context lives in Firestore
               { role: 'user', content: apiUserContent }
@@ -4682,8 +4739,7 @@ if len(__qjo_err_str) > 20000:
 
         if (reasoningActive) finishReasoning();
         // Flush any pending content render
-        if (renderRafId) cancelAnimationFrame(renderRafId);
-        chunkRenderPending = false;
+        flushContentRender();
         if (contentContainer) {
           contentContainer.innerHTML = lightMarkdown(fullAnswer);
         }
