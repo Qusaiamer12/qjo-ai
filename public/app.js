@@ -676,6 +676,35 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     let remoteConfig = {};
     let userPreferences = {};
     let qjoMode = localStorage.getItem(MODE_KEY) || 'normal';
+    // Composer function toggles. Declared here, alongside the rest of the app
+    // state, because needsWebSearch/needsDeepSearch/getGenerationConfig read it
+    // and all of them are reachable before installFunctionToggles() runs — a
+    // `let` further down the file puts it in the temporal dead zone and throws
+    // on load, taking the whole app with it.
+    const FUNCTION_TOGGLES_KEY = 'qjo_function_toggles';
+
+    const FUNCTION_TOGGLES = [
+      {
+        id: 'toggleSearch',
+        key: 'search',
+        on: { ar: 'البحث المباشر مفعّل — سيتم جلب مصادر حيّة لكل رسالة 🔍', en: 'Live search on — sources will be fetched for every message 🔍' },
+        off: { ar: 'تم إيقاف البحث المباشر', en: 'Live search off' }
+      },
+      {
+        id: 'toggleDeep',
+        key: 'deep',
+        on: { ar: 'البحث العميق مفعّل — استعلامات متعددة ومصادر موسّعة 🎯', en: 'Deep search on — multi-query research with extended sources 🎯' },
+        off: { ar: 'تم إيقاف البحث العميق', en: 'Deep search off' }
+      },
+      {
+        id: 'toggleReason',
+        key: 'reason',
+        on: { ar: 'وضع التفكير الموسّع مفعّل — تحليل أعمق ومراجعة ذاتية 🧠', en: 'Extended reasoning on — deeper analysis with self-review 🧠' },
+        off: { ar: 'تم إيقاف التفكير الموسّع', en: 'Extended reasoning off' }
+      }
+    ];
+
+    let qjoFunctions = { search: false, deep: false, reason: false };
     let qjoTheme = localStorage.getItem(THEME_KEY) || 'light';
     let qjoLanguage = localStorage.getItem(LANGUAGE_KEY) || 'ar';
     let busy = false;
@@ -1268,15 +1297,7 @@ Active mode: Code. Elite Principal Software Architect & Full-Stack Engineer. Zer
         ? `\n\nSaved user corrections:\n${qjoLearning.slice(-20).map((note, i) => `${i + 1}. ${note}`).join('\n')}\n\nApply only when relevant and safe.`
         : '';
 
-      const isPolishActive = Boolean(document.getElementById('togglePolish')?.classList.contains('active'));
-      const polishOverlay = isPolishActive ? `\n\nACTIVE LITERARY & STYLIST OVERLAY:
-The user explicitly toggled Literary Craftsmanship & Formatting.
-1. Restructure: Dissect any scattered, chaotic or bulleted thoughts and reshape them into a seamless, captivating narrative arc with elegant transitional phrasing (حسن التخلص والربط المحكم).
-2. Arabic Mastery: Deliver flawless, elevated Modern Standard Arabic (فصحى بليغة جزلة خالية تماماً من اللحن والأخطاء النحوية والإملائية وتنافر الحروف) using exquisite rhetoric (البيان والبديع) suited to the context.
-3. English Mastery: If the language is English, write with prestigious, publication-grade cadence, rich vocabulary, and impeccable syntax.
-4. Visual Typography: Use prestigious Markdown layout (clear ### headings, indented blockquotes > for poignant axioms, stylized bullet points, bold emphasis for effortless visual scanning).` : '';
-
-      return QJO_SYSTEM_PROMPT + currentDateContext + modeInstruction + polishOverlay + skillCapsules + ownerKnowledge + remoteTraining + preferenceContext + learnedCorrections;
+      return QJO_SYSTEM_PROMPT + currentDateContext + modeInstruction + skillCapsules + ownerKnowledge + remoteTraining + preferenceContext + learnedCorrections;
     }
 
     function applyTheme() {
@@ -1301,8 +1322,8 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
         topSubtitle: 'ذكاء واضح بتجربة راقية', welcomeKicker: 'Qjo Assistant', welcomeTitle: 'ابنِ شيئًا <em>مذهلاً</em>', welcomeText: 'ابدأ الكتابة بالأسفل، أو اختر من الأزرار لتبدأ بسرعة. Qjo يساعدك تفكر، تكتب، تتعلم وتبني بذكاء ووضوح.',
         suggest1Title: 'اقترح فكرة مشروع', suggest1Text: 'أفكار عملية قابلة للتنفيذ مع خطوات بداية واضحة.', suggest2Title: 'نظّم يومي', suggest2Text: 'خطة مختصرة تساعدك ترتب الأولويات بسرعة.', suggest3Title: 'اشرح مفهومًا', suggest3Text: 'شرح واضح وبسيط لأي موضوع تريد فهمه.',
         placeholder: 'اكتب رسالتك هنا...', normal: 'Flash', advanced: 'Max', code: 'Code', hint: 'Enter للإرسال · Shift + Enter لسطر جديد', settingsTitle: 'الإعدادات', close: 'إغلاق', languageTitle: 'اللغة', languageDesc: 'اختر لغة واجهة Qjo.', appearanceTitle: 'المظهر', appearanceDesc: 'بدّل بين الوضع الفاتح والداكن.', toggleAppearance: 'تبديل المظهر', accountTitle: 'الحساب', logout: 'تسجيل الخروج', notSigned: 'غير مسجل',
-        chatsListLabel: 'المحادثات', sidebarText: 'مساعد ذكي يساعدك تفكر، تكتب، تتعلم، وتبني بسرعة ووضوح.', logoutDirectBtn: 'خروج', noInternet: 'لا يوجد اتصال بالإنترنت. سيتم تعطيل الإرسال مؤقتًا.', statusReading: 'Qjo يقرأ...', statusThinking: 'Qjo يفكر...', cancelBtn: 'إلغاء', searchBtn: 'بحث', deepSearchBtn: 'بحث عميق', reasonBtn: 'تفكير', polishBtn: 'صياغة أدبية', attachMenuUpload: 'رفع ملف', attachMenuDrive: 'من جوجل درايف', attachMenuUi: 'تصميم UI', attachMenuWeb: 'قراءة صفحة', attachMenuChart: 'رسم بياني', attachMenuQuiz: 'صنع اختبار', attachMenuSearch: 'بحث يوتيوب', attachMenuTts: 'صوت ذكي', qsHeader: 'اقتراحات', soon: 'قريبًا',
-        currentAssistant: 'المساعد الحالي', showAllChats: 'عرض كل المحادثات', emptyChats: 'لا توجد محادثات بعد', qsparkSoon: 'Q-Spark — قريبًا', qcodeSoon: 'Qcode — قريبًا', defaultUserName: 'مستخدم', toggleSidebar: 'إخفاء/إظهار الشريط الجانبي', exportChat: 'تصدير المحادثة', scrollToBottom: 'النزول لآخر المحادثة', mobileToolsTitle: 'أدوات وتصنيفات الذكاء', tools: 'أدوات', searchTitle: 'بحث في الويب', deepSearchTitle: 'بحث عميق متعمق', reasonTitle: 'تفكير منطقي موسع', polishTitle: 'صياغة وترتيب أدبي وبلاغي للنصوص المبعثرة', attachFile: 'إرفاق ملف', voiceInput: 'تسجيل صوتي', sendBtn: 'إرسال',
+        chatsListLabel: 'المحادثات', sidebarText: 'مساعد ذكي يساعدك تفكر، تكتب، تتعلم، وتبني بسرعة ووضوح.', logoutDirectBtn: 'خروج', noInternet: 'لا يوجد اتصال بالإنترنت. سيتم تعطيل الإرسال مؤقتًا.', statusReading: 'Qjo يقرأ...', statusThinking: 'Qjo يفكر...', cancelBtn: 'إلغاء', searchBtn: 'بحث', deepSearchBtn: 'بحث عميق', reasonBtn: 'تفكير', attachMenuUpload: 'رفع ملف', attachMenuDrive: 'من جوجل درايف', attachMenuUi: 'تصميم UI', attachMenuWeb: 'قراءة صفحة', attachMenuChart: 'رسم بياني', attachMenuQuiz: 'صنع اختبار', attachMenuSearch: 'بحث يوتيوب', attachMenuTts: 'صوت ذكي', qsHeader: 'اقتراحات', soon: 'قريبًا',
+        currentAssistant: 'المساعد الحالي', showAllChats: 'عرض كل المحادثات', emptyChats: 'لا توجد محادثات بعد', qsparkSoon: 'Q-Spark — قريبًا', qcodeSoon: 'Qcode — قريبًا', defaultUserName: 'مستخدم', toggleSidebar: 'إخفاء/إظهار الشريط الجانبي', exportChat: 'تصدير المحادثة', scrollToBottom: 'النزول لآخر المحادثة', mobileToolsTitle: 'أدوات وتصنيفات الذكاء', tools: 'أدوات', searchTitle: 'بحث في الويب', deepSearchTitle: 'بحث عميق متعمق', reasonTitle: 'تفكير منطقي موسع', attachFile: 'إرفاق ملف', sendBtn: 'إرسال',
         catCode: 'توليد كود', catLaunch: 'إطلاق تطبيق', catUi: 'مكونات UI', catTheme: 'أفكار ثيمات', catDashboard: 'لوحة مستخدم', catLanding: 'صفحة هبوط', catDocs: 'رفع مستندات', catAssets: 'صور وأصول', catIdeas: 'اقتراحات',
         drawerTitle: 'أدوات وميزات Qjo', drawerBlockAi: 'ميزات الذكاء النشطة', drawerBlockCats: 'التصنيفات والإنشاء السريع',
         allChatsTitle: 'كل المحادثات', searchChats: 'ابحث في أسماء المحادثات...', deleteChatPrompt: 'هل أنت متأكد من حذف هذه المحادثة؟', renameChatPrompt: 'أدخل العنوان الجديد للمحادثة:', chatNotFound: 'هذه المحادثة غير موجودة أو تم حذفها.', chatDeleted: 'هذه المحادثة محذوفة.', renameBtnTitle: 'إعادة تسمية', deleteBtnTitle: 'حذف المحادثة', noMatchingChats: 'لا توجد نتائج مطابقة',
@@ -1313,7 +1334,7 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
         authTitle: 'تسجيل الدخول إلى Qjo', authSub: 'سجّل دخولك لحفظ محادثاتك والوصول لكامل مزايا المنصة.', authOrEmail: 'أو بالبريد الإلكتروني', authEmailLabel: 'البريد الإلكتروني', authPasswordLabel: 'كلمة المرور', authRemember: 'تذكرني على هذا الجهاز', authLoginBtn: 'تسجيل الدخول', authSignupBtn: 'إنشاء حساب جديد', authNote: 'Qjo يحفظ جلساتك بأمان ومحمي بأعلى معايير التشفير.',
         authHeroTitle: 'فكّر بعمق.<br>ابْتَكِر بلا حدود.<br><span>أنجِز بذكاء فائق.</span>', authHeroDesc: 'مساحة العمل المتكاملة للمطورين والمبدعين. سرعة فائقة، دقة استثنائية، وأدوات متقدمة ترتقي بإنتاجيتك إلى أعلى مستوى.', authHeroQuote: '« الإبداع الحقيقي يبدأ عندما تلتقي فكرتك مع الأداة الصحيحة. »',
         avatarTitle: 'اختر صورتك', avatarSub: 'اختر صورة شخصية من الأفاتارات الجاهزة، أو استخدم صورتك من جوجل إذا سجّلت الدخول بها.', avatarMe: 'أنا', avatarChooseFav: 'اختر أفاتارك المفضل', avatarUseGoogle: 'استخدام صورة جوجل', avatarResetInitial: 'إعادة للحرف',
-        reasoning: 'مسار التفكير', thinking: 'التفكير...', thoughtFor: 'تم التفكير في', reasoningInit: 'بدء التفكير واستحضار السياق...', stopGen: 'تم إيقاف التوليد.', copyCode: 'نسخ الكود', copied: 'تم النسخ!', generatingResponse: 'جاري توليد الرد...', searchDesc: 'معلومات حية ومصادر', deepSearchDesc: 'تحليل دقيق وموسع', reasonDesc: 'استدلال تسلسلي عميق', polishDesc: 'فصاحة وبلاغة وتنسيق'
+        reasoning: 'مسار التفكير', thinking: 'التفكير...', thoughtFor: 'تم التفكير في', reasoningInit: 'بدء التفكير واستحضار السياق...', stopGen: 'تم إيقاف التوليد.', copyCode: 'نسخ الكود', copied: 'تم النسخ!', generatingResponse: 'جاري توليد الرد...', searchDesc: 'معلومات حية ومصادر', deepSearchDesc: 'تحليل دقيق وموسع', reasonDesc: 'استدلال تسلسلي عميق'
       },
       en: {
         dir: 'ltr', lang: 'en',
@@ -1321,8 +1342,8 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
         topSubtitle: 'Clear intelligence, refined experience', welcomeKicker: 'Qjo Assistant', welcomeTitle: 'How can I <em>help you</em> today?', welcomeText: 'Ask, write, plan, learn, or build something new. Qjo is designed to give clear, practical answers without unnecessary complexity.',
         suggest1Title: 'Suggest a project idea', suggest1Text: 'Practical ideas with clear first steps.', suggest2Title: 'Organize my day', suggest2Text: 'A concise plan to help prioritize quickly.', suggest3Title: 'Explain a concept', suggest3Text: 'A clear, simple explanation of any topic.',
         placeholder: 'Message Qjo...', normal: 'Flash', advanced: 'Max', code: 'Code', hint: 'Enter to send · Shift + Enter for new line', settingsTitle: 'Settings', close: 'Close', languageTitle: 'Language', languageDesc: 'Choose Qjo interface language.', appearanceTitle: 'Appearance', appearanceDesc: 'Switch between light and dark mode.', toggleAppearance: 'Toggle theme', accountTitle: 'Account', logout: 'Log out', notSigned: 'Not signed in',
-        chatsListLabel: 'Chats', sidebarText: 'A smart assistant that helps you think, write, learn, and build with speed and clarity.', logoutDirectBtn: 'Log out', noInternet: 'No internet connection. Sending is temporarily disabled.', statusReading: 'Qjo is reading...', statusThinking: 'Qjo is thinking...', cancelBtn: 'Cancel', searchBtn: 'Search', deepSearchBtn: 'Deep Search', reasonBtn: 'Think', polishBtn: 'Polish', attachMenuUpload: 'Upload file', attachMenuDrive: 'Google Drive', attachMenuUi: 'UI Design', attachMenuWeb: 'Read Page', attachMenuChart: 'Chart', attachMenuQuiz: 'Create Quiz', attachMenuSearch: 'Search YouTube', attachMenuTts: 'Smart Voice', qsHeader: 'Shortcuts', soon: 'Soon',
-        currentAssistant: 'Current Assistant', showAllChats: 'Show all chats', emptyChats: 'No chats yet', qsparkSoon: 'Q-Spark — Coming soon', qcodeSoon: 'Qcode — Coming soon', defaultUserName: 'User', toggleSidebar: 'Toggle sidebar', exportChat: 'Export chat', scrollToBottom: 'Scroll to bottom', mobileToolsTitle: 'AI Tools & Categories', tools: 'Tools', searchTitle: 'Search the web', deepSearchTitle: 'Deep search', reasonTitle: 'Extended reasoning', polishTitle: 'Refine and polish text', attachFile: 'Attach file', voiceInput: 'Voice input', sendBtn: 'Send',
+        chatsListLabel: 'Chats', sidebarText: 'A smart assistant that helps you think, write, learn, and build with speed and clarity.', logoutDirectBtn: 'Log out', noInternet: 'No internet connection. Sending is temporarily disabled.', statusReading: 'Qjo is reading...', statusThinking: 'Qjo is thinking...', cancelBtn: 'Cancel', searchBtn: 'Search', deepSearchBtn: 'Deep Search', reasonBtn: 'Think', attachMenuUpload: 'Upload file', attachMenuDrive: 'Google Drive', attachMenuUi: 'UI Design', attachMenuWeb: 'Read Page', attachMenuChart: 'Chart', attachMenuQuiz: 'Create Quiz', attachMenuSearch: 'Search YouTube', attachMenuTts: 'Smart Voice', qsHeader: 'Shortcuts', soon: 'Soon',
+        currentAssistant: 'Current Assistant', showAllChats: 'Show all chats', emptyChats: 'No chats yet', qsparkSoon: 'Q-Spark — Coming soon', qcodeSoon: 'Qcode — Coming soon', defaultUserName: 'User', toggleSidebar: 'Toggle sidebar', exportChat: 'Export chat', scrollToBottom: 'Scroll to bottom', mobileToolsTitle: 'AI Tools & Categories', tools: 'Tools', searchTitle: 'Search the web', deepSearchTitle: 'Deep search', reasonTitle: 'Extended reasoning', attachFile: 'Attach file', sendBtn: 'Send',
         catCode: 'Code Gen', catLaunch: 'Launch App', catUi: 'UI Components', catTheme: 'Themes', catDashboard: 'Dashboard', catLanding: 'Landing Page', catDocs: 'Upload Docs', catAssets: 'Assets', catIdeas: 'Ideas',
         drawerTitle: 'Qjo Tools & Features', drawerBlockAi: 'Active AI Features', drawerBlockCats: 'Categories & Quick Actions',
         allChatsTitle: 'All Chats', searchChats: 'Search chats...', deleteChatPrompt: 'Are you sure you want to delete this chat?', renameChatPrompt: 'Enter new chat title:', chatNotFound: 'This chat does not exist or was deleted.', chatDeleted: 'This chat has been deleted.', renameBtnTitle: 'Rename', deleteBtnTitle: 'Delete chat', noMatchingChats: 'No matching chats found',
@@ -1333,7 +1354,7 @@ The user explicitly toggled Literary Craftsmanship & Formatting.
         authTitle: 'Sign in to Qjo', authSub: 'Sign in to save your chats and access all features.', authOrEmail: 'or with email', authEmailLabel: 'Email address', authPasswordLabel: 'Password', authRemember: 'Remember me on this device', authLoginBtn: 'Sign In', authSignupBtn: 'Create New Account', authNote: 'Qjo keeps your sessions secure and protected.',
         authHeroTitle: 'Think deeply.<br>Create without limits.<br><span>Achieve with super intelligence.</span>', authHeroDesc: 'The integrated workspace for developers and creators. Blazing speed, exceptional precision, and advanced tools elevating your productivity.', authHeroQuote: '“True creativity begins when your idea meets the right tool.”',
         avatarTitle: 'Choose Your Avatar', avatarSub: 'Choose a profile avatar, or use your Google profile photo.', avatarMe: 'Me', avatarChooseFav: 'Choose your avatar', avatarUseGoogle: 'Use Google photo', avatarResetInitial: 'Reset to initial',
-        reasoning: 'Thought Process', thinking: 'Thinking...', thoughtFor: 'Thought for', reasoningInit: 'Analyzing request and context...', stopGen: 'Generation stopped.', copyCode: 'Copy code', copied: 'Copied!', generatingResponse: 'Generating response...', searchDesc: 'Live info & sources', deepSearchDesc: 'Deep & detailed analysis', reasonDesc: 'Sequential deep reasoning', polishDesc: 'Refinement, clarity & tone'
+        reasoning: 'Thought Process', thinking: 'Thinking...', thoughtFor: 'Thought for', reasoningInit: 'Analyzing request and context...', stopGen: 'Generation stopped.', copyCode: 'Copy code', copied: 'Copied!', generatingResponse: 'Generating response...', searchDesc: 'Live info & sources', deepSearchDesc: 'Deep & detailed analysis', reasonDesc: 'Sequential deep reasoning'
       }
     };
 
@@ -3850,7 +3871,19 @@ if len(__qjo_err_str) > 20000:
       return pendingAttachments.some(item => item.text || (item.type.startsWith('image/') && item.dataUrl));
     }
 
+    // Reasoning ON promotes the request to max mode, which selects the larger
+    // provider slots and the self-check prompt overlay server-side.
+    function effectiveMode() {
+      return qjoFunctions.reason ? 'max' : qjoMode;
+    }
+
     function getGenerationConfig(hasAttachmentAnalysis) {
+      // Extended reasoning needs room to reason AND answer; the default budget
+      // truncates the answer once a self-check pass is added in front of it.
+      if (qjoFunctions.reason && !hasImageAttachments()) {
+        return { temperature: 0.3, max_tokens: Math.max(TEXT_MAX_TOKENS, 4200) };
+      }
+
       if (hasImageAttachments()) {
         return { temperature: 0.2, max_tokens: VISION_MAX_TOKENS };
       }
@@ -4008,8 +4041,11 @@ if len(__qjo_err_str) > 20000:
     }
 
     function needsWebSearch(text) {
-      if (isSocialSmallTalk(text)) return false;
+      // A safety guard still wins over the toggle; a heuristic does not. When
+      // the user explicitly switches Search on, that is a decision, not a hint.
       if (isUnsafeSecurityBypassRequest(text)) return false;
+      if (qjoFunctions.search) return true;
+      if (isSocialSmallTalk(text)) return false;
       if (isContextualTransformRequest(text)) return false;
       const normalizedText = normalizeUserQueryForSearch(text);
       const q = String(normalizedText || '').toLowerCase();
@@ -4056,6 +4092,7 @@ if len(__qjo_err_str) > 20000:
     }
 
     function needsDeepSearch(text) {
+      if (qjoFunctions.deep) return true;
       const q = String(text || '').toLowerCase();
       const explicitDeep = /(بحث\s*عميق|ديب\s*سيرش|مصادر\s*متعددة|تقرير\s*بحثي|دراسة\s*شاملة|deep\s*search|deep research|full report|systematic|literature review)/i.test(q);
       if (explicitDeep) return true;
@@ -4503,10 +4540,23 @@ if len(__qjo_err_str) > 20000:
         const normalizedSearchText = normalizeUserQueryForSearch(rawText);
         lastSearchSources = [];
         const searchTextForDecision = normalizedSearchText || rawText;
+        if (qjoFunctions.reason) {
+          appendReasoningStep(qjoLanguage === 'ar'
+            ? 'وضع التفكير الموسّع: تحليل أعمق ومراجعة ذاتية قبل الإجابة'
+            : 'Extended reasoning: deeper analysis with a self-review pass', true);
+        }
         if (needsWebSearch(searchTextForDecision)) {
+          // Say when a search happened because the user asked for it rather
+          // than because the heuristic fired — otherwise an explicit toggle
+          // looks identical to an automatic decision.
+          const forced = qjoFunctions.search;
           appendReasoningStep(needsDeepSearch(searchTextForDecision)
-            ? (qjoLanguage === 'ar' ? 'بحث عميق في المصادر والويب...' : 'Running deep web search...')
-            : (qjoLanguage === 'ar' ? 'بحث سريع في المصادر...' : 'Searching live sources...'), true);
+            ? (qjoLanguage === 'ar'
+                ? (qjoFunctions.deep ? 'بحث عميق (مُفعّل يدويًا): استعلامات متعددة عبر المصادر...' : 'بحث عميق في المصادر والويب...')
+                : (qjoFunctions.deep ? 'Deep search (manually enabled): multi-query research...' : 'Running deep web search...'))
+            : (qjoLanguage === 'ar'
+                ? (forced ? 'بحث مباشر (مُفعّل يدويًا) في المصادر...' : 'بحث سريع في المصادر...')
+                : (forced ? 'Live search (manually enabled)...' : 'Searching live sources...')), true);
         }
         const webSearchContext = await getWebSearchContext(searchTextForDecision);
         if (webSearchContext) {
@@ -4547,7 +4597,7 @@ if len(__qjo_err_str) > 20000:
             ],
             temperature: generationConfig.temperature,
             max_tokens: generationConfig.max_tokens,
-            mode: qjoMode,
+            mode: effectiveMode(),
             stream: true
           })
         });
@@ -5928,27 +5978,81 @@ if len(__qjo_err_str) > 20000:
     setTimeout(installSuggestionPop, 400);
 
     // --- Function toggles (Search / Deep / Reason) ---
-    function installFunctionToggles(){
-      const toggles = [
-        { btn: 'toggleSearch', flag: 'tavily', label: 'Search enabled' },
-        { btn: 'toggleDeep', flag: 'deep', label: 'Deep research enabled' },
-        { btn: 'toggleReason', flag: 'reason', label: 'Reasoning enabled' },
-        { btn: 'togglePolish', flag: 'polish', label: 'تم تفعيل الصياغة الأدبية والتدقيق اللغوي 🖋️' },
-      ];
-      toggles.forEach(({btn}) => {
-        const b = document.getElementById(btn);
-        if (!b) return;
-        b.addEventListener('click', () => {
-          b.classList.toggle('active');
-          const label = b.querySelector('span');
-          if (b.classList.contains('active')){
-            showMicroToast(b.dataset.on || 'تم تفعيل الخاصية ✨');
-          }
-        });
-      });
+    // ── Composer function toggles ────────────────────────────────────────
+    // These used to only add a CSS class and show a toast: nothing ever read
+    // their state, so Search / Deep Search / Reasoning were decorative. They
+    // now drive real request behaviour and survive a reload.
+    //
+    // State lives here rather than being read back off the DOM, so the desktop
+    // pills and the mobile tools sheet cannot disagree about what is enabled.
+    function loadFunctionToggles() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(FUNCTION_TOGGLES_KEY) || '{}');
+        qjoFunctions = {
+          search: Boolean(saved.search),
+          deep: Boolean(saved.deep),
+          reason: Boolean(saved.reason)
+        };
+        // Deep search IS a search, so the pair can never be left inconsistent.
+        if (qjoFunctions.deep) qjoFunctions.search = true;
+      } catch (_) {
+        qjoFunctions = { search: false, deep: false, reason: false };
+      }
     }
 
-    // --- Quick command categories (Learn / Code / Write / Plan) ---
+    function saveFunctionToggles() {
+      try { localStorage.setItem(FUNCTION_TOGGLES_KEY, JSON.stringify(qjoFunctions)); }
+      catch (_) { /* private mode — the toggles still work for this session */ }
+    }
+
+    // Mirrors state onto the pills, the mobile sheet and the notch indicator.
+    function renderFunctionToggles() {
+      FUNCTION_TOGGLES.forEach(({ id, key }) => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        const active = Boolean(qjoFunctions[key]);
+        btn.classList.toggle('active', active);
+        btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+      });
+      document.dispatchEvent(new CustomEvent('qjo:functions-changed'));
+    }
+
+    function setFunctionToggle(key, active, { announce = true } = {}) {
+      const next = Boolean(active);
+      if (qjoFunctions[key] === next) return;
+      qjoFunctions[key] = next;
+
+      // Dependency: deep search implies search; clearing search clears deep.
+      let implied = '';
+      if (key === 'deep' && next && !qjoFunctions.search) {
+        qjoFunctions.search = true;
+        implied = qjoLanguage === 'ar' ? ' (وتم تفعيل البحث تلقائيًا)' : ' (search enabled too)';
+      }
+      if (key === 'search' && !next && qjoFunctions.deep) {
+        qjoFunctions.deep = false;
+        implied = qjoLanguage === 'ar' ? ' (وتم إيقاف البحث العميق)' : ' (deep search disabled too)';
+      }
+
+      saveFunctionToggles();
+      renderFunctionToggles();
+
+      if (!announce) return;
+      const def = FUNCTION_TOGGLES.find(t => t.key === key);
+      if (!def) return;
+      const msg = (next ? def.on : def.off)[qjoLanguage === 'ar' ? 'ar' : 'en'];
+      showMicroToast(msg + implied);
+    }
+
+    function installFunctionToggles(){
+      loadFunctionToggles();
+      FUNCTION_TOGGLES.forEach(({ id, key }) => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        btn.addEventListener('click', () => setFunctionToggle(key, !qjoFunctions[key]));
+      });
+      renderFunctionToggles();
+    }
+
     function installQuickCategories(){
       const suggestionsAr = {
         code: [
@@ -6363,8 +6467,7 @@ if len(__qjo_err_str) > 20000:
       const toggleDefs = [
         { id: 'toggleSearch', icon: '🔍', titleKey: 'searchTitle', descKey: 'searchDesc' },
         { id: 'toggleDeep', icon: '🎯', titleKey: 'deepSearchTitle', descKey: 'deepSearchDesc' },
-        { id: 'toggleReason', icon: '🧠', titleKey: 'reasonTitle', descKey: 'reasonDesc' },
-        { id: 'togglePolish', icon: '🖋️', titleKey: 'polishTitle', descKey: 'polishDesc' }
+        { id: 'toggleReason', icon: '🧠', titleKey: 'reasonTitle', descKey: 'reasonDesc' }
       ];
 
       function updateIndicator() {
