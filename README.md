@@ -159,12 +159,8 @@ Tracked in `docs/reports/QJO_FULL_REPO_SCAN_REPORT.md` (full repo scan + fix log
 - Remaining `npm audit` findings sit in transitive deps of `firebase-admin`
   and `puppeteer` and need major upgrades.
 - `public/app.js` (~6k lines) should be split into modules.
-- **Mode switcher UI is missing.** `public/index.html` has no markup for
-  `modeCurrentBtn` / `modeMenu` / `normalModeBtn` / `advancedModeBtn` /
-  `codeModeBtn`, so the handlers in `app.js` are permanently null-guarded and
-  `qjoMode` is stuck on `normal`. Max and Code modes — and their server-side
-  pipelines and prompt overlays — are therefore unreachable from the UI. The
-  stability audit reports this as a warning rather than a failure.
+- Streaming state (job queue, caches) is per-instance, so a second web instance
+  would not share it.
 - Move Firebase web config to `/api/public-config` instead of duplicating it
   across five frontend files.
 - Add billing/subscriptions if this will be paid.
@@ -191,6 +187,30 @@ When `TAVILY_API_KEY` is configured, Qjo supports two levels of search:
 
 In Max mode or for complex questions, the frontend automatically uses Deep Search, deduplicates sources server-side, and sends source summaries to Qjo.
 
+
+## Answer modes
+
+The composer offers two modes, and they differ all the way down:
+
+| | Flash | Max |
+|---|---|---|
+| Provider slot | `flash` (e.g. `openai/gpt-oss-20b`) | `text` (e.g. `openai/gpt-oss-120b`) |
+| Prompt overlay | action-first, compact, answer on line one | self-check pass, then الخلاصة → التحليل → الخطة |
+| Token budget | 2000 (4200 for code) | 4000 (5200 for code) |
+| Temperature | 0.22 | 0.16 |
+| Per-provider deadline | 18s | 25s |
+
+Arabic-heavy requests in Max use their own fallback order (`maxAr`), which puts
+Qwen and Kimi ahead of the llm7 aggregator because they are stronger in Arabic.
+Groq stays primary in both for latency.
+
+Code is not a selectable mode. Coding requests are detected server-side and get
+the engineering overlay — zero-laziness, file-path headers, security and error
+handling — on top of whichever mode is active, so the two compose instead of
+competing.
+
+There is deliberately no separate "extended reasoning" toggle: Max **is** the
+deeper-reasoning mode, and offering both was two doors to the same room.
 
 ## In-browser code execution
 

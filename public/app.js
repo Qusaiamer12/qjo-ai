@@ -560,12 +560,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     const exportChatBtn = el('exportChatBtn');
     const normalModeBtn = el('normalModeBtn');
     const advancedModeBtn = el('advancedModeBtn');
-    const codeModeBtn = el('codeModeBtn');
-    const modeCurrentBtn = el('modeCurrentBtn');
-    const modeCurrentText = el('modeCurrentText');
-    const modeCurrentIcon = el('modeCurrentIcon');
-    const modeDropdown = el('modeDropdown');
-    const modeMenu = el('modeMenu');
     const mobileMenuBtn = el('mobileMenuBtn');
     const drawerBackdrop = el('drawerBackdrop');
     const qjoLogo = el('qjoLogo');
@@ -675,7 +669,10 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     let qjoLearning = JSON.parse(localStorage.getItem(LEARNING_KEY) || '[]');
     let remoteConfig = {};
     let userPreferences = {};
-    let qjoMode = localStorage.getItem(MODE_KEY) || 'normal';
+    // Only Flash ('normal') and Max ('advanced') are selectable. A 'code' value
+    // persisted by an older build normalises to Flash; coding requests are still
+    // detected server-side and get the engineering overlay on their own.
+    let qjoMode = ['normal', 'advanced'].includes(localStorage.getItem(MODE_KEY)) ? localStorage.getItem(MODE_KEY) : 'normal';
     // Composer function toggles. Declared here, alongside the rest of the app
     // state, because needsWebSearch/needsDeepSearch/getGenerationConfig read it
     // and all of them are reachable before installFunctionToggles() runs — a
@@ -695,16 +692,10 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         key: 'deep',
         on: { ar: 'البحث العميق مفعّل — استعلامات متعددة ومصادر موسّعة 🎯', en: 'Deep search on — multi-query research with extended sources 🎯' },
         off: { ar: 'تم إيقاف البحث العميق', en: 'Deep search off' }
-      },
-      {
-        id: 'toggleReason',
-        key: 'reason',
-        on: { ar: 'وضع التفكير الموسّع مفعّل — تحليل أعمق ومراجعة ذاتية 🧠', en: 'Extended reasoning on — deeper analysis with self-review 🧠' },
-        off: { ar: 'تم إيقاف التفكير الموسّع', en: 'Extended reasoning off' }
       }
     ];
 
-    let qjoFunctions = { search: false, deep: false, reason: false };
+    let qjoFunctions = { search: false, deep: false };
     let qjoTheme = localStorage.getItem(THEME_KEY) || 'light';
     let qjoLanguage = localStorage.getItem(LANGUAGE_KEY) || 'ar';
     let busy = false;
@@ -1314,7 +1305,7 @@ Crucial temporal grounding:
         newChat: 'محادثة جديدة', shortcuts: 'اختصارات', structuredThinking: 'رتّب أفكاري', professionalWriting: 'اكتب محتوى', executionPlan: 'درّبني', system: 'النظام', darkMode: 'الوضع الداكن', lightMode: 'الوضع الفاتح',
         topSubtitle: 'ذكاء واضح بتجربة راقية', welcomeKicker: 'Qjo Assistant', welcomeTitle: 'ابنِ شيئًا <em>مذهلاً</em>', welcomeText: 'ابدأ الكتابة بالأسفل، أو اختر من الأزرار لتبدأ بسرعة. Qjo يساعدك تفكر، تكتب، تتعلم وتبني بذكاء ووضوح.',
         suggest1Title: 'اقترح فكرة مشروع', suggest1Text: 'أفكار عملية قابلة للتنفيذ مع خطوات بداية واضحة.', suggest2Title: 'نظّم يومي', suggest2Text: 'خطة مختصرة تساعدك ترتب الأولويات بسرعة.', suggest3Title: 'اشرح مفهومًا', suggest3Text: 'شرح واضح وبسيط لأي موضوع تريد فهمه.',
-        placeholder: 'اكتب رسالتك هنا...', normal: 'Flash', advanced: 'Max', code: 'Code', hint: 'Enter للإرسال · Shift + Enter لسطر جديد', settingsTitle: 'الإعدادات', close: 'إغلاق', languageTitle: 'اللغة', languageDesc: 'اختر لغة واجهة Qjo.', appearanceTitle: 'المظهر', appearanceDesc: 'بدّل بين الوضع الفاتح والداكن.', toggleAppearance: 'تبديل المظهر', accountTitle: 'الحساب', logout: 'تسجيل الخروج', notSigned: 'غير مسجل',
+        placeholder: 'اكتب رسالتك هنا...', normal: 'Flash', advanced: 'Max', modeGroup: 'وضع الإجابة', flashModeTitle: 'فلاش — إجابة سريعة ومباشرة', maxModeTitle: 'ماكس — تحليل أعمق ودقة أعلى', hint: 'Enter للإرسال · Shift + Enter لسطر جديد', settingsTitle: 'الإعدادات', close: 'إغلاق', languageTitle: 'اللغة', languageDesc: 'اختر لغة واجهة Qjo.', appearanceTitle: 'المظهر', appearanceDesc: 'بدّل بين الوضع الفاتح والداكن.', toggleAppearance: 'تبديل المظهر', accountTitle: 'الحساب', logout: 'تسجيل الخروج', notSigned: 'غير مسجل',
         chatsListLabel: 'المحادثات', sidebarText: 'مساعد ذكي يساعدك تفكر، تكتب، تتعلم، وتبني بسرعة ووضوح.', logoutDirectBtn: 'خروج', noInternet: 'لا يوجد اتصال بالإنترنت. سيتم تعطيل الإرسال مؤقتًا.', statusReading: 'Qjo يقرأ...', statusThinking: 'Qjo يفكر...', cancelBtn: 'إلغاء', searchBtn: 'بحث', deepSearchBtn: 'بحث عميق', reasonBtn: 'تفكير', attachMenuUpload: 'رفع ملف', attachMenuDrive: 'من جوجل درايف', attachMenuUi: 'تصميم UI', attachMenuWeb: 'قراءة صفحة', attachMenuChart: 'رسم بياني', attachMenuQuiz: 'صنع اختبار', attachMenuSearch: 'بحث يوتيوب', attachMenuTts: 'صوت ذكي', qsHeader: 'اقتراحات', soon: 'قريبًا',
         currentAssistant: 'المساعد الحالي', showAllChats: 'عرض كل المحادثات', emptyChats: 'لا توجد محادثات بعد', qsparkSoon: 'Q-Spark — قريبًا', qcodeSoon: 'Qcode — قريبًا', defaultUserName: 'مستخدم', toggleSidebar: 'إخفاء/إظهار الشريط الجانبي', exportChat: 'تصدير المحادثة', scrollToBottom: 'النزول لآخر المحادثة', mobileToolsTitle: 'أدوات وتصنيفات الذكاء', tools: 'أدوات', searchTitle: 'بحث في الويب', deepSearchTitle: 'بحث عميق متعمق', reasonTitle: 'تفكير منطقي موسع', attachFile: 'إرفاق ملف', sendBtn: 'إرسال',
         catCode: 'توليد كود', catLaunch: 'إطلاق تطبيق', catUi: 'مكونات UI', catTheme: 'أفكار ثيمات', catDashboard: 'لوحة مستخدم', catLanding: 'صفحة هبوط', catDocs: 'رفع مستندات', catAssets: 'صور وأصول', catIdeas: 'اقتراحات',
@@ -1334,7 +1325,7 @@ Crucial temporal grounding:
         newChat: 'New chat', shortcuts: 'Shortcuts', structuredThinking: 'Organize ideas', professionalWriting: 'Create content', executionPlan: 'Coach me', system: 'System', darkMode: 'Dark mode', lightMode: 'Light mode',
         topSubtitle: 'Clear intelligence, refined experience', welcomeKicker: 'Qjo Assistant', welcomeTitle: 'How can I <em>help you</em> today?', welcomeText: 'Ask, write, plan, learn, or build something new. Qjo is designed to give clear, practical answers without unnecessary complexity.',
         suggest1Title: 'Suggest a project idea', suggest1Text: 'Practical ideas with clear first steps.', suggest2Title: 'Organize my day', suggest2Text: 'A concise plan to help prioritize quickly.', suggest3Title: 'Explain a concept', suggest3Text: 'A clear, simple explanation of any topic.',
-        placeholder: 'Message Qjo...', normal: 'Flash', advanced: 'Max', code: 'Code', hint: 'Enter to send · Shift + Enter for new line', settingsTitle: 'Settings', close: 'Close', languageTitle: 'Language', languageDesc: 'Choose Qjo interface language.', appearanceTitle: 'Appearance', appearanceDesc: 'Switch between light and dark mode.', toggleAppearance: 'Toggle theme', accountTitle: 'Account', logout: 'Log out', notSigned: 'Not signed in',
+        placeholder: 'Message Qjo...', normal: 'Flash', advanced: 'Max', modeGroup: 'Answer mode', flashModeTitle: 'Flash — fast, direct answers', maxModeTitle: 'Max — deeper analysis, higher accuracy', hint: 'Enter to send · Shift + Enter for new line', settingsTitle: 'Settings', close: 'Close', languageTitle: 'Language', languageDesc: 'Choose Qjo interface language.', appearanceTitle: 'Appearance', appearanceDesc: 'Switch between light and dark mode.', toggleAppearance: 'Toggle theme', accountTitle: 'Account', logout: 'Log out', notSigned: 'Not signed in',
         chatsListLabel: 'Chats', sidebarText: 'A smart assistant that helps you think, write, learn, and build with speed and clarity.', logoutDirectBtn: 'Log out', noInternet: 'No internet connection. Sending is temporarily disabled.', statusReading: 'Qjo is reading...', statusThinking: 'Qjo is thinking...', cancelBtn: 'Cancel', searchBtn: 'Search', deepSearchBtn: 'Deep Search', reasonBtn: 'Think', attachMenuUpload: 'Upload file', attachMenuDrive: 'Google Drive', attachMenuUi: 'UI Design', attachMenuWeb: 'Read Page', attachMenuChart: 'Chart', attachMenuQuiz: 'Create Quiz', attachMenuSearch: 'Search YouTube', attachMenuTts: 'Smart Voice', qsHeader: 'Shortcuts', soon: 'Soon',
         currentAssistant: 'Current Assistant', showAllChats: 'Show all chats', emptyChats: 'No chats yet', qsparkSoon: 'Q-Spark — Coming soon', qcodeSoon: 'Qcode — Coming soon', defaultUserName: 'User', toggleSidebar: 'Toggle sidebar', exportChat: 'Export chat', scrollToBottom: 'Scroll to bottom', mobileToolsTitle: 'AI Tools & Categories', tools: 'Tools', searchTitle: 'Search the web', deepSearchTitle: 'Deep search', reasonTitle: 'Extended reasoning', attachFile: 'Attach file', sendBtn: 'Send',
         catCode: 'Code Gen', catLaunch: 'Launch App', catUi: 'UI Components', catTheme: 'Themes', catDashboard: 'Dashboard', catLanding: 'Landing Page', catDocs: 'Upload Docs', catAssets: 'Assets', catIdeas: 'Ideas',
@@ -1435,16 +1426,17 @@ Crucial temporal grounding:
       applyLanguage();
     }
 
-        function updateModeUI() {
-      if (normalModeBtn) normalModeBtn.classList.toggle('active', qjoMode === 'normal');
-      if (advancedModeBtn) advancedModeBtn.classList.toggle('active', qjoMode === 'advanced');
-      if (codeModeBtn) codeModeBtn.classList.toggle('active', qjoMode === 'code');
-      if (modeCurrentBtn) {
-        modeCurrentBtn.classList.remove('mode-flash', 'mode-pro', 'mode-code');
-        modeCurrentBtn.classList.add(qjoMode === 'advanced' ? 'mode-pro' : 'mode-flash');
+    function updateModeUI() {
+      const isMax = qjoMode === 'advanced';
+      if (normalModeBtn) {
+        normalModeBtn.classList.toggle('active', !isMax);
+        normalModeBtn.setAttribute('aria-checked', !isMax ? 'true' : 'false');
       }
-      if (modeCurrentText) modeCurrentText.textContent = qjoMode === 'advanced' ? t('advanced') : t('normal');
-      if (modeCurrentIcon) modeCurrentIcon.textContent = qjoMode === 'advanced' ? '◆' : '⚡';
+      if (advancedModeBtn) {
+        advancedModeBtn.classList.toggle('active', isMax);
+        advancedModeBtn.setAttribute('aria-checked', isMax ? 'true' : 'false');
+      }
+      // Lets CSS react to the active mode without another class hook.
       document.body.dataset.qjoMode = qjoMode;
     }
 
@@ -1464,40 +1456,6 @@ Crucial temporal grounding:
       qjoMode = nextMode;
       localStorage.setItem(MODE_KEY, qjoMode);
       updateModeUI();
-      closeModeDropdown();
-    }
-
-    function positionModeDropdown() {
-      const dd = modeDropdown || modeMenu;
-      if (!modeCurrentBtn || !dd) return;
-      const rect = modeCurrentBtn.getBoundingClientRect();
-      const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 360;
-      const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 640;
-      const isSmall = viewportWidth <= 768;
-      const dropdownWidth = Math.min(isSmall ? 300 : 190, Math.max(160, viewportWidth - 24));
-      const left = Math.min(Math.max(rect.left + (rect.width / 2) - (dropdownWidth / 2), 12), viewportWidth - dropdownWidth - 12);
-      const bottom = Math.min(Math.max(viewportHeight - rect.top + 10, 78), viewportHeight - 24);
-      document.documentElement.style.setProperty('--qjo-mode-dropdown-left', `${Math.round(left)}px`);
-      document.documentElement.style.setProperty('--qjo-mode-dropdown-bottom', `${Math.round(bottom)}px`);
-      document.documentElement.style.setProperty('--qjo-mode-dropdown-width', `${Math.round(dropdownWidth)}px`);
-    }
-
-    function toggleModeDropdown() {
-      if (!modeMenu || !modeCurrentBtn) return;
-      const isOpen = modeMenu.classList.toggle('open');
-      document.body.classList.toggle('mode-menu-open', isOpen);
-      modeCurrentBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-      if (isOpen) {
-        positionModeDropdown();
-        requestAnimationFrame(positionModeDropdown);
-      }
-    }
-
-    function closeModeDropdown() {
-      if (!modeMenu) return;
-      modeMenu.classList.remove('open');
-      document.body.classList.remove('mode-menu-open');
-      if (modeCurrentBtn) modeCurrentBtn.setAttribute('aria-expanded', 'false');
     }
 
     function setActivationStatus(status, text) {
@@ -3871,35 +3829,34 @@ if len(__qjo_err_str) > 20000:
       return pendingAttachments.some(item => item.text || (item.type.startsWith('image/') && item.dataUrl));
     }
 
-    // Reasoning ON promotes the request to max mode, which selects the larger
-    // provider slots and the self-check prompt overlay server-side.
-    function effectiveMode() {
-      return qjoFunctions.reason ? 'max' : qjoMode;
-    }
+    // Code answers must not be starved: running out of tokens mid-answer makes
+    // the server fire completeIfTruncated(), a second full LLM round-trip, which
+    // costs far more latency than the larger budget ever does.
+    const CODE_BUDGET_TERMS = ['code', 'كود', 'برمج', 'دالة', 'debug', 'bug', 'api', 'html', 'css',
+      'javascript', 'typescript', 'python', 'react', 'node', 'sql', 'تطبيق', 'موقع', 'سكربت', 'script', 'function', 'class'];
 
-    function getGenerationConfig(hasAttachmentAnalysis) {
-      // Extended reasoning needs room to reason AND answer; the default budget
-      // truncates the answer once a self-check pass is added in front of it.
-      if (qjoFunctions.reason && !hasImageAttachments()) {
-        return { temperature: 0.3, max_tokens: Math.max(TEXT_MAX_TOKENS, 4200) };
-      }
-
+    function getGenerationConfig(hasAttachmentAnalysis, userText) {
       if (hasImageAttachments()) {
         return { temperature: 0.2, max_tokens: VISION_MAX_TOKENS };
       }
       if (hasAttachmentAnalysis) {
         return { temperature: 0.2, max_tokens: Math.max(FILE_MAX_TOKENS, 2600) };
       }
-      if (qjoMode === 'normal') {
-        return { temperature: 0.22, max_tokens: 2000 };
+
+      const isMax = qjoMode === 'advanced';
+      const codeShaped = hasAny(userText || latestUserTextForPrompt(), CODE_BUDGET_TERMS);
+
+      if (codeShaped) {
+        // Complete, runnable files are the house standard, so code gets room in
+        // either mode; Max stays the more deliberate of the two.
+        return { temperature: 0.14, max_tokens: isMax ? 5200 : 4200 };
       }
-      if (qjoMode === 'advanced') {
-        return { temperature: 0.16, max_tokens: 3000 };
-      }
-      if (qjoMode === 'code') {
-        return { temperature: 0.14, max_tokens: 4200 };
-      }
-      return { temperature: 0.45, max_tokens: TEXT_MAX_TOKENS };
+      // Max's overlay asks for الخلاصة → التحليل → الخطة, which simply needs more
+      // room than Flash's compact shape. Lower temperature too: Max trades
+      // variety for accuracy.
+      return isMax
+        ? { temperature: 0.16, max_tokens: 4000 }
+        : { temperature: 0.22, max_tokens: 2000 };
     }
 
     function activeChatStorageKey() {
@@ -3956,7 +3913,8 @@ if len(__qjo_err_str) > 20000:
       sendBtn.disabled = isBusy || fileProcessing || !navigator.onLine;
       inputEl.disabled = isBusy;
       attachBtn.disabled = isBusy || fileProcessing;
-      if (modeCurrentBtn) modeCurrentBtn.disabled = isBusy;
+      if (normalModeBtn) normalModeBtn.disabled = isBusy;
+      if (advancedModeBtn) advancedModeBtn.disabled = isBusy;
       inputEl.placeholder = isBusy ? (qjoLanguage === 'ar' ? 'جاري توليد الرد...' : 'Generating response...') : t('placeholder');
     }
 
@@ -4356,7 +4314,7 @@ if len(__qjo_err_str) > 20000:
       const apiModel = hadImageAttachments
         ? GROQ_VISION_MODEL
         : (qjoMode === 'normal' ? GROQ_FLASH_MODEL : GROQ_MODEL);
-      const generationConfig = getGenerationConfig(hasAttachmentAnalysis);
+      const generationConfig = getGenerationConfig(hasAttachmentAnalysis, rawText);
       const apiAttachmentContent = buildCurrentUserApiContent(text, attachmentContext);
 
       lastFailedRequest = { text: rawText, fallbackText: text };
@@ -4594,11 +4552,6 @@ if len(__qjo_err_str) > 20000:
         const normalizedSearchText = normalizeUserQueryForSearch(rawText);
         lastSearchSources = [];
         const searchTextForDecision = normalizedSearchText || rawText;
-        if (qjoFunctions.reason) {
-          appendReasoningStep(qjoLanguage === 'ar'
-            ? 'وضع التفكير الموسّع: تحليل أعمق ومراجعة ذاتية قبل الإجابة'
-            : 'Extended reasoning: deeper analysis with a self-review pass', true);
-        }
         if (needsWebSearch(searchTextForDecision)) {
           // Say when a search happened because the user asked for it rather
           // than because the heuristic fired — otherwise an explicit toggle
@@ -4654,7 +4607,7 @@ if len(__qjo_err_str) > 20000:
             ],
             temperature: generationConfig.temperature,
             max_tokens: generationConfig.max_tokens,
-            mode: effectiveMode(),
+            mode: qjoMode,
             stream: true
           })
         });
@@ -5764,26 +5717,8 @@ if len(__qjo_err_str) > 20000:
     });
     clearBtn.addEventListener('click', clearChat);
     newChatBtn.addEventListener('click', clearChat);
-    const modeDropdownEl = modeDropdown || modeMenu;
-    if (modeCurrentBtn) modeCurrentBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      toggleModeDropdown();
-    });
     if (normalModeBtn) normalModeBtn.addEventListener('click', () => setMode('normal'));
     if (advancedModeBtn) advancedModeBtn.addEventListener('click', () => setMode('advanced'));
-    if (codeModeBtn) codeModeBtn.addEventListener('click', () => setMode('code'));
-    if (modeDropdownEl) modeDropdownEl.addEventListener('click', (e) => {
-      const option = e.target.closest('[data-mode]');
-      if (!option) return;
-      e.preventDefault();
-      e.stopPropagation();
-      setMode(option.dataset.mode);
-    });
-    document.addEventListener('click', (e) => {
-      if (modeMenu && !modeMenu.contains(e.target)) closeModeDropdown();
-    });
-    window.addEventListener('resize', () => { if (modeMenu?.classList.contains('open')) positionModeDropdown(); }, { passive: true });
-    window.addEventListener('scroll', () => { if (modeMenu?.classList.contains('open')) positionModeDropdown(); }, { passive: true });
 
     // Swallow clicks on the coming-soon entries so nothing navigates and no
     // other delegated handler treats them as an app switch.
@@ -6046,13 +5981,12 @@ if len(__qjo_err_str) > 20000:
         const saved = JSON.parse(localStorage.getItem(FUNCTION_TOGGLES_KEY) || '{}');
         qjoFunctions = {
           search: Boolean(saved.search),
-          deep: Boolean(saved.deep),
-          reason: Boolean(saved.reason)
+          deep: Boolean(saved.deep)
         };
         // Deep search IS a search, so the pair can never be left inconsistent.
         if (qjoFunctions.deep) qjoFunctions.search = true;
       } catch (_) {
-        qjoFunctions = { search: false, deep: false, reason: false };
+        qjoFunctions = { search: false, deep: false };
       }
     }
 
@@ -6522,8 +6456,7 @@ if len(__qjo_err_str) > 20000:
 
       const toggleDefs = [
         { id: 'toggleSearch', icon: '🔍', titleKey: 'searchTitle', descKey: 'searchDesc' },
-        { id: 'toggleDeep', icon: '🎯', titleKey: 'deepSearchTitle', descKey: 'deepSearchDesc' },
-        { id: 'toggleReason', icon: '🧠', titleKey: 'reasonTitle', descKey: 'reasonDesc' }
+        { id: 'toggleDeep', icon: '🎯', titleKey: 'deepSearchTitle', descKey: 'deepSearchDesc' }
       ];
 
       function updateIndicator() {

@@ -187,8 +187,14 @@ const PIPELINES = {
   lite: [['groq', 'flash'], ['llm7', 'flash'], ['qwen', 'flash'], ['kimi', 'flash']],
   // Flash mode: high velocity — cross-provider fallback chain.
   flash: [['groq', 'flash'], ['llm7', 'flash'], ['qwen', 'flash'], ['kimi', 'flash']],
-  // Max mode (Arabic-heavy): larger models, cross-provider.
-  maxAr: [['groq', 'text'], ['llm7', 'text'], ['qwen', 'text'], ['kimi', 'text'], ['groq', 'flash']],
+  // Max mode (Arabic-heavy): larger models, cross-provider. Qwen and Kimi rank
+  // ahead of the llm7 aggregator here because they are markedly stronger in
+  // Arabic, which is what isArabicHeavyText() selects this chain for. Groq
+  // stays primary for latency — its LPU is far faster than either fallback, so
+  // the Arabic preference applies where it costs nothing: the fallback order.
+  // (maxAr and maxEn used to be byte-identical, which made the Arabic detection
+  // above a no-op.)
+  maxAr: [['groq', 'text'], ['qwen', 'text'], ['kimi', 'text'], ['llm7', 'text'], ['groq', 'flash']],
   // Max mode (English / mixed): larger models, cross-provider.
   maxEn: [['groq', 'text'], ['llm7', 'text'], ['qwen', 'text'], ['kimi', 'text'], ['groq', 'flash']],
   // Code mode: text-grade models first, cross-provider.

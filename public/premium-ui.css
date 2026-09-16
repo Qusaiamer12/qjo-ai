@@ -2669,3 +2669,76 @@ body.has-focused-code::after {
   z-index: 179;
   pointer-events: none;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Mode segmented control (Flash / Max)
+   A two-option segment rather than the old dropdown: with only two modes
+   there is nothing to drop down to, and the dropdown recomputed its position
+   from scroll and resize listeners — a forced layout on every such event.
+   Both options stay visible, so the choice and the current state read at a
+   glance without opening anything.
+   ───────────────────────────────────────────────────────────────────────── */
+.mode-segmented {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid var(--qjo-border) !important;
+  background: var(--qjo-glass) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.mode-seg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--qjo-muted) !important;
+  -webkit-text-fill-color: var(--qjo-muted);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color .18s, background .18s, box-shadow .18s;
+}
+
+.mode-seg-btn:hover:not(.active):not(:disabled) {
+  color: var(--qjo-text) !important;
+  -webkit-text-fill-color: var(--qjo-text);
+  background: var(--qjo-glass-strong) !important;
+}
+
+.mode-seg-btn.active {
+  background: linear-gradient(135deg, color-mix(in srgb, #6366f1 30%, transparent), color-mix(in srgb, #a855f7 24%, transparent)) !important;
+  border-color: color-mix(in srgb, var(--qjo-accent) 45%, var(--qjo-border)) !important;
+  color: var(--qjo-text) !important;
+  -webkit-text-fill-color: var(--qjo-text);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--qjo-accent) 22%, transparent);
+}
+
+/* Max is the deliberate, heavier choice — give its marker a warmer accent so
+   the two modes are distinguishable without reading the label. */
+#advancedModeBtn.active .mode-seg-icon { color: #fbbf24; }
+#normalModeBtn.active .mode-seg-icon { color: #38bdf8; }
+
+.mode-seg-btn:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.mode-seg-icon {
+  font-size: 12px;
+  line-height: 1;
+}
+
+/* Keyboard focus must stay visible: this is a radiogroup. */
+.mode-seg-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--qjo-accent) 70%, transparent);
+  outline-offset: 2px;
+}

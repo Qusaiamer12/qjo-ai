@@ -175,17 +175,19 @@ must(app.includes('extractProjectFiles') && app.includes('downloadCodeZip'), 'Co
 
 console.log('\nModes lock');
 console.log('----------');
-// KNOWN GAP (deferred, tracked): the mode switcher markup is absent from
-// public/index.html, so app.js's handlers are permanently null-guarded and
-// qjoMode is stuck on 'normal' — Max and Code modes cannot be reached from the
-// UI. These stay as warnings rather than failures so the gap remains visible
-// without blocking the build on a deliberately postponed UI decision.
-['normalModeBtn', 'advancedModeBtn', 'modeDropdown', 'modeCurrentBtn'].forEach((id) => {
-  should(app.includes(id) && html.includes(id), `Mode control exists: ${id}`);
+// The mode switcher is a two-option segmented control (Flash / Max). The old
+// dropdown is gone: with two modes there is nothing to drop down to, and it
+// recomputed its position from scroll and resize listeners, forcing a layout on
+// every such event. Code is no longer a selectable mode — coding requests are
+// detected server-side and get the engineering overlay on their own.
+['modeSegmented', 'normalModeBtn', 'advancedModeBtn'].forEach((id) => {
+  must(html.includes(id), `Mode control exists in markup: ${id}`);
 });
-should(app.includes('modeDropdown.addEventListener'), 'Mode dropdown delegated click handler exists');
-must(app.includes('mode-menu-open'), 'Mode dropdown overlap state exists');
-must(css.includes('Mode Power + Dropdown Overlap Fix'), 'Mode overlap CSS patch exists');
+must(app.includes("setMode('normal')") && app.includes("setMode('advanced')"), 'Both modes are wired to setMode');
+must(!html.includes('id="codeModeBtn"'), 'Code is not offered as a selectable mode');
+must(!html.includes('id="toggleReason"'), 'Reasoning pill is gone (Max is the deeper-reasoning mode)');
+must(read('public/premium-ui.css').includes('.mode-segmented'), 'Segmented control is styled');
+must(read('src/services/systemPrompt.js').includes('needs.code') , 'Engineering overlay attaches on detected code intent');
 // The frontend used to pin llama-3.3-70b-versatile, which Groq shut down on
 // 2026-08-16. app.js now pins the official replacement, so this lock tracks
 // that instead of asserting a dead model ID.

@@ -199,10 +199,16 @@
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="2"/><circle cx="8" cy="8" r="3" fill="currentColor"/></svg>
               <span data-i18n="deepSearchBtn">بحث عميق</span>
             </button>
-            <button class="func-toggle reason-toggle" id="toggleReason" type="button" title="تفكير منطقي موسع" data-i18n-title="reasonTitle">
-              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 4a8 8 0 1 0 8 8c0-1.2-.3-2.3-.8-3.3L12 12l-3-3 5-5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="18" cy="6" r="2" fill="currentColor"/></svg>
-              <span data-i18n="reasonBtn">تفكير</span>
-            </button>
+            <div class="mode-segmented" id="modeSegmented" role="radiogroup" aria-label="وضع الإجابة" data-i18n-aria-label="modeGroup">
+              <button class="mode-seg-btn" id="normalModeBtn" type="button" role="radio" aria-checked="true" title="سريع ومباشر" data-i18n-title="flashModeTitle">
+                <span class="mode-seg-icon" aria-hidden="true">⚡</span>
+                <span id="normalModeText" data-i18n="normal">فلاش</span>
+              </button>
+              <button class="mode-seg-btn" id="advancedModeBtn" type="button" role="radio" aria-checked="false" title="تحليل أعمق ودقة أعلى" data-i18n-title="maxModeTitle">
+                <span class="mode-seg-icon" aria-hidden="true">◆</span>
+                <span id="advancedModeText" data-i18n="advanced">ماكس</span>
+              </button>
+            </div>
           </div>
           <div class="composer-actions">
             <input id="fileInput" type="file" multiple accept="image/*,.txt,.md,.csv,.json,.pdf,.doc,.docx,.xls,.xlsx" hidden />

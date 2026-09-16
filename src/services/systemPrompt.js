@@ -278,8 +278,14 @@ function estimateTokens(text) {
 
 function buildChatSystemPrompt({ mode, needs = {}, runtimeLine = '' } = {}) {
   const parts = [CORE_PROMPT];
-  const overlay = MODE_OVERLAYS[normalizeMode(mode)] || MODE_OVERLAYS.flash;
+  const normalized = normalizeMode(mode);
+  const overlay = MODE_OVERLAYS[normalized] || MODE_OVERLAYS.flash;
   parts.push(overlay);
+  // The engineering overlay rides along on a code-shaped request in any mode.
+  // Flash and Max shape the prose; this decides how code itself is written, so
+  // it composes with either rather than replacing them. Skipped when the mode
+  // overlay is already the code one, so nothing is stated twice.
+  if (needs.code && normalized !== 'code') parts.push(MODE_OVERLAYS.code);
   if (needs.search) parts.push(SEARCH_OVERLAY);
   if (needs.files) parts.push(FILES_OVERLAY);
   if (runtimeLine) parts.push(`RUNTIME & TEMPORAL CONTEXT\n- Current exact date & time: ${runtimeLine}\n- Real-world calendar: The current year is 2026. Events before today's date are in the past.`);

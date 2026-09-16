@@ -114,7 +114,12 @@ function detectNeeds(userText) {
   const t = String(userText || '');
   return {
     search: /source pack|connected search|connected deep search|web search note|search query used/i.test(t),
-    files: /user attached files|pdf pages processed|ocr text extracted|extraction method|attachment index|المرفقات/i.test(t)
+    files: /user attached files|pdf pages processed|ocr text extracted|extraction method|attachment index|المرفقات/i.test(t),
+    // Code is no longer a selectable mode — the UI offers Flash and Max only —
+    // so the engineering overlay (zero-laziness, file-path headers, security and
+    // error-handling rules) is attached whenever the request is code-shaped
+    // instead of waiting for a mode that can never be chosen.
+    code: /```|\bfunction\b|\bconst\b|\bclass\b|\bimport\b|stack trace|traceback|compile|debug|refactor|npm |yarn |pip |docker|regex|api\b|sdk\b|react|node\.js|typescript|javascript|python|java\b|sql\b|كود|برمج|برمجة|دالة|كلاس|مكتبة|خطأ برمجي|صحح الكود|اكتب لي برنامج|تطبيق ويب/i.test(t)
   };
 }
 
