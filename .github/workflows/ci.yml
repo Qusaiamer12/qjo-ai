@@ -38,6 +38,12 @@ jobs:
       - name: Stability audit
         run: npm run audit
 
+      # Streaming assembles the answer from fragments, so a sanitizer that is
+      # correct for a whole message can still be wrong for a chunk — that is how
+      # every word in every answer shipped glued to the next one.
+      - name: Streaming integrity suite
+        run: npm run test:stream
+
       # Asserts the HTML the PDF renderer is built from: math, images, lists,
       # bidi isolation and self-containment. Every export defect so far has
       # lived there and none of it is visible from an endpoint response.

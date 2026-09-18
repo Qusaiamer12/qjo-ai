@@ -212,14 +212,44 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     let activeRagIndexes = [];
     let ragDbPromise = null;
 
-    let qjoTraining = localStorage.getItem(TRAINING_KEY) || '';
-    let qjoLearning = JSON.parse(localStorage.getItem(LEARNING_KEY) || '[]');
+    // Safari in private browsing refuses script-writable storage: every
+    // localStorage call throws instead of no-opping. These reads happen while
+    // the script is still evaluating, so an exception here took the entire app
+    // down before it rendered — not just sign-in. Nothing below may assume
+    // storage works.
+    function readStored(key) {
+      try { return localStorage.getItem(key); } catch (_) { return null; }
+    }
+
+    function writeStored(key, value) {
+      try { localStorage.setItem(key, value); } catch (_) { /* storage blocked */ }
+    }
+
+    function dropStored(key) {
+      try { localStorage.removeItem(key); } catch (_) { /* storage blocked */ }
+    }
+
+    // Stored JSON can also be corrupt from an older build, which used to throw
+    // from the same top-level position.
+    function readJSON(key, fallback) {
+      try {
+        const raw = readStored(key);
+        if (!raw) return fallback;
+        const parsed = JSON.parse(raw);
+        return parsed === null || parsed === undefined ? fallback : parsed;
+      } catch (_) {
+        return fallback;
+      }
+    }
+
+    let qjoTraining = readStored(TRAINING_KEY) || '';
+    let qjoLearning = readJSON(LEARNING_KEY, []);
     let remoteConfig = {};
     let userPreferences = {};
     // Only Flash ('normal') and Max ('advanced') are selectable. A 'code' value
     // persisted by an older build normalises to Flash; coding requests are still
     // detected server-side and get the engineering overlay on their own.
-    let qjoMode = ['normal', 'advanced'].includes(localStorage.getItem(MODE_KEY)) ? localStorage.getItem(MODE_KEY) : 'normal';
+    let qjoMode = ['normal', 'advanced'].includes(readStored(MODE_KEY)) ? readStored(MODE_KEY) : 'normal';
     // Composer function toggles. Declared here, alongside the rest of the app
     // state, because needsWebSearch/needsDeepSearch/getGenerationConfig read it
     // and all of them are reachable before installFunctionToggles() runs — a
@@ -243,8 +273,8 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     ];
 
     let qjoFunctions = { search: false, deep: false };
-    let qjoTheme = localStorage.getItem(THEME_KEY) || 'light';
-    let qjoLanguage = localStorage.getItem(LANGUAGE_KEY) || 'ar';
+    let qjoTheme = readStored(THEME_KEY) || 'light';
+    let qjoLanguage = readStored(LANGUAGE_KEY) || 'ar';
     let busy = false;
     let logoClicks = 0;
     let logoClickTimer = null;
@@ -258,6 +288,15 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     let authNullTimer = null;
     const AUTH_GRACE_KEY = 'qjo_auth_grace_until';
     const AUTH_GRACE_MS = 15000;
+    // Set once a real user has been observed on this page, so a later null is
+    // treated as a restoration hiccup rather than a sign-out.
+    let hasAuthenticatedThisSession = false;
+    // A redirect sign-in lands the user on a brand-new page, where the flag
+    // above has reset to false. This marker survives that hop so the page
+    // receiving the redirect knows a real user just signed in. It is bounded,
+    // so a genuinely signed-out visitor is not left staring at an empty shell.
+    const AUTH_RECENT_USER_KEY = 'qjo_auth_recent_user';
+    const AUTH_RECENT_USER_MS = 120000;
     let auth = null;
     let db = null;
     let currentUser = null;
@@ -817,7 +856,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
 
     function toggleTheme() {
       qjoTheme = qjoTheme === 'dark' ? 'light' : 'dark';
-      localStorage.setItem(THEME_KEY, qjoTheme);
+      writeStored(THEME_KEY, qjoTheme);
       applyTheme();
     }
 
@@ -946,7 +985,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
 
     function setLanguage(lang) {
       qjoLanguage = lang === 'en' ? 'en' : 'ar';
-      localStorage.setItem(LANGUAGE_KEY, qjoLanguage);
+      writeStored(LANGUAGE_KEY, qjoLanguage);
       applyLanguage();
     }
 
@@ -973,7 +1012,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     function setMode(mode) {
       const nextMode = ['normal', 'advanced'].includes(mode) ? mode : 'normal';
       qjoMode = nextMode;
-      localStorage.setItem(MODE_KEY, qjoMode);
+      writeStored(MODE_KEY, qjoMode);
       updateModeUI();
     }
 
@@ -1034,7 +1073,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       if (isUnsafeLearningNote(clean)) return false;
       qjoLearning.push(clean.slice(0, 600));
       qjoLearning = qjoLearning.slice(-80);
-      localStorage.setItem(LEARNING_KEY, JSON.stringify(qjoLearning));
+      writeStored(LEARNING_KEY, JSON.stringify(qjoLearning));
       return true;
     }
 
@@ -1057,7 +1096,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         btn.addEventListener('click', () => {
           const originalIndex = notes.length - 1 - index;
           qjoLearning.splice(originalIndex, 1);
-          localStorage.setItem(LEARNING_KEY, JSON.stringify(qjoLearning));
+          writeStored(LEARNING_KEY, JSON.stringify(qjoLearning));
           renderMemoryList();
         });
         item.appendChild(text);
@@ -1069,7 +1108,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     function clearLocalMemory() {
       if (!confirm('هل تريد مسح ذاكرة Qjo المحلية على هذا الجهاز؟')) return;
       qjoLearning = [];
-      localStorage.removeItem(LEARNING_KEY);
+      dropStored(LEARNING_KEY);
       renderMemoryList();
       if (preferencesStatus) preferencesStatus.textContent = 'تم مسح الذاكرة المحلية.';
     }
@@ -3436,11 +3475,11 @@ if len(__qjo_err_str) > 20000:
 
     function saveDraft() {
       if (!inputEl || busy) return;
-      localStorage.setItem(draftStorageKey(), inputEl.value || '');
+      writeStored(draftStorageKey(), inputEl.value || '');
     }
 
     function restoreDraft() {
-      const draft = localStorage.getItem(draftStorageKey()) || '';
+      const draft = readStored(draftStorageKey()) || '';
       if (draft && !inputEl.value) {
         inputEl.value = draft;
         autoResize();
@@ -3448,7 +3487,7 @@ if len(__qjo_err_str) > 20000:
     }
 
     function clearDraft() {
-      localStorage.removeItem(draftStorageKey());
+      dropStored(draftStorageKey());
     }
 
     function updateNetworkState() {
@@ -4348,7 +4387,7 @@ if len(__qjo_err_str) > 20000:
 
     function clearChat() {
       if (busy) cancelActiveRequest();
-      if (currentChatId) localStorage.removeItem(activeChatStorageKey());
+      if (currentChatId) dropStored(activeChatStorageKey());
       currentChatId = null;
       activeRagIndexes = [];
       messageSeq = 0;
@@ -4414,7 +4453,9 @@ if len(__qjo_err_str) > 20000:
     }
 
     function getStoredFirebaseConfig() {
-      const raw = localStorage.getItem(FIREBASE_CONFIG_KEY) || '';
+      // Read defensively: this runs before the try below, so a storage
+      // exception here would abort sign-in setup entirely.
+      const raw = readStored(FIREBASE_CONFIG_KEY) || '';
       if (!raw) return DEFAULT_FIREBASE_CONFIG;
       try {
         return parseFirebaseConfig(raw);
@@ -4422,7 +4463,7 @@ if len(__qjo_err_str) > 20000:
         // A broken old config in localStorage must never disable login.
         // Fall back to Qjo's built-in Firebase project and let the app continue.
         console.warn('Ignoring invalid stored Firebase config:', error?.message || error);
-        localStorage.removeItem(FIREBASE_CONFIG_KEY);
+        dropStored(FIREBASE_CONFIG_KEY);
         return DEFAULT_FIREBASE_CONFIG;
       }
     }
@@ -4522,19 +4563,46 @@ if len(__qjo_err_str) > 20000:
     }
 
     function setAuthGrace(ms = AUTH_GRACE_MS) {
-      localStorage.setItem(AUTH_GRACE_KEY, String(Date.now() + ms));
+      writeStored(AUTH_GRACE_KEY, String(Date.now() + ms));
     }
 
     function inAuthGrace() {
-      return Number(localStorage.getItem(AUTH_GRACE_KEY) || 0) > Date.now();
+      return Number(readStored(AUTH_GRACE_KEY) || 0) > Date.now();
     }
 
     function clearAuthGrace() {
-      localStorage.removeItem(AUTH_GRACE_KEY);
+      dropStored(AUTH_GRACE_KEY);
     }
+
+    function markRecentUser() {
+      writeStored(AUTH_RECENT_USER_KEY, String(Date.now()));
+    }
+
+    function hadRecentUser() {
+      return Date.now() - Number(readStored(AUTH_RECENT_USER_KEY) || 0) < AUTH_RECENT_USER_MS;
+    }
+
+    function clearRecentUser() {
+      dropStored(AUTH_RECENT_USER_KEY);
+    }
+
+    // Firebase emits null transiently while it restores a session — routinely on
+    // Safari, where tracking prevention slows IndexedDB and the redirect flow
+    // lands the user back on a cold page. Ejecting after 350ms is what threw
+    // people straight back to the login screen seconds after signing in.
+    //
+    // Two windows: a cold page that has never seen a user can settle quickly,
+    // but once this page HAS had an authenticated user, a null is far more
+    // likely to be a restoration hiccup than a real sign-out, so it gets much
+    // longer and is re-checked before anyone is ejected.
+    const AUTH_NULL_DELAY_COLD_MS = 1500;
+    const AUTH_NULL_DELAY_AFTER_SIGNIN_MS = 10000;
 
     function scheduleAuthOverlayIfStillLoggedOut() {
       clearTimeout(authNullTimer);
+      const delay = (hasAuthenticatedThisSession || hadRecentUser())
+        ? AUTH_NULL_DELAY_AFTER_SIGNIN_MS
+        : (inAuthGrace() ? 4000 : AUTH_NULL_DELAY_COLD_MS);
       authNullTimer = setTimeout(() => {
         if (!auth?.currentUser) {
           authStateSettled = true;
@@ -4548,7 +4616,7 @@ if len(__qjo_err_str) > 20000:
           renderChatList([]);
           setAuthMessage('');
         }
-      }, inAuthGrace() ? 2500 : 350);
+      }, delay);
     }
 
     async function initializeFirebase() {
@@ -4582,19 +4650,20 @@ if len(__qjo_err_str) > 20000:
 
         // Force durable login sessions before handling redirect/auth state.
         // This prevents the user from appearing logged in for a moment and then being logged out.
-        try {
-          await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
-          authPersistenceReady = true;
-        } catch (error) {
-          authPersistenceReady = false;
+        // Walks down to a weaker level rather than throwing, so Safari's
+        // tracking prevention cannot kill the session on the page that
+        // receives the redirect. Only a total failure is worth telling the
+        // user about.
+        await applyAuthPersistence(true);
+        if (!authPersistenceReady) {
           setAuthMessage('تعذر تثبيت جلسة الدخول في المتصفح. فعّل الكوكيز والتخزين أو جرّب متصفحًا آخر.');
-          console.warn('Firebase persistence failed:', error);
         }
 
         try {
           await auth.getRedirectResult();
         } catch (error) {
-          clearAuthGrace();
+          // Deliberately keeps the grace window: it expires on its own, and
+          // clearing it here ejected users whose sign-in had actually worked.
           setAuthBusy(false);
           setAuthMessage(cleanAuthError(error));
         }
@@ -4606,6 +4675,8 @@ if len(__qjo_err_str) > 20000:
         auth.onAuthStateChanged(async (user) => {
           currentUser = user;
           if (user) {
+            hasAuthenticatedThisSession = true;
+            markRecentUser();
             clearTimeout(authNullTimer);
             setAuthBusy(false);
             clearAuthGrace();
@@ -4706,7 +4777,7 @@ if len(__qjo_err_str) > 20000:
 
     function updateUserUI(user) {
       const avatarEl = userAvatar;
-      const chosen = localStorage.getItem('qjo_user_avatar'); // 'google' | 'initial' | 'svg:<id>'
+      const chosen = readStored('qjo_user_avatar'); // 'google' | 'initial' | 'svg:<id>'
       if (!user) {
         renderAvatar(avatarEl, { type: 'initial', letter: 'Q' });
         userName.textContent = 'مستخدم';
@@ -4782,13 +4853,18 @@ if len(__qjo_err_str) > 20000:
       const persistence = (forceLocal || (rememberMe && rememberMe.checked))
         ? firebase.auth.Auth.Persistence.LOCAL
         : firebase.auth.Auth.Persistence.SESSION;
-      try {
-        await auth.setPersistence(persistence);
-        authPersistenceReady = true;
-      } catch (error) {
-        authPersistenceReady = false;
-        throw new Error('تعذر حفظ جلسة الدخول. فعّل الكوكيز والتخزين في المتصفح ثم حاول مرة أخرى.');
+      // Safari's tracking prevention can refuse script-writable storage, and
+      // throwing here used to fail the entire sign-in. Degrade instead: a
+      // session that does not survive a browser restart still beats no session.
+      const ladder = [persistence, firebase.auth.Auth.Persistence.SESSION, firebase.auth.Auth.Persistence.NONE];
+      for (const level of ladder) {
+        try {
+          await auth.setPersistence(level);
+          authPersistenceReady = true;
+          return;
+        } catch (_) { /* try the next, weaker level */ }
       }
+      authPersistenceReady = false;
     }
 
     async function ensureFirebaseReady() {
@@ -5103,7 +5179,7 @@ if len(__qjo_err_str) > 20000:
         }
 
         if (currentChatId === chatId) {
-          localStorage.removeItem(activeChatStorageKey());
+          dropStored(activeChatStorageKey());
           clearChat();
         }
       } catch (error) {
@@ -5125,7 +5201,7 @@ if len(__qjo_err_str) > 20000:
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
       currentChatId = doc.id;
-      localStorage.setItem(activeChatStorageKey(), currentChatId);
+      writeStored(activeChatStorageKey(), currentChatId);
       messageSeq = 0;
       return currentChatId;
     }
@@ -5167,7 +5243,7 @@ if len(__qjo_err_str) > 20000:
         }
 
         currentChatId = chatId;
-        localStorage.setItem(activeChatStorageKey(), currentChatId);
+        writeStored(activeChatStorageKey(), currentChatId);
         renderChatList(allChatsCache);
         history.length = 0;
 
@@ -5257,6 +5333,8 @@ if len(__qjo_err_str) > 20000:
       if (sendBtn) sendBtn.disabled = false;
       if (attachBtn) attachBtn.disabled = false;
       clearAuthGrace();
+      clearRecentUser();
+      hasAuthenticatedThisSession = false;
       if (auth) await auth.signOut();
     }
 
@@ -5270,12 +5348,12 @@ if len(__qjo_err_str) > 20000:
     const sidebarToggle = el('sidebarToggle');
     if (sidebarToggle) {
       // Restore last state
-      if (localStorage.getItem('qjo_sidebar_collapsed') === '1') {
+      if (readStored('qjo_sidebar_collapsed') === '1') {
         document.body.classList.add('sidebar-collapsed');
       }
       sidebarToggle.addEventListener('click', () => {
         const collapsed = document.body.classList.toggle('sidebar-collapsed');
-        try { localStorage.setItem('qjo_sidebar_collapsed', collapsed ? '1' : '0'); } catch(e){}
+        try { writeStored('qjo_sidebar_collapsed', collapsed ? '1' : '0'); } catch(e){}
       });
     }
     drawerBackdrop.addEventListener('click', () => document.body.classList.remove('drawer-open'));
@@ -5405,7 +5483,7 @@ if len(__qjo_err_str) > 20000:
       if (firebaseRaw) {
         try {
           parseFirebaseConfig(firebaseRaw);
-          localStorage.setItem(FIREBASE_CONFIG_KEY, firebaseRaw);
+          writeStored(FIREBASE_CONFIG_KEY, firebaseRaw);
           if (!firebaseReady) initializeFirebase();
           runtimeStatus.textContent = 'تم حفظ إعدادات Firebase. تشغيل الذكاء الاصطناعي يتم من الخادم الآمن.';
           return;
@@ -5418,8 +5496,8 @@ if len(__qjo_err_str) > 20000:
     });
 
     forgetRuntimeBtn.addEventListener('click', () => {
-      localStorage.removeItem(STORAGE_KEY);
-      localStorage.removeItem(OLD_STORAGE_KEY);
+      dropStored(STORAGE_KEY);
+      dropStored(OLD_STORAGE_KEY);
       runtimeStatus.textContent = 'تم حذف أي رموز قديمة من المتصفح. الإنتاج يستخدم الخادم الآمن.';
     });
 
@@ -5427,7 +5505,7 @@ if len(__qjo_err_str) > 20000:
     trainingModal.addEventListener('click', (e) => { if (e.target === trainingModal) closeTraining(); });
     saveTrainingBtn.addEventListener('click', () => {
       qjoTraining = trainingText.value.trim();
-      localStorage.setItem(TRAINING_KEY, qjoTraining);
+      writeStored(TRAINING_KEY, qjoTraining);
       updateTrainingStatus();
     });
     sampleTrainingBtn.addEventListener('click', () => {
@@ -5437,7 +5515,7 @@ if len(__qjo_err_str) > 20000:
     clearTrainingBtn.addEventListener('click', () => {
       qjoTraining = '';
       trainingText.value = '';
-      localStorage.removeItem(TRAINING_KEY);
+      dropStored(TRAINING_KEY);
       updateTrainingStatus();
     });
 
@@ -5454,7 +5532,7 @@ if len(__qjo_err_str) > 20000:
       user: auth?.currentUser ? { uid: auth.currentUser.uid, email: auth.currentUser.email } : null,
       domain: location.hostname,
       protocol: location.protocol,
-      storageAvailable: (() => { try { localStorage.setItem('__qjo_test','1'); localStorage.removeItem('__qjo_test'); return true; } catch { return false; } })()
+      storageAvailable: (() => { try { writeStored('__qjo_test','1'); dropStored('__qjo_test'); return true; } catch { return false; } })()
     });
 
 
@@ -5581,7 +5659,7 @@ if len(__qjo_err_str) > 20000:
     // pills and the mobile tools sheet cannot disagree about what is enabled.
     function loadFunctionToggles() {
       try {
-        const saved = JSON.parse(localStorage.getItem(FUNCTION_TOGGLES_KEY) || '{}');
+        const saved = readJSON(FUNCTION_TOGGLES_KEY, {});
         qjoFunctions = {
           search: Boolean(saved.search),
           deep: Boolean(saved.deep)
@@ -5594,7 +5672,7 @@ if len(__qjo_err_str) > 20000:
     }
 
     function saveFunctionToggles() {
-      try { localStorage.setItem(FUNCTION_TOGGLES_KEY, JSON.stringify(qjoFunctions)); }
+      try { writeStored(FUNCTION_TOGGLES_KEY, JSON.stringify(qjoFunctions)); }
       catch (_) { /* private mode — the toggles still work for this session */ }
     }
 
@@ -5856,7 +5934,7 @@ if len(__qjo_err_str) > 20000:
       const closeBtn = el('closeAvatarModal');
       if(!preview || !grid) return;
 
-      let currentChoice = localStorage.getItem('qjo_user_avatar') || (currentUser && currentUser.photoURL ? 'google' : 'initial');
+      let currentChoice = readStored('qjo_user_avatar') || (currentUser && currentUser.photoURL ? 'google' : 'initial');
 
       function renderPreview(){
         preview.innerHTML = '';
@@ -5900,7 +5978,7 @@ if len(__qjo_err_str) > 20000:
       }
 
       function openPicker(){
-        currentChoice = localStorage.getItem('qjo_user_avatar') || (currentUser && currentUser.photoURL ? 'google' : 'initial');
+        currentChoice = readStored('qjo_user_avatar') || (currentUser && currentUser.photoURL ? 'google' : 'initial');
         if(googleBtn){
           googleBtn.style.display = (currentUser && currentUser.photoURL) ? '' : 'none';
         }
@@ -5912,7 +5990,7 @@ if len(__qjo_err_str) > 20000:
       window.__qjoOpenAvatarPicker = openPicker;
       function closePicker(save){
         if(save){
-          localStorage.setItem('qjo_user_avatar', currentChoice);
+          writeStored('qjo_user_avatar', currentChoice);
           updateUserUI(currentUser);
           status.textContent = 'تم حفظ الصورة.';
         }

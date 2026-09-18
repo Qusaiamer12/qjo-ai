@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const { addContextContinuitySystemHint } = require('../agents/contextContinuity');
 const { addRouterSystemHint, routeUserRequestDeterministic } = require('../agents/RoutingEngine');
 const { addCalculatorSystemHint } = require('../tools/calculatorTool');
-const { sanitizeMathNotation } = require('../services/textSanitizer');
+const { sanitizeMathNotation, createStreamSanitizer } = require('../services/textSanitizer');
 
 function requireDeps(deps) {
   const required = [
@@ -310,10 +310,24 @@ function registerChatRoutes(app, deps) {
       if (needs.search === false) builtMessages = addCalculatorSystemHint(builtMessages);
       if (routingDecision) builtMessages = addRouterSystemHint(builtMessages, routingDecision);
 
+      // One instance for the whole response: the continuation pass below reuses
+      // writeChunk, and the opening must only be judged once.
+      const streamSanitizer = createStreamSanitizer();
+      const emit = (text) => {
+        if (responseFinished || !text) return;
+        res.write(`event: chunk\ndata: ${JSON.stringify({ text })}\n\n`);
+        if (typeof res.flush === 'function') res.flush();
+      };
       const writeChunk = (text) => {
         if (responseFinished) return;
-        res.write(`event: chunk\ndata: ${JSON.stringify({ text: sanitizeMathNotation(String(text || '')) })}\n\n`);
-        if (typeof res.flush === 'function') res.flush();
+        emit(streamSanitizer.push(text));
+      };
+      // Releases anything the sanitizer is still holding. Must run before the
+      // done event, otherwise a reply short enough to never leave the head
+      // buffer would never reach the client at all.
+      const flushChunks = () => {
+        if (responseFinished) return;
+        emit(streamSanitizer.flush());
       };
 
       const writeReasoning = (text) => {
@@ -383,6 +397,7 @@ function registerChatRoutes(app, deps) {
         }, 15 * 60 * 1000, 120);
       }
 
+      if (useStreaming) flushChunks();
       responseFinished = true;
       if (useStreaming) {
         res.write(`event: done\ndata: ${JSON.stringify({ provider: finalAi.provider, model: finalAi.model, toolsUsed: finalAi.toolsUsed || [], continued: finalAi.continued || false })}\n\n`);

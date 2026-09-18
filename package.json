@@ -17,7 +17,8 @@
     "backend-regression": "node evals/backend-regression-eval-v1.js",
     "ai-quality-eval": "node evals/ai-quality-eval-v1.js",
     "deploy-verify": "node evals/deploy-verify-v1.js",
-    "test:pdf": "node scripts/test-pdf-export.js"
+    "test:pdf": "node scripts/test-pdf-export.js",
+    "test:stream": "node scripts/test-streaming.js"
   },
   "dependencies": {
     "@qdrant/js-client-rest": "^1.19.0",
