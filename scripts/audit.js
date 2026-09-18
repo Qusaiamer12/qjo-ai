@@ -162,22 +162,19 @@ must(server.includes("'unsafe-eval'") || server.includes('"unsafe-eval"'), 'CSP 
 
 console.log('\nPrompt / intelligence lock');
 console.log('--------------------------');
-const promptMatch = app.match(/const\s+QJO_SYSTEM_PROMPT\s*=\s*`([\s\S]*?)`;\s*/);
-must(Boolean(promptMatch), 'QJO_SYSTEM_PROMPT exists');
-if (promptMatch) {
-  const prompt = promptMatch[1];
-  must(prompt.length >= 18000, `QJO_SYSTEM_PROMPT vNext is substantial (${prompt.length} chars)`);
-  // <qspark_context> / <qcode_context> were replaced by a single
-  // <upcoming_products> section when those products moved to their own repos.
-  ['<system_instructions>', '<qjo_product_context>', '<upcoming_products>', '<search_and_sources>', '<software_engineering_and_product_building>', '<file_rag_and_multimodal_analysis>', '<privacy_security_and_safety>'].forEach((term) => {
-    must(prompt.toLowerCase().includes(term.toLowerCase()), `Prompt vNext contains ${term}`);
-  });
-  must(!/available at \/(qspark|qcode)\.html/i.test(prompt), 'Prompt does not advertise removed pages as available');
-  must(/NOT shipped yet|coming soon/i.test(prompt), 'Prompt marks Q-Spark/Qcode as coming soon');
-}
-must(promptMatch && promptMatch[1].includes('<search_and_sources>'), 'Prompt vNext has search_and_sources section');
-must(promptMatch && promptMatch[1].includes('<intent_classification_and_mode_detection>'), 'Prompt vNext has mode behavior section');
-must(promptMatch && promptMatch[1].includes('<software_engineering_and_product_building>'), 'Prompt vNext has software engineering section');
+// The canonical system prompt lives in docs/, not in the shipped bundle. It was
+// inlined in public/app.js as a ~35KB constant that nothing read — the client
+// stopped transmitting its own prompt once the server began building one — and
+// public/*.js ships with Cache-Control: no-store, so every page load paid for
+// it. Locking it to app.js is what kept it there, so the lock moved to the
+// document scripts/sync_prompts.py actually maintains.
+const vnextPrompt = read('docs/QJO_SYSTEM_PROMPT_VNEXT_XML.md');
+must(vnextPrompt.length >= 18000, `Prompt vNext is substantial (${vnextPrompt.length} chars)`);
+must(!app.includes('const QJO_SYSTEM_PROMPT'), 'The 35KB prompt is not shipped in the browser bundle');
+['<system_instructions>', '<qjo_product_context>', '<search_and_sources>', '<software_engineering_and_product_building>', '<file_rag_and_multimodal_analysis>', '<privacy_security_and_safety>', '<intent_classification_and_mode_detection>'].forEach((term) => {
+  must(vnextPrompt.toLowerCase().includes(term.toLowerCase()), `Prompt vNext contains ${term}`);
+});
+
 must(app.includes('extractProjectFiles') && app.includes('downloadCodeZip'), 'Code project ZIP frontend exists');
 
 console.log('\nModes lock');
