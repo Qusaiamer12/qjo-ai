@@ -808,6 +808,96 @@ body.sidebar-collapsed .topbar{ padding-inline:32px !important; }
   to { transform: rotate(360deg); }
 }
 
+/* JavaScript Run Button & Engine Badge */
+.run-js-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(234, 179, 8, 0.15);
+  border: 1px solid rgba(234, 179, 8, 0.35);
+  color: #fde047 !important;
+  -webkit-text-fill-color: #fde047 !important;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.run-js-btn:hover:not(:disabled) {
+  background: rgba(234, 179, 8, 0.3);
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  border-color: rgba(234, 179, 8, 0.65);
+  box-shadow: 0 0 10px rgba(234, 179, 8, 0.35);
+}
+
+.run-js-btn:disabled {
+  opacity: 0.75;
+  cursor: wait;
+}
+
+.run-js-btn .run-spinner {
+  width: 10px;
+  height: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #facc15;
+  border-radius: 50%;
+  animation: qjo-spin 0.8s linear infinite;
+  display: inline-block;
+}
+
+.js-engine-badge {
+  font-size: 9px;
+  font-weight: 700;
+  background: rgba(234, 179, 8, 0.18);
+  color: #fde047;
+  padding: 1px 5px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+  border: 1px solid rgba(234, 179, 8, 0.3);
+}
+
+
+/* Code Fullscreen Mode */
+.code-block-wrapper.is-fullscreen {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 100000 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background: #0d1117 !important;
+}
+
+.code-block-wrapper.is-fullscreen pre {
+  flex: 1 !important;
+  max-height: none !important;
+  height: calc(100vh - 46px) !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  overflow: auto !important;
+}
+
+body.has-fullscreen-code {
+  overflow: hidden !important;
+}
+
+/* Line Numbers Display */
+.code-block-wrapper.show-line-numbers pre {
+  padding-left: 10px !important;
+}
+
+.code-block-wrapper.show-line-numbers pre code {
+  counter-reset: line;
+  display: block;
+}
+
+
 /* Python Terminal Output Container */
 .python-output-container {
   border-top: 1px solid rgba(148, 163, 184, 0.2);
@@ -822,18 +912,20 @@ body.sidebar-collapsed .topbar{ padding-inline:32px !important; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 7px 12px;
+  padding: 8px 14px;
   background: rgba(22, 27, 34, 0.95);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   font-size: 11px;
+  direction: rtl !important;
 }
 
 .python-terminal-title {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   color: #94a3b8;
   font-weight: 600;
+  direction: rtl;
 }
 
 .python-terminal-icon {

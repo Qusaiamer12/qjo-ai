@@ -985,6 +985,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
                 <span class="run-label">${qjoLanguage === 'ar' ? 'تشغيل' : 'Run'}</span>
               </button>
             ` : '';
+          const jsBadgeHtml = isRunnableJs ? '<span class="js-engine-badge">JS</span>' : '';
           const jsOutputHtml = isRunnableJs
             ? `<div class="python-output-container hidden" id="js-output-${id}"></div>`
             : '';
@@ -1042,6 +1043,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
                 <div class="code-block-header-left">
                   ${fileChipHtml}
                   <span class="code-block-lang">${escapeHtml(langDisplay)}</span>
+                  ${jsBadgeHtml}
                   ${tabsHtml}
                 </div>
                 <div class="code-block-actions">
