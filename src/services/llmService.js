@@ -80,6 +80,24 @@ function endsWithPartialControlTag(buffer) {
   return false;
 }
 
+// A provider can reject the CALL or reject the REQUEST, and the two need
+// opposite handling. A rate limit or a dead key is about this key, so rotating
+// to the next one is exactly right. A prompt that exceeds the context window is
+// about the payload: every other key rejects it identically, so rotating only
+// spends more round-trips AND puts healthy keys on cooldown — one oversized
+// prompt used to sideline every key on every provider, degrading unrelated
+// requests for the whole cooldown window.
+function isContextLengthError(errorMsg) {
+  return /context[\s_-]*length|maximum context|too many tokens|reduce the length|input is too long|prompt is too long|exceeds? the (?:model|maximum)|token limit/i.test(String(errorMsg || ''));
+}
+
+function isRequestFault(status, errorMsg) {
+  if (status === 413 || status === 422) return true;
+  if (status !== 400) return false;
+  // A 400 naming a retired model is handled by migration, just above.
+  return !/decommissioned|no longer supported|not found|does not exist|invalid model/i.test(String(errorMsg || ''));
+}
+
 function createLlmService(config = {}) {
   // ── High-Performance Key Circuit Breaker & Round-Robin Health Tracker ──
   // Keeps track of per-key failures, cooldown timers, and request distributions.
@@ -439,6 +457,21 @@ function createLlmService(config = {}) {
           }
         }
 
+        // The request itself is the problem, so the next key fails the same
+        // way. Return now: no cooldown on a key that did nothing wrong, and no
+        // wasted attempts. The flag lets the caller shrink and retry rather
+        // than report a dead provider chain.
+        if (isRequestFault(response.status, errorMsg)) {
+          console.warn('[llmService] ' + provider + ' rejected the request itself (' + response.status + ': ' + errorMsg.slice(0, 90) + '). Keys left healthy; not rotating.');
+          return {
+            ok: false,
+            status: response.status,
+            error: errorMsg,
+            requestFault: true,
+            contextLengthExceeded: isContextLengthError(errorMsg)
+          };
+        }
+
         const cooldownApplied = markKeyFailure(key, { status: response.status, errorMsg, retryAfterSec });
         lastError = { status: response.status, error: errorMsg };
 
@@ -502,4 +535,4 @@ function createLlmService(config = {}) {
   };
 }
 
-module.exports = { createLlmService, normalizeProviderFinishReason };
+module.exports = { createLlmService, normalizeProviderFinishReason, isContextLengthError, isRequestFault };

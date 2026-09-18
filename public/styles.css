@@ -1838,6 +1838,40 @@ textarea:disabled {
   opacity: .9;
 }
 
+/* Shown under an answer the model could not finish within its token budget,
+   so a half-written report reads as unfinished rather than as the whole
+   answer. Inherits the retry button's shape deliberately: same kind of
+   "this needs one more action from you" affordance. */
+.qjo-continue-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border, rgba(128, 128, 128, .35));
+}
+
+.qjo-continue-note {
+  font-size: 12.5px;
+  opacity: .72;
+}
+
+.qjo-continue-btn {
+  border: 0;
+  background: var(--text);
+  color: var(--bg);
+  border-radius: 999px;
+  padding: 7px 14px;
+  cursor: pointer;
+  font-weight: 750;
+  font-size: 12.5px;
+}
+
+.qjo-continue-btn:hover {
+  opacity: .9;
+}
+
 /* =========================================================
    Qjo Final Visual Polish — SaaS-grade UI refinement
    Goal: calmer, cleaner, more premium, less template-like

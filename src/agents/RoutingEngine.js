@@ -278,6 +278,32 @@ function createRoutingEngine(deps) {
     return llmService.dispatch(provider, { model, ...params });
   }
 
+  // Halves the biggest message so an over-long prompt can be retried instead
+  // of ending the request. The middle goes, not the tail: the question opens
+  // the message and the retrieved evidence closes it, so both ends carry more
+  // signal than the middle does. The model is told a cut happened rather than
+  // being handed a sentence that simply stops.
+  const SHRINK_NOTE = '\n\n[... حُذف جزء من المحتوى لأن الطلب تجاوز حد السياق. اعتمد على الأجزاء المتاحة، واذكر صراحة أن جزءًا من المحتوى غير متاح إذا أثّر على الدقة ...]\n\n';
+
+  function shrinkMessages(messages) {
+    const list = Array.isArray(messages) ? messages : [];
+    let biggestIndex = -1;
+    let biggestLength = 0;
+    list.forEach((m, i) => {
+      const len = typeof m?.content === 'string' ? m.content.length : 0;
+      if (len > biggestLength) { biggestLength = len; biggestIndex = i; }
+    });
+    // Nothing large enough left to cut usefully.
+    if (biggestIndex === -1 || biggestLength < 2000) return null;
+
+    const target = Math.floor(biggestLength / 2);
+    const head = Math.floor(target * 0.6);
+    const tail = target - head;
+    const original = list[biggestIndex].content;
+    const shrunk = original.slice(0, head) + SHRINK_NOTE + original.slice(-tail);
+    return list.map((m, i) => (i === biggestIndex ? { ...m, content: shrunk } : m));
+  }
+
   // Runs a chain of [provider, slot] attempts with a shared deadline. A
   // provider failure (including timeout) simply advances the chain.
   async function runChain(chain, params, { withTools = false, originalQuestion = '' } = {}) {
@@ -301,6 +327,23 @@ function createRoutingEngine(deps) {
       if (!res.ok && isTransientStatus(res.status) && !(params.deadlineMs && params.deadlineMs - Date.now() < 2500)) {
         console.warn(`[RoutingEngine] ${provider}/${slot} failed (${res.status}: ${String(res.error).slice(0, 100)}) — retrying once after 600ms.`);
         await sleep(600);
+        res = await tryProvider(provider, slot, params);
+      }
+
+      // The prompt was too long for this model. Every remaining provider in the
+      // chain would reject it too if it is larger than all of them, and the user
+      // would get "all providers failed" for a request that only needed to be
+      // smaller. Shrink and retry, up to twice, before moving on.
+      let shrinkAttempts = 0;
+      while (!res.ok && res.contextLengthExceeded && shrinkAttempts < 2
+             && !(params.deadlineMs && params.deadlineMs - Date.now() < 2500)) {
+        const smaller = shrinkMessages(params.messages);
+        if (!smaller) break;
+        shrinkAttempts++;
+        const before = params.messages.reduce((sum, m) => sum + (typeof m.content === 'string' ? m.content.length : 0), 0);
+        const after = smaller.reduce((sum, m) => sum + (typeof m.content === 'string' ? m.content.length : 0), 0);
+        console.warn(`[RoutingEngine] ${provider}/${slot} rejected the prompt as too long — retrying at ${after} chars (was ${before}).`);
+        params = { ...params, messages: smaller };
         res = await tryProvider(provider, slot, params);
       }
 
@@ -376,7 +419,21 @@ function createRoutingEngine(deps) {
     deadlineMs, budgetMs, signal
   } = {}) {
     if (!deadlineMs) {
-      deadlineMs = Date.now() + (budgetMs || 40000);
+      // A large prompt legitimately takes longer before the first token: the
+      // model has to ingest it. With a flat 40s budget, a document analysis
+      // that failed over to a second provider could run out of time with
+      // nothing actually wrong, and the user got "all providers failed". The
+      // client waits 180s, so there is room to be patient in proportion to the
+      // work being asked for.
+      const promptChars = (messages || []).reduce((sum, m) => {
+        if (typeof m?.content === 'string') return sum + m.content.length;
+        if (Array.isArray(m?.content)) {
+          return sum + m.content.reduce((n, part) => n + (typeof part?.text === 'string' ? part.text.length : 0), 0);
+        }
+        return sum;
+      }, 0);
+      const sizedBudget = promptChars > 40000 ? 100000 : (promptChars > 16000 ? 70000 : 40000);
+      deadlineMs = Date.now() + (budgetMs || sizedBudget);
     }
 
     // ── Chat/General Smart Routing ──

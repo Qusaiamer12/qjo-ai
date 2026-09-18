@@ -90,24 +90,83 @@ function sendCachedResponse(res, cached, useStreaming) {
   return true;
 }
 
-// Chat history trim: last 12 messages, 12k chars per message. Long archives
-// are the client's Firestore concern; the model call should stay lean.
+// Chat history trim.
+//
+// Budgets are in characters because that is what we can measure for free, and
+// the character-to-token ratio is stable enough to leave a safe margin under
+// the 131k-token context the chat models carry.
+//
+// The newest turn is not like the others. It carries the question AND whatever
+// retrieval selected for it: up to eight 2,200-character passages plus an
+// overview, which routinely totals 17,000+ characters. A flat 12,000 cap threw
+// away a third of that evidence — mid-sentence, silently, after the work of
+// selecting it was already done. Measured on real documents: a 40k-char file
+// lost 23 of its 69 retrieved sections. Older turns are context, not the
+// request, so they stay lean.
+const NEWEST_TURN_MAX_CHARS = 48000;
+const HISTORY_TURN_MAX_CHARS = 4000;
+const CONVERSATION_MAX_CHARS = 72000;
+const TRIM_NOTE = '\n\n[... اقتُطع جزء من هذا المحتوى لتجاوزه حد السياق المتاح. حلّل الأجزاء الموجودة، واذكر صراحة أن جزءًا غير متاح إذا أثّر ذلك على الدقة ...]\n\n';
+
+// Cutting the tail would drop the retrieved passages, which sit after the
+// question. Keeping both ends preserves the question and the closing evidence,
+// and the note means the model knows the middle is missing instead of reading
+// a sentence that simply stops.
+function clipTurn(text, max) {
+  if (text.length <= max) return text;
+  const head = Math.floor(max * 0.6);
+  const tail = max - head;
+  return text.slice(0, head) + TRIM_NOTE + text.slice(-tail);
+}
+
+function stripLegacySearchPack(content) {
+  const idxSearch = content.search(/\n\n(?:Connected\s+(?:Deep\s+)?Search\s+executed|Web\s+search\s+note:|SOURCE\s+PACK:|Search\s+instructions:|تعليمات\s+البحث:)/i);
+  return idxSearch === -1 ? content : content.slice(0, idxSearch).trim();
+}
+
+function messageLength(m) {
+  if (typeof m?.content === 'string') return m.content.length;
+  if (Array.isArray(m?.content)) {
+    return m.content.reduce((sum, part) => sum + (typeof part?.text === 'string' ? part.text.length : 0), 0);
+  }
+  return 0;
+}
+
 function trimForChat(messages) {
-  return (messages || []).slice(-12).map((m, idx, arr) => {
+  const recent = (messages || []).slice(-12);
+  const lastIndex = recent.length - 1;
+
+  const trimmed = recent.map((m, idx) => {
+    const isNewest = idx === lastIndex;
+    const budget = isNewest ? NEWEST_TURN_MAX_CHARS : HISTORY_TURN_MAX_CHARS;
+
     if (typeof m.content === 'string') {
       let c = m.content;
       // Strip any legacy search pack from previous conversation turns
-      if (idx < arr.length - 1 && m.role === 'user') {
-        const idxSearch = c.search(/\n\n(?:Connected\s+(?:Deep\s+)?Search\s+executed|Web\s+search\s+note:|SOURCE\s+PACK:|Search\s+instructions:|تعليمات\s+البحث:)/i);
-        if (idxSearch !== -1) c = c.slice(0, idxSearch).trim();
-      }
-      if (c.length > 12000) {
-        c = c.slice(0, 12000);
-      }
-      return { ...m, content: c };
+      if (!isNewest && m.role === 'user') c = stripLegacySearchPack(c);
+      return { ...m, content: clipTurn(c, budget) };
+    }
+
+    // Multimodal turns: the text parts are budgeted too, so an image request
+    // carrying a long document cannot slip past the cap unbounded.
+    if (Array.isArray(m.content)) {
+      return {
+        ...m,
+        content: m.content.map(part => (typeof part?.text === 'string'
+          ? { ...part, text: clipTurn(part.text, budget) }
+          : part))
+      };
     }
     return m;
   });
+
+  // Whole-conversation ceiling. Drop the oldest turns until it fits — never the
+  // newest, which is the actual request.
+  let total = trimmed.reduce((sum, m) => sum + messageLength(m), 0);
+  while (trimmed.length > 1 && total > CONVERSATION_MAX_CHARS) {
+    total -= messageLength(trimmed.shift());
+  }
+  return trimmed;
 }
 
 function detectNeeds(userText) {
@@ -400,7 +459,12 @@ function registerChatRoutes(app, deps) {
       if (useStreaming) flushChunks();
       responseFinished = true;
       if (useStreaming) {
-        res.write(`event: done\ndata: ${JSON.stringify({ provider: finalAi.provider, model: finalAi.model, toolsUsed: finalAi.toolsUsed || [], continued: finalAi.continued || false })}\n\n`);
+        // The client had no way to know an answer was cut short: a long report
+        // that ran out of budget rendered exactly like a finished one. Say so,
+        // so the UI can offer to continue instead of quietly handing over half
+        // an answer.
+        const stillTruncated = /length|continued_but_may_be_truncated/i.test(String(finalAi.finish_reason || ''));
+        res.write(`event: done\ndata: ${JSON.stringify({ provider: finalAi.provider, model: finalAi.model, toolsUsed: finalAi.toolsUsed || [], continued: finalAi.continued || false, truncated: stillTruncated })}\n\n`);
         res.end();
         return;
       }
@@ -430,4 +494,4 @@ function registerChatRoutes(app, deps) {
 // The prompt-dedup and cache-key helpers are exported so they can be asserted
 // directly: both are silent failure modes (one bloats every request, the other
 // leaks a cached answer across users) that no endpoint response reveals.
-module.exports = { registerChatRoutes, stripClientBasePrompt, personalizationFingerprint };
+module.exports = { registerChatRoutes, stripClientBasePrompt, personalizationFingerprint, trimForChat };

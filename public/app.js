@@ -203,6 +203,9 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     const TEXT_MAX_TOKENS = 2600;
     const VISION_MAX_TOKENS = 1000;
     const FILE_MAX_TOKENS = 3000;
+    // See addFiles(): every readable attachment costs ~18k characters of
+    // retrieved evidence in the prompt, so the count has to be bounded.
+    const MAX_ATTACHMENTS = 6;
     const PDF_MAX_CHARS = 120000;
     const TEXT_FILE_MAX_CHARS = 30000;
 
@@ -2935,9 +2938,29 @@ if len(__qjo_err_str) > 20000:
     async function addFiles(files) {
       const selected = Array.from(files || []);
       if (!selected.length) return;
+
+      // Each readable attachment contributes an overview plus up to eight
+      // retrieved passages — roughly 18,000 characters. Without a cap, a dozen
+      // files built a prompt no model would accept, and the browser spent the
+      // wait scoring chunks for evidence that would never fit anyway. Better to
+      // say so up front than to fail after the upload.
+      const room = MAX_ATTACHMENTS - pendingAttachments.length;
+      if (room <= 0) {
+        showMicroToast(qjoLanguage === 'ar'
+          ? `الحد الأقصى ${MAX_ATTACHMENTS} مرفقات في الرسالة الواحدة. أرسل الحالية أولًا ثم أرفق الباقي.`
+          : `Up to ${MAX_ATTACHMENTS} attachments per message. Send these first, then attach the rest.`);
+        return;
+      }
+      const accepted = selected.slice(0, room);
+      if (accepted.length < selected.length) {
+        showMicroToast(qjoLanguage === 'ar'
+          ? `تمت إضافة ${accepted.length} من ${selected.length} ملفات (الحد ${MAX_ATTACHMENTS} لكل رسالة).`
+          : `Added ${accepted.length} of ${selected.length} files (limit ${MAX_ATTACHMENTS} per message).`);
+      }
+
       setFileProcessing(true);
       try {
-      for (const file of selected) {
+      for (const file of accepted) {
         const item = {
           id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
           name: file.name,
@@ -3865,6 +3888,34 @@ if len(__qjo_err_str) > 20000:
       return false;
     }
 
+    // A long report or a large refactor can exhaust the token budget before the
+    // answer is finished. The server now reports that; without this the user
+    // just received half an answer that looked complete.
+    function showContinueAction(answerWrap) {
+      if (!answerWrap || answerWrap.querySelector('.qjo-continue-row')) return;
+      const row = document.createElement('div');
+      row.className = 'qjo-continue-row';
+      const note = document.createElement('span');
+      note.className = 'qjo-continue-note';
+      note.textContent = qjoLanguage === 'ar'
+        ? 'الإجابة طويلة وتوقفت قبل أن تكتمل.'
+        : 'This answer ran out of room before it finished.';
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'qjo-continue-btn';
+      btn.textContent = qjoLanguage === 'ar' ? 'أكمل الإجابة' : 'Continue';
+      btn.addEventListener('click', () => {
+        if (busy) return;
+        row.remove();
+        sendMessage(qjoLanguage === 'ar'
+          ? 'أكمل من حيث توقفت بالضبط. لا تُعِد ما كتبته، وابدأ مباشرة من الجملة الناقصة.'
+          : 'Continue from exactly where you stopped. Do not repeat anything already written.');
+      });
+      row.appendChild(note);
+      row.appendChild(btn);
+      answerWrap.appendChild(row);
+    }
+
     function showRetryAction() {
       const wrap = document.createElement('div');
       wrap.className = 'msg system retry-row';
@@ -3975,6 +4026,8 @@ if len(__qjo_err_str) > 20000:
       let bubble = null;
       let assistantWrap = null;
       let lastMetadata = {};
+      // Set from the done event: the model ran out of room before finishing.
+      let answerWasTruncated = false;
       let fullAnswer = '';
 
       // Reasoning & Timeline Streaming Controller
@@ -4334,6 +4387,7 @@ if len(__qjo_err_str) > 20000:
               }
             } else if (evt === 'done') {
               lastMetadata = obj;
+              answerWasTruncated = Boolean(obj && obj.truncated);
             } else if (evt === 'error') {
               throw new Error(obj.error || 'AI Streaming failed.');
             }
@@ -4364,7 +4418,10 @@ if len(__qjo_err_str) > 20000:
               // Now that the answer is complete, re-decide the content-dependent
               // actions (exports, project ZIP) that could not be judged when the
               // empty message element was created.
-              ['actions', () => refreshAnswerToolbar(assistantWrap, fullAnswer)]
+              ['actions', () => refreshAnswerToolbar(assistantWrap, fullAnswer)],
+              ['continuation notice', () => {
+                if (answerWasTruncated) showContinueAction(assistantWrap);
+              }]
             ]
           });
         }
@@ -4380,6 +4437,10 @@ if len(__qjo_err_str) > 20000:
         console.error('[Qjo Chat Error]', error);
         let failMessage = 'تعذر الاتصال بالخدمة حاليًا. يرجى المحاولة لاحقًا.';
         if (error.name === 'AbortError') failMessage = 'تم إيقاف الطلب أو انتهت مهلته. حاول مرة أخرى.';
+        // 413 is definite: the request body exceeded the server's limit. Retrying
+        // an identical payload cannot help, and the generic "connection failed"
+        // copy gave no hint that the attachments were the problem.
+        else if (error.status === 413) failMessage = 'المرفقات أو النص المُرسل أكبر من الحد المسموح. احذف بعض الملفات أو قسّم الطلب إلى أجزاء أصغر وأعد المحاولة.';
         else if (error.message === 'AI_BACKEND_MISSING') failMessage = 'خدمة الذكاء غير متصلة في هذه النسخة. شغّل نسخة الإنتاج عبر Node.js بدل فتح HTML فقط.';
         else if (error.message === 'AUTH_REQUIRED') failMessage = 'يجب تسجيل الدخول قبل استخدام Qjo.';
         else if (error.message === 'RATE_LIMIT') failMessage = 'وصلنا لحد مزوّد الذكاء مؤقتًا. جرّب بعد قليل، أو استخدم رسالة أقصر.';

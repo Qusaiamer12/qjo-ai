@@ -38,6 +38,13 @@ jobs:
       - name: Stability audit
         run: npm run audit
 
+      # Failure modes that take the whole service down rather than one request:
+      # a context-length rejection used to cool down every API key on every
+      # provider, and the history trim silently deleted a third of the evidence
+      # retrieval had just selected.
+      - name: Resilience and context-budget suite
+        run: npm run test:resilience
+
       # The router picks the system overlay an answer is written under, so a
       # misclassification degrades the answer silently instead of failing. A
       # pasted CV was being routed to the coding agent because of its contents.
