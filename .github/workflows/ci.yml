@@ -38,6 +38,12 @@ jobs:
       - name: Stability audit
         run: npm run audit
 
+      # The router picks the system overlay an answer is written under, so a
+      # misclassification degrades the answer silently instead of failing. A
+      # pasted CV was being routed to the coding agent because of its contents.
+      - name: Routing classification suite
+        run: npm run test:routing
+
       # Streaming assembles the answer from fragments, so a sanitizer that is
       # correct for a whole message can still be wrong for a chunk — that is how
       # every word in every answer shipped glued to the next one.

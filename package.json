@@ -18,7 +18,8 @@
     "ai-quality-eval": "node evals/ai-quality-eval-v1.js",
     "deploy-verify": "node evals/deploy-verify-v1.js",
     "test:pdf": "node scripts/test-pdf-export.js",
-    "test:stream": "node scripts/test-streaming.js"
+    "test:stream": "node scripts/test-streaming.js",
+    "test:routing": "node scripts/test-routing.js"
   },
   "dependencies": {
     "@qdrant/js-client-rest": "^1.19.0",

@@ -310,6 +310,9 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     let activeRequestController = null;
     let fileProcessing = false;
     let lastFailedRequest = null;
+    // Set when a request fails in a way worth replaying once on the user's
+    // behalf; consumed after the failed attempt has finished tearing down.
+    let pendingAutoRetry = null;
     let requestTimer = null;
     let requestStartedAt = 0;
 
@@ -732,6 +735,30 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
 
       flushParagraph();
       return out.join('\n').replace(/@@CODE_BLOCK_(\d+)@@/g, (_, id) => codeBlocks[Number(id)] || '');
+    }
+
+    // Runs the optional enhancements over a finished assistant bubble. Each is
+    // isolated: a malformed chart config or a KaTeX hiccup costs that one
+    // enhancement, never the answer it was decorating.
+    function decorateAssistantBubble(bubble, wrap, options = {}) {
+      if (!bubble) return;
+      const steps = [
+        ['math', () => typesetMath(bubble)],
+        ['charts', () => initializeChartsInElement(bubble)],
+        ['code blocks', () => initializeCodeBlockCopyButtons(bubble)],
+        ['quizzes', () => initializeQuizzesInElement(bubble)],
+        ['diagrams', () => {
+          if (typeof mermaid !== 'undefined') mermaid.init(undefined, bubble.querySelectorAll('.mermaid'));
+        }]
+      ];
+      if (options.extras) steps.push(...options.extras);
+      for (const [what, run] of steps) {
+        try {
+          run();
+        } catch (error) {
+          console.warn('Post-answer ' + what + ' failed (answer kept):', error);
+        }
+      }
     }
 
     function typesetMath(node) {
@@ -1410,8 +1437,11 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         if (!canvas) return;
         const card = container.closest('.interactive-chart-card') || container;
         const errorEl = card.querySelector('.chart-error-note') || container.querySelector('.chart-error-note');
-        const configRaw = decodeURIComponent(container.dataset.chartConfig || '{}');
         try {
+          // decodeURIComponent throws URIError on a malformed escape, and this
+          // call used to sit outside the try — so a single bad chart payload
+          // threw out of the whole render pass.
+          const configRaw = decodeURIComponent(container.dataset.chartConfig || '{}');
           let config = safeParseRelaxedJson(configRaw);
           if (!config || typeof config !== 'object') {
             throw new Error('صيغة بيانات المخطط غير صالحة.');
@@ -2687,19 +2717,7 @@ if len(__qjo_err_str) > 20000:
       } else {
         bubble.innerHTML = role === 'assistant' ? lightMarkdown(content) : escapeHtml(content);
       }
-      if (role === 'assistant') {
-        typesetMath(bubble);
-        initializeChartsInElement(bubble);
-        initializeCodeBlockCopyButtons(bubble);
-        initializeQuizzesInElement(bubble);
-        if (typeof mermaid !== 'undefined') {
-          try {
-            mermaid.init(undefined, bubble.querySelectorAll('.mermaid'));
-          } catch (e) {
-            console.error('Mermaid initialization failed:', e);
-          }
-        }
-      }
+      if (role === 'assistant') decorateAssistantBubble(bubble, wrap);
       wrap.appendChild(bubble);
 
       if (role === 'assistant' && !String(extraClass || '').includes('error')) {
@@ -3834,6 +3852,19 @@ if len(__qjo_err_str) > 20000:
       return '';
     }
 
+    // Rewinds the conversation to just before the last question so a replay
+    // does not stack a second copy of it — plus the failure notice — into the
+    // history the model is shown, or draw the question twice on screen.
+    function rewindHistoryToLastQuestion() {
+      for (let i = history.length - 1; i >= 0; i--) {
+        if (history[i]?.role === 'user') {
+          history.splice(i);
+          return true;
+        }
+      }
+      return false;
+    }
+
     function showRetryAction() {
       const wrap = document.createElement('div');
       wrap.className = 'msg system retry-row';
@@ -3845,7 +3876,14 @@ if len(__qjo_err_str) > 20000:
       btn.addEventListener('click', () => {
         wrap.remove();
         const retryText = lastFailedRequest?.text || lastFailedRequest?.fallbackText || '';
-        if (retryText) sendMessage(retryText);
+        if (!retryText) return;
+        // The failed attempt left the question and an error notice in history,
+        // and the question bubble is already on screen. Without this, retrying
+        // asked the question twice and fed the model its own error message.
+        const failedBubble = messagesInner.querySelector('.msg.assistant.error:last-of-type');
+        if (failedBubble) failedBubble.remove();
+        rewindHistoryToLastQuestion();
+        sendMessage(retryText, { isRegenerate: true });
       });
       bubble.appendChild(btn);
       wrap.appendChild(bubble);
@@ -4311,24 +4349,24 @@ if len(__qjo_err_str) > 20000:
         const cursorEl = bubble ? bubble.querySelector('.qjo-typing-cursor') : null;
         if (cursorEl) cursorEl.remove();
 
+        // Everything here decorates an answer that has ALREADY arrived in
+        // full. It used to run unguarded inside the network try/catch below,
+        // so one malformed chart config or a KaTeX hiccup would delete a
+        // complete answer from the screen and tell the user the server had
+        // restarted. A decoration failure may now cost only that decoration.
         if (started && bubble) {
-          typesetMath(bubble);
-          initializeChartsInElement(bubble);
-          initializeCodeBlockCopyButtons(bubble);
-          initializeQuizzesInElement(bubble);
-          if (typeof mermaid !== 'undefined') {
-            try {
-              mermaid.init(undefined, bubble.querySelectorAll('.mermaid'));
-            } catch (e) {
-              console.error('Mermaid initialization failed:', e);
-            }
-          }
-          if (lastSearchSources.length) appendSourceCards(assistantWrap, lastSearchSources);
-          appendToolsUsedNote(assistantWrap, lastMetadata.toolsUsed);
-          // Now that the answer is complete, re-decide the content-dependent
-          // actions (exports, project ZIP) that could not be judged when the
-          // empty message element was created.
-          refreshAnswerToolbar(assistantWrap, fullAnswer);
+          decorateAssistantBubble(bubble, assistantWrap, {
+            extras: [
+              ['sources', () => {
+                if (lastSearchSources.length) appendSourceCards(assistantWrap, lastSearchSources);
+              }],
+              ['tools note', () => appendToolsUsedNote(assistantWrap, lastMetadata.toolsUsed)],
+              // Now that the answer is complete, re-decide the content-dependent
+              // actions (exports, project ZIP) that could not be judged when the
+              // empty message element was created.
+              ['actions', () => refreshAnswerToolbar(assistantWrap, fullAnswer)]
+            ]
+          });
         }
 
         const storedContent = (reasoningRaw.trim() ? `<think>\n${reasoningRaw.trim()}\n</think>\n\n` : '') + fullAnswer;
@@ -4347,8 +4385,34 @@ if len(__qjo_err_str) > 20000:
         else if (error.message === 'RATE_LIMIT') failMessage = 'وصلنا لحد مزوّد الذكاء مؤقتًا. جرّب بعد قليل، أو استخدم رسالة أقصر.';
         else if (/rate.?limit|429|too many requests/i.test(error.message || '')) failMessage = 'مزودات الذكاء تحت ضغط حاليًا (وصلنا الحد المؤقت للطلبات). انتظر دقيقة وأعد المحاولة.';
         else if (/No provider configured|No AI provider is configured/i.test(error.message || '')) failMessage = 'مزودات الذكاء غير مضبوطة على الخادم. يرجى ضبط المفاتيح في لوحة التحكم.';
-        else if (/All AI providers failed|provider.*failed|upstream.*failed|service.*unavailable|503|502|504|SERVICE_FAILED|failed to fetch|network/i.test(error.message || '') || (error.status && error.status >= 500)) {
-          failMessage = 'الخادم كان قيد التحديث السريع أو إعادة التشغيل 🔄. اضغط على "إعادة المحاولة" أدناه، الخدمة جاهزة الآن!';
+        // The old copy here asserted "الخدمة جاهزة الآن!" — something the page
+        // cannot possibly know, and which sent people to press Retry against a
+        // service that was still down. It also hid the real reason, so a
+        // failure could not be diagnosed from the screen.
+        const looksTransient = /All AI providers failed|provider.*failed|upstream.*failed|service.*unavailable|503|502|504|SERVICE_FAILED|failed to fetch|network/i.test(error.message || '') || (error.status && error.status >= 500);
+        if (looksTransient) {
+          failMessage = 'الخادم ما استجاب للطلب (غالبًا كان نايم أو تحت ضغط). جرّب "إعادة المحاولة".';
+          const detail = String(error.message || '').trim();
+          if (detail && detail.length < 200) failMessage += '\n\nالسبب التقني: ' + detail;
+        }
+
+        // A first failure with no answer text yet is usually a sleeping
+        // instance waking up, which the user should not have to notice. Retry
+        // once, silently, before showing them anything. Anything already
+        // streamed is left alone: re-asking would spend a second generation.
+        //
+        // The test for that is fullAnswer, not `started` — `started` only means
+        // the bubble exists, and the reasoning line creates it before the
+        // request is even sent, so it is true for every failure.
+        const nothingDelivered = !String(fullAnswer || '').trim();
+        if (looksTransient && nothingDelivered && !options.autoRetried) {
+          if (bubble) {
+            if (reasoningCard) reasoningCard.remove();
+            if (contentContainer) contentContainer.remove();
+            bubble.innerHTML = escapeHtml('الخادم بده لحظة يصحى... جاري إعادة المحاولة تلقائيًا.');
+          }
+          pendingAutoRetry = { text: rawText || text, wrap: assistantWrap };
+          return;
         }
 
         if (bubble) {
@@ -4368,8 +4432,19 @@ if len(__qjo_err_str) > 20000:
         setComposerBusy(false);
         showRequestStatus(false);
         updateNetworkState();
-    restoreDraft();
-    safeFocusComposer();
+        restoreDraft();
+        safeFocusComposer();
+        // Runs after the composer is back to a clean state, so the replay does
+        // not race the teardown of the attempt that scheduled it.
+        if (pendingAutoRetry) {
+          const retry = pendingAutoRetry;
+          pendingAutoRetry = null;
+          setTimeout(() => {
+            if (retry.wrap && retry.wrap.parentNode) retry.wrap.remove();
+            rewindHistoryToLastQuestion();
+            sendMessage(retry.text, { isRegenerate: true, autoRetried: true });
+          }, 1800);
+        }
       }
     }
 

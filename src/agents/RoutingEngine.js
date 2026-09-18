@@ -473,6 +473,16 @@ function createRoutingEngine(deps) {
   return engine;
 }
 
+// Keeps the two ends of a long message, where instructions live — "do X:"
+// followed by a paste, or a paste followed by "do X" — and drops the middle,
+// which is the pasted material itself.
+const INSTRUCTION_EDGE = 350;
+function instructionRegion(text) {
+  const t = String(text || '');
+  if (t.length <= INSTRUCTION_EDGE * 2) return t;
+  return `${t.slice(0, INSTRUCTION_EDGE)}\n${t.slice(-INSTRUCTION_EDGE)}`;
+}
+
 // ── Deterministic Router (used by client-side routing) ──
 function routeUserRequestDeterministic(messagesOrText) {
   const latest = lastUserText(messagesOrText);
@@ -480,11 +490,37 @@ function routeUserRequestDeterministic(messagesOrText) {
   const q = `${recent}\n${latest}`.toLowerCase();
 
   const explicitQcode = /(qcode|q-code|code lab|كيو\s*كود|كيوكود)/i.test(q);
-  // Arabic gaps this used to miss, now that the classifier actually drives
-  // routing: transliterated language names (بايثون/جافاسكريبت), Levantine verb
-  // forms that fuse the pronoun (اكتبلي/سويلي/اعمللي — so "اكتب\s+دالة" never
-  // matched), and bare code nouns (دالة/كلاس/متغير/مصفوفة).
-  const codingIntent = /(كود|برمج|برمجة|مبرمج|سكربت|سكريبت|موقع|تطبيق|api|sdk|debug|bug|stack trace|traceback|error|exception|compile|refactor|react|next\.js|vue|angular|svelte|node|express|fastapi|django|flask|laravel|python|javascript|typescript|golang|rust|kotlin|swift|firebase|supabase|render|deploy|github|git|terminal|npm|yarn|pnpm|package\.json|docker|kubernetes|sql|nosql|mongodb|postgres|database|قاعدة\s+بيانات|backend|frontend|full[- ]?stack|هندسة\s+برمجيات|تصحيح\s+خطأ|بايثون|جافا|جافاسكريبت|جافا\s*سكريبت|تايب\s*سكريبت|ريأكت|رياكت|نود|دالة|كلاس|متغير|مصفوفة|خوارزمي|اكتب(?:لي|لنا)?\s+(?:دالة|كلاس|برنامج|كود|سكربت)|سوي(?:لي|لنا)?\s+(?:دالة|كود|برنامج)|اعمل(?:لي|لنا)?\s+(?:دالة|كود|برنامج|تطبيق))/i.test(q);
+
+  // A long message is usually a short instruction wrapped around material the
+  // user pasted for reference — a CV, an article, a spec. The instruction is
+  // what to classify; the pasted body is data, and no intent should be read
+  // out of it. Classifying the whole blob is how a CV sent in for formatting
+  // became a coding request at 90% confidence: it happened to contain
+  // "الموقع: عمان" (a location field, not a website), "Git / VS Code" (a
+  // listed skill) and the name of the clinical database a device trained on.
+  const qIntent = `${instructionRegion(recent)}\n${instructionRegion(latest)}`.toLowerCase();
+
+  // Signals that mean code wherever they appear. Nobody pastes a stack trace
+  // or a fenced block as background for a non-coding request.
+  const hardCodeSignal = /(```|~~~|stack\s+trace|traceback|segmentation\s+fault|nullpointerexception|syntaxerror|typeerror|referenceerror|package\.json|node_modules)/i.test(q);
+
+  // Tools, languages and code nouns. A mention counts only inside the
+  // instruction region, because naming React is not asking for React.
+  const codeTopic = /(كود|برمج|برمجة|مبرمج|سكربت|سكريبت|\bapi\b|\bsdk\b|\bdebug\b|\bbug\b|compile|refactor|react|next\.js|vue|angular|svelte|\bnode(?:\.js)?\b|express|fastapi|django|flask|laravel|python|javascript|typescript|golang|\brust\b|kotlin|swift|firebase|supabase|\bdeploy\b|github|\bnpm\b|\byarn\b|\bpnpm\b|docker|kubernetes|\bsql\b|mysql|nosql|mongodb|postgres|backend|frontend|full[- ]?stack|هندسة\s+برمجيات|تصحيح\s+خطأ|بايثون|جافا|جافاسكريبت|جافا\s*سكريبت|تايب\s*سكريبت|ريأكت|رياكت|دالة|كلاس|خوارزمي|مصفوفة|اكتب(?:لي|لنا)?\s+(?:دالة|كلاس|برنامج|كود|سكربت)|سوي(?:لي|لنا)?\s+(?:دالة|كود|برنامج)|اعمل(?:لي|لنا)?\s+(?:دالة|كود|برنامج|تطبيق))/i.test(qIntent);
+
+  // Ambiguous on their own, so they need a verb or a qualifier to count.
+  // "موقع" is a location as often as a website, "git" is a CV skill as often
+  // as a command, and a database is usually the thing being described rather
+  // than the thing being asked for.
+  const ambiguousWithContext = /((?:اعمل|سوي|صمم|ابن[يى]|أنشئ|انشئ|برمج|طور|بني|بدي|أبغى|ابغى)\w*\s+(?:لي\s+|لنا\s+)?(?:موقع|مواقع|تطبيق)|(?:موقع|مواقع)\s*(?:ويب|إلكتروني|الكتروني|انترنت|إنترنت)|\bwebsite\b|\bweb\s*app\b|\bgit\s+(?:clone|push|pull|commit|merge|rebase|branch|status|diff|init|checkout|log)\b|(?:صمم|اعمل|انشئ|أنشئ|بدي|اربط)\w*\s+(?:لي\s+)?قاعدة\s+بيانات)/i.test(qIntent);
+
+  // "Summarise this article", "format this CV", "translate this text": the verb
+  // names the task and the object names a document, so whatever the pasted
+  // body happens to mention, this is not a request to write software. A real
+  // code signal (a fenced block, a stack trace) still wins over it.
+  const documentTask = /((?:لخص|اختصر|ترجم|نسق|نسّق|رتب|رتّب|صغ|صيغ|راجع|دقق|حسّن|حسن)(?:لي|لنا)?\s+(?:هاد|هذا|هاي|هذه)?\s*(?:ال)?(?:مقال|نص|مستند|تقرير|سيرة\s*ذاتية|رسالة|ايميل|إيميل|بريد)|(?:summari[sz]e|translate|proofread|format|polish)\s+(?:this|the)\s+(?:article|text|document|report|cv|resume|email|letter))/i.test(qIntent);
+
+  const codingIntent = hardCodeSignal || ((codeTopic || ambiguousWithContext) && !documentTask);
   const fileEditIntent = /(اقرأ\s+ملف|اكتب\s+ملف|عدّل\s+ملف|عدل\s+ملف|حرر\s+ملف|read_file|write_file|edit_file|run\s+tests|شغل\s+اختبار|نفذ\s+أمر)/i.test(q);
 
   if (explicitQcode || fileEditIntent || codingIntent) {
