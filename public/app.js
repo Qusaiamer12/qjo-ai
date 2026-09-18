@@ -41,8 +41,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
 
     const el = (id) => document.getElementById(id);
 
-    // Tiny UX helpers — warm toast, shuffle, sparkles, confetti dots
-    function shuffle(arr){ const a=[...arr]; for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+    // Tiny UX helpers — warm toast, sparkles, confetti dots
     function showMicroToast(text){
       const t=document.createElement('div');
       t.textContent=text;
@@ -270,7 +269,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     let messageSeq = 0;
     let didAutoLoadChat = false;
     let activeRequestController = null;
-    let thinkingInterval = null;
     let fileProcessing = false;
     let lastFailedRequest = null;
     let requestTimer = null;
@@ -730,24 +728,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       return { now, timeZone, utcOffset: `UTC${sign}${hh}:${mm}`, inferred, ipGeo };
     }
 
-    function getCurrentDateContext() {
-      const { now, timeZone, utcOffset, inferred, ipGeo } = getBrowserTimeContext();
-      const iso = now.toISOString();
-      const local = now.toLocaleString(qjoLanguage === 'ar' ? 'ar-JO' : 'en-US', {
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-        hour: '2-digit', minute: '2-digit', second: '2-digit'
-      });
-      const locationParts = [];
-      if (ipGeo?.city || ipGeo?.country) locationParts.push(`Approximate location: ${[ipGeo.city, ipGeo.region, ipGeo.country].filter(Boolean).join(', ')}`);
-      else if (inferred) locationParts.push(`Inferred location: ${inferred.labelAr || `${inferred.city}, ${inferred.country}`}`);
-      if (timeZone) locationParts.push(`Timezone: ${timeZone} (${utcOffset})`);
-      return `Exact real-world live time: ${local}. ${locationParts.join(' | ')}.
-Crucial temporal grounding:
-- The current year is 2026 (specifically late 2026).
-- The 2026 FIFA World Cup took place in June–July 2026 and has already completed in the past. The next World Cup is in 2030.
-- When the user asks about the day, date, time, or location, answer warmly, conversationally, and gracefully (مثال: "اليوم هو الأربعاء 2 سبتمبر 2026، والساعة الآن 3:05 فجراً بتوقيت عمّان 🌸"). Never dump dry diagnostic logs.`;
-    }
-
     function latestUserTextForPrompt() {
       for (let i = history.length - 1; i >= 0; i--) {
         if (history[i]?.role === 'user') return String(history[i].content || '');
@@ -1012,17 +992,6 @@ Crucial temporal grounding:
     function updateTrainingStatus() {
       const count = qjoTraining.trim().length;
       trainingStatus.textContent = count ? 'يوجد تدريب محفوظ: ' + count + ' حرف.' : 'لا يوجد تدريب محفوظ بعد.';
-    }
-
-    function openSettings() {
-      modelInput.value = GROQ_MODEL;
-      firebaseConfigInput.value = localStorage.getItem(FIREBASE_CONFIG_KEY) || '';
-      runtimeTokenInput.value = '';
-      runtimeTokenInput.type = 'password';
-      toggleRuntimeBtn.textContent = 'إظهار';
-      updateRuntimeStatus();
-      settingsModal.classList.add('show');
-      settingsModal.setAttribute('aria-hidden', 'false');
     }
 
     function closeSettings() {
@@ -1312,7 +1281,7 @@ Crucial temporal grounding:
       history.splice(absoluteIndex);
       if (answerWrap && answerWrap.parentNode) answerWrap.remove();
 
-      sendMessage(question);
+      sendMessage(question, { isRegenerate: true });
     }
 
     async function submitAnswerFeedback(rating, answerText) {
@@ -2697,18 +2666,6 @@ if len(__qjo_err_str) > 20000:
       return wrap;
     }
 
-    function getThinkingPhrases() {
-      if (qjoLanguage === 'en') {
-        if (qjoMode === 'code') return ['Inspecting the logic', 'Tracing edge cases', 'Shaping the solution', 'Checking code quality'];
-        if (qjoMode === 'advanced') return ['Understanding the request', 'Testing assumptions', 'Refining the reasoning', 'Preparing a precise answer'];
-        return ['Reading the request', 'Focusing the answer', 'Refining the response'];
-      }
-
-      if (qjoMode === 'code') return ['فحص المنطق البرمجي', 'تتبع الحالات النادرة', 'بناء الحل', 'مراجعة جودة الكود'];
-      if (qjoMode === 'advanced') return ['فهم الطلب بعمق', 'اختبار الافتراضات', 'تنظيم الاستدلال', 'تحضير إجابة دقيقة'];
-      return ['قراءة الطلب', 'تركيز الإجابة', 'صياغة الرد'];
-    }
-
     function autoResize() {
       inputEl.style.height = 'auto';
       inputEl.style.height = Math.min(inputEl.scrollHeight, 160) + 'px';
@@ -3852,7 +3809,12 @@ if len(__qjo_err_str) > 20000:
       scrollToBottom(false);
     }
 
-    async function sendMessage(textFromButton) {
+    // `options.isRegenerate` replays a question that is already on screen: the
+    // user bubble is not drawn again and the turn is not persisted a second
+    // time, so regenerating replaces the answer instead of duplicating the
+    // exchange in both the transcript and Firestore.
+    async function sendMessage(textFromButton, options = {}) {
+      const isRegenerate = Boolean(options.isRegenerate);
       const rawText = (textFromButton || inputEl.value).trim();
       const clarificationCandidates = likelyNeedsClarification(rawText);
       const clarificationContext = clarificationCandidates.length
@@ -3923,7 +3885,7 @@ if len(__qjo_err_str) > 20000:
       const apiAttachmentContent = buildCurrentUserApiContent(text, attachmentContext);
 
       lastFailedRequest = { text: rawText, fallbackText: text };
-      addMessage('user', displayText + attachmentNames);
+      if (!isRegenerate) addMessage('user', displayText + attachmentNames);
       pendingAttachments = [];
       renderAttachments();
 
@@ -4186,8 +4148,9 @@ if len(__qjo_err_str) > 20000:
         // turn in history, so building earlier matched the previous message.
         const systemPersonalization = buildSystemPrompt();
         // Persist in background without delaying AI streaming
-        ensureChatDocument(text)
-          .then(() => safePersistMessage(userMessage))
+        // On a regenerate the question is already stored; persisting it again
+        // would duplicate the turn in the saved conversation.
+        (isRegenerate ? ensureChatDocument(text) : ensureChatDocument(text).then(() => safePersistMessage(userMessage)))
           .catch(e => console.warn('Background message save error:', e));
         if (attachmentsForRag && attachmentsForRag.length) {
           persistAttachmentsToRagIndex(currentChatId, attachmentsForRag).catch(e => console.warn('Background RAG index error:', e));
