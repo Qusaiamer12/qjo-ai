@@ -2975,3 +2975,13 @@ body.has-focused-code::after {
 @media (max-width: 820px) {
   .msg-action-btn { width: 34px; height: 34px; }
 }
+
+/* Splits the answer actions (copy, regenerate, rate, remember) from the ones
+   that produce a file, so nine same-coloured icons do not read as one blur. */
+.msg-actions-divider {
+  width: 1px;
+  height: 16px;
+  margin-inline: 4px;
+  background: var(--qjo-border);
+  flex: 0 0 auto;
+}

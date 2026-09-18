@@ -2570,6 +2570,11 @@ if len(__qjo_err_str) > 20000:
 
         // ── Exports: only when the answer is substantial enough to warrant one ──
         if (shouldShowRichExports(content)) {
+          const divider = document.createElement('span');
+          divider.className = 'msg-actions-divider';
+          divider.setAttribute('aria-hidden', 'true');
+          toolbar.appendChild(divider);
+
           const exportTitle = () => {
             const firstLine = String(content || '').split('\n').find(l => l.trim()) || 'Qjo';
             return firstLine.replace(/^#{1,6}\s*/, '').replace(/[*_`>|]/g, '').trim().slice(0, 60) || 'Qjo';
