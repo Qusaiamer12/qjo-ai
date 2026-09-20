@@ -22,7 +22,8 @@
     "test:routing": "node scripts/test-routing.js",
     "test:resilience": "node scripts/test-resilience.js",
     "test:agent": "node scripts/test-agent-loop.js",
-    "test:fetch": "node scripts/test-fetch-tool.js"
+    "test:fetch": "node scripts/test-fetch-tool.js",
+    "test:tasks": "node scripts/test-task-runner.js"
   },
   "dependencies": {
     "@qdrant/js-client-rest": "^1.19.0",

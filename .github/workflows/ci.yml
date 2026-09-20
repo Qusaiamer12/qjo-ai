@@ -43,6 +43,12 @@ jobs:
       - name: Agent loop suite
         run: npm run test:agent
 
+      # Long tasks run as steps over stored state, so the assertions that matter
+      # are the ones that restart the world between steps: nothing may live in a
+      # variable that a deploy would take with it.
+      - name: Task runner and workspace suite
+        run: npm run test:tasks
+
       # fetch_page opens URLs a model chose from text a model read, so its SSRF
       # guards are the most security-sensitive assertions in the repo.
       - name: Page fetch and SSRF suite

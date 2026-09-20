@@ -26,6 +26,9 @@ const { registerSearchRoutes } = require('./src/routes/search');
 const { createSafeCalculate } = require('./src/tools/calculatorTool');
 const { registerChatRoutes } = require('./src/routes/chat');
 const { FETCH_PAGE_TOOL, fetchPage, formatForModel } = require('./src/tools/fetchPageTool');
+const { registerTaskRoutes } = require('./src/routes/tasks');
+const { createTaskRunner } = require('./src/agents/TaskRunner');
+const { createTaskStore } = require('./src/agents/taskStore');
 const { createKnowledgeBaseService } = require('./src/services/knowledgeBase');
 
 let admin = null;
@@ -707,6 +710,45 @@ registerChatRoutes(app, {
   cacheSet,
   memoryCaches
 });
+
+// Long tasks: step-driven so no single process has to outlive the work. State
+// goes to Firestore when the server has admin credentials and to memory when it
+// does not — the store says which, and the agent is told when its run is not
+// durable rather than losing the task quietly.
+const taskStore = createTaskStore({ firestore: admin && admin.apps.length ? admin.firestore() : null });
+console.log(`[tasks] state store: ${taskStore.durable ? 'Firestore (durable)' : 'memory (not durable — tasks are lost on restart)'}`);
+
+const taskRunner = createTaskRunner({
+  store: taskStore,
+  llmService,
+  safeCalculate,
+  searchService,
+  keys: {
+    groq: GROQ_API_KEYS.length,
+    llm7: LLM7_API_KEYS.length || 1,
+    qwen: QWEN_API_KEYS.length,
+    kimi: KIMI_API_KEYS.length
+  },
+  models: {
+    groqFlash: GROQ_FLASH_MODEL,
+    groqText: GROQ_TEXT_MODEL,
+    groqCode: GROQ_TEXT_MODEL,
+    groqVision: GROQ_VISION_MODEL
+  },
+  extraTools: {
+    fetch_page: {
+      schema: FETCH_PAGE_TOOL,
+      label: 'Reading page',
+      run: async (args, ctx) => {
+        const page = await fetchPage(args.url);
+        ctx.note({ tool: 'fetch_page', input: page.url, truncated: page.truncated });
+        return formatForModel(page);
+      }
+    }
+  }
+});
+
+registerTaskRoutes(app, { verifyFirebaseRequest, taskRunner, enforceDailyUsage });
 
 // Unknown /api/* must NOT fall through to the SPA catch-all below. It used to,
 // so a typo'd endpoint returned 200 + index.html and the client blew up with

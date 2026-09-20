@@ -257,7 +257,7 @@ function createRoutingEngine(deps) {
 
   const TOOL_OUTPUT_MAX_CHARS = 6000;
 
-  async function executeToolCalls(toolCalls, originalQuestion, onToolCall) {
+  async function executeToolCalls(toolCalls, originalQuestion, onToolCall, onToolResult) {
     const toolMessages = [];
     const used = [];
     for (const call of (toolCalls || []).slice(0, 4)) {
@@ -285,6 +285,10 @@ function createRoutingEngine(deps) {
       if (!noted) used.push({ tool: name, input: detail });
 
       if (onToolCall) onToolCall({ tool: name, label, detail, status: 'done' });
+      // Built-in tools live in this registry rather than in the caller's, so
+      // without this hook a long task could not record what web_search or
+      // fetch_page actually returned — and would re-run them next step.
+      if (onToolResult) onToolResult({ tool: name, input: detail, output: String(output || '') });
       toolMessages.push({ role: 'tool', tool_call_id: call.id, content: String(output || '').slice(0, TOOL_OUTPUT_MAX_CHARS) });
     }
     return { toolMessages, used };
@@ -321,7 +325,7 @@ function createRoutingEngine(deps) {
       });
       if (!fresh.length) break;
 
-      const { toolMessages, used: roundUsed } = await executeToolCalls(fresh, originalQuestion, params.onToolCall);
+      const { toolMessages, used: roundUsed } = await executeToolCalls(fresh, originalQuestion, params.onToolCall, params.onToolResult);
       if (!toolMessages.length) break;
       totalCalls += toolMessages.length;
       used.push(...roundUsed);
@@ -507,7 +511,7 @@ function createRoutingEngine(deps) {
   async function callAgent({
     agentType = 'chat', mode, messages, temperature = 0.7, max_tokens = 4000,
     frequency_penalty, presence_penalty,
-    useTools, routingDecision, onChunk, onReasoning, onToolCall, model,
+    useTools, routingDecision, onChunk, onReasoning, onToolCall, onToolResult, model,
     deadlineMs, budgetMs, signal
   } = {}) {
     if (!deadlineMs) {
@@ -541,7 +545,7 @@ function createRoutingEngine(deps) {
       requestedTemp: temperature
     });
 
-    const base = { messages, temperature: effectiveTemperature, max_tokens, frequency_penalty, presence_penalty, onChunk, onReasoning, onToolCall, deadlineMs, signal };
+    const base = { messages, temperature: effectiveTemperature, max_tokens, frequency_penalty, presence_penalty, onChunk, onReasoning, onToolCall, onToolResult, deadlineMs, signal };
 
     // Tool attachment policy:
     //  • calculator whenever math is plausible (never for images)
