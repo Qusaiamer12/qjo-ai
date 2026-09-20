@@ -38,6 +38,16 @@ jobs:
       - name: Stability audit
         run: npm run audit
 
+      # The agent loop is what separates this from a chat box: the model must be
+      # able to act on what it just learned, and the loop must stay bounded.
+      - name: Agent loop suite
+        run: npm run test:agent
+
+      # fetch_page opens URLs a model chose from text a model read, so its SSRF
+      # guards are the most security-sensitive assertions in the repo.
+      - name: Page fetch and SSRF suite
+        run: npm run test:fetch
+
       # Failure modes that take the whole service down rather than one request:
       # a context-length rejection used to cool down every API key on every
       # provider, and the history trim silently deleted a third of the evidence

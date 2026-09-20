@@ -20,7 +20,9 @@
     "test:pdf": "node scripts/test-pdf-export.js",
     "test:stream": "node scripts/test-streaming.js",
     "test:routing": "node scripts/test-routing.js",
-    "test:resilience": "node scripts/test-resilience.js"
+    "test:resilience": "node scripts/test-resilience.js",
+    "test:agent": "node scripts/test-agent-loop.js",
+    "test:fetch": "node scripts/test-fetch-tool.js"
   },
   "dependencies": {
     "@qdrant/js-client-rest": "^1.19.0",

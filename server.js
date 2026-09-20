@@ -25,6 +25,7 @@ const { createChatPromptBuilder } = require('./src/services/systemPrompt');
 const { registerSearchRoutes } = require('./src/routes/search');
 const { createSafeCalculate } = require('./src/tools/calculatorTool');
 const { registerChatRoutes } = require('./src/routes/chat');
+const { FETCH_PAGE_TOOL, fetchPage, formatForModel } = require('./src/tools/fetchPageTool');
 const { createKnowledgeBaseService } = require('./src/services/knowledgeBase');
 
 let admin = null;
@@ -426,6 +427,20 @@ const routingEngine = createRoutingEngine({
   llmService,
   safeCalculate,
   searchService: null,
+  // Search finds sources; this reads them. Without it the model answers deep
+  // research questions from two-line snippets. See fetchPageTool.js for the
+  // SSRF guards — it opens URLs chosen by a model, from text a model read.
+  extraTools: {
+    fetch_page: {
+      schema: FETCH_PAGE_TOOL,
+      label: 'Reading page',
+      run: async (args, ctx) => {
+        const page = await fetchPage(args.url);
+        ctx.note({ tool: 'fetch_page', input: page.url, truncated: page.truncated });
+        return formatForModel(page);
+      }
+    }
+  },
   keys: {
     groq: GROQ_API_KEYS.length,
     llm7: LLM7_API_KEYS.length || 1,

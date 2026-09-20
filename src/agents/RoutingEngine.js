@@ -1,5 +1,6 @@
 const { CALCULATOR_TOOL } = require('../tools/calculatorTool');
 const { WEB_SEARCH_TOOL } = require('../tools/searchTool');
+const { createToolRegistry } = require('../tools/toolRegistry');
 const { z } = require('zod');
 
 // ── Zod Schema ──
@@ -222,34 +223,128 @@ function createRoutingEngine(deps) {
     return results.map(r => `[${r.id}] ${r.title || 'untitled'} (${r.url})\n${String(r.content || '').slice(0, 900)}`).join('\n\n');
   }
 
+  // Tools are declared in one registry rather than as if/else arms here, so a
+  // new capability (fetch a page, write a project file) plugs in without
+  // touching provider plumbing. Callers may add their own through
+  // deps.extraTools.
+  const toolRegistry = createToolRegistry();
+
+  toolRegistry.register('calculate', {
+    schema: CALCULATOR_TOOL,
+    label: 'Calculator',
+    available: () => Boolean(safeCalculate),
+    run: (args) => safeCalculate(args.expression)
+  });
+
+  toolRegistry.register('web_search', {
+    schema: WEB_SEARCH_TOOL,
+    label: 'Web search',
+    available: () => Boolean(searchService),
+    run: async (args, ctx) => {
+      const payload = await searchService.performSearch({ rawQuery: args.query, originalQuestion: ctx.originalQuestion });
+      ctx.note({ tool: 'web_search', input: payload.query || args.query, resultCount: (payload.results || []).length });
+      return formatSearchResultsForTool(payload);
+    }
+  });
+
+  for (const [name, definition] of Object.entries(deps.extraTools || {})) {
+    toolRegistry.register(name, definition);
+  }
+
+  // Tools the host registered are offered on every tool-enabled request: the
+  // host added them deliberately, so the model should know they exist.
+  const extraToolNames = Object.keys(deps.extraTools || {});
+
+  const TOOL_OUTPUT_MAX_CHARS = 6000;
+
   async function executeToolCalls(toolCalls, originalQuestion, onToolCall) {
     const toolMessages = [];
     const used = [];
     for (const call of (toolCalls || []).slice(0, 4)) {
       const name = call?.function?.name;
-      let output;
+      const label = toolRegistry.labelFor(name);
+      let args = {};
       try {
-        const args = JSON.parse(call.function.arguments || '{}');
-        if (name === 'calculate' && safeCalculate) {
-          if (onToolCall) onToolCall({ tool: 'calculate', label: 'Used calculator', detail: args.expression, status: 'running' });
-          output = safeCalculate(args.expression);
-          used.push({ tool: 'calculate', input: args.expression });
-          if (onToolCall) onToolCall({ tool: 'calculate', label: 'Used calculator', detail: `${args.expression} = ${output}`, status: 'done' });
-        } else if (name === 'web_search' && searchService) {
-          if (onToolCall) onToolCall({ tool: 'web_search', label: 'Searching the web', detail: args.query, status: 'running' });
-          const payload = await searchService.performSearch({ rawQuery: args.query, originalQuestion });
-          output = formatSearchResultsForTool(payload);
-          used.push({ tool: 'web_search', input: payload.query || args.query, resultCount: (payload.results || []).length });
-          if (onToolCall) onToolCall({ tool: 'web_search', label: 'Searched the web', detail: args.query, count: (payload.results || []).length, status: 'done' });
-        } else {
-          output = `Tool "${name}" is not available.`;
-        }
-      } catch (error) {
-        output = `Tool error: ${error.message}`;
+        args = JSON.parse(call.function.arguments || '{}');
+      } catch (_) {
+        // A malformed argument blob is the model's mistake to correct on the
+        // next round, not a reason to abandon the task.
+        toolMessages.push({ role: 'tool', tool_call_id: call.id, content: `Tool error: arguments were not valid JSON.` });
+        continue;
       }
-      toolMessages.push({ role: 'tool', tool_call_id: call.id, content: String(output || '').slice(0, 6000) });
+
+      const detail = args.query || args.expression || args.url || args.path || '';
+      if (onToolCall) onToolCall({ tool: name, label, detail, status: 'running' });
+
+      let noted = false;
+      const ctx = {
+        originalQuestion,
+        note: (entry) => { used.push(entry); noted = true; }
+      };
+      const { output } = await toolRegistry.execute(name, args, ctx);
+      if (!noted) used.push({ tool: name, input: detail });
+
+      if (onToolCall) onToolCall({ tool: name, label, detail, status: 'done' });
+      toolMessages.push({ role: 'tool', tool_call_id: call.id, content: String(output || '').slice(0, TOOL_OUTPUT_MAX_CHARS) });
     }
     return { toolMessages, used };
+  }
+
+  // Tool use has to be a loop. Real research is search → read → search again →
+  // verify; building a project is write → run → read the error → fix. The
+  // previous code ran tools exactly once and then called back with
+  // `tools: undefined`, so the model could never act on what it had just
+  // learned. That single line was the biggest gap against a real agent.
+  const MAX_TOOL_ROUNDS = 6;
+  const MAX_TOTAL_TOOL_CALLS = 20;
+
+  async function runToolRounds({ provider, slot, params, originalQuestion, first }) {
+    let res = first;
+    let messages = params.messages;
+    const used = [];
+    const seen = new Set();
+    let totalCalls = 0;
+
+    for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+      const toolCalls = res.toolCalls || [];
+      if (!toolCalls.length) break;
+      if (totalCalls >= MAX_TOTAL_TOOL_CALLS) break;
+      if (params.deadlineMs && params.deadlineMs - Date.now() < 3000) break;
+
+      // Asking for the exact same thing again means the model is stuck rather
+      // than working, and each repeat costs a full round-trip.
+      const fresh = toolCalls.filter((call) => {
+        const signature = `${call?.function?.name}:${call?.function?.arguments}`;
+        if (seen.has(signature)) return false;
+        seen.add(signature);
+        return true;
+      });
+      if (!fresh.length) break;
+
+      const { toolMessages, used: roundUsed } = await executeToolCalls(fresh, originalQuestion, params.onToolCall);
+      if (!toolMessages.length) break;
+      totalCalls += toolMessages.length;
+      used.push(...roundUsed);
+      messages = [...messages, res.message, ...toolMessages];
+
+      // On the final allowed round the tools come off, so the model has to
+      // answer from what it has instead of asking for more and being cut off.
+      const closing = round === MAX_TOOL_ROUNDS - 1;
+      const next = await tryProvider(provider, slot, {
+        ...params,
+        messages,
+        // Text from a round that ends in another tool call is the model
+        // thinking out loud. Streaming it would interleave with the real
+        // answer, so only the closing round streams.
+        onChunk: closing ? params.onChunk : undefined,
+        tools: closing ? undefined : params.tools
+      });
+      if (!next.ok) break;
+      res = next;
+      if (closing) break;
+    }
+
+    return { ...res, toolsUsed: used, toolRounds: totalCalls };
   }
 
   // ── Provider plumbing ──
@@ -349,24 +444,24 @@ function createRoutingEngine(deps) {
 
       if (!res.ok) { last = res; failures.push({ provider, status: res.status, error: res.error }); continue; }
 
-      // Non-streaming providers: deliver the whole answer
-      // as one instant chunk so SSE clients never stare at an empty bubble.
-      if (res.ok && params.onChunk && res.answer && !res.streamed) params.onChunk(res.answer);
+      const wantsTools = withTools && (res.toolCalls || []).length > 0;
 
-      const toolCalls = res.toolCalls || [];
-      if (!withTools || !toolCalls.length) return res;
+      // Non-streaming providers: deliver the whole answer as one instant chunk
+      // so SSE clients never stare at an empty bubble — but not when the model
+      // is about to call a tool, because that text is preamble and the real
+      // answer is still coming.
+      if (res.ok && !wantsTools && params.onChunk && res.answer && !res.streamed) params.onChunk(res.answer);
 
-      // First pass asked for tools: execute, then continue on the SAME provider.
-      const { toolMessages, used } = await executeToolCalls(toolCalls, originalQuestion, params.onToolCall);
-      if (!toolMessages.length) return res;
-      if (params.deadlineMs && params.deadlineMs - Date.now() < 2500) return res;
-      const second = await tryProvider(provider, slot, {
-        ...params,
-        messages: [...params.messages, res.message, ...toolMessages],
-        tools: undefined
-      });
-      if (second.ok) return { ...second, toolsUsed: used };
-      return res; // better a tool-less first answer than a failed second call
+      if (!wantsTools) return res;
+
+      const looped = await runToolRounds({ provider, slot, params, originalQuestion, first: res });
+      if (looped.ok && looped.answer) {
+        // The closing round usually ran with streaming off (see runToolRounds),
+        // so hand its answer over here rather than leaving the bubble empty.
+        if (params.onChunk && !looped.streamed) params.onChunk(looped.answer);
+        return looped;
+      }
+      return res; // better a tool-less first answer than a failed loop
     }
     // Aggregate diagnostics: if every attempt was throttled, say so clearly —
     // a generic opaque error used to hide the (very common) free-tier
@@ -402,10 +497,7 @@ function createRoutingEngine(deps) {
 
   function buildTools({ attach }) {
     if (!attach.length) return undefined;
-    const tools = [];
-    if (attach.includes('calculate') && safeCalculate) tools.push(CALCULATOR_TOOL);
-    if (attach.includes('web_search') && searchService) tools.push(WEB_SEARCH_TOOL);
-    return tools.length ? tools : undefined;
+    return toolRegistry.schemasFor(attach);
   }
 
   // Router for the Qjo chat product. The Qcode/Q-Spark provider pipelines that
@@ -455,10 +547,18 @@ function createRoutingEngine(deps) {
     //  • calculator whenever math is plausible (never for images)
     //  • web_search when the question might need freshness AND the client has
     //    not already injected a source pack (avoids double searching)
+    //  • fetch_page alongside search, so the model can open what it found
+    //    instead of answering from two-line snippets
     const attach = [];
     if (useTools !== false && !hasImages) {
       if (route.mathIntent) attach.push('calculate');
-      if (searchService && !route.hasSearchContext && (normMode === 'max' || mightNeedFreshness(originalQuestion))) attach.push('web_search');
+      if (searchService && !route.hasSearchContext && (normMode === 'max' || mightNeedFreshness(originalQuestion))) {
+        attach.push('web_search');
+        // Only offered with search: opening a page is how a search result
+        // becomes evidence, and on its own the model has no URL to open.
+        attach.push('fetch_page');
+      }
+      for (const name of extraToolNames) attach.push(name);
     }
     const tools = buildTools({ attach });
 
