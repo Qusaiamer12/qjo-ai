@@ -41,6 +41,12 @@ jobs:
       # JSDoc annotations checked by the TypeScript compiler. noEmit: this never
       # produces output, so the files that ship stay the files that are written.
       # It found three real defects on the day it was switched on.
+      # Pure front-end logic, tested without a browser. These branches used to
+      # live inside a 588-line function, where checking one meant triggering it
+      # in a real browser.
+      - name: Front-end domain suite
+        run: npm run test:domain
+
       - name: Type check
         run: npm run typecheck
 

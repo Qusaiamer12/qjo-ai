@@ -26,7 +26,8 @@
     "test:tasks": "node scripts/test-task-runner.js",
     "test:search": "node scripts/test-search.js",
     "structure": "node scripts/check-structure.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:domain": "node scripts/test-domain.js"
   },
   "dependencies": {
     "@qdrant/js-client-rest": "^1.19.0",

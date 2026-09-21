@@ -3935,6 +3935,33 @@ if len(__qjo_err_str) > 20000:
       scrollToBottom(false);
     }
 
+    /**
+     * Completes a turn without calling a provider: shows both sides, records
+     * them, and persists them. Used by the safety refusal and by the offline
+     * small-talk reply, which were the same block written twice.
+     *
+     * @param {string} userText What the person typed.
+     * @param {string} replyText The answer produced locally.
+     */
+    async function deliverLocalReply(userText, replyText) {
+      document.body.classList.remove('drawer-open');
+      inputEl.value = '';
+      clearDraft();
+      autoResize();
+
+      addMessage('user', userText);
+      addMessage('assistant', replyText);
+
+      const userMessage = { role: 'user', content: userText };
+      const assistantMessage = { role: 'assistant', content: replyText };
+      history.push(userMessage);
+      history.push(assistantMessage);
+
+      await ensureChatDocument(userText || 'محادثة');
+      await safePersistMessage(userMessage);
+      await safePersistMessage(assistantMessage);
+    }
+
     // `options.isRegenerate` replays a question that is already on screen: the
     // user bubble is not drawn again and the turn is not persisted a second
     // time, so regenerating replaces the answer instead of duplicating the
@@ -3962,36 +3989,19 @@ if len(__qjo_err_str) > 20000:
       const attachmentsForRag = pendingAttachments.slice();
       if (!text || busy) return;
 
+      // Two answers never reach a provider: a safety refusal, and small talk
+      // while offline. Both were the same fourteen lines with one word changed.
       const localSafetyRefusal = !pendingAttachments.length ? getLocalSafetyRefusal(rawText) : '';
       if (localSafetyRefusal) {
-        document.body.classList.remove('drawer-open');
-        inputEl.value = '';
-        clearDraft();
-        autoResize();
-        addMessage('user', rawText);
-        addMessage('assistant', localSafetyRefusal);
-        history.push({ role: 'user', content: rawText });
-        history.push({ role: 'assistant', content: localSafetyRefusal });
-        await ensureChatDocument(rawText || 'محادثة');
-        await safePersistMessage({ role: 'user', content: rawText });
-        await safePersistMessage({ role: 'assistant', content: localSafetyRefusal });
+        await deliverLocalReply(rawText, localSafetyRefusal);
         return;
       }
 
-      // Offline fallback only: when online, allow the intelligent LLM to respond dynamically
+      // Offline only: while online the model answers small talk far better than
+      // a lookup table does.
       const localSmallTalk = (!navigator.onLine && !pendingAttachments.length) ? getLocalSmallTalkReply(rawText) : '';
       if (localSmallTalk) {
-        document.body.classList.remove('drawer-open');
-        inputEl.value = '';
-        clearDraft();
-        autoResize();
-        addMessage('user', rawText);
-        addMessage('assistant', localSmallTalk);
-        history.push({ role: 'user', content: rawText });
-        history.push({ role: 'assistant', content: localSmallTalk });
-        await ensureChatDocument(rawText || 'محادثة');
-        await safePersistMessage({ role: 'user', content: rawText });
-        await safePersistMessage({ role: 'assistant', content: localSmallTalk });
+        await deliverLocalReply(rawText, localSmallTalk);
         return;
       }
 
@@ -4019,235 +4029,37 @@ if len(__qjo_err_str) > 20000:
         ? GROQ_VISION_MODEL
         : (qjoMode === 'normal' ? GROQ_FLASH_MODEL : GROQ_MODEL);
       const generationConfig = getGenerationConfig(hasAttachmentAnalysis, rawText);
-      const apiAttachmentContent = buildCurrentUserApiContent(text, attachmentContext);
 
       lastFailedRequest = { text: rawText, fallbackText: text };
       if (!isRegenerate) addMessage('user', displayText + attachmentNames);
       pendingAttachments = [];
       renderAttachments();
 
-      let started = false;
-      let bubble = null;
-      let assistantWrap = null;
+      // The streaming bubble — reasoning card, timeline, answer rendering — is
+      // its own unit now (public/ui/streamingView.js). It was ~210 lines of
+      // mutable DOM handles and four timers living inside this function,
+      // interleaved with request building and error handling it had nothing to
+      // do with.
+      const view = QjoUI.createStreamingView({
+        addMessage,
+        escapeHtml,
+        renderMarkdown: lightMarkdown,
+        requestSmoothScroll,
+        getLanguage: () => qjoLanguage
+      });
+
       let lastMetadata = {};
       // Set from the done event: the model ran out of room before finishing.
       let answerWasTruncated = false;
-      let fullAnswer = '';
-
-      // Reasoning & Timeline Streaming Controller
-      let reasoningActive = false;
-      let reasoningRaw = '';
-      let reasoningStartTime = null;
-      let reasoningElapsed = '0.0s';
-      let reasoningTimerInterval = null;
-      let reasoningCard = null;
-      let reasoningTimeline = null;
-      let reasoningTimerEl = null;
-      let reasoningLabelEl = null;
-      let contentContainer = null;
-      let reasoningDivider = null;
+      // Stream-parsing state, not view state: whether the provider is currently
+      // inside a <think> block.
       let insideThinkTag = false;
-      let currentActiveStep = null;
-      let renderRafId = null;
 
-      function ensureAssistantStreamElements() {
-        if (!started) {
-          assistantWrap = addMessage('assistant', '');
-          bubble = assistantWrap.querySelector('.bubble');
-          bubble.innerHTML = '';
-          started = true;
-        }
-      }
-
-      function ensureReasoningWidget() {
-        ensureAssistantStreamElements();
-        if (!reasoningCard) {
-          reasoningActive = true;
-          reasoningStartTime = Date.now();
-          reasoningCard = document.createElement('div');
-          reasoningCard.className = 'qjo-reasoning-card';
-          reasoningCard.innerHTML = `
-            <div class="qjo-reasoning-header">
-              <div class="qjo-reasoning-title">
-                <span class="qjo-reasoning-pulse"></span>
-                <span class="qjo-reasoning-label">${qjoLanguage === 'ar' ? 'التفكير...' : 'Reasoning...'}</span>
-                <span class="qjo-reasoning-timer">0.1s</span>
-              </div>
-              <button type="button" class="qjo-reasoning-toggle" aria-label="Toggle Reasoning">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
-              </button>
-            </div>
-            <div class="qjo-reasoning-body">
-              <div class="qjo-reasoning-timeline"></div>
-            </div>
-          `;
-          reasoningTimeline = reasoningCard.querySelector('.qjo-reasoning-timeline');
-          reasoningTimerEl = reasoningCard.querySelector('.qjo-reasoning-timer');
-          reasoningLabelEl = reasoningCard.querySelector('.qjo-reasoning-label');
-
-          const header = reasoningCard.querySelector('.qjo-reasoning-header');
-          header.addEventListener('click', () => {
-            reasoningCard.classList.toggle('collapsed');
-          });
-
-          reasoningTimerInterval = setInterval(() => {
-            if (reasoningStartTime) {
-              reasoningElapsed = ((Date.now() - reasoningStartTime) / 1000).toFixed(1) + 's';
-              if (reasoningTimerEl) reasoningTimerEl.textContent = reasoningElapsed;
-            }
-          }, 100);
-
-          if (contentContainer) {
-            bubble.insertBefore(reasoningCard, contentContainer);
-          } else {
-            bubble.appendChild(reasoningCard);
-          }
-        }
-      }
-
-      function appendReasoningStep(text, isTool = false) {
-        ensureReasoningWidget();
-        const step = document.createElement('div');
-        step.className = 'qjo-reasoning-step' + (isTool ? ' tool-step' : '');
-        step.setAttribute('dir', 'auto');
-        if (isTool) {
-          step.innerHTML = `<span class="qjo-step-dot"></span><span class="tool-check">✓</span><span>${escapeHtml(text)}</span>`;
-        } else {
-          step.innerHTML = `<span class="qjo-step-dot"></span><span>${escapeHtml(text)}</span>`;
-        }
-        reasoningTimeline.appendChild(step);
-        requestSmoothScroll();
-      }
-
-      // Reasoning deltas arrive as fast as tokens (100+/sec). Touching the DOM
-      // and then calling requestSmoothScroll() on each one meant a forced
-      // synchronous layout per delta — measured at 2.53ms each, 28x the cost of
-      // the DOM write itself, which is where most of the streaming jank lived.
-      // Deltas are now coalesced onto the same cadence as the answer render.
-      // reasoningRaw still accumulates every delta synchronously, so the saved
-      // transcript is complete regardless of how the UI is paced.
-      let reasoningBuffer = '';
-      let reasoningFlushTimer = null;
-
-      function flushReasoningBuffer() {
-        if (reasoningFlushTimer) { clearTimeout(reasoningFlushTimer); reasoningFlushTimer = null; }
-        const delta = reasoningBuffer;
-        reasoningBuffer = '';
-        if (!delta || !reasoningTimeline) return;
-
-        if (!currentActiveStep || delta.includes('\n') || (delta.includes('.') && currentActiveStep.textContent.length > 55)) {
-          currentActiveStep = document.createElement('div');
-          currentActiveStep.className = 'qjo-reasoning-step';
-          currentActiveStep.setAttribute('dir', 'auto');
-          currentActiveStep.innerHTML = `<span class="qjo-step-dot"></span><span class="step-content"></span>`;
-          reasoningTimeline.appendChild(currentActiveStep);
-        }
-        const contentEl = currentActiveStep.querySelector('.step-content');
-        if (contentEl) {
-          contentEl.textContent += delta.replace(/[\n\r]+/g, ' ');
-        }
-        requestSmoothScroll();
-      }
-
-      function streamReasoningText(delta) {
-        ensureReasoningWidget();
-        reasoningRaw += delta;
-        if (!delta.trim()) return;
-        reasoningBuffer += delta;
-        if (!reasoningFlushTimer) {
-          reasoningFlushTimer = setTimeout(flushReasoningBuffer, STREAM_RENDER_INTERVAL_MS);
-        }
-      }
-
-      function finishReasoning() {
-        flushReasoningBuffer();
-        if (reasoningActive) {
-          reasoningActive = false;
-          if (reasoningTimerInterval) clearInterval(reasoningTimerInterval);
-          if (reasoningStartTime) {
-            reasoningElapsed = ((Date.now() - reasoningStartTime) / 1000).toFixed(1) + 's';
-          }
-          if (reasoningCard) {
-            const pulse = reasoningCard.querySelector('.qjo-reasoning-pulse');
-            if (pulse) pulse.remove();
-          }
-          if (reasoningLabelEl) {
-            reasoningLabelEl.textContent = qjoLanguage === 'ar' ? 'مسار التفكير' : 'Reasoning';
-          }
-          if (reasoningTimerEl) {
-            reasoningTimerEl.textContent = qjoLanguage === 'ar' ? `تم التفكير في ${reasoningElapsed}` : `Thought for ${reasoningElapsed}`;
-          }
-          if (!reasoningDivider) {
-            reasoningDivider = document.createElement('div');
-            reasoningDivider.className = 'qjo-reasoning-divider';
-            if (contentContainer) {
-              bubble.insertBefore(reasoningDivider, contentContainer);
-            } else {
-              bubble.appendChild(reasoningDivider);
-            }
-          }
-        }
-      }
-
-      function ensureContentContainer() {
-        ensureAssistantStreamElements();
-        if (!contentContainer) {
-          contentContainer = document.createElement('div');
-          contentContainer.className = 'qjo-streamed-content';
-          bubble.appendChild(contentContainer);
-        }
-      }
-
-      // Streaming render budget.
-      //
-      // This used to re-parse the ENTIRE accumulated answer through
-      // lightMarkdown() and replace the whole subtree on every animation frame.
-      // Each frame then forced a synchronous layout read (scrollHeight) right
-      // after invalidating layout, so the cost grew with the answer and repeated
-      // 60x/sec: measured 32.9ms median frames (~30fps) with 48% of frames over
-      // 33ms during a 4s stream.
-      //
-      // Re-rendering faster than the eye can read buys nothing, so renders are
-      // now paced and skipped when nothing changed. Token capture is untouched —
-      // fullAnswer still accumulates every chunk — so nothing is lost or
-      // reordered; only how often the DOM is rebuilt changes.
-      const STREAM_RENDER_INTERVAL_MS = 90;
-      let lastRenderAt = 0;
-      let lastRenderedLength = -1;
-      let renderTimerId = null;
-
-      function renderStreamedContent() {
-        if (!contentContainer) return;
-        if (fullAnswer.length === lastRenderedLength) return; // nothing new
-        lastRenderedLength = fullAnswer.length;
-        lastRenderAt = performance.now();
-        contentContainer.innerHTML = lightMarkdown(fullAnswer) + '<span class="qjo-typing-cursor"></span>';
-        requestSmoothScroll();
-      }
-
-      function scheduleContentRender() {
-        if (renderTimerId) return; // a render is already queued
-        // The first chunk renders immediately (lastRenderAt starts at 0), so
-        // time-to-first-visible-token is unchanged.
-        const elapsed = performance.now() - lastRenderAt;
-        const delay = Math.max(0, STREAM_RENDER_INTERVAL_MS - elapsed);
-        renderTimerId = setTimeout(() => {
-          renderTimerId = null;
-          // Align the write with a paint so it never lands mid-frame.
-          renderRafId = requestAnimationFrame(renderStreamedContent);
-        }, delay);
-      }
-
-      function flushContentRender() {
-        if (renderTimerId) { clearTimeout(renderTimerId); renderTimerId = null; }
-        if (renderRafId) { cancelAnimationFrame(renderRafId); renderRafId = null; }
-      }
-
-      function appendContentChunk(text) {
-        ensureContentContainer();
-        fullAnswer += text;
-        scheduleContentRender();
-      }
+      const appendReasoningStep = (text, isTool = false) => view.addStep(text, isTool);
+      const streamReasoningText = (delta) => view.streamReasoning(delta);
+      const finishReasoning = () => view.finishReasoning();
+      const appendContentChunk = (text) => view.appendAnswer(text);
+      const ensureReasoningWidget = () => view.ensureReasoningCard();
 
       // Launch Reasoning Card INSTANTLY upon sending message!
       ensureReasoningWidget();
@@ -4336,7 +4148,6 @@ if len(__qjo_err_str) > 20000:
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
-        fullAnswer = '';
 
         while (true) {
           const { done, value } = await reader.read();
@@ -4386,7 +4197,7 @@ if len(__qjo_err_str) > 20000:
                   streamReasoningText(text);
                 }
               } else {
-                if (reasoningActive) finishReasoning();
+                if (view.reasoningActive) finishReasoning();
                 appendContentChunk(text);
               }
             } else if (evt === 'done') {
@@ -4398,9 +4209,8 @@ if len(__qjo_err_str) > 20000:
           }
         }
 
-        if (reasoningActive) finishReasoning();
-        // Flush any pending content render
-        flushContentRender();
+        if (view.reasoningActive) view.finishReasoning();
+        view.flushRenders();
 
         // A stream that ends with no answer text is a failure, not a success.
         // Nothing here used to check, so a provider that replied 200 with an
@@ -4409,97 +4219,75 @@ if len(__qjo_err_str) > 20000:
         // code was concerned it had worked. Throwing sends it into the same
         // path as any other failure, which retries once and then says something
         // honest instead of showing nothing.
-        if (!String(fullAnswer || '').trim()) {
+        if (!String(view.answer || '').trim()) {
           throw new Error('EMPTY_ANSWER');
         }
 
-        if (contentContainer) {
-          contentContainer.innerHTML = lightMarkdown(fullAnswer);
-        }
-        const cursorEl = bubble ? bubble.querySelector('.qjo-typing-cursor') : null;
-        if (cursorEl) cursorEl.remove();
+        view.renderFinalAnswer();
 
         // Everything here decorates an answer that has ALREADY arrived in
         // full. It used to run unguarded inside the network try/catch below,
         // so one malformed chart config or a KaTeX hiccup would delete a
         // complete answer from the screen and tell the user the server had
         // restarted. A decoration failure may now cost only that decoration.
-        if (started && bubble) {
-          decorateAssistantBubble(bubble, assistantWrap, {
+        if (view.started && view.bubble) {
+          decorateAssistantBubble(view.bubble, view.wrap, {
             extras: [
               ['sources', () => {
-                if (lastSearchSources.length) appendSourceCards(assistantWrap, lastSearchSources);
+                if (lastSearchSources.length) appendSourceCards(view.wrap, lastSearchSources);
               }],
-              ['tools note', () => appendToolsUsedNote(assistantWrap, lastMetadata.toolsUsed)],
+              ['tools note', () => appendToolsUsedNote(view.wrap, lastMetadata.toolsUsed)],
               // Now that the answer is complete, re-decide the content-dependent
               // actions (exports, project ZIP) that could not be judged when the
               // empty message element was created.
-              ['actions', () => refreshAnswerToolbar(assistantWrap, fullAnswer)],
+              ['actions', () => refreshAnswerToolbar(view.wrap, view.answer)],
               ['continuation notice', () => {
-                if (answerWasTruncated) showContinueAction(assistantWrap);
+                if (answerWasTruncated) showContinueAction(view.wrap);
               }]
             ]
           });
         }
 
-        const storedContent = (reasoningRaw.trim() ? `<think>\n${reasoningRaw.trim()}\n</think>\n\n` : '') + fullAnswer;
+        const transcript = view.reasoningTranscript.trim();
+        const storedContent = (transcript ? `<think>\n${transcript}\n</think>\n\n` : '') + view.answer;
         const assistantMessage = { role: 'assistant', content: storedContent };
         history.push(assistantMessage);
         pendingAttachments = [];
         renderAttachments();
         await safePersistMessage(assistantMessage);
       } catch (error) {
-        if (reasoningTimerInterval) clearInterval(reasoningTimerInterval);
+        view.dispose();
         console.error('[Qjo Chat Error]', error);
-        let failMessage = 'تعذر الاتصال بالخدمة حاليًا. يرجى المحاولة لاحقًا.';
-        if (error.name === 'AbortError') failMessage = 'تم إيقاف الطلب أو انتهت مهلته. حاول مرة أخرى.';
-        else if (error.message === 'EMPTY_ANSWER') failMessage = 'رجع رد فاضي من المزوّد. جاري إعادة المحاولة — إذا تكررت، جرّب صياغة السؤال بشكل مختلف.';
-        // 413 is definite: the request body exceeded the server's limit. Retrying
-        // an identical payload cannot help, and the generic "connection failed"
-        // copy gave no hint that the attachments were the problem.
-        else if (error.status === 413) failMessage = 'المرفقات أو النص المُرسل أكبر من الحد المسموح. احذف بعض الملفات أو قسّم الطلب إلى أجزاء أصغر وأعد المحاولة.';
-        else if (error.message === 'AI_BACKEND_MISSING') failMessage = 'خدمة الذكاء غير متصلة في هذه النسخة. شغّل نسخة الإنتاج عبر Node.js بدل فتح HTML فقط.';
-        else if (error.message === 'AUTH_REQUIRED') failMessage = 'يجب تسجيل الدخول قبل استخدام Qjo.';
-        else if (error.message === 'RATE_LIMIT') failMessage = 'وصلنا لحد مزوّد الذكاء مؤقتًا. جرّب بعد قليل، أو استخدم رسالة أقصر.';
-        else if (/rate.?limit|429|too many requests/i.test(error.message || '')) failMessage = 'مزودات الذكاء تحت ضغط حاليًا (وصلنا الحد المؤقت للطلبات). انتظر دقيقة وأعد المحاولة.';
-        else if (/No provider configured|No AI provider is configured/i.test(error.message || '')) failMessage = 'مزودات الذكاء غير مضبوطة على الخادم. يرجى ضبط المفاتيح في لوحة التحكم.';
-        // The old copy here asserted "الخدمة جاهزة الآن!" — something the page
-        // cannot possibly know, and which sent people to press Retry against a
-        // service that was still down. It also hid the real reason, so a
-        // failure could not be diagnosed from the screen.
-        const looksTransient = error.message === 'EMPTY_ANSWER'
-          || /All AI providers failed|provider.*failed|upstream.*failed|service.*unavailable|503|502|504|SERVICE_FAILED|failed to fetch|network|empty answer/i.test(error.message || '')
-          || (error.status && error.status >= 500);
-        if (looksTransient) {
-          failMessage = 'الخادم ما استجاب للطلب (غالبًا كان نايم أو تحت ضغط). جرّب "إعادة المحاولة".';
-          const detail = String(error.message || '').trim();
-          if (detail && detail.length < 200) failMessage += '\n\nالسبب التقني: ' + detail;
-        }
+        // Twelve branches of error-to-message mapping used to live here. They
+        // are pure logic — an error in, a decision out — so they moved to
+        // public/domain/requestFailure.js where each branch is a one-line test
+        // instead of something you had to trigger in a browser to check.
+        const failure = QjoDomain.classifyRequestFailure(error, { language: qjoLanguage });
+        const failMessage = failure.message;
+        const looksTransient = failure.transient;
 
         // A first failure with no answer text yet is usually a sleeping
         // instance waking up, which the user should not have to notice. Retry
         // once, silently, before showing them anything. Anything already
         // streamed is left alone: re-asking would spend a second generation.
         //
-        // The test for that is fullAnswer, not `started` — `started` only means
-        // the bubble exists, and the reasoning line creates it before the
-        // request is even sent, so it is true for every failure.
-        const nothingDelivered = !String(fullAnswer || '').trim();
+        // The test for that is the answer text, not view.started — `started`
+        // only means the bubble exists, and the reasoning line creates it
+        // before the request is even sent, so it is true for every failure.
+        const nothingDelivered = !String(view.answer || '').trim();
         if (looksTransient && nothingDelivered && !options.autoRetried) {
-          if (bubble) {
-            if (reasoningCard) reasoningCard.remove();
-            if (contentContainer) contentContainer.remove();
-            bubble.innerHTML = escapeHtml('الخادم بده لحظة يصحى... جاري إعادة المحاولة تلقائيًا.');
+          if (view.bubble) {
+            view.clearForFailure();
+            view.bubble.innerHTML = escapeHtml('الخادم بده لحظة يصحى... جاري إعادة المحاولة تلقائيًا.');
           }
-          pendingAutoRetry = { text: rawText || text, wrap: assistantWrap };
+          pendingAutoRetry = { text: rawText || text, wrap: view.wrap };
           return;
         }
 
-        if (bubble) {
-          if (reasoningCard) reasoningCard.remove();
-          if (contentContainer) contentContainer.remove();
-          bubble.parentElement.classList.add('error');
-          bubble.innerHTML = escapeHtml(failMessage);
+        if (view.bubble) {
+          view.clearForFailure();
+          view.bubble.parentElement.classList.add('error');
+          view.bubble.innerHTML = escapeHtml(failMessage);
         } else {
           addMessage('assistant', failMessage, 'error');
         }

@@ -79,7 +79,11 @@ const BROWSER_GLOBALS = {
   cancelAnimationFrame: 'readonly',
   loadPyodide: 'readonly',
   // Web Worker sandbox used to run user JavaScript off the main thread.
-  Worker: 'readonly'
+  Worker: 'readonly',
+  // Namespaces published by the extracted front-end modules, loaded by their
+  // own script tags before app.js.
+  QjoUI: 'readonly',
+  QjoDomain: 'readonly'
 };
 
 const SHARED_RULES = {
@@ -139,6 +143,17 @@ module.exports = [
       ecmaVersion: 2023,
       sourceType: 'script',
       globals: BROWSER_GLOBALS
+    },
+    rules: SHARED_RULES
+  },
+  {
+    // public/domain holds pure logic with no DOM, deliberately loadable both
+    // from a script tag and from a Node test — so it sees `module` as well.
+    files: ['public/domain/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2023,
+      sourceType: 'script',
+      globals: { ...BROWSER_GLOBALS, ...NODE_GLOBALS }
     },
     rules: SHARED_RULES
   }

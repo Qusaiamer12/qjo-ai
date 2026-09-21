@@ -1,13 +1,13 @@
 {
-  "public/app.js": 6761,
+  "public/app.js": 6549,
   "server.js": 777,
-  "src/agents/RoutingEngine.js": 798,
-  "src/agents/TaskRunner.js": 290,
+  "src/agents/RoutingEngine.js": 824,
+  "src/agents/TaskRunner.js": 310,
   "src/routes/chat.js": 498,
-  "src/services/exportService.js": 1111,
-  "src/services/llmService.js": 539,
+  "src/services/exportService.js": 1116,
+  "src/services/llmService.js": 553,
   "src/services/searchService.js": 419,
   "src/search/searchCore.js": 317,
-  "src/services/systemPrompt.js": 308,
-  "src/services/knowledgeBase.js": 445
+  "src/services/systemPrompt.js": 317,
+  "src/services/knowledgeBase.js": 448
 }
