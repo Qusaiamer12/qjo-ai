@@ -471,6 +471,19 @@ function createRoutingEngine(deps) {
 
       if (!res.ok) { last = res; failures.push({ provider, status: res.status, error: res.error }); continue; }
 
+      // A provider can answer 200 with nothing in it — a content filter, a
+      // stop token hit immediately, an empty choices array. That is not a
+      // success: it reaches the user as a blank message, which is worse than
+      // an error because nothing retries it. Treat it as this provider having
+      // failed and let the chain try the next one, which usually answers.
+      const emptyAnswer = !String(res.answer || '').trim() && !(res.toolCalls || []).length;
+      if (emptyAnswer) {
+        console.warn(`[RoutingEngine] ${provider}/${slot} returned an empty answer — treating as a failure and moving on.`);
+        last = { ...res, ok: false, status: res.status || 502, error: `${provider} returned an empty answer.` };
+        failures.push({ provider, status: 'empty', error: 'empty answer' });
+        continue;
+      }
+
       const wantsTools = withTools && (res.toolCalls || []).length > 0;
 
       // Non-streaming providers: deliver the whole answer as one instant chunk

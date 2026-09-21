@@ -300,11 +300,21 @@ function createSearchService(deps) {
     }
   }
 
-  async function enrichResultsWithFirecrawl(results, maxPages = 4) {
+  async function enrichResultsWithFirecrawl(results, maxPages = 4, deadlineMs = 0) {
     if (!firecrawlApiKey() || !Array.isArray(results) || !results.length || maxPages <= 0) return results;
     const enriched = results.slice();
     const targets = enriched.filter(r => r.url && /^https?:\/\//i.test(r.url)).slice(0, maxPages);
-    const scraped = await Promise.allSettled(targets.map(r => firecrawlScrape(r.url)));
+    // Extraction has its own 12s timeout, which is longer than a basic search's
+    // whole budget. Racing it against the time left keeps reading pages from
+    // becoming the new way a search overruns.
+    const remaining = deadlineMs ? deadlineMs - Date.now() : 0;
+    const scrape = (url) => (remaining > 0
+      ? Promise.race([
+        firecrawlScrape(url),
+        new Promise(resolve => setTimeout(() => resolve(null), remaining))
+      ])
+      : firecrawlScrape(url));
+    const scraped = await Promise.allSettled(targets.map(r => scrape(r.url)));
     scraped.forEach((item, index) => {
       if (item.status === 'fulfilled' && item.value) {
         const target = targets[index];
@@ -357,8 +367,8 @@ function createSearchService(deps) {
     let results = rankSearchBeastResults(merged, plan.mode, original || query).slice(0, plan.keepResults);
     // Reading pages makes the sources much stronger, but only if there is time
     // left. Snippets now beat perfect extraction the caller never receives.
-    if (Date.now() < deadline - 3000) {
-      results = await enrichResultsWithFirecrawl(results, plan.enrichPages);
+    if (Date.now() < deadline - 2000) {
+      results = await enrichResultsWithFirecrawl(results, plan.enrichPages, deadline);
     }
     results = rankSearchBeastResults(results, plan.mode, original || query).slice(0, plan.keepResults).map((r, index) => ({ id: index + 1, ...r }));
     const payload = { query, queries, originalQuestion: original, mode: plan.mode, plan: { queries: plan.queries, depth: plan.depth, enrichPages: plan.enrichPages }, provider: activeProviderName(), extractionProvider: firecrawlApiKey() ? 'firecrawl' : null, results, generatedAt: new Date().toISOString(), cached: false };
@@ -380,7 +390,7 @@ function createSearchService(deps) {
     for (const batch of batches) if (batch.status === 'fulfilled') merged.push(...batch.value);
     let results = rankSearchBeastResults(merged, planned.mode, original || question).slice(0, planned.keepResults);
     if (Date.now() < deadline - 5000) {
-      results = await enrichResultsWithFirecrawl(results, planned.enrichPages);
+      results = await enrichResultsWithFirecrawl(results, planned.enrichPages, deadline);
     }
     results = rankSearchBeastResults(results, planned.mode, original || question).slice(0, planned.keepResults).map((r, index) => ({ id: index + 1, ...r }));
     const payload = { question, queries, originalQuestion: original, mode: planned.mode, plan: { depth: planned.depth, enrichPages: planned.enrichPages, maxResultsPerQuery: planned.maxResultsPerQuery }, searchProvider: activeProviderName(), extractionProvider: firecrawlApiKey() ? 'firecrawl' : null, results, generatedAt: new Date().toISOString(), cached: false };

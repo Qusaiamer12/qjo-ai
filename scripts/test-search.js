@@ -232,6 +232,130 @@ const askWith = async (text, mode = 'flash') => {
     assert.ok(/call web_search yourself/i.test(app), 'a timed-out pre-search leaves the model with no route to current facts');
   });
 
+
+  console.log('\nAn empty answer is a failure, not a result:');
+
+  // From a real transcript: a question came back with a completely blank
+  // message. A provider replying 200 with no text passed as success, so
+  // nothing anywhere retried it.
+  function chainOver(script) {
+    let call = 0;
+    const seen = [];
+    const engine = createRoutingEngine({
+      extraTools: HOST_TOOLS,
+      llmService: {
+        dispatch: async (provider, params) => {
+          const step = script[Math.min(call, script.length - 1)];
+          call++;
+          seen.push(`${provider}:${params.model}`);
+          return { ok: true, answer: step.answer, provider, model: params.model, finish_reason: 'stop', ...(step.extra || {}) };
+        },
+        hasKeys: () => true, hasAnyProvider: () => true
+      },
+      safeCalculate: null,
+      searchService: { performSearch: async () => ({ query: 'q', results: [] }) },
+      keys: { groq: 1, llm7: 1, qwen: 1, kimi: 1 },
+      models: {
+        groqFlash: 'gf', groqText: 'gt', groqCode: 'gt', groqVision: 'gv',
+        llm7Flash: 'lf', llm7Text: 'lt', qwenFlash: 'qf', qwenText: 'qt', kimiFlash: 'kf', kimiText: 'kt'
+      }
+    });
+    return { engine, attempts: () => seen.length };
+  }
+
+  const askChain = (engine) => engine.callAgent({
+    agentType: 'chat', model: 'gt', mode: 'max', max_tokens: 400, useTools: false,
+    messages: [{ role: 'user', content: 'مين هداف ريال مدريد حاليا' }]
+  });
+
+  await test('an empty reply moves to the next provider instead of shipping blank', async () => {
+    const { engine, attempts } = chainOver([
+      { answer: '' },
+      { answer: 'هداف ريال مدريد حاليًا هو ...' }
+    ]);
+    const res = await askChain(engine);
+    assert.strictEqual(res.ok, true);
+    assert.ok(String(res.answer || '').trim(), 'an empty answer was returned to the user');
+    assert.ok(attempts() >= 2, `it never tried another provider (${attempts()} attempts)`);
+  });
+
+  await test('whitespace only counts as empty', async () => {
+    const { engine } = chainOver([{ answer: '   \n\t  ' }, { answer: 'جواب حقيقي' }]);
+    const res = await askChain(engine);
+    assert.strictEqual(String(res.answer).trim(), 'جواب حقيقي');
+  });
+
+  await test('every provider returning nothing is reported as a failure', async () => {
+    const { engine } = chainOver([{ answer: '' }]);
+    const res = await askChain(engine);
+    assert.strictEqual(res.ok, false, 'an all-empty chain still reported success');
+    assert.ok(/empty/i.test(res.error || ''), `the reason is not stated: ${res.error}`);
+  });
+
+  await test('an empty reply that carries tool calls is not treated as empty', async () => {
+    // Asking for a tool with no prose is normal and must not be discarded.
+    const call = { id: '1', type: 'function', function: { name: 'web_search', arguments: '{"query":"x"}' } };
+    let round = 0;
+    const engine = createRoutingEngine({
+      extraTools: HOST_TOOLS,
+      llmService: {
+        dispatch: async (provider, params) => {
+          round++;
+          if (round === 1) {
+            return { ok: true, answer: '', provider, model: params.model, finish_reason: 'tool_calls', message: { role: 'assistant', tool_calls: [call] }, toolCalls: [call] };
+          }
+          return { ok: true, answer: 'جواب بعد البحث', provider, model: params.model, finish_reason: 'stop' };
+        },
+        hasKeys: () => true, hasAnyProvider: () => true
+      },
+      safeCalculate: null,
+      searchService: { performSearch: async () => ({ query: 'x', results: [{ id: 1, title: 't', url: 'https://e.com', content: 'c' }] }) },
+      keys: { groq: 1, llm7: 0, qwen: 0, kimi: 0 },
+      models: { groqFlash: 'gf', groqText: 'gt', groqCode: 'gt', groqVision: 'gv' }
+    });
+    const res = await engine.callAgent({ agentType: 'chat', model: 'gt', mode: 'max', max_tokens: 400, useTools: true, messages: [{ role: 'user', content: 'سعر الذهب' }] });
+    assert.strictEqual(res.ok, true, 'a tool-call round was thrown away as empty');
+    assert.ok(/جواب بعد البحث/.test(res.answer), res.answer);
+  });
+
+  console.log('\nQueries that actually reach a search engine:');
+
+  const { distillSearchQueryServer, buildSearchBeastPlan, inferSearchMode } = require('../src/search/searchCore');
+
+  await test('conversational filler is stripped from the query', () => {
+    const q = distillSearchQueryServer('بدي تقلي مع مين لعبة ريال مدريد القادمة');
+    assert.ok(!/تقلي/.test(q), `filler reached the search engine: "${q}"`);
+    assert.ok(/ريال مدريد/.test(q), `the actual subject was lost: "${q}"`);
+  });
+
+  await test('other Levantine ask-verbs are stripped too', () => {
+    for (const phrase of ['احكيلي شو صار بالمباراة', 'خبرني عن سعر الذهب', 'وريني نتيجة المباراة']) {
+      const q = distillSearchQueryServer(phrase);
+      assert.ok(!/احكيلي|خبرني|وريني/.test(q), `filler survived: "${q}"`);
+    }
+  });
+
+  await test('the subject survives the stripping', () => {
+    assert.ok(/الذهب/.test(distillSearchQueryServer('خبرني عن سعر الذهب')));
+    assert.ok(/المباراة|مباراة/.test(distillSearchQueryServer('وريني نتيجة المباراة')));
+  });
+
+  await test('fixtures and scorers are treated as time-sensitive', () => {
+    for (const q of ['لعبة ريال مدريد القادمة', 'هداف ريال مدريد حاليا', 'ترتيب الدوري الانجليزي']) {
+      assert.strictEqual(inferSearchMode(q), 'sports', `"${q}" is not treated as time-sensitive`);
+    }
+  });
+
+  await test('a time-sensitive search reads pages, not just snippets', () => {
+    const plan = buildSearchBeastPlan('هداف ريال مدريد حاليا', false);
+    assert.ok(plan.enrichPages >= 1, 'a basic search still reads zero pages, so the answer is snippets only');
+  });
+
+  await test('an everyday question is not made expensive', () => {
+    const plan = buildSearchBeastPlan('شرح مفهوم الجاذبية', false);
+    assert.strictEqual(plan.enrichPages, 0, 'page extraction was turned on for a question that does not need it');
+  });
+
   console.log('\n========================================');
   console.log(`${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);

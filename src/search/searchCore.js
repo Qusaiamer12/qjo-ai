@@ -29,7 +29,12 @@ function distillSearchQueryServer(text) {
     'the','and','for','with','from','that','this','into','using','use','how','what','why','when','where','please',
     'في','من','على','الى','إلى','عن','مع','هذا','هذه','التي','الذي','كيف','متى','لماذا','ما','هل','كل','فقط','بشكل','طريقة','ممكن',
     'بدي','بديش','هسا','هسة','شو','مين','وين','ليش','حالي','ابحثلي','دبرلي','زبطلي','جيبلي','بسرعة','عادي','مثلا','كأنو','كانو',
-    'الي','إلي','عشان','عشن','هيك','هاد','هادي','هادا','برضه','برضو','كمان','طيب','يلا'
+    'الي','إلي','عشان','عشن','هيك','هاد','هادي','هادا','برضه','برضو','كمان','طيب','يلا',
+    // Levantine "tell me / show me" verbs. Without these, "بدي تقلي مع مين
+    // لعبة ريال مدريد" reached the search engine as "تقلي لعبة ريال مدريد",
+    // and a filler verb in the query is enough to return nothing useful.
+    'تقلي','تقوللي','قلي','قوللي','احكيلي','حكيلي','خبرني','خبرلي','وريني','فرجيني','عطيني','اعطيني',
+    'بتعرف','بتقدر','ممكن','لو','سمحت','رجاء','بليز','تعرف','بدك','بتحكي','حاجة','شي','اشي'
   ]);
   const tokens = q
     .replace(/[^A-Za-z0-9\u0600-\u06FF.+#/-]+/g, ' ')
@@ -50,6 +55,9 @@ function inferSearchMode(question) {
   if (/(news|today|breaking|latest|أخبار|اليوم|عاجل|آخر)/i.test(q)) return 'news';
   if (/(compare|vs|versus|best|alternative|قارن|مقارنة|أفضل|بديل|الفرق)/i.test(q)) return 'comparison';
   if (/(market|industry|startup|competitor|companies|سوق|شركات|منافس|ناشئة)/i.test(q)) return 'market';
+  // Fixtures, scorers and standings change every week, so they need the same
+  // freshness handling as news rather than being treated as timeless facts.
+  if (/(مباراة|مباريات|لعبة|يلعب|هداف|هدافين|ترتيب|الدوري|دوري|بطولة|كأس|نتيجة المباراة|تشكيلة|انتقالات|مدرب|match|fixture|fixtures|scorer|top scorer|standings|league table|lineup|transfer|kick off)/i.test(q)) return 'sports';
   return 'general';
 }
 
@@ -206,6 +214,9 @@ function buildSearchBeastPlan(question, deep = false) {
   } else if (mode === 'academic') {
     add('دراسة بحثية ورقة علمية نتائج', 'research paper methodology results findings');
     add('arxiv PubMed Scholar IEEE', 'arxiv PubMed IEEE DOI Springer');
+  } else if (mode === 'sports') {
+    add('الموعد والنتيجة آخر تحديث', 'next match fixture date result latest');
+    add('الموقع الرسمي إحصائيات الموسم', 'official site season stats top scorer');
   } else if (/كأس العالم|world cup|نهائي|مباراة|fixture|schedule|final/i.test(q)) {
     add('مصدر رسمي موعد توقيت', 'official schedule dates fixtures');
   } else {
@@ -224,7 +235,13 @@ function buildSearchBeastPlan(question, deep = false) {
     queries: finalQueries,
     maxResultsPerQuery: deep ? 8 : 6,
     keepResults: deep ? 16 : 7,
-    enrichPages: deep ? (mode === 'academic' || mode === 'technical' ? 4 : 3) : 0
+    // A basic search used to read zero pages, so every default answer came
+    // from two-line snippets. The time-sensitive modes get a couple of real
+    // pages; the search budget skips this entirely when time is short, so it
+    // cannot turn into a stall.
+    enrichPages: deep
+      ? (mode === 'academic' || mode === 'technical' ? 4 : 3)
+      : (mode === 'news' || mode === 'sports' || mode === 'pricing' ? 2 : 0)
   };
 }
 
@@ -244,7 +261,7 @@ function rankSearchBeastResults(results, mode, question) {
 
     // Freshness boost for time-sensitive modes: same-day sources get up to
     // +0.6, decaying over ~30 days. Previously fresh and stale ranked equal.
-    if (mode === 'news' || mode === 'pricing' || mode === 'market') {
+    if (mode === 'news' || mode === 'pricing' || mode === 'market' || mode === 'sports') {
       const ts = Date.parse(result.publishedDate || result.published_date || '');
       if (Number.isFinite(ts)) {
         const ageDays = Math.max(0, (Date.now() - ts) / 86400000);

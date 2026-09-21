@@ -4401,6 +4401,18 @@ if len(__qjo_err_str) > 20000:
         if (reasoningActive) finishReasoning();
         // Flush any pending content render
         flushContentRender();
+
+        // A stream that ends with no answer text is a failure, not a success.
+        // Nothing here used to check, so a provider that replied 200 with an
+        // empty body produced a blank bubble, a blank history entry and a blank
+        // record in Firestore — and nothing retried it, because as far as the
+        // code was concerned it had worked. Throwing sends it into the same
+        // path as any other failure, which retries once and then says something
+        // honest instead of showing nothing.
+        if (!String(fullAnswer || '').trim()) {
+          throw new Error('EMPTY_ANSWER');
+        }
+
         if (contentContainer) {
           contentContainer.innerHTML = lightMarkdown(fullAnswer);
         }
@@ -4441,6 +4453,7 @@ if len(__qjo_err_str) > 20000:
         console.error('[Qjo Chat Error]', error);
         let failMessage = 'تعذر الاتصال بالخدمة حاليًا. يرجى المحاولة لاحقًا.';
         if (error.name === 'AbortError') failMessage = 'تم إيقاف الطلب أو انتهت مهلته. حاول مرة أخرى.';
+        else if (error.message === 'EMPTY_ANSWER') failMessage = 'رجع رد فاضي من المزوّد. جاري إعادة المحاولة — إذا تكررت، جرّب صياغة السؤال بشكل مختلف.';
         // 413 is definite: the request body exceeded the server's limit. Retrying
         // an identical payload cannot help, and the generic "connection failed"
         // copy gave no hint that the attachments were the problem.
@@ -4454,7 +4467,9 @@ if len(__qjo_err_str) > 20000:
         // cannot possibly know, and which sent people to press Retry against a
         // service that was still down. It also hid the real reason, so a
         // failure could not be diagnosed from the screen.
-        const looksTransient = /All AI providers failed|provider.*failed|upstream.*failed|service.*unavailable|503|502|504|SERVICE_FAILED|failed to fetch|network/i.test(error.message || '') || (error.status && error.status >= 500);
+        const looksTransient = error.message === 'EMPTY_ANSWER'
+          || /All AI providers failed|provider.*failed|upstream.*failed|service.*unavailable|503|502|504|SERVICE_FAILED|failed to fetch|network|empty answer/i.test(error.message || '')
+          || (error.status && error.status >= 500);
         if (looksTransient) {
           failMessage = 'الخادم ما استجاب للطلب (غالبًا كان نايم أو تحت ضغط). جرّب "إعادة المحاولة".';
           const detail = String(error.message || '').trim();
