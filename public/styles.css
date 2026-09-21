@@ -6408,3 +6408,187 @@ body.dark .auth-card {
 html[dir="rtl"] .qjo-app-soon-badge {
   margin-inline-start: auto !important;
 }
+
+/* =========================================================
+   Long tasks
+   A task is not a message: it runs for minutes, over steps,
+   and the person needs to see it moving without watching a
+   spinner. The card shows the plan filling in, what the
+   agent is doing right now, and what it has produced.
+   ========================================================= */
+
+.func-toggle.task-toggle.active {
+  /* Distinct from the search toggles: this one changes what the
+     send button does, so it should not read as "one more filter". */
+  background: var(--accent, #123B7A);
+  color: #fff;
+  border-color: var(--accent, #123B7A);
+}
+
+.qjo-task-card {
+  border: 1px solid var(--border, rgba(128,128,128,.28));
+  border-radius: 16px;
+  padding: 16px 18px;
+  margin: 10px 0;
+  background: var(--card-bg, rgba(127,127,127,.05));
+}
+
+.qjo-task-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.qjo-task-title {
+  font-weight: 750;
+  font-size: 14.5px;
+  flex: 1 1 240px;
+  min-width: 0;
+  line-height: 1.5;
+}
+
+.qjo-task-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border, rgba(128,128,128,.3));
+  white-space: nowrap;
+}
+
+.qjo-task-state[data-state="running"] { color: #1d4ed8; border-color: rgba(29,78,216,.35); }
+.qjo-task-state[data-state="done"]    { color: #047857; border-color: rgba(4,120,87,.35); }
+.qjo-task-state[data-state="failed"]  { color: #b91c1c; border-color: rgba(185,28,28,.35); }
+.qjo-task-state[data-state="cancelled"],
+.qjo-task-state[data-state="paused"]  { color: #6b7280; }
+
+/* A quiet pulse, not a spinner: the work takes minutes and a spinning
+   element for minutes reads as "stuck". */
+.qjo-task-state[data-state="running"] .qjo-task-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: currentColor;
+  animation: qjoTaskPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes qjoTaskPulse {
+  0%, 100% { opacity: .35; }
+  50%      { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qjo-task-state[data-state="running"] .qjo-task-dot { animation: none; opacity: .8; }
+}
+
+.qjo-task-plan {
+  list-style: none;
+  padding: 0;
+  margin: 14px 0 0;
+  display: grid;
+  gap: 7px;
+}
+
+.qjo-task-plan li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.qjo-task-mark {
+  flex: 0 0 auto;
+  width: 17px; height: 17px;
+  margin-top: 2px;
+  border-radius: 50%;
+  border: 2px solid var(--border, rgba(128,128,128,.45));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.qjo-task-plan li[data-status="done"] .qjo-task-mark {
+  background: #047857; border-color: #047857; color: #fff;
+}
+.qjo-task-plan li[data-status="done"] .qjo-task-step-text { opacity: .62; }
+.qjo-task-plan li[data-status="active"] .qjo-task-mark {
+  border-color: #1d4ed8; background: rgba(29,78,216,.14);
+}
+.qjo-task-plan li[data-status="active"] .qjo-task-step-text { font-weight: 700; }
+
+.qjo-task-activity {
+  margin-top: 13px;
+  font-size: 12.5px;
+  opacity: .75;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.qjo-task-files {
+  margin-top: 13px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.qjo-task-file {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  padding: 3px 9px;
+  border-radius: 7px;
+  border: 1px solid var(--border, rgba(128,128,128,.3));
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+.qjo-task-actions {
+  margin-top: 14px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.qjo-task-btn {
+  border: 1px solid var(--border, rgba(128,128,128,.35));
+  background: transparent;
+  color: inherit;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.qjo-task-btn:hover { opacity: .82; }
+.qjo-task-btn.primary {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+}
+
+.qjo-task-result {
+  margin-top: 15px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border, rgba(128,128,128,.28));
+}
+
+.qjo-task-note {
+  margin-top: 12px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px dashed var(--border, rgba(128,128,128,.4));
+  opacity: .9;
+}
+
+@media (max-width: 520px) {
+  .qjo-task-card { padding: 14px; border-radius: 14px; }
+  .qjo-task-title { flex-basis: 100%; }
+}

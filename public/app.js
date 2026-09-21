@@ -272,10 +272,16 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         key: 'deep',
         on: { ar: 'البحث العميق مفعّل — استعلامات متعددة ومصادر موسّعة 🎯', en: 'Deep search on — multi-query research with extended sources 🎯' },
         off: { ar: 'تم إيقاف البحث العميق', en: 'Deep search off' }
+      },
+      {
+        id: 'toggleTask',
+        key: 'task',
+        on: { ar: 'وضع المهمة مفعّل — الطلب القادم سينفَّذ على عدة خطوات 🎯', en: 'Task mode on — your next request runs as a multi-step task 🎯' },
+        off: { ar: 'تم إيقاف وضع المهمة', en: 'Task mode off' }
       }
     ];
 
-    let qjoFunctions = { search: false, deep: false };
+    let qjoFunctions = { search: false, deep: false, task: false };
     let qjoTheme = readStored(THEME_KEY) || 'light';
     let qjoLanguage = readStored(LANGUAGE_KEY) || 'ar';
     let busy = false;
@@ -899,8 +905,8 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         topSubtitle: 'ذكاء واضح بتجربة راقية', welcomeKicker: 'Qjo Assistant', welcomeTitle: 'ابنِ شيئًا <em>مذهلاً</em>', welcomeText: 'ابدأ الكتابة بالأسفل، أو اختر من الأزرار لتبدأ بسرعة. Qjo يساعدك تفكر، تكتب، تتعلم وتبني بذكاء ووضوح.',
         suggest1Title: 'اقترح فكرة مشروع', suggest1Text: 'أفكار عملية قابلة للتنفيذ مع خطوات بداية واضحة.', suggest2Title: 'نظّم يومي', suggest2Text: 'خطة مختصرة تساعدك ترتب الأولويات بسرعة.', suggest3Title: 'اشرح مفهومًا', suggest3Text: 'شرح واضح وبسيط لأي موضوع تريد فهمه.',
         placeholder: 'اكتب رسالتك هنا...', normal: 'Flash', advanced: 'Max', modeGroup: 'وضع الإجابة', customInstructionsTitle: 'التعليمات المخصصة', customInstructionsDesc: 'اكتب تعليمات دائمة يلتزم بها Qjo في كل رد — نبرتك، مجالك، وما تريد تجنّبه.', customInstructionsBtn: 'تحرير التعليمات المخصصة', flashModeTitle: 'فلاش — إجابة سريعة ومباشرة', maxModeTitle: 'ماكس — تحليل أعمق ودقة أعلى', hint: 'Enter للإرسال · Shift + Enter لسطر جديد', settingsTitle: 'الإعدادات', close: 'إغلاق', languageTitle: 'اللغة', languageDesc: 'اختر لغة واجهة Qjo.', appearanceTitle: 'المظهر', appearanceDesc: 'بدّل بين الوضع الفاتح والداكن.', toggleAppearance: 'تبديل المظهر', accountTitle: 'الحساب', logout: 'تسجيل الخروج', notSigned: 'غير مسجل',
-        chatsListLabel: 'المحادثات', sidebarText: 'مساعد ذكي يساعدك تفكر، تكتب، تتعلم، وتبني بسرعة ووضوح.', logoutDirectBtn: 'خروج', noInternet: 'لا يوجد اتصال بالإنترنت. سيتم تعطيل الإرسال مؤقتًا.', statusReading: 'Qjo يقرأ...', statusThinking: 'Qjo يفكر...', cancelBtn: 'إلغاء', searchBtn: 'بحث', deepSearchBtn: 'بحث عميق', reasonBtn: 'تفكير', attachMenuUpload: 'رفع ملف', attachMenuDrive: 'من جوجل درايف', attachMenuUi: 'تصميم UI', attachMenuWeb: 'قراءة صفحة', attachMenuChart: 'رسم بياني', attachMenuQuiz: 'صنع اختبار', attachMenuSearch: 'بحث يوتيوب', attachMenuTts: 'صوت ذكي', qsHeader: 'اقتراحات', soon: 'قريبًا',
-        currentAssistant: 'المساعد الحالي', showAllChats: 'عرض كل المحادثات', emptyChats: 'لا توجد محادثات بعد', qsparkSoon: 'Q-Spark — قريبًا', qcodeSoon: 'Qcode — قريبًا', defaultUserName: 'مستخدم', toggleSidebar: 'إخفاء/إظهار الشريط الجانبي', exportChat: 'تصدير المحادثة', scrollToBottom: 'النزول لآخر المحادثة', mobileToolsTitle: 'أدوات وتصنيفات الذكاء', tools: 'أدوات', searchTitle: 'بحث في الويب', deepSearchTitle: 'بحث عميق متعمق', reasonTitle: 'تفكير منطقي موسع', attachFile: 'إرفاق ملف', sendBtn: 'إرسال',
+        chatsListLabel: 'المحادثات', sidebarText: 'مساعد ذكي يساعدك تفكر، تكتب، تتعلم، وتبني بسرعة ووضوح.', logoutDirectBtn: 'خروج', noInternet: 'لا يوجد اتصال بالإنترنت. سيتم تعطيل الإرسال مؤقتًا.', statusReading: 'Qjo يقرأ...', statusThinking: 'Qjo يفكر...', cancelBtn: 'إلغاء', searchBtn: 'بحث', deepSearchBtn: 'بحث عميق', taskBtn: 'مهمة', reasonBtn: 'تفكير', attachMenuUpload: 'رفع ملف', attachMenuDrive: 'من جوجل درايف', attachMenuUi: 'تصميم UI', attachMenuWeb: 'قراءة صفحة', attachMenuChart: 'رسم بياني', attachMenuQuiz: 'صنع اختبار', attachMenuSearch: 'بحث يوتيوب', attachMenuTts: 'صوت ذكي', qsHeader: 'اقتراحات', soon: 'قريبًا',
+        currentAssistant: 'المساعد الحالي', showAllChats: 'عرض كل المحادثات', emptyChats: 'لا توجد محادثات بعد', qsparkSoon: 'Q-Spark — قريبًا', qcodeSoon: 'Qcode — قريبًا', defaultUserName: 'مستخدم', toggleSidebar: 'إخفاء/إظهار الشريط الجانبي', exportChat: 'تصدير المحادثة', scrollToBottom: 'النزول لآخر المحادثة', mobileToolsTitle: 'أدوات وتصنيفات الذكاء', tools: 'أدوات', searchTitle: 'بحث في الويب', deepSearchTitle: 'بحث عميق متعمق', taskModeTitle: 'وضع المهمة', taskModeDesc: 'نفّذ الطلب على عدة خطوات مع خطة تتابعها', reasonTitle: 'تفكير منطقي موسع', attachFile: 'إرفاق ملف', sendBtn: 'إرسال',
         catCode: 'توليد كود', catLaunch: 'إطلاق تطبيق', catUi: 'مكونات UI', catTheme: 'أفكار ثيمات', catDashboard: 'لوحة مستخدم', catLanding: 'صفحة هبوط', catDocs: 'رفع مستندات', catAssets: 'صور وأصول', catIdeas: 'اقتراحات',
         drawerTitle: 'أدوات وميزات Qjo', drawerBlockAi: 'ميزات الذكاء النشطة', drawerBlockCats: 'التصنيفات والإنشاء السريع',
         allChatsTitle: 'كل المحادثات', searchChats: 'ابحث في أسماء المحادثات...', deleteChatPrompt: 'هل أنت متأكد من حذف هذه المحادثة؟', renameChatPrompt: 'أدخل العنوان الجديد للمحادثة:', chatNotFound: 'هذه المحادثة غير موجودة أو تم حذفها.', chatDeleted: 'هذه المحادثة محذوفة.', renameBtnTitle: 'إعادة تسمية', deleteBtnTitle: 'حذف المحادثة', noMatchingChats: 'لا توجد نتائج مطابقة',
@@ -919,8 +925,8 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         topSubtitle: 'Clear intelligence, refined experience', welcomeKicker: 'Qjo Assistant', welcomeTitle: 'How can I <em>help you</em> today?', welcomeText: 'Ask, write, plan, learn, or build something new. Qjo is designed to give clear, practical answers without unnecessary complexity.',
         suggest1Title: 'Suggest a project idea', suggest1Text: 'Practical ideas with clear first steps.', suggest2Title: 'Organize my day', suggest2Text: 'A concise plan to help prioritize quickly.', suggest3Title: 'Explain a concept', suggest3Text: 'A clear, simple explanation of any topic.',
         placeholder: 'Message Qjo...', normal: 'Flash', advanced: 'Max', modeGroup: 'Answer mode', customInstructionsTitle: 'Custom instructions', customInstructionsDesc: 'Standing instructions Qjo follows in every answer — your tone, your field, what to avoid.', customInstructionsBtn: 'Edit custom instructions', flashModeTitle: 'Flash — fast, direct answers', maxModeTitle: 'Max — deeper analysis, higher accuracy', hint: 'Enter to send · Shift + Enter for new line', settingsTitle: 'Settings', close: 'Close', languageTitle: 'Language', languageDesc: 'Choose Qjo interface language.', appearanceTitle: 'Appearance', appearanceDesc: 'Switch between light and dark mode.', toggleAppearance: 'Toggle theme', accountTitle: 'Account', logout: 'Log out', notSigned: 'Not signed in',
-        chatsListLabel: 'Chats', sidebarText: 'A smart assistant that helps you think, write, learn, and build with speed and clarity.', logoutDirectBtn: 'Log out', noInternet: 'No internet connection. Sending is temporarily disabled.', statusReading: 'Qjo is reading...', statusThinking: 'Qjo is thinking...', cancelBtn: 'Cancel', searchBtn: 'Search', deepSearchBtn: 'Deep Search', reasonBtn: 'Think', attachMenuUpload: 'Upload file', attachMenuDrive: 'Google Drive', attachMenuUi: 'UI Design', attachMenuWeb: 'Read Page', attachMenuChart: 'Chart', attachMenuQuiz: 'Create Quiz', attachMenuSearch: 'Search YouTube', attachMenuTts: 'Smart Voice', qsHeader: 'Shortcuts', soon: 'Soon',
-        currentAssistant: 'Current Assistant', showAllChats: 'Show all chats', emptyChats: 'No chats yet', qsparkSoon: 'Q-Spark — Coming soon', qcodeSoon: 'Qcode — Coming soon', defaultUserName: 'User', toggleSidebar: 'Toggle sidebar', exportChat: 'Export chat', scrollToBottom: 'Scroll to bottom', mobileToolsTitle: 'AI Tools & Categories', tools: 'Tools', searchTitle: 'Search the web', deepSearchTitle: 'Deep search', reasonTitle: 'Extended reasoning', attachFile: 'Attach file', sendBtn: 'Send',
+        chatsListLabel: 'Chats', sidebarText: 'A smart assistant that helps you think, write, learn, and build with speed and clarity.', logoutDirectBtn: 'Log out', noInternet: 'No internet connection. Sending is temporarily disabled.', statusReading: 'Qjo is reading...', statusThinking: 'Qjo is thinking...', cancelBtn: 'Cancel', searchBtn: 'Search', deepSearchBtn: 'Deep Search', taskBtn: 'Task', reasonBtn: 'Think', attachMenuUpload: 'Upload file', attachMenuDrive: 'Google Drive', attachMenuUi: 'UI Design', attachMenuWeb: 'Read Page', attachMenuChart: 'Chart', attachMenuQuiz: 'Create Quiz', attachMenuSearch: 'Search YouTube', attachMenuTts: 'Smart Voice', qsHeader: 'Shortcuts', soon: 'Soon',
+        currentAssistant: 'Current Assistant', showAllChats: 'Show all chats', emptyChats: 'No chats yet', qsparkSoon: 'Q-Spark — Coming soon', qcodeSoon: 'Qcode — Coming soon', defaultUserName: 'User', toggleSidebar: 'Toggle sidebar', exportChat: 'Export chat', scrollToBottom: 'Scroll to bottom', mobileToolsTitle: 'AI Tools & Categories', tools: 'Tools', searchTitle: 'Search the web', deepSearchTitle: 'Deep search', taskModeTitle: 'Task mode', taskModeDesc: 'Run the request over several steps with a plan you can follow', reasonTitle: 'Extended reasoning', attachFile: 'Attach file', sendBtn: 'Send',
         catCode: 'Code Gen', catLaunch: 'Launch App', catUi: 'UI Components', catTheme: 'Themes', catDashboard: 'Dashboard', catLanding: 'Landing Page', catDocs: 'Upload Docs', catAssets: 'Assets', catIdeas: 'Ideas',
         drawerTitle: 'Qjo Tools & Features', drawerBlockAi: 'Active AI Features', drawerBlockCats: 'Categories & Quick Actions',
         allChatsTitle: 'All Chats', searchChats: 'Search chats...', deleteChatPrompt: 'Are you sure you want to delete this chat?', renameChatPrompt: 'Enter new chat title:', chatNotFound: 'This chat does not exist or was deleted.', chatDeleted: 'This chat has been deleted.', renameBtnTitle: 'Rename', deleteBtnTitle: 'Delete chat', noMatchingChats: 'No matching chats found',
@@ -3949,6 +3955,17 @@ if len(__qjo_err_str) > 20000:
     async function sendMessage(textFromButton, options = {}) {
       const isRegenerate = Boolean(options.isRegenerate);
       const rawText = (textFromButton || inputEl.value).trim();
+
+      // Task mode changes what Send does. Handled here rather than on the
+      // button so Enter-to-send and the quick prompts take the same path.
+      if (qjoFunctions.task && !isRegenerate && !options.autoRetried && rawText) {
+        inputEl.value = '';
+        autoResize();
+        clearDraft();
+        setFunctionToggle('task', false);
+        await startLongTask(rawText);
+        return;
+      }
       const clarificationCandidates = likelyNeedsClarification(rawText);
       const clarificationContext = clarificationCandidates.length
         ? `\n\nPossible user typo/intent correction: The user wrote "${rawText}". It may mean: ${clarificationCandidates.join(', ')}. If the answer depends on this and search results support the corrected meaning, proceed but briefly mention the interpretation. If still ambiguous, ask a short clarification.`
@@ -4509,6 +4526,341 @@ if len(__qjo_err_str) > 20000:
       }
     }
 
+    // ── Long tasks ───────────────────────────────────────────────────────────
+    // A task is not a message. It runs for minutes across many steps, and the
+    // server deliberately does not keep working on its own — on a free instance
+    // no process outlives the work. So the page is the driver: it asks for one
+    // step, renders what came back, and asks for the next. Close the tab and the
+    // task simply stops at its last saved step, ready to be resumed.
+
+    const ACTIVE_TASK_KEY = 'qjo_active_task';
+    const TASK_STEP_BACKOFF_MS = [1500, 4000, 9000];
+    let taskDriver = null;
+
+    function isTerminalTaskStatus(status) {
+      return status === 'done' || status === 'failed' || status === 'cancelled';
+    }
+
+    async function taskFetch(path, options = {}) {
+      const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+      if (auth && auth.currentUser) {
+        headers.Authorization = 'Bearer ' + await auth.currentUser.getIdToken();
+      }
+      const response = await fetch(path, { ...options, headers });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const error = new Error(data.error || `Request failed (${response.status})`);
+        error.status = response.status;
+        throw error;
+      }
+      return data;
+    }
+
+    function taskStateLabel(status) {
+      const ar = qjoLanguage === 'ar';
+      const map = {
+        running: ar ? 'قيد التنفيذ' : 'Working',
+        done: ar ? 'اكتملت' : 'Done',
+        failed: ar ? 'تعثّرت' : 'Failed',
+        cancelled: ar ? 'أُلغيت' : 'Cancelled',
+        paused: ar ? 'متوقفة' : 'Paused'
+      };
+      return map[status] || status;
+    }
+
+    // Describes the last few tool calls in the user's language. "Reading
+    // example.com" tells them far more about whether it is on track than a
+    // percentage would.
+    function describeRecentWork(recentWork) {
+      if (!recentWork || !recentWork.length) return '';
+      const ar = qjoLanguage === 'ar';
+      const verbs = {
+        web_search: ar ? 'بحث عن' : 'searched for',
+        fetch_page: ar ? 'قرأ' : 'read',
+        read_file: ar ? 'قرأ ملف' : 'read file',
+        write_file: ar ? 'كتب ملف' : 'wrote file',
+        delete_file: ar ? 'حذف ملف' : 'deleted file',
+        list_files: ar ? 'راجع الملفات' : 'listed files',
+        calculate: ar ? 'حسب' : 'calculated',
+        update_plan: ar ? 'حدّث الخطة' : 'updated the plan',
+        finish_task: ar ? 'أنهى المهمة' : 'finished the task'
+      };
+      return recentWork.slice(-3).reverse().map(entry => {
+        const verb = verbs[entry.tool] || entry.tool;
+        const detail = String(entry.input || '').slice(0, 70);
+        return detail ? `${verb}: ${detail}` : verb;
+      }).join(' · ');
+    }
+
+    function renderTaskCard(card, task, { driving, lastError } = {}) {
+      const ar = qjoLanguage === 'ar';
+      card.dataset.taskId = task.id;
+      card.dataset.status = task.status;
+
+      const head = card.querySelector('.qjo-task-head');
+      head.innerHTML = '';
+      const title = document.createElement('div');
+      title.className = 'qjo-task-title';
+      title.setAttribute('dir', 'auto');
+      title.textContent = task.goal;
+      const state = document.createElement('span');
+      state.className = 'qjo-task-state';
+      state.dataset.state = task.status;
+      state.innerHTML = `<span class="qjo-task-dot"></span>${escapeHtml(taskStateLabel(task.status))}` +
+        (task.status === 'running' ? ` <span>${task.step}/${task.maxSteps}</span>` : '');
+      head.appendChild(title);
+      head.appendChild(state);
+
+      const plan = card.querySelector('.qjo-task-plan');
+      plan.innerHTML = '';
+      (task.plan || []).forEach(stepItem => {
+        const li = document.createElement('li');
+        li.dataset.status = stepItem.status;
+        const mark = document.createElement('span');
+        mark.className = 'qjo-task-mark';
+        mark.setAttribute('aria-hidden', 'true');
+        mark.textContent = stepItem.status === 'done' ? '✓' : '';
+        const text = document.createElement('span');
+        text.className = 'qjo-task-step-text';
+        text.setAttribute('dir', 'auto');
+        text.textContent = stepItem.title;
+        li.appendChild(mark);
+        li.appendChild(text);
+        // Screen readers get the state in words, not as a coloured circle.
+        li.setAttribute('aria-label', `${stepItem.title} — ${stepItem.status}`);
+        plan.appendChild(li);
+      });
+      plan.hidden = !(task.plan || []).length;
+
+      const activity = card.querySelector('.qjo-task-activity');
+      const work = describeRecentWork(task.recentWork);
+      if (task.status === 'running') {
+        activity.hidden = false;
+        activity.setAttribute('dir', 'auto');
+        activity.textContent = work || (ar ? 'يخطط للخطوات الأولى...' : 'Planning the first steps...');
+      } else {
+        activity.hidden = !work;
+        activity.textContent = work;
+      }
+
+      const files = card.querySelector('.qjo-task-files');
+      files.innerHTML = '';
+      (task.files || []).forEach(path => {
+        const chip = document.createElement('span');
+        chip.className = 'qjo-task-file';
+        chip.textContent = path;
+        files.appendChild(chip);
+      });
+      files.hidden = !(task.files || []).length;
+
+      // A step that failed is worth saying out loud: the task is still alive and
+      // the driver is about to try again, which is not obvious from a stall.
+      const note = card.querySelector('.qjo-task-note');
+      if (lastError) {
+        note.hidden = false;
+        note.setAttribute('dir', 'auto');
+        note.textContent = ar
+          ? `تعثّرت خطوة (${lastError}). المهمة محفوظة وسيُعاد المحاولة تلقائيًا.`
+          : `A step failed (${lastError}). The task is saved and will be retried.`;
+      } else if (task.status === 'failed' && task.error) {
+        note.hidden = false;
+        note.setAttribute('dir', 'auto');
+        note.textContent = task.error;
+      } else {
+        note.hidden = true;
+      }
+
+      const result = card.querySelector('.qjo-task-result');
+      if (task.status === 'done' && task.result) {
+        result.hidden = false;
+        result.innerHTML = lightMarkdown(task.result);
+        decorateAssistantBubble(result, card);
+      } else {
+        result.hidden = true;
+      }
+
+      const actions = card.querySelector('.qjo-task-actions');
+      actions.innerHTML = '';
+      const addButton = (label, className, onClick) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `qjo-task-btn${className ? ' ' + className : ''}`;
+        btn.textContent = label;
+        btn.addEventListener('click', onClick);
+        actions.appendChild(btn);
+        return btn;
+      };
+
+      if (task.status === 'running') {
+        if (driving) {
+          addButton(ar ? 'إيقاف' : 'Stop', '', async () => {
+            stopTaskDriver();
+            try {
+              const data = await taskFetch(`/api/tasks/${task.id}/cancel`, { method: 'POST' });
+              renderTaskCard(card, data.task, {});
+            } catch (error) {
+              renderTaskCard(card, task, { lastError: error.message });
+            }
+          });
+        } else {
+          // Reached after a reload, or after the driver gave up: the work is
+          // saved, so this picks it straight back up.
+          addButton(ar ? 'استئناف' : 'Resume', 'primary', () => driveTask(task.id, card));
+        }
+      }
+
+      if ((task.files || []).length) {
+        addButton(ar ? 'تنزيل المشروع' : 'Download project', '', () => downloadTaskProject(task.id));
+      }
+
+      if (task.status === 'done' && task.result) {
+        addButton(ar ? 'نسخ النتيجة' : 'Copy result', '', async () => {
+          try { await navigator.clipboard.writeText(task.result); showMicroToast(ar ? 'تم النسخ' : 'Copied'); }
+          catch (_) { showMicroToast(ar ? 'تعذّر النسخ' : 'Could not copy'); }
+        });
+      }
+
+      actions.hidden = !actions.children.length;
+      scrollToBottom(false);
+    }
+
+    function buildTaskCard() {
+      const wrap = document.createElement('div');
+      wrap.className = 'msg assistant qjo-task-wrap';
+      const card = document.createElement('div');
+      card.className = 'qjo-task-card';
+      card.innerHTML = `
+        <div class="qjo-task-head"></div>
+        <ul class="qjo-task-plan" hidden></ul>
+        <div class="qjo-task-activity" hidden></div>
+        <div class="qjo-task-files" hidden></div>
+        <div class="qjo-task-note" hidden></div>
+        <div class="qjo-task-result" hidden></div>
+        <div class="qjo-task-actions" hidden></div>`;
+      wrap.appendChild(card);
+      messagesInner.appendChild(wrap);
+      messagesInner.classList.add('has-messages');
+      if (welcomeEl) welcomeEl.style.display = 'none';
+      return card;
+    }
+
+    function stopTaskDriver() {
+      if (taskDriver) taskDriver.stopped = true;
+      taskDriver = null;
+      dropStored(ACTIVE_TASK_KEY);
+    }
+
+    // Steps the task one at a time, never concurrently: a step is a real unit of
+    // work and overlapping two of them would have the model acting on state the
+    // other is still writing.
+    async function driveTask(taskId, card) {
+      stopTaskDriver();
+      const driver = { stopped: false, taskId };
+      taskDriver = driver;
+      writeStored(ACTIVE_TASK_KEY, taskId);
+
+      let consecutiveFailures = 0;
+      while (!driver.stopped) {
+        let task;
+        try {
+          const data = await taskFetch(`/api/tasks/${taskId}/step`, { method: 'POST' });
+          task = data.task;
+          consecutiveFailures = 0;
+        } catch (error) {
+          // A step that could not even be requested is worth retrying a few
+          // times — the instance may be waking up — but not forever.
+          consecutiveFailures += 1;
+          if (driver.stopped) return;
+          if (consecutiveFailures > TASK_STEP_BACKOFF_MS.length) {
+            const current = await taskFetch(`/api/tasks/${taskId}`).then(d => d.task).catch(() => null);
+            if (current) renderTaskCard(card, current, { driving: false, lastError: error.message });
+            stopTaskDriver();
+            return;
+          }
+          const current = await taskFetch(`/api/tasks/${taskId}`).then(d => d.task).catch(() => null);
+          if (current) renderTaskCard(card, current, { driving: true, lastError: error.message });
+          await new Promise(resolve => setTimeout(resolve, TASK_STEP_BACKOFF_MS[consecutiveFailures - 1]));
+          continue;
+        }
+
+        if (driver.stopped) return;
+        renderTaskCard(card, task, { driving: true });
+
+        if (isTerminalTaskStatus(task.status)) {
+          stopTaskDriver();
+          renderTaskCard(card, task, { driving: false });
+          return;
+        }
+        // A breath between steps so a fast-failing task cannot spin the loop.
+        await new Promise(resolve => setTimeout(resolve, 400));
+      }
+    }
+
+    async function startLongTask(goal) {
+      const ar = qjoLanguage === 'ar';
+      const card = buildTaskCard();
+      renderTaskCard(card, {
+        id: 'pending', goal, status: 'running', step: 0, maxSteps: 40, plan: [], files: [], recentWork: []
+      }, { driving: true });
+
+      try {
+        // A goal that mentions building or code gets the project workspace; a
+        // research goal does not need file tools and should not be offered them.
+        const kind = /كود|برمج|مشروع|تطبيق|موقع|سكربت|code|project|app|build|script|api/i.test(goal) ? 'code' : 'general';
+        const data = await taskFetch('/api/tasks', {
+          method: 'POST',
+          body: JSON.stringify({ goal, kind, mode: qjoMode === 'advanced' ? 'max' : 'flash' })
+        });
+        renderTaskCard(card, data.task, { driving: true });
+        driveTask(data.task.id, card);
+      } catch (error) {
+        renderTaskCard(card, {
+          id: 'failed', goal, status: 'failed', step: 0, maxSteps: 40, plan: [], files: [], recentWork: [],
+          error: error.status === 401
+            ? (ar ? 'سجّل الدخول لتشغيل المهام الطويلة.' : 'Sign in to run long tasks.')
+            : error.message
+        }, {});
+      }
+    }
+
+    async function downloadTaskProject(taskId) {
+      const ar = qjoLanguage === 'ar';
+      try {
+        const { files } = await taskFetch(`/api/tasks/${taskId}/files`);
+        const entries = Object.entries(files || {});
+        if (!entries.length) return showMicroToast(ar ? 'لا توجد ملفات بعد' : 'No files yet');
+        // Reuses the existing archive endpoint rather than building a second
+        // path for producing a zip.
+        await postForDownload('/api/export/code-zip', {
+          files: entries.map(([path, content]) => ({ path, content }))
+        }, `qjo-project-${taskId}.zip`);
+      } catch (error) {
+        showMicroToast(ar ? 'تعذّر تنزيل المشروع' : 'Could not download the project');
+        console.warn('Task project download failed:', error);
+      }
+    }
+
+    // After a reload the task is still on the server exactly where it stopped.
+    // Offering to resume is the whole point of the state being durable.
+    let taskRestoreAttempted = false;
+
+    async function restoreActiveTask() {
+      // Called from both boot and the sign-in path, whichever happens first;
+      // restoring twice would draw the card twice.
+      if (taskRestoreAttempted) return;
+      taskRestoreAttempted = true;
+      const taskId = readStored(ACTIVE_TASK_KEY);
+      if (!taskId) return;
+      try {
+        const { task } = await taskFetch(`/api/tasks/${taskId}`);
+        if (!task || isTerminalTaskStatus(task.status)) return dropStored(ACTIVE_TASK_KEY);
+        const card = buildTaskCard();
+        renderTaskCard(card, task, { driving: false });
+      } catch (_) {
+        dropStored(ACTIVE_TASK_KEY);
+      }
+    }
+
     function showWelcomeHero() {
       if (!messagesInner) return;
       messagesInner.innerHTML = '';
@@ -4833,6 +5185,10 @@ if len(__qjo_err_str) > 20000:
             messageSeq = 0;
             showWelcomeHero();
             restoreDraft();
+            // A task left running is still on the server exactly where it
+            // stopped; surfacing it is the whole point of the state being
+            // durable rather than tied to the tab that started it.
+            restoreActiveTask().catch(e => console.warn('Task restore skipped:', e));
             safeFocusComposer();
             subscribeToChats();
             return;
@@ -5773,6 +6129,9 @@ if len(__qjo_err_str) > 20000:
     loadPublicConfig();
     loadClientContext();
     initializeFirebase();
+    // Independent of auth: a task left running belongs to the page, and waiting
+    // for a sign-in branch that may never fire loses it on reload.
+    restoreActiveTask().catch(e => console.warn('Task restore skipped:', e));
     updateModeUI();
     updateRuntimeStatus();
     updateTrainingStatus();
@@ -6274,7 +6633,8 @@ if len(__qjo_err_str) > 20000:
 
       const toggleDefs = [
         { id: 'toggleSearch', icon: '🔍', titleKey: 'searchTitle', descKey: 'searchDesc' },
-        { id: 'toggleDeep', icon: '🎯', titleKey: 'deepSearchTitle', descKey: 'deepSearchDesc' }
+        { id: 'toggleDeep', icon: '🎯', titleKey: 'deepSearchTitle', descKey: 'deepSearchDesc' },
+        { id: 'toggleTask', icon: '🎯', titleKey: 'taskModeTitle', descKey: 'taskModeDesc' }
       ];
 
       function updateIndicator() {
