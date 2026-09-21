@@ -6,6 +6,7 @@
 // runs in milliseconds, which is the whole reason for pulling pure logic out.
 const assert = require('assert');
 const { classifyRequestFailure } = require('../public/domain/requestFailure.js');
+const { createSseParser, routeStreamChunk } = require('../public/domain/streamProtocol.js');
 
 let pass = 0, fail = 0;
 function test(name, fn) {
@@ -118,6 +119,192 @@ function test(name, fn) {
     // Retrying into a rate limit makes it worse.
     const result = classifyRequestFailure({ status: 503, message: 'rate limit reached' });
     assert.strictEqual(result.transient, false, 'it would retry straight back into the limit');
+  });
+
+
+  console.log('\nThe wire format survives arbitrary chunk boundaries:');
+
+  // The network decides where a chunk ends, not the protocol. Every one of
+  // these split points is something a real stream produces.
+  const framesOf = (pieces) => {
+    const parser = createSseParser();
+    const out = [];
+    for (const piece of pieces) out.push(...parser.push(piece));
+    return out;
+  };
+
+  test('a whole frame parses', () => {
+    const events = framesOf(['event: chunk\ndata: {"text":"أهلاً"}\n\n']);
+    assert.deepStrictEqual(events, [{ event: 'chunk', data: { text: 'أهلاً' } }]);
+  });
+
+  test('a frame split mid-value still parses', () => {
+    const events = framesOf(['event: chunk\ndata: {"text":"أه', 'لاً"}\n\n']);
+    assert.strictEqual(events.length, 1, 'the split frame was lost');
+    assert.strictEqual(events[0].data.text, 'أهلاً');
+  });
+
+  test('a frame arriving one character at a time parses', () => {
+    const frame = 'event: chunk\ndata: {"text":"مرحبا"}\n\n';
+    const events = framesOf(frame.split(''));
+    assert.strictEqual(events.length, 1, 'byte-by-byte delivery lost the frame');
+    assert.strictEqual(events[0].data.text, 'مرحبا');
+  });
+
+  test('several frames in one chunk all parse, in order', () => {
+    const events = framesOf([
+      'event: chunk\ndata: {"text":"أ"}\n\nevent: chunk\ndata: {"text":"ب"}\n\nevent: done\ndata: {}\n\n'
+    ]);
+    assert.deepStrictEqual(events.map(e => e.event), ['chunk', 'chunk', 'done']);
+    assert.strictEqual(events[0].data.text + events[1].data.text, 'أب');
+  });
+
+  test('an incomplete trailing frame is held, not guessed at', () => {
+    const parser = createSseParser();
+    const first = parser.push('event: chunk\ndata: {"text":"تم"}\n\nevent: chunk\ndata: {"tex');
+    assert.strictEqual(first.length, 1, 'a partial frame was emitted');
+    const second = parser.push('t":"ام"}\n\n');
+    assert.strictEqual(second.length, 1);
+    assert.strictEqual(second[0].data.text, 'ام');
+  });
+
+  test('a malformed frame is skipped without ending the stream', () => {
+    const events = framesOf([
+      'event: chunk\ndata: {not json}\n\nevent: chunk\ndata: {"text":"بعدها"}\n\n'
+    ]);
+    assert.strictEqual(events.length, 1, 'one bad frame took the rest with it');
+    assert.strictEqual(events[0].data.text, 'بعدها');
+  });
+
+  test('a frame with no data is skipped', () => {
+    assert.strictEqual(framesOf([': keep-alive padding\n\n']).length, 0);
+  });
+
+  test('multi-line data fields concatenate', () => {
+    const events = framesOf(['event: chunk\ndata: {"text":\ndata: "مقسوم"}\n\n']);
+    assert.strictEqual(events.length, 1);
+    assert.strictEqual(events[0].data.text, 'مقسوم');
+  });
+
+  test('an event with no event: line defaults to message', () => {
+    const events = framesOf(['data: {"text":"x"}\n\n']);
+    assert.strictEqual(events[0].event, 'message');
+  });
+
+  console.log('\nReasoning and answer stay separated:');
+
+  // Actions rather than side effects, so ordering can be asserted exactly.
+  const route = (chunks) => {
+    let inside = false;
+    const acts = [];
+    for (const c of chunks) {
+      const r = routeStreamChunk(c, inside);
+      inside = r.insideThink;
+      acts.push(...r.actions);
+    }
+    return {
+      types: acts.map(a => a.type),
+      content: acts.filter(a => a.type === 'content').map(a => a.text).join(''),
+      reasoning: acts.filter(a => a.type === 'reasoning').map(a => a.text).join(''),
+      inside
+    };
+  };
+
+  test('plain text is all answer', () => {
+    const r = route(['أهلاً ', 'بك']);
+    assert.strictEqual(r.content, 'أهلاً بك');
+    assert.strictEqual(r.reasoning, '');
+  });
+
+  test('a think block is routed to reasoning, not the answer', () => {
+    const r = route(['<think>أفكر هنا</think>الجواب']);
+    assert.strictEqual(r.reasoning, 'أفكر هنا');
+    assert.strictEqual(r.content, 'الجواب');
+  });
+
+  test('a think tag opening and closing chunks apart still splits correctly', () => {
+    const r = route(['قبل<think>سطر ', 'أول ', 'وثاني</think>بعد']);
+    assert.strictEqual(r.content, 'قبلبعد', `answer leaked reasoning: ${r.content}`);
+    assert.strictEqual(r.reasoning, 'سطر أول وثاني');
+    assert.strictEqual(r.inside, false, 'the block was never closed');
+  });
+
+  test('an unterminated think block keeps consuming reasoning', () => {
+    const r = route(['<think>بدأت', ' ولم تنته']);
+    assert.strictEqual(r.inside, true);
+    assert.strictEqual(r.content, '', 'unterminated reasoning leaked into the answer');
+  });
+
+  test('text before a tag is delivered before the tag takes effect', () => {
+    const r = route(['جواب<think>تفكير']);
+    // Close any open card, deliver the answer text that preceded the tag, then
+    // open thinking. Answer text must never land after the thought it preceded.
+    assert.deepStrictEqual(r.types, ['endThinkingIfActive', 'content', 'beginThinking', 'reasoning'],
+      `ordering changed: ${r.types.join(',')}`);
+  });
+
+  test('a reasoning card is closed before the answer resumes', () => {
+    const r = routeStreamChunk('نص عادي', false);
+    assert.strictEqual(r.actions[0].type, 'endThinkingIfActive',
+      'the answer would render before the reasoning divider');
+  });
+
+  test('two think blocks in one chunk do not lose the tail', () => {
+    // String.split would discard everything past the second marker.
+    const r = route(['<think>أ</think>وسط<think>ب</think>آخر']);
+    assert.ok(r.content.includes('وسط'), `middle answer lost: ${r.content}`);
+    assert.ok(r.content.includes('آخر'), `trailing answer lost: ${r.content}`);
+  });
+
+  test('an empty chunk produces no text actions', () => {
+    const r = routeStreamChunk('', false);
+    assert.ok(!r.actions.some(a => a.type === 'content' || a.type === 'reasoning'));
+  });
+
+
+  test('a complete think block in one chunk does not swallow the answer', () => {
+    // The shipped behaviour: a provider that sends its whole reasoning in one
+    // chunk put the closing tag AND the answer into the reasoning card, then
+    // stayed in thinking mode forever — so the answer bubble was empty.
+    const r = route(['<think>أفكر هنا</think>الجواب النهائي']);
+    assert.strictEqual(r.reasoning, 'أفكر هنا', `reasoning: ${r.reasoning}`);
+    assert.strictEqual(r.content, 'الجواب النهائي', `the answer was lost: "${r.content}"`);
+    assert.strictEqual(r.inside, false, 'it stayed in thinking mode, so every later chunk is lost too');
+  });
+
+  test('everything after a self-contained think block still arrives', () => {
+    const r = route(['<think>ت</think>أول', ' وثاني', ' وثالث']);
+    assert.strictEqual(r.content, 'أول وثاني وثالث', `later chunks were lost: "${r.content}"`);
+  });
+
+  console.log('\nThe streamed answer reassembles exactly:');
+
+  test('spacing between chunks is preserved', () => {
+    // The production defect: every word ran into the next.
+    const tokens = ['أهلاً', ' يا', ' قلبي', '!', ' كيفك', ' اليوم', '؟'];
+    const r = route(tokens);
+    assert.strictEqual(r.content, tokens.join(''), `glued: ${r.content}`);
+  });
+
+  test('a stream reassembles through the parser and the router together', () => {
+    const answer = 'السطر الأول. ثم الثاني. وأخيرًا الثالث.';
+    const frames = answer.match(/[\s\S]{1,4}/g)
+      .map(part => `event: chunk\ndata: ${JSON.stringify({ text: part })}\n\n`)
+      .join('');
+    // Delivered in awkward network-sized pieces, not frame-aligned.
+    const pieces = frames.match(/[\s\S]{1,17}/g);
+    const parser = createSseParser();
+    let inside = false;
+    let rebuilt = '';
+    for (const piece of pieces) {
+      for (const { event, data } of parser.push(piece)) {
+        if (event !== 'chunk') continue;
+        const routed = routeStreamChunk(data.text || '', inside);
+        inside = routed.insideThink;
+        for (const action of routed.actions) if (action.type === 'content') rebuilt += action.text;
+      }
+    }
+    assert.strictEqual(rebuilt, answer, `reassembly differs:\n  got  ${rebuilt}\n  want ${answer}`);
   });
 
   console.log('\n========================================');

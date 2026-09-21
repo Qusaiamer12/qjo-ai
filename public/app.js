@@ -4147,64 +4147,40 @@ if len(__qjo_err_str) > 20000:
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
-        let buffer = '';
+        // Frame parsing and the think-tag split are pure logic and moved to
+        // public/domain/streamProtocol.js, where they can be tested against
+        // chunk boundaries that are hard to reproduce against a live stream —
+        // a frame cut mid-field, a think tag opening and closing chunks apart.
+        // What is left here is dispatch.
+        const sse = QjoDomain.createSseParser();
 
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const parts = buffer.split('\n\n');
-          buffer = parts.pop();
-          
-          for (const part of parts) {
-            const lines = part.split('\n');
-            let evt = 'message';
-            let data = '';
-            for (const ln of lines) {
-              if (ln.startsWith('event:')) {
-                evt = ln.slice(6).trim();
-              } else if (ln.startsWith('data:')) {
-                data += ln.slice(5).trim();
-              }
-            }
-            if (!data) continue;
-            let obj;
-            try { obj = JSON.parse(data); } catch (e) { continue; }
-            
-            if (evt === 'reasoning') {
-              streamReasoningText(obj.text || '');
-            } else if (evt === 'tool_call') {
+
+          for (const { event, data } of sse.push(decoder.decode(value, { stream: true }))) {
+            if (event === 'reasoning') {
+              streamReasoningText(data.text || '');
+            } else if (event === 'tool_call') {
               ensureReasoningWidget();
-              if (obj.status === 'done' || obj.done) {
-                appendReasoningStep(obj.label || `Used ${obj.tool}`, true);
+              if (data.status === 'done' || data.done) {
+                appendReasoningStep(data.label || `Used ${data.tool}`, true);
               }
-            } else if (evt === 'chunk') {
-              const text = obj.text || '';
-              if (text.includes('<think>')) {
-                insideThinkTag = true;
-                ensureReasoningWidget();
-                const splitParts = text.split('<think>');
-                if (splitParts[0]) appendContentChunk(splitParts[0]);
-                if (splitParts[1]) streamReasoningText(splitParts[1]);
-              } else if (insideThinkTag) {
-                if (text.includes('</think>')) {
-                  insideThinkTag = false;
-                  const splitParts = text.split('</think>');
-                  if (splitParts[0]) streamReasoningText(splitParts[0]);
-                  finishReasoning();
-                  if (splitParts[1]) appendContentChunk(splitParts[1]);
-                } else {
-                  streamReasoningText(text);
-                }
-              } else {
-                if (view.reasoningActive) finishReasoning();
-                appendContentChunk(text);
+            } else if (event === 'chunk') {
+              const routed = QjoDomain.routeStreamChunk(data.text || '', insideThinkTag);
+              insideThinkTag = routed.insideThink;
+              for (const action of routed.actions) {
+                if (action.type === 'content') appendContentChunk(action.text);
+                else if (action.type === 'reasoning') streamReasoningText(action.text);
+                else if (action.type === 'beginThinking') ensureReasoningWidget();
+                else if (action.type === 'endThinking') finishReasoning();
+                else if (action.type === 'endThinkingIfActive' && view.reasoningActive) finishReasoning();
               }
-            } else if (evt === 'done') {
-              lastMetadata = obj;
-              answerWasTruncated = Boolean(obj && obj.truncated);
-            } else if (evt === 'error') {
-              throw new Error(obj.error || 'AI Streaming failed.');
+            } else if (event === 'done') {
+              lastMetadata = data;
+              answerWasTruncated = Boolean(data && data.truncated);
+            } else if (event === 'error') {
+              throw new Error(data.error || 'AI Streaming failed.');
             }
           }
         }
