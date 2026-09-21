@@ -29,7 +29,16 @@ function createToolRegistry() {
   // Schemas for the subset the caller wants to offer, skipping any whose
   // dependency is currently missing.
   function schemasFor(wanted) {
-    const list = (wanted || []).filter(has).map(name => tools.get(name).schema);
+    // Deduplicated: a name can legitimately arrive twice — once because the
+    // router asked for it by name and once because the host registered it —
+    // and handing the model the same tool twice invites confused calls.
+    const seen = new Set();
+    const list = [];
+    for (const name of wanted || []) {
+      if (seen.has(name) || !has(name)) continue;
+      seen.add(name);
+      list.push(tools.get(name).schema);
+    }
     return list.length ? list : undefined;
   }
 

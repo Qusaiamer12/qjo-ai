@@ -217,10 +217,33 @@ function createRoutingEngine(deps) {
   let searchService = deps.searchService;
   if (!llmService || !models || !keys) throw new Error('createRoutingEngine missing core deps: llmService, models, or keys');
 
+  // What comes back is a search result, not an established fact, and the
+  // difference has to survive into the answer. Each entry carries its own link
+  // so a claim can be cited where it is made, and the closing note asks for the
+  // two behaviours that separate a researched answer from a confident guess:
+  // open the source when the detail matters, and say so when the evidence is
+  // thin or disagrees instead of smoothing it over.
   function formatSearchResultsForTool(payload) {
     const results = (payload?.results || []).slice(0, 6);
-    if (!results.length) return `No web results found for "${payload?.query || ''}".`;
-    return results.map(r => `[${r.id}] ${r.title || 'untitled'} (${r.url})\n${String(r.content || '').slice(0, 900)}`).join('\n\n');
+    const query = payload?.query || '';
+    if (!results.length) {
+      return `No web results found for "${query}". Do not fill the gap from memory: say plainly that you could not find current information, or try a different, simpler query.`;
+    }
+
+    const body = results.map(r => {
+      const published = r.publishedDate || r.published_date;
+      const meta = [r.url, published ? `published ${String(published).slice(0, 10)}` : ''].filter(Boolean).join(' · ');
+      const extracted = r.firecrawl ? ' [full page text]' : ' [snippet only]';
+      return `[${r.id}] ${r.title || 'untitled'}${extracted}\n${meta}\n${String(r.content || '').slice(0, 900)}`;
+    }).join('\n\n');
+
+    return [
+      `Search results for "${query}":`,
+      '',
+      body,
+      '',
+      'Using these: cite the claims that came from them with markdown links like [1](url) so the reader can check. Anything marked "snippet only" is two lines out of a page — if a number, date or exact wording matters, open it with fetch_page before relying on it. If the sources disagree, or none of them actually answers the question, say that instead of presenting a confident answer the evidence does not support.'
+    ].join('\n');
   }
 
   // Tools are declared in one registry rather than as if/else arms here, so a
@@ -556,10 +579,20 @@ function createRoutingEngine(deps) {
     const attach = [];
     if (useTools !== false && !hasImages) {
       if (route.mathIntent) attach.push('calculate');
-      if (searchService && !route.hasSearchContext && (normMode === 'max' || mightNeedFreshness(originalQuestion))) {
+      // The model decides whether to search; a regex cannot. Measured on a
+      // realistic corpus the old keyword gate was 72% accurate, and its misses
+      // were the damaging kind — "who is the prime minister now", "tomorrow's
+      // weather", "latest news" — answered confidently from stale memory, while
+      // a bare "دور" in the allow-list searched the web for "شو دورك؟".
+      // Offering the tool costs nothing when the model does not call it;
+      // withholding it guarantees a stale answer.
+      //
+      // Skipped only when the client already injected a source pack, which
+      // would otherwise cause a second, duplicate search.
+      if (searchService && !route.hasSearchContext) {
         attach.push('web_search');
-        // Only offered with search: opening a page is how a search result
-        // becomes evidence, and on its own the model has no URL to open.
+        // Opening a page is how a search result becomes evidence; on its own
+        // the model has no URL to open.
         attach.push('fetch_page');
       }
       for (const name of extraToolNames) attach.push(name);

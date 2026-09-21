@@ -38,6 +38,13 @@ jobs:
       - name: Stability audit
         run: npm run audit
 
+      # Search had three faults with one root cause: a keyword cascade decided
+      # whether to search, before the message was sent, with no bound on how
+      # long that took. These assert the model gets the choice, the results
+      # arrive as citable evidence, and nothing can stall the message.
+      - name: Search behaviour suite
+        run: npm run test:search
+
       # The agent loop is what separates this from a chat box: the model must be
       # able to act on what it just learned, and the loop must stay bounded.
       - name: Agent loop suite

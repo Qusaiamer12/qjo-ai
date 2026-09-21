@@ -200,19 +200,34 @@ function createSearchService(deps) {
   // If a configured provider fails (exhausted credits, outage, bad key), the
   // SAME query transparently retries on the next provider — no dead searches
   // just because a key hit its monthly cap.
-  async function searchProvider(query, maxResults = 5, depth = 'basic', mode = 'general') {
+  async function searchProvider(query, maxResults = 5, depth = 'basic', mode = 'general', deadlineMs = 0) {
     const chain = [];
-    if (tavilyApiKey()) chain.push(() => tavilySearch(query, maxResults, depth, mode));
-    if (serperApiKey()) chain.push(() => serperSearch(query, maxResults, mode));
-    chain.push(() => duckDuckGoSearch(query, maxResults));
+    if (tavilyApiKey()) chain.push(['tavily', () => tavilySearch(query, maxResults, depth, mode)]);
+    if (serperApiKey()) chain.push(['serper', () => serperSearch(query, maxResults, mode)]);
+    chain.push(['duckduckgo', () => duckDuckGoSearch(query, maxResults)]);
     let lastErr = null;
-    for (const step of chain) {
+    for (const [name, step] of chain) {
+      const remaining = deadlineMs ? deadlineMs - Date.now() : 0;
+      // Falling back is only worth it if there is time left to use the answer.
+      if (deadlineMs && remaining <= 250) {
+        console.warn(`[search] out of budget before trying ${name} for "${String(query).slice(0, 60)}"`);
+        break;
+      }
       try {
-        const r = await step();
+        // Checking the clock between providers is not enough: one provider that
+        // stops answering holds the whole request open on its own timeout,
+        // which is longer than the budget it is supposed to fit inside. Racing
+        // each attempt makes the budget mean what it says.
+        const r = deadlineMs
+          ? await Promise.race([
+            step(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error(`${name} exceeded the search budget`)), remaining))
+          ])
+          : await step();
         if (r && r.length) return r;
       } catch (e) { lastErr = e; }
     }
-    if (lastErr) throw lastErr;
+    if (lastErr && !deadlineMs) throw lastErr;
     return [];
   }
 
@@ -319,7 +334,14 @@ function createSearchService(deps) {
     return [...new Set(queries.filter(Boolean))].slice(0, maxQueries);
   }
 
+  // Ceilings for one search request, measured from the moment it arrives.
+  // Without them the worst case was the full provider chain per query plus page
+  // extraction — long enough that the caller had given up.
+  const SEARCH_BUDGET_MS = 11000;
+  const DEEP_SEARCH_BUDGET_MS = 26000;
+
   async function performSearch({ rawQuery, originalQuestion }) {
+    const deadline = Date.now() + SEARCH_BUDGET_MS;
     const query = distillSearchQueryServer(rawQuery);
     if (!query) { const err = new Error('Missing search query.'); err.statusCode = 400; throw err; }
     const original = String(originalQuestion || rawQuery || query).trim().slice(0, 1200);
@@ -329,17 +351,22 @@ function createSearchService(deps) {
     const plan = buildSearchBeastPlan(query, false);
     const queries = validateSearchQueriesRefined(await buildQuerySet(original, query, plan, 3));
     // The query set runs in parallel; per-query mode steers topic/freshness.
-    const batches = await Promise.allSettled(queries.map(q => searchProvider(q, plan.maxResultsPerQuery, plan.depth, plan.mode)));
+    const batches = await Promise.allSettled(queries.map(q => searchProvider(q, plan.maxResultsPerQuery, plan.depth, plan.mode, deadline)));
     const merged = [];
     for (const batch of batches) if (batch.status === 'fulfilled') merged.push(...batch.value);
     let results = rankSearchBeastResults(merged, plan.mode, original || query).slice(0, plan.keepResults);
-    results = await enrichResultsWithFirecrawl(results, plan.enrichPages);
+    // Reading pages makes the sources much stronger, but only if there is time
+    // left. Snippets now beat perfect extraction the caller never receives.
+    if (Date.now() < deadline - 3000) {
+      results = await enrichResultsWithFirecrawl(results, plan.enrichPages);
+    }
     results = rankSearchBeastResults(results, plan.mode, original || query).slice(0, plan.keepResults).map((r, index) => ({ id: index + 1, ...r }));
     const payload = { query, queries, originalQuestion: original, mode: plan.mode, plan: { queries: plan.queries, depth: plan.depth, enrichPages: plan.enrichPages }, provider: activeProviderName(), extractionProvider: firecrawlApiKey() ? 'firecrawl' : null, results, generatedAt: new Date().toISOString(), cached: false };
     return deps.cacheSet(deps.memoryCaches.search, cacheKey, payload, 10 * 60 * 1000, 180);
   }
 
   async function performDeepSearch({ rawQuestion, originalQuestion }) {
+    const deadline = Date.now() + DEEP_SEARCH_BUDGET_MS;
     const question = distillSearchQueryServer(rawQuestion);
     if (!question) { const err = new Error('Missing search question.'); err.statusCode = 400; throw err; }
     const original = String(originalQuestion || rawQuestion || question).trim().slice(0, 1600);
@@ -348,11 +375,13 @@ function createSearchService(deps) {
     if (cached) return { ...cached, cached: true };
     const planned = buildSearchBeastPlan(question, true);
     const queries = validateSearchQueriesRefined(await buildQuerySet(original, question, planned, 6));
-    const batches = await Promise.allSettled(queries.map(q => searchProvider(q, planned.maxResultsPerQuery, planned.depth, planned.mode)));
+    const batches = await Promise.allSettled(queries.map(q => searchProvider(q, planned.maxResultsPerQuery, planned.depth, planned.mode, deadline)));
     const merged = [];
     for (const batch of batches) if (batch.status === 'fulfilled') merged.push(...batch.value);
     let results = rankSearchBeastResults(merged, planned.mode, original || question).slice(0, planned.keepResults);
-    results = await enrichResultsWithFirecrawl(results, planned.enrichPages);
+    if (Date.now() < deadline - 5000) {
+      results = await enrichResultsWithFirecrawl(results, planned.enrichPages);
+    }
     results = rankSearchBeastResults(results, planned.mode, original || question).slice(0, planned.keepResults).map((r, index) => ({ id: index + 1, ...r }));
     const payload = { question, queries, originalQuestion: original, mode: planned.mode, plan: { depth: planned.depth, enrichPages: planned.enrichPages, maxResultsPerQuery: planned.maxResultsPerQuery }, searchProvider: activeProviderName(), extractionProvider: firecrawlApiKey() ? 'firecrawl' : null, results, generatedAt: new Date().toISOString(), cached: false };
     return deps.cacheSet(deps.memoryCaches.deepSearch, cacheKey, payload, 10 * 60 * 1000, 120);

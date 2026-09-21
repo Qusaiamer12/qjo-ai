@@ -3656,51 +3656,24 @@ if len(__qjo_err_str) > 20000:
       // the user explicitly switches Search on, that is a decision, not a hint.
       if (isUnsafeSecurityBypassRequest(text)) return false;
       if (qjoFunctions.search) return true;
-      if (isSocialSmallTalk(text)) return false;
-      if (isContextualTransformRequest(text)) return false;
-      const normalizedText = normalizeUserQueryForSearch(text);
-      const q = String(normalizedText || '').toLowerCase();
-      const original = String(normalizedText || text || '').trim();
 
-      // Subjective debate, opinions, banter, poetry, compliments NEVER need web search
-      const opinionSignals = /(مين افضل|مين أحسن|مين احسن|مين بتتوقع|شو رأيك|شو رايك|شو بتتوقع|توقعك|مين بتشجع|من هو الأفضل|من الأفضل|فنان|قصيدة|شعر|نكتة|لغز|بحبك|احبك|كيفك|كيف الهمة)/i;
-      if (opinionSignals.test(q)) {
-        if (!/(ابحث|بحث|مصادر|المصدر|رابط|روابط|search|source|cite|إحصائيات|ارقام رسمية)/i.test(q)) {
-          return false;
-        }
-      }
-
-      const explicitSearch = [
-        'ابحث', 'بحث', 'دور', 'فتش', 'مصادر', 'المصدر', 'رابط', 'روابط', 'على النت', 'اونلاين', 'أونلاين',
-        'search', 'look up', 'find online', 'source', 'sources', 'cite', 'citation', 'web'
-      ];
-      if (explicitSearch.some(p => q.includes(p.toLowerCase()))) return true;
-
-      const explicitNews = [
-        'أخبار اليوم', 'اخبار اليوم', 'آخر الأخبار', 'اخر الأخبار', 'اخر اخبار', 'آخر اخبار', 'news today', 'latest news', 'breaking news'
-      ];
-      if (explicitNews.some(p => q.includes(p.toLowerCase()))) return true;
-
-      const codeBuildRequest = /(اكتب|ابن|ابني|بناء|صمم|سوي|اعمل|create|build|write|implement).{0,80}(api|node|python|express|fastapi|react|كود|تطبيق|موقع|ملف|pdf)/i.test(q);
-      if (codeBuildRequest && !/(مصادر|المصدر|ابحث|بحث|توثيق|docs|source|cite|latest|current|version|إصدار)/i.test(q)) return false;
-
-      // Real live event schedules:
-      const eventQuestion = /(متى|موعد|توقيت|ساعة|وين|أين|جدول)\s+(مباراة|بطولة|نهائي|نصف النهائي|كأس العالم|كاس العالم|match|fixture|tournament)/i.test(q);
-      if (eventQuestion) return true;
-
-      const currentEntityQuestion = /(هل|ما هو|ما هي|مين|من هو|من هي|وين|أين|كم|قديش|متى|is|are|does|who|what|when|where|how much)\s+/.test(q)
-        && /(api|model|نموذج|موديل|شركة|company|platform|منصة|render|firebase|groq|qwen|openai|gemini|deepseek|nvidia|tavily|firecrawl|سعر|price|خطة|plan|حد|limit|إصدار|version|release)/i.test(q);
-      if (currentEntityQuestion) return true;
-
-      const hasYearOrFuture = /\b20(2[5-9]|3\d)\b/.test(q) && /(سعر|موعد|إصدار|نسخة|نتيجة|تاريخ صدور|release|price)/i.test(q);
-      if (hasYearOrFuture) return true;
-
-      const patterns = [
-        'أخبار اليوم', 'سعر اليوم', 'أسعار اليوم', 'طقس اليوم', 'بورصة اليوم', 'سعر الدولار', 'سعر الذهب',
-        'today news', 'current price', 'stock price', 'weather today', 'latest docs'
-      ];
-      return patterns.some(p => q.includes(p));
+      // Nothing below this line decides anymore. Searching before the message
+      // is sent blocks it, and the keyword cascade that used to make that call
+      // measured 72% accurate on a realistic corpus: it searched "شو دورك؟"
+      // because "دور" was in the list, and did not search "مين رئيس الوزراء
+      // حاليًا؟" at all. The model now gets web_search as a tool on every
+      // request and decides for itself, mid-answer, with the option to search
+      // again after reading. The rest of this function is kept only as the
+      // fast-path signal used for wording the reasoning line.
+      return false;
     }
+
+    // Kept separate from the decision: the pre-search heuristic is no longer a
+    // gate, but it still tells us whether to say "searching" in the reasoning
+    // line before the model has decided anything.
+    // Exposed so the search-decision corpus can be measured against the real
+    // function rather than a copy of it that drifts.
+    window.__qjoSearchDecision = { needsWebSearch, needsDeepSearch: (t) => needsDeepSearch(t) };
 
     function needsDeepSearch(text) {
       if (qjoFunctions.deep) return true;
@@ -3781,6 +3754,12 @@ if len(__qjo_err_str) > 20000:
     async function getWebSearchContext(text) {
       if (!needsWebSearch(text)) { lastSearchSources = []; return ''; }
       const deep = needsDeepSearch(text);
+      // This runs BEFORE the chat request, so a slow search delays the whole
+      // message. It used to have no timeout at all: a deep search could spend
+      // the provider chain (18s + 7s + 8s) plus page extraction while the user
+      // watched "searching..." and nothing else happened.
+      const searchAbort = new AbortController();
+      const searchTimeout = setTimeout(() => searchAbort.abort(), deep ? 28000 : 12000);
       try {
         const response = await fetch(deep ? '/api/deep-search' : '/api/search', {
           method: 'POST',
@@ -3788,8 +3767,10 @@ if len(__qjo_err_str) > 20000:
             'Content-Type': 'application/json',
             ...(auth && auth.currentUser ? { Authorization: 'Bearer ' + await auth.currentUser.getIdToken() } : {})
           },
+          signal: searchAbort.signal,
           body: JSON.stringify(deep ? { question: makeSearchQuery(text), originalQuestion: text } : { query: makeSearchQuery(text), originalQuestion: text })
         });
+        clearTimeout(searchTimeout);
         const data = await response.json().catch(() => ({}));
         if (!response.ok || !Array.isArray(data.results) || !data.results.length) {
           return '\n\nWeb search note: The user asked for current/online information, but live search is not configured or returned no useful results. Be transparent: say live search is not currently available or no reliable results were found. Do not guess current facts.';
@@ -3800,9 +3781,15 @@ if len(__qjo_err_str) > 20000:
         const sourcePack = formatSearchSourcesForPrompt(data, deep, text);
         lastSearchSources = sourcePack.sources || [];
         return `\n\n${sourceHeader}\n${sourcePack.requiredOutput}\nUse ONLY the source pack below for current/live claims. Preserve the user's requested output format and tone. Synthesize evidence, mention uncertainty when sources conflict or are incomplete, and cite important factual claims with clickable Markdown links. Do not dump all sources; use the strongest ones.\nSource count available: ${sourcePack.count}\n${sourcePack.quickAnswer ? `Provider quick answer/hint: ${sourcePack.quickAnswer}\n` : ''}\nSOURCE PACK:\n${sourcePack.lines}`;
-      } catch (_) {
+      } catch (error) {
+        clearTimeout(searchTimeout);
         lastSearchSources = [];
-        return '\n\nWeb search note: Live search failed for this request. Be transparent and do not guess current facts.';
+        // A timeout is not a dead end any more: the model still has web_search
+        // as a tool, so tell it to use that rather than to avoid the topic.
+        if (error && error.name === 'AbortError') {
+          return '\n\nWeb search note: The pre-search took too long and was dropped so your answer would not be held up. If this question needs current information, call web_search yourself now.';
+        }
+        return '\n\nWeb search note: The pre-search failed. If this question needs current information, call web_search yourself rather than guessing.';
       }
     }
 
