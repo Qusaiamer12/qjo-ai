@@ -1,0 +1,46 @@
+{
+  "//": [
+    "Type checking without a build step.",
+    "",
+    "This app is deployed as plain files: no bundler, no transpile, no dist/.",
+    "A full TypeScript migration of 17,800 working lines would freeze feature",
+    "work for weeks and risk regressions in code that is currently passing 488",
+    "assertions. checkJs gets most of the benefit at a fraction of the risk —",
+    "the compiler reads JSDoc annotations and reports the same class of errors,",
+    "while the files that ship stay exactly the files that are written.",
+    "",
+    "noEmit is the point: this never produces output.",
+    "",
+    "Strictness is a ratchet, like the other budgets. strict is off while the",
+    "annotations are still being added; the flags below are the ones the code",
+    "already satisfies."
+  ],
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "target": "ES2022",
+    "module": "node16",
+    "moduleResolution": "node16",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    "useUnknownInCatchVariables": false
+  },
+  "include": [
+    "src/**/*.js",
+    "src/types.d.ts",
+    "public/domain/**/*.js"
+  ],
+  "exclude": [
+    "node_modules",
+    "qcode-workspace",
+    "scripts",
+    "evals"
+  ]
+}

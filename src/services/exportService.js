@@ -834,6 +834,9 @@ async function exportCodeZip(req, res) {
 async function exportPptx(req, res) {
   try {
     const { title, content, rtl } = safeExportPayload(req);
+    // pptxgenjs publishes ESM-shaped types while require() returns the
+    // constructor, so the checker sees a namespace being newed.
+    // @ts-ignore -- upstream CJS/ESM type mismatch in pptxgenjs
     const pptx = new pptxgen();
     pptx.layout = 'LAYOUT_WIDE';
     pptx.author = 'Qjo AI';
@@ -1032,6 +1035,7 @@ async function exportXlsx(req, res) {
       tables.forEach((table, index) => {
         const sheetName = `Sheet ${index + 1}`.slice(0, 31);
         const worksheet = workbook.addWorksheet(sheetName, {
+          // @ts-ignore -- exceljs honours rtl but omits it from WorksheetView
           views: [{ showGridLines: true, rtl: rtl }]
         });
         
@@ -1058,6 +1062,7 @@ async function exportXlsx(req, res) {
       });
     } else {
       const worksheet = workbook.addWorksheet('Report', {
+        // @ts-ignore -- exceljs honours rtl but omits it from WorksheetView
         views: [{ showGridLines: true, rtl: rtl }]
       });
       worksheet.addRow([title]).font = { bold: true, size: 16, color: { argb: 'FF123B7A' } };

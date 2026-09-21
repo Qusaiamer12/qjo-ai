@@ -540,10 +540,36 @@ function createRoutingEngine(deps) {
     return toolRegistry.schemasFor(attach);
   }
 
-  // Router for the Qjo chat product. The Qcode/Q-Spark provider pipelines that
-  // used to live here moved out with those products (see
-  // docs/MIGRATION_QSPARK_QCODE.md); `agentType` is kept for call-site clarity
-  // and forward compatibility.
+  /**
+   * Runs one model turn, including its tool loop and provider failover.
+   *
+   * Router for the Qjo chat product. The Qcode/Q-Spark provider pipelines that
+   * used to live here moved out with those products (see
+   * docs/MIGRATION_QSPARK_QCODE.md); `agentType` is kept for call-site clarity
+   * and forward compatibility.
+   *
+   * @param {object} [options]
+   * @param {string} [options.agentType] Call-site label; does not affect routing.
+   * @param {string} [options.mode] 'flash' | 'max' | 'advanced' | 'code'.
+   * @param {Array<{role: string, content: any, [k: string]: any}>} [options.messages]
+   * @param {number} [options.temperature]
+   * @param {number} [options.max_tokens]
+   * @param {number} [options.frequency_penalty]
+   * @param {number} [options.presence_penalty]
+   * @param {boolean} [options.useTools] false disables tools entirely.
+   * @param {{targetAgent: string, confidence: number, reason: string}|null} [options.routingDecision]
+   * @param {(text: string) => void} [options.onChunk] Answer text as it arrives.
+   * @param {(text: string) => void} [options.onReasoning] Reasoning channel.
+   * @param {(info: object) => void} [options.onToolCall] Tool started/finished.
+   * @param {(result: {tool: string, input: string, output: string}) => void} [options.onToolResult]
+   *        Every tool execution with its output, including built-in tools.
+   * @param {string} [options.model] Explicit model id; otherwise chosen by mode.
+   * @param {number} [options.deadlineMs] Absolute deadline. Overrides budgetMs.
+   * @param {number} [options.budgetMs] Relative budget; defaults scale with prompt size.
+   * @param {AbortSignal} [options.signal] Client disconnect.
+   * @returns {Promise<{ok: boolean, answer?: string, provider?: string, model?: string,
+   *   finish_reason?: string, toolsUsed?: Array<object>, status?: number, error?: string}>}
+   */
   async function callAgent({
     agentType = 'chat', mode, messages, temperature = 0.7, max_tokens = 4000,
     frequency_penalty, presence_penalty,

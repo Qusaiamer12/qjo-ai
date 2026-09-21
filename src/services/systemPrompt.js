@@ -276,6 +276,15 @@ function estimateTokens(text) {
   return Math.ceil(String(text || '').length / 3.5);
 }
 
+/**
+ * Assembles the system prompt for one request.
+ * @param {object} [options]
+ * @param {string} [options.mode] 'flash' | 'max' | 'advanced' | 'code'.
+ * @param {{code?: boolean, search?: boolean, files?: boolean}} [options.needs]
+ *        Overlays to compose on top of the mode overlay.
+ * @param {string} [options.runtimeLine] Current date, time and approximate location.
+ * @returns {string}
+ */
 function buildChatSystemPrompt({ mode, needs = {}, runtimeLine = '' } = {}) {
   const parts = [CORE_PROMPT];
   const normalized = normalizeMode(mode);

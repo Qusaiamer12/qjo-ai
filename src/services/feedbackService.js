@@ -65,6 +65,7 @@ function createFeedbackService({ filePath, maxFileBytes = MAX_FILE_BYTES }) {
     return items;
   }
 
+  /** @param {{limit?: number, rating?: string, mode?: string, route?: string}} [filter] */
   function listFeedback({ limit = 100, rating, mode, route } = {}) {
     let items = readAll().reverse();
     if (rating) items = items.filter(i => i.rating === rating);

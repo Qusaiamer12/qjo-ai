@@ -145,6 +145,12 @@ function createTaskRunner({ store, llmService, safeCalculate, searchService, key
     }
   }
 
+  /**
+   * Advances one task by a single bounded unit of work.
+   * @param {string} taskId
+   * @param {{uid?: string|null}} [caller] Owner check; a task is only steppable by its owner.
+   * @returns {Promise<AgentTask>}
+   */
   async function step(taskId, { uid } = {}) {
     const task = await store.get(taskId);
     if (!task) throw Object.assign(new Error('No such task.'), { statusCode: 404 });
@@ -261,6 +267,11 @@ function createTaskRunner({ store, llmService, safeCalculate, searchService, key
     return task;
   }
 
+  /**
+   * @param {string} taskId
+   * @param {{uid?: string|null}} [caller]
+   * @returns {Promise<AgentTask|null>}
+   */
   async function get(taskId, { uid } = {}) {
     const task = await store.get(taskId);
     if (!task) return null;
@@ -268,6 +279,11 @@ function createTaskRunner({ store, llmService, safeCalculate, searchService, key
     return task;
   }
 
+  /**
+   * @param {string} taskId
+   * @param {{uid?: string|null}} [caller]
+   * @returns {Promise<AgentTask>}
+   */
   async function cancel(taskId, { uid } = {}) {
     const task = await get(taskId, { uid });
     if (!task) throw Object.assign(new Error('No such task.'), { statusCode: 404 });
@@ -279,6 +295,10 @@ function createTaskRunner({ store, llmService, safeCalculate, searchService, key
     return task;
   }
 
+  /**
+   * @param {{uid?: string|null, limit?: number}} [filter]
+   * @returns {Promise<AgentTask[]>}
+   */
   async function list({ uid, limit } = {}) {
     return store.list({ uid, limit });
   }

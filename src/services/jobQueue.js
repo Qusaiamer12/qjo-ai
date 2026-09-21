@@ -117,6 +117,7 @@ function createJobQueue({ maxJobs = 100 } = {}) {
     return serialize(job);
   }
 
+  /** @param {{limit?: number, type?: string, status?: string, uid?: string|null}} [filter] */
   function listJobs({ limit = 50, type = '', status = '', uid } = {}) {
     return [...jobs.values()]
       .filter(j => ownsJob(j, uid))

@@ -25,7 +25,8 @@
     "test:fetch": "node scripts/test-fetch-tool.js",
     "test:tasks": "node scripts/test-task-runner.js",
     "test:search": "node scripts/test-search.js",
-    "structure": "node scripts/check-structure.js"
+    "structure": "node scripts/check-structure.js",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@qdrant/js-client-rest": "^1.19.0",

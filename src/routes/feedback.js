@@ -1,3 +1,6 @@
+// express-rate-limit ships a dual CJS/ESM build whose type entry describes the
+// ESM shape, so the checker sees a namespace where require() gives a callable.
+// The runtime value is the function; only the published types disagree.
 const rateLimit = require('express-rate-limit');
 
 function registerFeedbackRoutes(app, deps) {
@@ -6,6 +9,7 @@ function registerFeedbackRoutes(app, deps) {
 
   // This endpoint is public and writes to disk, so it gets its own limiter
   // regardless of IP_RATE_LIMIT_PER_MINUTE (which defaults to 0 = disabled).
+  // @ts-ignore -- upstream CJS/ESM type mismatch, see the require above
   const feedbackLimiter = rateLimit({
     windowMs: 60 * 1000,
     limit: 20,

@@ -72,6 +72,7 @@ function createMemoryTaskStore({ maxTasks = 200 } = {}) {
       tasks.set(task.id, JSON.parse(JSON.stringify(task)));
       return task;
     },
+    /** @param {{uid?: string|null, limit?: number}} [filter] */
     async list({ uid, limit = 20 } = {}) {
       return [...tasks.values()]
         .filter(t => !uid || t.uid === uid)
@@ -103,6 +104,7 @@ function createFirestoreTaskStore(firestore, { collection = 'agentTasks' } = {})
       await ref().doc(task.id).set(task);
       return task;
     },
+    /** @param {{uid?: string|null, limit?: number}} [filter] */
     async list({ uid, limit = 20 } = {}) {
       let query = ref();
       if (uid) query = query.where('uid', '==', uid);
@@ -114,6 +116,10 @@ function createFirestoreTaskStore(firestore, { collection = 'agentTasks' } = {})
 
 // Picks the durable store when the credentials for one exist, and says which
 // it chose rather than leaving the caller to guess.
+/**
+ * Picks the durable store when credentials for one exist.
+ * @param {{firestore?: any}} [deps]
+ */
 function createTaskStore({ firestore } = {}) {
   if (firestore) {
     try {

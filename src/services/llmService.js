@@ -120,6 +120,12 @@ function createLlmService(config = {}) {
     rec.successes++;
   }
 
+  /**
+   * Sidelines a key for a duration proportional to why it failed.
+   * @param {string} key
+   * @param {{status?: number, errorMsg?: string, retryAfterSec?: number}} failure
+   * @returns {number} cooldown applied, in milliseconds
+   */
   function markKeyFailure(key, { status, errorMsg = '', retryAfterSec }) {
     const rec = getKeyRecord(key);
     rec.failures++;
@@ -453,7 +459,15 @@ function createLlmService(config = {}) {
         if (!_migrated && (response.status === 400 || response.status === 404)) {
           const mig = migratedModel(model);
           if (mig && /decommissioned|no longer supported|not found|does not exist|invalid model/i.test(errorMsg)) {
-            return callOpenAICompatible({ provider, baseUrl, model: mig, messages, temperature, max_tokens, tools, extraHeaders, onChunk, timeoutMs, signal, _migrated: true });
+            // Forwarding every parameter, not a subset. This call used to
+            // omit frequency_penalty, presence_penalty and onReasoning, so a
+            // model migration quietly reverted the sampling settings and cut
+            // the reasoning stream off mid-answer.
+            return callOpenAICompatible({
+              provider, baseUrl, model: mig, messages, temperature, max_tokens,
+              frequency_penalty, presence_penalty, tools, extraHeaders,
+              onChunk, onReasoning, timeoutMs, signal, _migrated: true
+            });
           }
         }
 

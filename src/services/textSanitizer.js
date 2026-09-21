@@ -48,7 +48,13 @@ function sanitizeMathNotation(text) {
   return normalizeGlyphs(sanitizeThoughtLeakage(text));
 }
 
-module.exports = { sanitizeMathUnicode, sanitizeMathNotation, sanitizeStreamChunk, sanitizeThoughtLeakage };
+module.exports = {
+  sanitizeMathUnicode,
+  sanitizeMathNotation,
+  sanitizeStreamChunk,
+  sanitizeThoughtLeakage,
+  createStreamSanitizer
+};
 
 
 // Streaming needs the leakage stripping too, but the patterns above are
@@ -126,4 +132,3 @@ function createStreamSanitizer() {
   return { push, flush };
 }
 
-module.exports.createStreamSanitizer = createStreamSanitizer;

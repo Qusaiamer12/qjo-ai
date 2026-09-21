@@ -295,7 +295,7 @@ function registerChatRoutes(app, deps) {
 
       const [usageOk, geo] = await Promise.all([
         deps.enforceDailyUsage(req, res),
-        deps.lookupClientGeo ? resolveGeoFast(ip, deps.lookupClientGeo, 1200) : Promise.resolve(null)
+        deps.lookupClientGeo ? resolveGeoFast(ip, deps.lookupClientGeo) : Promise.resolve(null)
       ]);
       if (!usageOk) return;
 

@@ -223,6 +223,9 @@ function createKnowledgeBaseService(config = {}) {
     let QdrantClient;
     try {
       // Lazy require so the dependency is only needed when Qdrant is used.
+      // The package is ESM-only; this module is CommonJS and loads it inside a
+      // try precisely because it is optional.
+      // @ts-ignore -- optional ESM dependency loaded defensively
       ({ QdrantClient } = require('@qdrant/js-client-rest'));
     } catch {
       throw new Error('@qdrant/js-client-rest is not installed.');

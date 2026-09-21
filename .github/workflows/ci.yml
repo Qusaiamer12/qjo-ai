@@ -38,6 +38,12 @@ jobs:
       - name: Stability audit
         run: npm run audit
 
+      # JSDoc annotations checked by the TypeScript compiler. noEmit: this never
+      # produces output, so the files that ship stay the files that are written.
+      # It found three real defects on the day it was switched on.
+      - name: Type check
+        run: npm run typecheck
+
       # A ratchet on file size: a watched file may shrink, never grow. Quality
       # rules that fail on day one get switched off on day two, so every budget
       # is set at what the code does today and lowered as it improves.
