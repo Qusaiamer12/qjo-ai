@@ -105,7 +105,7 @@ const MESSAGES = [{ role: 'user', content: 'مرحبا' }];
   });
 
   await test('a decommissioned model still migrates', async () => {
-    let seen = [];
+    const seen = [];
     stubFetch((n, info) => {
       seen.push(n);
       return n === 1

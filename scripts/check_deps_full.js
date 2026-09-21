@@ -21,7 +21,7 @@ const checkFile = (file) => {
   const matches = content.match(/require\(['"](\.[^'"]+)['"]\)/g) || [];
   for (const m of matches) {
     const reqPath = m.match(/require\(['"](\.[^'"]+)['"]\)/)[1];
-    let fullPath = path.join(path.dirname(file), reqPath);
+    const fullPath = path.join(path.dirname(file), reqPath);
     if (!fs.existsSync(fullPath) && !fs.existsSync(fullPath + '.js') && !fs.existsSync(fullPath + '/index.js')) {
       console.error('MISSING IN ' + file + ': ' + reqPath);
     }

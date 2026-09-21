@@ -359,7 +359,7 @@ function markdownTableToHtml(lines, start) {
 // Arabic document from having its final period pushed to the wrong end.
 function markdownToExportHtml(markdown) {
   const codeBlocks = [];
-  let text = String(markdown || '').replace(/```([\w+-]*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+  const text = String(markdown || '').replace(/```([\w+-]*)\n?([\s\S]*?)```/g, (_, lang, code) => {
     const id = codeBlocks.length;
     codeBlocks.push({ lang: lang || 'text', code: String(code || '').replace(/\s+$/, '') });
     return `@@CODE_${id}@@`;

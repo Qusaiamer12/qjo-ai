@@ -24,7 +24,8 @@
     "test:agent": "node scripts/test-agent-loop.js",
     "test:fetch": "node scripts/test-fetch-tool.js",
     "test:tasks": "node scripts/test-task-runner.js",
-    "test:search": "node scripts/test-search.js"
+    "test:search": "node scripts/test-search.js",
+    "structure": "node scripts/check-structure.js"
   },
   "dependencies": {
     "@qdrant/js-client-rest": "^1.19.0",

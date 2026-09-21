@@ -38,6 +38,12 @@ jobs:
       - name: Stability audit
         run: npm run audit
 
+      # A ratchet on file size: a watched file may shrink, never grow. Quality
+      # rules that fail on day one get switched off on day two, so every budget
+      # is set at what the code does today and lowered as it improves.
+      - name: Structure budgets
+        run: npm run structure
+
       # Search had three faults with one root cause: a keyword cascade decided
       # whether to search, before the message was sent, with no bound on how
       # long that took. These assert the model gets the choice, the results

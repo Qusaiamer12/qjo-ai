@@ -309,8 +309,8 @@ function registerChatRoutes(app, deps) {
         if (cached) return sendCachedResponse(res, cached, useStreaming);
       }
 
-      let timeZone = (geo && geo.timezone) || 'Asia/Amman';
-      let locationText = (geo && (`${geo.city || ''}, ${geo.country || ''}`.replace(/^,\s*|,\s*$/g, ''))) || (geoCacheGet(ip) && `${geoCacheGet(ip).city || ''}, ${geoCacheGet(ip).country || ''}`.replace(/^,\s*|,\s*$/g, '')) || 'Amman, Jordan';
+      const timeZone = (geo && geo.timezone) || 'Asia/Amman';
+      const locationText = (geo && (`${geo.city || ''}, ${geo.country || ''}`.replace(/^,\s*|,\s*$/g, ''))) || (geoCacheGet(ip) && `${geoCacheGet(ip).city || ''}, ${geoCacheGet(ip).country || ''}`.replace(/^,\s*|,\s*$/g, '')) || 'Amman, Jordan';
 
       const now = new Date();
       const localTimeString = now.toLocaleString('ar-JO', { timeZone, dateStyle: 'full', timeStyle: 'short' });

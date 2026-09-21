@@ -95,7 +95,29 @@ const SHARED_RULES = {
   // Deliberate patterns in this codebase.
   'no-empty': ['warn', { allowEmptyCatch: true }],
   'no-control-regex': 'off',
-  'no-useless-escape': 'warn'
+  'no-useless-escape': 'warn',
+
+  // ── Structural ratchet ───────────────────────────────────────────────────
+  // Thresholds sit just above what the code does today, so nothing can get
+  // worse, and each refactor lowers the number it just beat. Rules that fail
+  // on day one get switched off on day two; these are meant to survive.
+  //
+  // Today's worst, for the record: sendMessage has a cyclomatic complexity of
+  // 126 — 126 independent paths through one function, which is past the point
+  // where it can be meaningfully tested. Anything over about 15 is hard to
+  // hold in your head at once.
+  complexity: ['warn', 30],
+  'max-depth': ['warn', 5],
+  'max-params': ['warn', 6],
+  'max-nested-callbacks': ['warn', 4],
+
+  // Bug classes worth catching outright rather than warning about.
+  eqeqeq: ['warn', 'smart'],
+  'no-var': 'warn',
+  'prefer-const': ['warn', { destructuring: 'all' }],
+  'no-throw-literal': 'error',
+  'no-return-await': 'warn',
+  'require-atomic-updates': 'off'
 };
 
 module.exports = [

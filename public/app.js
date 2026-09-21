@@ -12,11 +12,11 @@ if (window.pdfjsLib) {
 }
 
 function openAdminDirect() {
-      var modal = document.getElementById('settingsModal');
+      const modal = document.getElementById('settingsModal');
       if (modal) {
         modal.classList.add('show');
         modal.setAttribute('aria-hidden', 'false');
-        var input = document.getElementById('modelInput');
+        const input = document.getElementById('modelInput');
         if (input) input.value = 'openai/gpt-oss-120b';
       } else {
         alert('لم يتم العثور على نافذة الإعدادات. حدّث الصفحة وحاول مرة ثانية.');
@@ -24,7 +24,7 @@ function openAdminDirect() {
     }
 
     function closeAdminDirect() {
-      var modal = document.getElementById('settingsModal');
+      const modal = document.getElementById('settingsModal');
       if (modal) {
         modal.classList.remove('show');
         modal.setAttribute('aria-hidden', 'true');
@@ -209,7 +209,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     const PDF_MAX_CHARS = 120000;
     const TEXT_FILE_MAX_CHARS = 30000;
 
-    let runtimeToken = 'server-managed';
+    const runtimeToken = 'server-managed';
     let clientContext = null;
     let lastSearchSources = [];
     let activeRagIndexes = [];
@@ -247,7 +247,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
 
     let qjoTraining = readStored(TRAINING_KEY) || '';
     let qjoLearning = readJSON(LEARNING_KEY, []);
-    let remoteConfig = {};
+    const remoteConfig = {};
     let userPreferences = {};
     // Only Flash ('normal') and Max ('advanced') are selectable. A 'code' value
     // persisted by an older build normalises to Flash; coding requests are still
@@ -285,8 +285,8 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     let qjoTheme = readStored(THEME_KEY) || 'light';
     let qjoLanguage = readStored(LANGUAGE_KEY) || 'ar';
     let busy = false;
-    let logoClicks = 0;
-    let logoClickTimer = null;
+    const logoClicks = 0;
+    const logoClickTimer = null;
     const history = [];
     let pendingAttachments = [];
     let firebaseReady = false;
@@ -311,7 +311,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     let currentUser = null;
     let currentChatId = null;
     let chatUnsubscribe = null;
-    let savingChat = false;
+    const savingChat = false;
     let allChatsCache = [];
     let chatSearchQuery = '';
     let messageSeq = 0;
@@ -3277,7 +3277,7 @@ if len(__qjo_err_str) > 20000:
       const chunks = [];
       let start = 0;
       while (start < value.length && chunks.length < 80) {
-        let end = Math.min(value.length, start + chunkSize);
+        const end = Math.min(value.length, start + chunkSize);
         const slice = value.slice(start, end);
         chunks.push({ index: chunks.length + 1, start, end, text: slice });
         if (end >= value.length) break;
@@ -3338,7 +3338,7 @@ if len(__qjo_err_str) > 20000:
         const weight = token.length >= 6 ? 1.35 : 1;
         vec[idx] += weight;
       });
-      let norm = Math.sqrt(vec.reduce((sum, x) => sum + x * x, 0));
+      const norm = Math.sqrt(vec.reduce((sum, x) => sum + x * x, 0));
       if (!norm) return vec;
       for (let i = 0; i < vec.length; i++) vec[i] = vec[i] / norm;
       return vec;
