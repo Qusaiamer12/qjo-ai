@@ -172,7 +172,7 @@ const MESSAGES = [{ role: 'user', content: 'مرحبا' }];
       return { ok: true, answer: 'ok', provider, model: params.model, finish_reason: 'stop' };
     });
     await engine.callAgent({ agentType: 'chat', model: 'text-m', messages: LONG, mode: 'flash', max_tokens: 500 });
-    assert.ok(/حُذف جزء من المحتوى/.test(lastSent), 'the cut is silent — the model cannot say the content was incomplete');
+    assert.ok(/part of this content was removed/.test(lastSent), 'the cut is silent — the model cannot say the content was incomplete');
   });
 
   await test('it gives up shrinking rather than looping forever', async () => {
@@ -214,7 +214,7 @@ const MESSAGES = [{ role: 'user', content: 'مرحبا' }];
 
   await test('a truncated turn tells the model content is missing', () => {
     const out = trimForChat([{ role: 'user', content: 'ح'.repeat(80000) }]);
-    assert.ok(/اقتُطع جزء/.test(out[0].content), 'the cut is silent');
+    assert.ok(/part of this content was cut/.test(out[0].content), 'the cut is silent');
   });
 
   await test('a long conversation stays under the whole-payload ceiling', () => {

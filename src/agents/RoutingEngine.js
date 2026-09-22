@@ -3,6 +3,7 @@ const { WEB_SEARCH_TOOL } = require('../tools/searchTool');
 const { createToolRegistry } = require('../tools/toolRegistry');
 const { evidenceFromSearch, formatSearchResultsForTool } = require('./toolAnswer');
 const { createToolLoop } = require('./toolLoop');
+const { continuationPrompts } = require('./continuation');
 const { z } = require('zod');
 
 // ── Zod Schema ──
@@ -92,10 +93,6 @@ function isArabicHeavyText(text) {
 // Wide net: comparisons, trophies/scores, prices, device/product names,
 // versions and recent years — these are exactly the questions that used to
 // get confident-but-stale memory answers (e.g. trophy counts from 2023).
-function mightNeedFreshness(text) {
-  return /(اليوم|الآن|هلأ|هلق|حالياً|حالي|آخر|اخر|أحدث|احدث|سعر|أسعار|اسعار|بكم|قديش|تكلفة|كم مرة|كم بطولة|نتيجة|نتائج|مباراة|مباريات|بطول|دوري|ابطال|البطا|كأس|كاس|فاز|فائز|توج|ترتيب|طقس|خبر|أخبار|اخبار|صار|صارت|موعد| متى |قارن|قارني|مقارن|مواصفات|عيوب|مميزات|إصدار|اصدار|نسخة|موديل|طراز|ايفون|آيفون|سامسونج|سامسنوج|شاومي|جوال|موبايل|هاتف|لابتوب| latest|current|today|price|cost|score|standings|champion|league|cup|news|weather|happened|release|specs|compare|comparison|\bvs\b|iphone|samsung|galaxy|pixel|20(2[4-9]|3\d))/i.test(String(text || ''));
-}
-
 // ── Routing Decision Validation ──
 function validateRoutingDecision(raw) {
   const parsed = RoutingDecisionSchema.safeParse(raw);
@@ -291,7 +288,7 @@ function createRoutingEngine(deps) {
   // the message and the retrieved evidence closes it, so both ends carry more
   // signal than the middle does. The model is told a cut happened rather than
   // being handed a sentence that simply stops.
-  const SHRINK_NOTE = '\n\n[... حُذف جزء من المحتوى لأن الطلب تجاوز حد السياق. اعتمد على الأجزاء المتاحة، واذكر صراحة أن جزءًا من المحتوى غير متاح إذا أثّر على الدقة ...]\n\n';
+  const SHRINK_NOTE = '\n\n[... part of this content was removed because the request exceeded the context limit. Work from the parts that remain, and say plainly if the missing part affects the accuracy of the answer ...]\n\n';
 
   function shrinkMessages(messages) {
     const list = Array.isArray(messages) ? messages : [];
@@ -575,17 +572,18 @@ function createRoutingEngine(deps) {
     const maxPasses = Math.max(1, Math.min(Number(params.maxPasses ?? 1), 2));
     if (!isTruncatedProviderResponse(ai)) return ai;
     let combined = ai.answer || '';
+    const prompts = continuationPrompts(combined);
     let workingMessages = [
       ...messages,
       { role: 'assistant', content: combined },
-      { role: 'user', content: 'تابع من حيث توقفت بالضبط. لا تعِد البداية، ولا تضف مقدمة جديدة. أكمل الجملة أو الفقرة الناقصة فقط ثم أكمل باقي الإجابة.' }
+      { role: 'user', content: prompts.first }
     ];
     for (let i = 0; i < maxPasses; i++) {
       const next = await callAgent({ ...params, messages: workingMessages, temperature: Math.min(temperature, 0.3), max_tokens: Math.min(max_tokens, 1800) });
       if (!next.ok || !next.answer) break;
       combined += (combined.endsWith('\n') ? '' : '\n') + next.answer;
       if (!isTruncatedProviderResponse(next)) return { ...next, answer: combined, continued: true };
-      workingMessages = [...workingMessages, { role: 'assistant', content: next.answer }, { role: 'user', content: 'تابع مرة أخيرة من حيث توقفت بدون إعادة.' }];
+      workingMessages = [...workingMessages, { role: 'assistant', content: next.answer }, { role: 'user', content: prompts.again }];
     }
     return { ...ai, answer: combined, continued: true, finish_reason: 'continued_but_may_be_truncated' };
   }

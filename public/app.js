@@ -433,33 +433,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     }
 
 
-
-    function inferLocationFromTimeZone(timeZone) {
-      const map = {
-        'Asia/Amman': { city: 'Amman', country: 'Jordan', labelAr: 'عمّان، الأردن' },
-        'Asia/Riyadh': { city: 'Riyadh', country: 'Saudi Arabia', labelAr: 'الرياض، السعودية' },
-        'Asia/Dubai': { city: 'Dubai', country: 'United Arab Emirates', labelAr: 'دبي، الإمارات' },
-        'Africa/Cairo': { city: 'Cairo', country: 'Egypt', labelAr: 'القاهرة، مصر' },
-        'Asia/Beirut': { city: 'Beirut', country: 'Lebanon', labelAr: 'بيروت، لبنان' },
-        'Asia/Jerusalem': { city: 'Jerusalem', country: 'Palestine/Israel', labelAr: 'القدس/فلسطين' },
-        'Europe/London': { city: 'London', country: 'United Kingdom', labelAr: 'لندن، بريطانيا' },
-        'America/New_York': { city: 'New York', country: 'United States', labelAr: 'نيويورك، الولايات المتحدة' }
-      };
-      return map[timeZone] || null;
-    }
-
-    function getBrowserTimeContext() {
-      const now = new Date();
-      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
-      const offsetMinutes = -now.getTimezoneOffset();
-      const sign = offsetMinutes >= 0 ? '+' : '-';
-      const hh = String(Math.floor(Math.abs(offsetMinutes) / 60)).padStart(2, '0');
-      const mm = String(Math.abs(offsetMinutes) % 60).padStart(2, '0');
-      const inferred = inferLocationFromTimeZone(timeZone);
-      const ipGeo = clientContext?.ipGeo || null;
-      return { now, timeZone, utcOffset: `UTC${sign}${hh}:${mm}`, inferred, ipGeo };
-    }
-
     function latestUserTextForPrompt() {
       for (let i = history.length - 1; i >= 0; i--) {
         if (history[i]?.role === 'user') return String(history[i].content || '');
@@ -3285,19 +3258,6 @@ if len(__qjo_err_str) > 20000:
       return candidates;
     }
 
-    function isSocialSmallTalk(text) {
-      const q = String(text || '').trim().toLowerCase();
-      const normalized = q.replace(/[؟?!.،,]/g, '').replace(/\s+/g, ' ').trim();
-      const socialPhrases = [
-        'مرحبا', 'مرحبا qjo', 'هاي', 'هلا', 'اهلا', 'أهلا', 'السلام عليكم', 'صباح الخير', 'مساء الخير',
-        'كيفك', 'كيف الحال', 'شو اخبارك', 'شو أخبارك', 'شو الاخبار', 'شو الأخبار', 'شو عامل', 'شو في',
-        'عامل ايه', 'ازيك', 'شلونك', 'hi', 'hello', 'hey', 'sup', "what's up", 'how are you', 'how is it going'
-      ].map(x => x.toLowerCase());
-      if (socialPhrases.includes(normalized)) return true;
-      // Very short phrase with news-ish word but no topic is usually a greeting in Arabic.
-      if (/^(شو|ايش|إيش|كيف)\s+(ال)?أ?خبارك?$/.test(normalized)) return true;
-      return false;
-    }
 
     function isContextualTransformRequest(text) {
       const q = String(text || '').trim().toLowerCase();
@@ -3468,37 +3428,6 @@ if len(__qjo_err_str) > 20000:
       return qjoLanguage === 'ar'
         ? 'لا أستطيع مساعدتك في تجاوز الحماية أو الاختراق أو سرقة المفاتيح. أقدر أساعدك بدلًا من ذلك بتأمين شبكتك، اختبار الحماية بشكل قانوني، أو بناء قائمة فحص أمنية دفاعية.'
         : 'I can’t help with bypassing protection, hacking, or stealing keys. I can help you secure your network, run lawful security checks, or build a defensive security checklist.';
-    }
-
-    function getLocalDateTimeReply(text) {
-      const raw = String(text || '').trim();
-      const q = raw.toLowerCase().replace(/[؟?!.،,]/g, '').replace(/\s+/g, ' ').trim();
-      const ar = qjoLanguage === 'ar' || /[\u0600-\u06FF]/.test(raw);
-      const asksTime = /(كم|قديش|ما|what).*?(الساعة|الساعه|وقت|time)|^(الساعة|الساعه)\s*(كم|قديش)|what time/i.test(q);
-      const pureDateQuestion = /^(شو|ما|ما هو|ماهي|what is|what's)?\s*(تاريخ\s+)?(اليوم|today|date)\s*$/i.test(q) || /(أي\s+يوم|what day|which day)/i.test(q);
-      const asksDate = pureDateQuestion && !/(أخبار|اخبار|news|سعر|صرف|دولار|ين|مباراة|كلاسيكو|ريال|برشلونة|فاز|نتيجة|exchange|price|match|score)/i.test(q);
-      const asksLocation = /(وين\s+(انا|أنا)|موقعي|موقعك|location|where am i|where are you)/i.test(q);
-      if (!asksTime && !asksDate && !asksLocation) return '';
-
-      const { now, timeZone, utcOffset, inferred, ipGeo } = getBrowserTimeContext();
-      const locale = ar ? 'ar-JO' : 'en-US';
-      const time = now.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      const date = now.toLocaleDateString(locale, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-      const locationLabel = ipGeo && (ipGeo.city || ipGeo.country)
-        ? [ipGeo.city, ipGeo.region, ipGeo.country].filter(Boolean).join('، ')
-        : (inferred ? (ar ? inferred.labelAr : `${inferred.city}, ${inferred.country}`) : (timeZone || 'غير معروف'));
-      const approximateNote = ipGeo
-        ? (ar ? 'حسب موقع الاتصال التقريبي' : 'based on approximate IP location')
-        : (ar ? 'حسب المنطقة الزمنية في جهازك' : 'based on your device time zone');
-
-      if (ar) {
-        if (asksLocation && !asksTime && !asksDate) return `موقعك التقريبي: ${locationLabel}. (${approximateNote})`;
-        if (asksDate && !asksTime) return `اليوم: ${date}. المنطقة الزمنية: ${timeZone || 'غير معروفة'} (${utcOffset}). الموقع التقريبي: ${locationLabel}.`;
-        return `الساعة الآن ${time} — ${date}. الموقع التقريبي: ${locationLabel} (${approximateNote}). المنطقة الزمنية: ${timeZone || 'غير معروفة'} ${utcOffset}.`;
-      }
-      if (asksLocation && !asksTime && !asksDate) return `Your approximate location is ${locationLabel} (${approximateNote}).`;
-      if (asksDate && !asksTime) return `Today is ${date}. Time zone: ${timeZone || 'unknown'} (${utcOffset}). Approximate location: ${locationLabel}.`;
-      return `It is ${time} — ${date}. Approximate location: ${locationLabel} (${approximateNote}). Time zone: ${timeZone || 'unknown'} ${utcOffset}.`;
     }
 
     function getLocalSmallTalkReply(text) {
@@ -3789,6 +3718,11 @@ if len(__qjo_err_str) > 20000:
             temperature: generationConfig.temperature,
             max_tokens: generationConfig.max_tokens,
             mode: qjoMode,
+            // The interface language brings the Arabic craft into the prompt
+            // even for a short English message; the time zone replaces a
+            // guessed location when the server has no geo yet.
+            language: qjoLanguage,
+            timeZone: (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (_) { return ''; } })(),
             stream: true
           })
         });

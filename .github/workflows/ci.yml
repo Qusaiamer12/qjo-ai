@@ -71,6 +71,12 @@ jobs:
       - name: Search end-to-end suite
         run: npm run test:search-e2e
 
+      # English is the primary language, and the Arabic craft must survive it:
+      # every Arabic phrase the prompt carried is checked against a snapshot
+      # and must reach the model whenever Arabic is in play.
+      - name: Language suite (English-first, Arabic retained)
+        run: npm run test:language
+
       # The route over real HTTP: keep-alives while the answer is prepared, an
       # error event when something throws mid-stream, and a sources-only
       # fallback that is never cached.

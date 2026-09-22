@@ -31,7 +31,7 @@ async function test(name, fn) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-function startApp(callAgent) {
+function startApp(callAgent, extraDeps = {}) {
   const cacheWrites = [];
   const app = express();
   app.use(express.json());
@@ -47,17 +47,18 @@ function startApp(callAgent) {
     memoryCaches: { completions: new Map() },
     cacheGet: () => null,
     cacheSet: (_store, key, value) => { cacheWrites.push(value); return value; },
-    routingEngine: { callAgent, completeIfTruncated: async ({ ai }) => ai }
+    routingEngine: { callAgent, completeIfTruncated: async ({ ai }) => ai },
+    ...extraDeps
   });
   const server = http.createServer(app);
   return new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve({ server, cacheWrites, port: server.address().port })));
 }
 
-async function ask(port, question = 'سؤال') {
+async function ask(port, question = 'سؤال', extraBody = {}) {
   const res = await fetch(`http://127.0.0.1:${port}/api/chat`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ model: 'test-model', stream: true, messages: [{ role: 'user', content: question }] })
+    body: JSON.stringify({ model: 'test-model', stream: true, messages: [{ role: 'user', content: question }], ...extraBody })
   });
   const raw = await res.text();
   return { raw, events: createSseParser().push(raw) };
@@ -142,6 +143,46 @@ async function ask(port, question = 'سؤال') {
     try {
       await ask(port);
       assert.strictEqual(cacheWrites.length, 1, 'the control case was not cached — the check above proves nothing');
+    } finally { server.close(); }
+  });
+
+  console.log('\nEnglish first, Arabic whenever it is in play:');
+
+  // Records what the route asked the prompt builder for, per request.
+  const promptCalls = [];
+  const builder = (options) => { promptCalls.push(options); return 'SYSTEM'; };
+  const answer = async ({ onChunk }) => { onChunk('ok'); return { ok: true, answer: 'ok', provider: 'p', model: 'm' }; };
+
+  await test('an Arabic message brings the Arabic craft; an English one does not', async () => {
+    const { server, port } = await startApp(answer, { buildChatSystemPrompt: builder, cacheGet: () => null });
+    try {
+      promptCalls.length = 0;
+      await ask(port, 'متى مباراة ريال مدريد القادمة؟');
+      await ask(port, 'When is the next Real Madrid match?');
+      assert.deepStrictEqual(promptCalls.map((c) => c.arabic), [true, false]);
+    } finally { server.close(); }
+  });
+
+  await test('the Arabic interface brings it too, whatever the message', async () => {
+    const { server, port } = await startApp(answer, { buildChatSystemPrompt: builder });
+    try {
+      promptCalls.length = 0;
+      await ask(port, 'hello there', { language: 'ar' });
+      assert.strictEqual(promptCalls[0].arabic, true);
+    } finally { server.close(); }
+  });
+
+  await test('the runtime line is English, uses the page\'s time zone, and never invents a place', async () => {
+    const { server, port } = await startApp(answer, { buildChatSystemPrompt: builder });
+    try {
+      promptCalls.length = 0;
+      await ask(port, 'what time is it', { timeZone: 'Europe/London' });
+      await ask(port, 'what time is it again', { timeZone: 'Not/AZone' });
+      const [london, bogus] = promptCalls.map((c) => c.runtimeLine);
+      assert.ok(/time zone: Europe\/London/.test(london), london);
+      assert.ok(/approximate location: unknown/.test(london), `a place was invented: ${london}`);
+      assert.ok(!/[\u0621-\u064A]/.test(london), `Arabic in the runtime line: ${london}`);
+      assert.ok(/time zone: UTC/.test(bogus), `an invalid zone was trusted: ${bogus}`);
     } finally { server.close(); }
   });
 

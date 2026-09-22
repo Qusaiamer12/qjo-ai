@@ -16,6 +16,7 @@ const BUDGET_FILE = path.join(__dirname, 'structure-budget.json');
 const WATCHED = [
   'public/app.js',
   'public/boot.js',
+  'public/domain/language.js',
   'public/domain/markdown.js',
   'public/domain/requestFailure.js',
   'public/domain/streamProtocol.js',
@@ -27,6 +28,7 @@ const WATCHED = [
   'src/agents/toolLoop.js',
   'src/routes/chat.js',
   'src/routes/sse.js',
+  'src/services/arabicPrompt.js',
   'src/services/exportService.js',
   'src/services/llmService.js',
   'src/services/providerResponse.js',

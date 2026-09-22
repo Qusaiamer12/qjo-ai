@@ -280,7 +280,9 @@ console.log('------------------');
 must(read('src/routes/system.js').includes("app.get('/api/limits'"), '/api/limits exists');
 must(read('src/routes/system.js').includes("app.get('/api/client-context'"), '/api/client-context exists');
 must(app.includes('loadClientContext'), 'loadClientContext exists');
-must(app.includes('getLocalDateTimeReply'), 'getLocalDateTimeReply exists');
+// The page's own time zone reaches the server with every message, so the model
+// is never told a guessed location's time (it used to default to Amman).
+must(/timeZone:\s*\(\(\) => \{ try \{ return Intl\.DateTimeFormat\(\)\.resolvedOptions\(\)\.timeZone/.test(app), 'the page sends its time zone with each chat request');
 must(app.includes('Browser time zone') || app.includes('timeZone'), 'Browser timezone context exists');
 
 console.log('\nSummary');

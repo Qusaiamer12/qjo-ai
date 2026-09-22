@@ -4,6 +4,8 @@ const { addRouterSystemHint, routeUserRequestDeterministic } = require('../agent
 const { addCalculatorSystemHint } = require('../tools/calculatorTool');
 const { sanitizeMathNotation, createStreamSanitizer } = require('../services/textSanitizer');
 const { sseHeaders, sendCachedResponse, startHeartbeat } = require('./sse');
+const { arabicInPlay } = require('../../public/domain/language');
+const { describeRuntime, lastUserLanguage } = require('./runtimeContext');
 
 function requireDeps(deps) {
   const required = [
@@ -71,7 +73,7 @@ async function resolveGeoFast(ip, lookupFn) {
 const NEWEST_TURN_MAX_CHARS = 48000;
 const HISTORY_TURN_MAX_CHARS = 4000;
 const CONVERSATION_MAX_CHARS = 72000;
-const TRIM_NOTE = '\n\n[... اقتُطع جزء من هذا المحتوى لتجاوزه حد السياق المتاح. حلّل الأجزاء الموجودة، واذكر صراحة أن جزءًا غير متاح إذا أثّر ذلك على الدقة ...]\n\n';
+const TRIM_NOTE = '\n\n[... part of this content was cut because it exceeded the available context. Analyze the parts that are present, and say plainly if the missing part affects accuracy ...]\n\n';
 
 // Cutting the tail would drop the retrieved passages, which sit after the
 // question. Keeping both ends preserves the question and the closing evidence,
@@ -210,13 +212,6 @@ function stripClientBasePrompt(content) {
   return anchorIndex === undefined ? '' : text.slice(anchorIndex).trim();
 }
 
-function lastUserLanguage(messages) {
-  const last = [...(messages || [])].reverse().find(m => m?.role === 'user');
-  const text = typeof last?.content === 'string' ? last.content : '';
-  const ar = (text.match(/[؀-ۿ]/g) || []).length;
-  return ar > text.length * 0.15 ? 'ar' : 'en';
-}
-
 // Caches a finished answer for identical follow-up requests.
 //
 // A sources-only reply exists because every model failed; caching it would
@@ -290,12 +285,9 @@ function registerChatRoutes(app, deps) {
         if (cached) return sendCachedResponse(res, cached, useStreaming);
       }
 
-      const timeZone = (geo && geo.timezone) || 'Asia/Amman';
-      const locationText = (geo && (`${geo.city || ''}, ${geo.country || ''}`.replace(/^,\s*|,\s*$/g, ''))) || (geoCacheGet(ip) && `${geoCacheGet(ip).city || ''}, ${geoCacheGet(ip).country || ''}`.replace(/^,\s*|,\s*$/g, '')) || 'Amman, Jordan';
-
-      const now = new Date();
-      const localTimeString = now.toLocaleString('ar-JO', { timeZone, dateStyle: 'full', timeStyle: 'short' });
-      const runtimeLine = `${localTimeString} (الموقع التقريبي: ${locationText}، المنطقة الزمنية: ${timeZone})`;
+      const { timeZone, locationText, localTimeString, runtimeLine } = describeRuntime({
+        geo, cachedGeo: geoCacheGet(ip), clientTimeZone: req.body.timeZone
+      });
       const userMessages = trimForChat(cleanedMessages.filter(m => m.role !== 'system'));
       const needs = detectNeeds(userMessages.map(m => (typeof m.content === 'string' ? m.content : '')).join('\n'));
       const clientSystemMessages = cleanedMessages
@@ -315,7 +307,10 @@ function registerChatRoutes(app, deps) {
       // prompt if no builder was injected (evals/older wiring).
       let systemPrompt;
       if (typeof deps.buildChatSystemPrompt === 'function') {
-        systemPrompt = deps.buildChatSystemPrompt({ mode, needs, runtimeLine });
+        // English is the primary language; the Arabic craft joins the prompt
+        // whenever Arabic is part of the conversation or the interface.
+        const arabic = arabicInPlay(cleanedMessages, { uiLanguage: req.body.language });
+        systemPrompt = deps.buildChatSystemPrompt({ mode, needs, runtimeLine, arabic });
       } else if (deps.fullSystemPrompt) {
         systemPrompt = String(deps.fullSystemPrompt)
           .replace(/\{\{current_datetime\}\}/g, `${localTimeString} (الموقع الجغرافي: ${locationText}, المنطقة الزمنية: ${timeZone})`);
