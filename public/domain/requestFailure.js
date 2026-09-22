@@ -19,7 +19,22 @@
 (function (global) {
   'use strict';
 
+  // English is the primary language, and the fallback for any other.
   const MESSAGES = {
+    en: {
+      aborted: 'The request was stopped or timed out. Try again.',
+      empty: 'The provider sent back an empty reply. Retrying — if it happens again, try rephrasing the question.',
+      tooLarge: 'The attachments or text are larger than the limit. Remove some files or split the request into smaller parts, then try again.',
+      backendMissing: 'The AI service is not connected in this copy. Run the production build through Node.js instead of opening the HTML file directly.',
+      authRequired: 'You need to sign in before using Qjo.',
+      rateLimit: 'We have hit the AI provider limit for now. Try again shortly, or send a shorter message.',
+      providerPressure: 'The AI providers are under heavy load right now (temporary request limit). Wait a minute and try again.',
+      notConfigured: 'The AI providers are not configured on the server. Set the keys in the dashboard.',
+      transient: "The server didn't respond (it was probably asleep or busy). Press \"Retry\".",
+      stalled: 'The connection to the server dropped before the reply started. Press "Retry".',
+      generic: "Couldn't reach the service right now. Please try again later.",
+      reasonLabel: 'Technical reason: '
+    },
     ar: {
       aborted: 'تم إيقاف الطلب أو انتهت مهلته. حاول مرة أخرى.',
       empty: 'رجع رد فاضي من المزوّد. جاري إعادة المحاولة — إذا تكررت، جرّب صياغة السؤال بشكل مختلف.',
@@ -48,7 +63,7 @@
    * @returns {{message: string, transient: boolean, kind: string}}
    */
   function classifyRequestFailure(error, options = {}) {
-    const copy = MESSAGES[options.language] || MESSAGES.ar;
+    const copy = MESSAGES[options.language] || MESSAGES.en;
     const name = String(error?.name || '');
     const message = String(error?.message || '');
     const status = Number(error?.status) || 0;

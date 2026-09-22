@@ -91,7 +91,10 @@ qjo-ai/
 ├── public/
 │   ├── index.html
 │   ├── app.js                   Shell: state and wiring. Shrinking.
+│   ├── lang-boot.js             Sets lang/dir before first paint
 │   ├── domain/                  Pure functions. No DOM, no fetch, no state.
+│   │   ├── language.js          Which language a text is in; which one the page opens in
+│   │   ├── i18n.js              Every interface string, English and Arabic, same keys
 │   │   ├── markdown.js
 │   │   ├── requestFailure.js    Error in, message and retry decision out
 │   │   └── streamProtocol.js    SSE parsing, think-tag split, stall watchdog
@@ -165,6 +168,24 @@ thresholds that start where you are get tightened.
 | Answer HTML | Escaped before insertion; markdown rendering never emits raw user HTML |
 | Provider keys | `server.js` only, never sent to the client; `scan-secrets` blocks commits |
 | Task access | Every task route checks the caller owns the task |
+
+## Languages
+
+English is the primary language; Arabic is first-class.
+
+- The page opens in the saved choice, else Arabic if the browser's first
+  preference is Arabic, else English (`public/domain/language.js`). The
+  direction is set before first paint by `lang-boot.js`.
+- Every interface string lives in `public/domain/i18n.js` in both languages.
+  The domain suite fails if the two catalogs differ in keys or placeholders,
+  if English text contains Arabic, or if Arabic text was left in English.
+- What the page answers itself, and what it sends the model, follows the
+  language of the person's message, not the interface.
+- The server prompt is English-first; the Arabic craft (`arabicPrompt.js`) is
+  added whenever Arabic is in play. `scripts/test-language.js` requires every
+  Arabic phrase the prompt ever carried to still reach the model.
+- The older browser suites run in an Arabic browser, keeping the Arabic
+  interface under test; `language.test.js` covers English as primary.
 
 ## Failure handling
 

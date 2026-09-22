@@ -61,15 +61,32 @@ function test(name, fn) {
 
   console.log('\nWhat the user is told:');
 
-  test('a payload failure points at the attachments', () => {
-    const { message } = classifyRequestFailure({ status: 413 });
-    assert.ok(/المرفقات|الحد المسموح/.test(message), message);
+  test('a payload failure points at the attachments, in English by default and in Arabic when asked', () => {
+    assert.ok(/attachments|limit/.test(classifyRequestFailure({ status: 413 }).message));
+    const ar = classifyRequestFailure({ status: 413 }, { language: 'ar' }).message;
+    assert.ok(/المرفقات|الحد المسموح/.test(ar), ar);
   });
 
   test('the real reason is shown when it is short enough to read', () => {
     const { message } = classifyRequestFailure({ message: 'All AI providers failed. Last: groq timeout' });
-    assert.ok(/السبب التقني/.test(message), 'the reason is hidden, so nothing can be diagnosed');
+    assert.ok(/Technical reason/.test(message), 'the reason is hidden, so nothing can be diagnosed');
     assert.ok(/groq timeout/.test(message), message);
+    const ar = classifyRequestFailure({ message: 'All AI providers failed. Last: groq timeout' }, { language: 'ar' }).message;
+    assert.ok(/السبب التقني/.test(ar) && /groq timeout/.test(ar), ar);
+  });
+
+  test('every failure has a message in both languages, and English is the fallback', () => {
+    const errors = [{ name: 'AbortError' }, { status: 413 }, { message: 'AI_BACKEND_MISSING' }, { message: 'AUTH_REQUIRED' },
+      { message: 'RATE_LIMIT' }, { message: '429 too many requests' }, { message: 'No provider configured' },
+      { message: 'EMPTY_ANSWER' }, { message: 'STREAM_STALLED' }, { status: 503 }, { message: 'odd' }];
+    for (const error of errors) {
+      const en = classifyRequestFailure(error, { language: 'en' }).message;
+      const ar = classifyRequestFailure(error, { language: 'ar' }).message;
+      const other = classifyRequestFailure(error, { language: 'fr' }).message;
+      assert.ok(en && !/[\u0621-\u064A]/.test(en), `English message has Arabic: ${en}`);
+      assert.ok(/[\u0621-\u064A]/.test(ar), `Arabic message is not Arabic: ${ar}`);
+      assert.strictEqual(other, en, 'an unknown language did not fall back to English');
+    }
   });
 
   test('a stack trace is not pasted at the user', () => {
@@ -421,6 +438,51 @@ function test(name, fn) {
     assert.strictEqual(markdown.escapeHtml('<>&"\''), '&lt;&gt;&amp;&quot;&#039;');
   });
 
+})();
+
+(() => {
+  console.log('\nThe interface catalog holds both languages to each other:');
+  const { CATALOG, createTranslator } = require('../public/domain/i18n.js');
+  const placeholders = (text) => (String(text).match(/\{\w+\}/g) || []).sort().join(',');
+  // Values that are the same in both languages by nature: layout data, and
+  // product and mode names the Arabic interface deliberately keeps in English.
+  const NEUTRAL = new Set(['dir', 'lang', 'listSeparator', 'welcomeKicker', 'normal']);
+
+  test('English and Arabic carry exactly the same keys', () => {
+    const en = Object.keys(CATALOG.en), ar = Object.keys(CATALOG.ar);
+    assert.deepStrictEqual(en.filter((k) => !(k in CATALOG.ar)), [], 'missing in Arabic');
+    assert.deepStrictEqual(ar.filter((k) => !(k in CATALOG.en)), [], 'missing in English');
+  });
+
+  test('a placeholder in one language exists in the other', () => {
+    const bad = Object.keys(CATALOG.en).filter((k) => placeholders(CATALOG.en[k]) !== placeholders(CATALOG.ar[k]));
+    assert.deepStrictEqual(bad, []);
+  });
+
+  test('no English string is secretly Arabic, and no Arabic string was left in English', () => {
+    const arabicInEnglish = Object.keys(CATALOG.en).filter((k) => /[\u0621-\u064A]/.test(CATALOG.en[k]));
+    assert.deepStrictEqual(arabicInEnglish, [], 'Arabic text in the English catalog');
+    const englishInArabic = Object.keys(CATALOG.ar)
+      .filter((k) => !NEUTRAL.has(k) && /[A-Za-z]{4,}/.test(CATALOG.ar[k]) && !/[\u0621-\u064A]/.test(CATALOG.ar[k]));
+    assert.deepStrictEqual(englishInArabic, [], 'English-only text in the Arabic catalog');
+  });
+
+  test('a missing key falls back to English, never to Arabic', () => {
+    const t = createTranslator(() => 'ar');
+    const saved = CATALOG.ar.statusReady;
+    delete CATALOG.ar.statusReady;
+    try {
+      assert.strictEqual(t('statusReady'), CATALOG.en.statusReady);
+    } finally {
+      CATALOG.ar.statusReady = saved;
+    }
+  });
+
+  test('placeholders are filled, and an unknown one is left visible rather than blanked', () => {
+    const t = createTranslator(() => 'en');
+    assert.strictEqual(t('quizProgress', { n: 2, total: 5 }), 'Question 2 of 5');
+    assert.ok(/\{total\}/.test(t('quizProgress', { n: 2 })));
+  });
 })();
 
 // Reading a live stream has timing in it, so these run as async tests after

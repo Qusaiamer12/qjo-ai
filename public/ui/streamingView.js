@@ -125,7 +125,10 @@
     // A tool step appears when the tool starts and is ticked when it ends.
     // It used to appear only once finished, so a search in progress was an
     // empty card: the person could not tell working from frozen.
-    const TOOL_NAMES_AR = { web_search: 'بحث في الويب', fetch_page: 'قراءة صفحة', calculate: 'حساب' };
+    const TOOL_NAMES = {
+      en: { web_search: 'Searching the web', fetch_page: 'Reading a page', calculate: 'Calculating' },
+      ar: { web_search: 'بحث في الويب', fetch_page: 'قراءة صفحة', calculate: 'حساب' }
+    };
     const toolSteps = new Map();
     function toolStep({ tool = '', label = '', detail = '', status = '', done = false } = {}) {
       const key = `${tool}:${detail}`;
@@ -140,7 +143,7 @@
         requestSmoothScroll();
       }
       const finished = status === 'done' || done;
-      const name = (getLanguage() === 'ar' && TOOL_NAMES_AR[tool]) || label || tool;
+      const name = TOOL_NAMES[getLanguage() === 'ar' ? 'ar' : 'en'][tool] || label || tool;
       step.classList.toggle('is-running', !finished);
       step.innerHTML = `<span class="qjo-step-dot"></span>${finished ? '<span class="tool-check">✓</span>' : '<span class="tool-spinner" aria-hidden="true"></span>'}<span>${escapeHtml(detail ? `${name}: ${detail}` : name)}</span>`;
     }

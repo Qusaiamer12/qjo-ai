@@ -122,6 +122,11 @@ boundaries and the failure table. In short:
 
 ## Things that must not regress
 
+- English is the primary language and Arabic is first-class. A new interface
+  string goes into `public/domain/i18n.js` in both languages, never inline.
+  A new rule for Arabic writing goes into `src/services/arabicPrompt.js`; the
+  snapshot in `scripts/fixtures/arabic-prompt-baseline.json` only grows.
+
 - A provider returning an empty answer is a failure, never a result.
 - A context-length rejection is a request fault: no key cooldown, no rotation.
 - `fetch_page` opens model-chosen URLs: every address is checked after DNS

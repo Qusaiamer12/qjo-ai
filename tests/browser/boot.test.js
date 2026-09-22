@@ -21,7 +21,7 @@ const { launchBrowser, BASE_URL } = require('./harness');
   }
 
   // ── Every module, dropped permanently ──
-  for (const blocked of ['/domain/markdown.js', '/domain/requestFailure.js', '/domain/streamProtocol.js', '/ui/streamingView.js']) {
+  for (const blocked of ['/domain/language.js', '/domain/i18n.js', '/domain/markdown.js', '/domain/requestFailure.js', '/domain/streamProtocol.js', '/ui/streamingView.js']) {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
     let navigations = 0;

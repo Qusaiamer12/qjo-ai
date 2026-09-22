@@ -16,6 +16,8 @@ const BUDGET_FILE = path.join(__dirname, 'structure-budget.json');
 const WATCHED = [
   'public/app.js',
   'public/boot.js',
+  'public/lang-boot.js',
+  'public/domain/i18n.js',
   'public/domain/language.js',
   'public/domain/markdown.js',
   'public/domain/requestFailure.js',

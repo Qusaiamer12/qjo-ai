@@ -21,6 +21,8 @@
   'use strict';
 
   const REQUIRED = [
+    ['language', () => window.QjoDomain && window.QjoDomain.language],
+    ['translations', () => window.QjoDomain && window.QjoDomain.i18n],
     ['markdown rendering', () => window.QjoDomain && window.QjoDomain.markdown],
     ['request failure handling', () => window.QjoDomain && window.QjoDomain.classifyRequestFailure],
     ['stream protocol', () => window.QjoDomain && window.QjoDomain.createSseParser],
@@ -53,11 +55,15 @@
 
     const title = document.createElement('div');
     title.style.cssText = 'font-weight:700;margin-bottom:6px';
-    title.textContent = 'ما اكتمل تحميل التطبيق';
+    // lang-boot.js set the page language before anything else ran.
+    const ar = document.documentElement.lang === 'ar';
+    title.textContent = ar ? 'ما اكتمل تحميل التطبيق' : "The app didn't finish loading";
 
     const body = document.createElement('div');
     body.style.cssText = 'opacity:.85;margin-bottom:12px';
-    body.textContent = 'في جزء ما وصل — غالبًا الاتصال انقطع لحظة. تحديث الصفحة بيحلها عادةً.';
+    body.textContent = ar
+      ? 'في جزء ما وصل — غالبًا الاتصال انقطع لحظة. تحديث الصفحة بيحلها عادةً.'
+      : 'Part of it did not arrive — usually a brief drop in the connection. Refreshing the page normally fixes it.';
 
     const detail = document.createElement('div');
     detail.style.cssText = 'opacity:.55;font-size:12px;margin-bottom:12px;direction:ltr;text-align:right';
@@ -65,7 +71,7 @@
 
     const button = document.createElement('button');
     button.type = 'button';
-    button.textContent = 'تحديث الصفحة';
+    button.textContent = ar ? 'تحديث الصفحة' : 'Refresh the page';
     button.style.cssText = 'border:0;border-radius:999px;padding:8px 16px;font-weight:700;cursor:pointer;background:#f9fafb;color:#111827';
     button.addEventListener('click', () => { clearFlag(); location.reload(); });
 

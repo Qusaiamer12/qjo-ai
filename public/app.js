@@ -19,26 +19,6 @@ if (window.pdfjsLib) {
   pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 }
 
-function openAdminDirect() {
-      const modal = document.getElementById('settingsModal');
-      if (modal) {
-        modal.classList.add('show');
-        modal.setAttribute('aria-hidden', 'false');
-        const input = document.getElementById('modelInput');
-        if (input) input.value = 'openai/gpt-oss-120b';
-      } else {
-        alert('لم يتم العثور على نافذة الإعدادات. حدّث الصفحة وحاول مرة ثانية.');
-      }
-    }
-
-    function closeAdminDirect() {
-      const modal = document.getElementById('settingsModal');
-      if (modal) {
-        modal.classList.remove('show');
-        modal.setAttribute('aria-hidden', 'true');
-      }
-    }
-
     // The full XML system prompt used to be inlined here (~35KB). It is no
     // longer sent — the server builds the prompt and strips any client copy —
     // and public/*.js ships with no-store, so every page load paid for it. The
@@ -291,7 +271,12 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
 
     let qjoFunctions = { search: false, deep: false, task: false };
     let qjoTheme = readStored(THEME_KEY) || 'light';
-    let qjoLanguage = readStored(LANGUAGE_KEY) || 'ar';
+    // English unless the person chose Arabic, or their browser prefers it.
+    let qjoLanguage = QjoDomain.language.resolveInitialLanguage({
+      stored: readStored(LANGUAGE_KEY),
+      preferred: navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language]
+    });
+    const translate = QjoDomain.i18n.createTranslator(() => qjoLanguage);
     let busy = false;
     const logoClicks = 0;
     const logoClickTimer = null;
@@ -528,55 +513,16 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
 
 
 
-    const translations = {
-      ar: {
-        dir: 'rtl', lang: 'ar',
-        newChat: 'محادثة جديدة', shortcuts: 'اختصارات', structuredThinking: 'رتّب أفكاري', professionalWriting: 'اكتب محتوى', executionPlan: 'درّبني', system: 'النظام', darkMode: 'الوضع الداكن', lightMode: 'الوضع الفاتح',
-        topSubtitle: 'ذكاء واضح بتجربة راقية', welcomeKicker: 'Qjo Assistant', welcomeTitle: 'ابنِ شيئًا <em>مذهلاً</em>', welcomeText: 'ابدأ الكتابة بالأسفل، أو اختر من الأزرار لتبدأ بسرعة. Qjo يساعدك تفكر، تكتب، تتعلم وتبني بذكاء ووضوح.',
-        suggest1Title: 'اقترح فكرة مشروع', suggest1Text: 'أفكار عملية قابلة للتنفيذ مع خطوات بداية واضحة.', suggest2Title: 'نظّم يومي', suggest2Text: 'خطة مختصرة تساعدك ترتب الأولويات بسرعة.', suggest3Title: 'اشرح مفهومًا', suggest3Text: 'شرح واضح وبسيط لأي موضوع تريد فهمه.',
-        placeholder: 'اكتب رسالتك هنا...', normal: 'Flash', advanced: 'Max', modeGroup: 'وضع الإجابة', customInstructionsTitle: 'التعليمات المخصصة', customInstructionsDesc: 'اكتب تعليمات دائمة يلتزم بها Qjo في كل رد — نبرتك، مجالك، وما تريد تجنّبه.', customInstructionsBtn: 'تحرير التعليمات المخصصة', flashModeTitle: 'فلاش — إجابة سريعة ومباشرة', maxModeTitle: 'ماكس — تحليل أعمق ودقة أعلى', hint: 'Enter للإرسال · Shift + Enter لسطر جديد', settingsTitle: 'الإعدادات', close: 'إغلاق', languageTitle: 'اللغة', languageDesc: 'اختر لغة واجهة Qjo.', appearanceTitle: 'المظهر', appearanceDesc: 'بدّل بين الوضع الفاتح والداكن.', toggleAppearance: 'تبديل المظهر', accountTitle: 'الحساب', logout: 'تسجيل الخروج', notSigned: 'غير مسجل',
-        chatsListLabel: 'المحادثات', sidebarText: 'مساعد ذكي يساعدك تفكر، تكتب، تتعلم، وتبني بسرعة ووضوح.', logoutDirectBtn: 'خروج', noInternet: 'لا يوجد اتصال بالإنترنت. سيتم تعطيل الإرسال مؤقتًا.', statusReading: 'Qjo يقرأ...', statusThinking: 'Qjo يفكر...', cancelBtn: 'إلغاء', searchBtn: 'بحث', deepSearchBtn: 'بحث عميق', taskBtn: 'مهمة', reasonBtn: 'تفكير', attachMenuUpload: 'رفع ملف', attachMenuDrive: 'من جوجل درايف', attachMenuUi: 'تصميم UI', attachMenuWeb: 'قراءة صفحة', attachMenuChart: 'رسم بياني', attachMenuQuiz: 'صنع اختبار', attachMenuSearch: 'بحث يوتيوب', attachMenuTts: 'صوت ذكي', qsHeader: 'اقتراحات', soon: 'قريبًا',
-        currentAssistant: 'المساعد الحالي', showAllChats: 'عرض كل المحادثات', emptyChats: 'لا توجد محادثات بعد', qsparkSoon: 'Q-Spark — قريبًا', qcodeSoon: 'Qcode — قريبًا', defaultUserName: 'مستخدم', toggleSidebar: 'إخفاء/إظهار الشريط الجانبي', exportChat: 'تصدير المحادثة', scrollToBottom: 'النزول لآخر المحادثة', mobileToolsTitle: 'أدوات وتصنيفات الذكاء', tools: 'أدوات', searchTitle: 'بحث في الويب', deepSearchTitle: 'بحث عميق متعمق', taskModeTitle: 'وضع المهمة', taskModeDesc: 'نفّذ الطلب على عدة خطوات مع خطة تتابعها', reasonTitle: 'تفكير منطقي موسع', attachFile: 'إرفاق ملف', sendBtn: 'إرسال',
-        catCode: 'توليد كود', catLaunch: 'إطلاق تطبيق', catUi: 'مكونات UI', catTheme: 'أفكار ثيمات', catDashboard: 'لوحة مستخدم', catLanding: 'صفحة هبوط', catDocs: 'رفع مستندات', catAssets: 'صور وأصول', catIdeas: 'اقتراحات',
-        drawerTitle: 'أدوات وميزات Qjo', drawerBlockAi: 'ميزات الذكاء النشطة', drawerBlockCats: 'التصنيفات والإنشاء السريع',
-        allChatsTitle: 'كل المحادثات', searchChats: 'ابحث في أسماء المحادثات...', deleteChatPrompt: 'هل أنت متأكد من حذف هذه المحادثة؟', renameChatPrompt: 'أدخل العنوان الجديد للمحادثة:', chatNotFound: 'هذه المحادثة غير موجودة أو تم حذفها.', chatDeleted: 'هذه المحادثة محذوفة.', renameBtnTitle: 'إعادة تسمية', deleteBtnTitle: 'حذف المحادثة', noMatchingChats: 'لا توجد نتائج مطابقة',
-        customizationTitle: 'تخصيص Qjo', customizationDesc: 'هذه التفضيلات تحفظ لحسابك وتساعد Qjo يخصص إجاباته لك.', responseStyle: 'أسلوب الرد', styleBalanced: 'متوازن', styleConcise: 'مختصر جدًا', styleDetailed: 'تفصيلي', styleFriendly: 'ودود', styleFormal: 'رسمي',
-        expertiseLevel: 'مستوى الخبرة', expGeneral: 'عام', expBeginner: 'مبتدئ', expIntermediate: 'متوسط', expAdvanced: 'متقدم', expExpert: 'خبير', addressingStyle: 'صيغة الخطاب', addrNeutral: 'محايد', addrMasculine: 'مذكر', addrFeminine: 'مؤنث',
-        interestsLabel: 'اهتماماتك أو مجالاتك', interestsPlaceholder: 'مثال: برمجة، رياضيات، شبكات عصبية، بزنس...', notesLabel: 'ملاحظات شخصية لـ Qjo', notesPlaceholder: 'مثال: أحب الإجابات المرتبة بجداول، لا تطوّل إلا عند الحاجة...', savePreferences: 'حفظ التفضيلات',
-        memoryTitle: 'ذاكرة Qjo المحلية', memoryDesc: 'تصحيحاتك وتعليماتك المحلية المحفوظة على هذا الجهاز. يمكنك مراجعتها أو مسحها.', refreshMemory: 'تحديث الذاكرة', clearMemory: 'مسح الذاكرة المحلية',
-        authTitle: 'تسجيل الدخول إلى Qjo', authSub: 'سجّل دخولك لحفظ محادثاتك والوصول لكامل مزايا المنصة.', authOrEmail: 'أو بالبريد الإلكتروني', authEmailLabel: 'البريد الإلكتروني', authPasswordLabel: 'كلمة المرور', authRemember: 'تذكرني على هذا الجهاز', authLoginBtn: 'تسجيل الدخول', authSignupBtn: 'إنشاء حساب جديد', authNote: 'Qjo يحفظ جلساتك بأمان ومحمي بأعلى معايير التشفير.',
-        authHeroTitle: 'فكّر بعمق.<br>ابْتَكِر بلا حدود.<br><span>أنجِز بذكاء فائق.</span>', authHeroDesc: 'مساحة العمل المتكاملة للمطورين والمبدعين. سرعة فائقة، دقة استثنائية، وأدوات متقدمة ترتقي بإنتاجيتك إلى أعلى مستوى.', authHeroQuote: '« الإبداع الحقيقي يبدأ عندما تلتقي فكرتك مع الأداة الصحيحة. »',
-        avatarTitle: 'اختر صورتك', avatarSub: 'اختر صورة شخصية من الأفاتارات الجاهزة، أو استخدم صورتك من جوجل إذا سجّلت الدخول بها.', avatarMe: 'أنا', avatarChooseFav: 'اختر أفاتارك المفضل', avatarUseGoogle: 'استخدام صورة جوجل', avatarResetInitial: 'إعادة للحرف',
-        reasoning: 'مسار التفكير', thinking: 'التفكير...', thoughtFor: 'تم التفكير في', reasoningInit: 'بدء التفكير واستحضار السياق...', stopGen: 'تم إيقاف التوليد.', copyCode: 'نسخ الكود', copied: 'تم النسخ!', generatingResponse: 'جاري توليد الرد...', searchDesc: 'معلومات حية ومصادر', deepSearchDesc: 'تحليل دقيق وموسع', reasonDesc: 'استدلال تسلسلي عميق'
-      },
-      en: {
-        dir: 'ltr', lang: 'en',
-        newChat: 'New chat', shortcuts: 'Shortcuts', structuredThinking: 'Organize ideas', professionalWriting: 'Create content', executionPlan: 'Coach me', system: 'System', darkMode: 'Dark mode', lightMode: 'Light mode',
-        topSubtitle: 'Clear intelligence, refined experience', welcomeKicker: 'Qjo Assistant', welcomeTitle: 'How can I <em>help you</em> today?', welcomeText: 'Ask, write, plan, learn, or build something new. Qjo is designed to give clear, practical answers without unnecessary complexity.',
-        suggest1Title: 'Suggest a project idea', suggest1Text: 'Practical ideas with clear first steps.', suggest2Title: 'Organize my day', suggest2Text: 'A concise plan to help prioritize quickly.', suggest3Title: 'Explain a concept', suggest3Text: 'A clear, simple explanation of any topic.',
-        placeholder: 'Message Qjo...', normal: 'Flash', advanced: 'Max', modeGroup: 'Answer mode', customInstructionsTitle: 'Custom instructions', customInstructionsDesc: 'Standing instructions Qjo follows in every answer — your tone, your field, what to avoid.', customInstructionsBtn: 'Edit custom instructions', flashModeTitle: 'Flash — fast, direct answers', maxModeTitle: 'Max — deeper analysis, higher accuracy', hint: 'Enter to send · Shift + Enter for new line', settingsTitle: 'Settings', close: 'Close', languageTitle: 'Language', languageDesc: 'Choose Qjo interface language.', appearanceTitle: 'Appearance', appearanceDesc: 'Switch between light and dark mode.', toggleAppearance: 'Toggle theme', accountTitle: 'Account', logout: 'Log out', notSigned: 'Not signed in',
-        chatsListLabel: 'Chats', sidebarText: 'A smart assistant that helps you think, write, learn, and build with speed and clarity.', logoutDirectBtn: 'Log out', noInternet: 'No internet connection. Sending is temporarily disabled.', statusReading: 'Qjo is reading...', statusThinking: 'Qjo is thinking...', cancelBtn: 'Cancel', searchBtn: 'Search', deepSearchBtn: 'Deep Search', taskBtn: 'Task', reasonBtn: 'Think', attachMenuUpload: 'Upload file', attachMenuDrive: 'Google Drive', attachMenuUi: 'UI Design', attachMenuWeb: 'Read Page', attachMenuChart: 'Chart', attachMenuQuiz: 'Create Quiz', attachMenuSearch: 'Search YouTube', attachMenuTts: 'Smart Voice', qsHeader: 'Shortcuts', soon: 'Soon',
-        currentAssistant: 'Current Assistant', showAllChats: 'Show all chats', emptyChats: 'No chats yet', qsparkSoon: 'Q-Spark — Coming soon', qcodeSoon: 'Qcode — Coming soon', defaultUserName: 'User', toggleSidebar: 'Toggle sidebar', exportChat: 'Export chat', scrollToBottom: 'Scroll to bottom', mobileToolsTitle: 'AI Tools & Categories', tools: 'Tools', searchTitle: 'Search the web', deepSearchTitle: 'Deep search', taskModeTitle: 'Task mode', taskModeDesc: 'Run the request over several steps with a plan you can follow', reasonTitle: 'Extended reasoning', attachFile: 'Attach file', sendBtn: 'Send',
-        catCode: 'Code Gen', catLaunch: 'Launch App', catUi: 'UI Components', catTheme: 'Themes', catDashboard: 'Dashboard', catLanding: 'Landing Page', catDocs: 'Upload Docs', catAssets: 'Assets', catIdeas: 'Ideas',
-        drawerTitle: 'Qjo Tools & Features', drawerBlockAi: 'Active AI Features', drawerBlockCats: 'Categories & Quick Actions',
-        allChatsTitle: 'All Chats', searchChats: 'Search chats...', deleteChatPrompt: 'Are you sure you want to delete this chat?', renameChatPrompt: 'Enter new chat title:', chatNotFound: 'This chat does not exist or was deleted.', chatDeleted: 'This chat has been deleted.', renameBtnTitle: 'Rename', deleteBtnTitle: 'Delete chat', noMatchingChats: 'No matching chats found',
-        customizationTitle: 'Qjo Customization', customizationDesc: 'These preferences are saved to your account and help Qjo tailor responses.', responseStyle: 'Response Style', styleBalanced: 'Balanced', styleConcise: 'Concise', styleDetailed: 'Detailed', styleFriendly: 'Friendly', styleFormal: 'Formal',
-        expertiseLevel: 'Expertise Level', expGeneral: 'General', expBeginner: 'Beginner', expIntermediate: 'Intermediate', expAdvanced: 'Advanced', expExpert: 'Expert', addressingStyle: 'Addressing Style', addrNeutral: 'Neutral', addrMasculine: 'Masculine', addrFeminine: 'Feminine',
-        interestsLabel: 'Your interests or fields', interestsPlaceholder: 'e.g. coding, math, AI, business...', notesLabel: 'Personal notes for Qjo', notesPlaceholder: 'e.g. prefer structured tables, concise answers...', savePreferences: 'Save Preferences',
-        memoryTitle: 'Qjo Local Memory', memoryDesc: 'Your local corrections and instructions saved on this device. You can review or clear them.', refreshMemory: 'Refresh Memory', clearMemory: 'Clear Local Memory',
-        authTitle: 'Sign in to Qjo', authSub: 'Sign in to save your chats and access all features.', authOrEmail: 'or with email', authEmailLabel: 'Email address', authPasswordLabel: 'Password', authRemember: 'Remember me on this device', authLoginBtn: 'Sign In', authSignupBtn: 'Create New Account', authNote: 'Qjo keeps your sessions secure and protected.',
-        authHeroTitle: 'Think deeply.<br>Create without limits.<br><span>Achieve with super intelligence.</span>', authHeroDesc: 'The integrated workspace for developers and creators. Blazing speed, exceptional precision, and advanced tools elevating your productivity.', authHeroQuote: '“True creativity begins when your idea meets the right tool.”',
-        avatarTitle: 'Choose Your Avatar', avatarSub: 'Choose a profile avatar, or use your Google profile photo.', avatarMe: 'Me', avatarChooseFav: 'Choose your avatar', avatarUseGoogle: 'Use Google photo', avatarResetInitial: 'Reset to initial',
-        reasoning: 'Thought Process', thinking: 'Thinking...', thoughtFor: 'Thought for', reasoningInit: 'Analyzing request and context...', stopGen: 'Generation stopped.', copyCode: 'Copy code', copied: 'Copied!', generatingResponse: 'Generating response...', searchDesc: 'Live info & sources', deepSearchDesc: 'Deep & detailed analysis', reasonDesc: 'Sequential deep reasoning'
-      }
-    };
+    // The catalog lives in public/domain/i18n.js, where both languages can be
+    // checked against each other without a browser.
+    const translations = QjoDomain.i18n.CATALOG;
 
-    function t(key) {
-      return (translations[qjoLanguage] && translations[qjoLanguage][key]) || translations.ar[key] || key;
+    function t(key, vars) {
+      return translate(key, vars);
     }
 
     function applyLanguage() {
-      const tr = translations[qjoLanguage] || translations.ar;
+      const tr = translations[qjoLanguage] || translations.en;
       document.documentElement.lang = tr.lang;
       document.documentElement.dir = tr.dir;
       document.body.dir = tr.dir;
@@ -650,7 +596,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     }
 
     function setLanguage(lang) {
-      qjoLanguage = lang === 'en' ? 'en' : 'ar';
+      qjoLanguage = lang === 'ar' ? 'ar' : 'en';
       writeStored(LANGUAGE_KEY, qjoLanguage);
       applyLanguage();
     }
@@ -689,14 +635,14 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     }
 
     function updateRuntimeStatus() {
-      runtimeStatus.textContent = 'تشغيل الذكاء الاصطناعي يتم عبر الخادم الآمن. لا يتم حفظ رمز التشغيل في المتصفح.';
-      setActivationStatus('active', 'آمن');
+      runtimeStatus.textContent = t('runtimeSecureNote');
+      setActivationStatus('active', t('statusSecure'));
     }
 
 
     function updateTrainingStatus() {
       const count = qjoTraining.trim().length;
-      trainingStatus.textContent = count ? 'يوجد تدريب محفوظ: ' + count + ' حرف.' : 'لا يوجد تدريب محفوظ بعد.';
+      trainingStatus.textContent = count ? t('trainingSaved', { count }) : t('trainingNone');
     }
 
     function closeSettings() {
@@ -748,7 +694,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       memoryList.innerHTML = '';
       const notes = Array.isArray(qjoLearning) ? qjoLearning : [];
       if (!notes.length) {
-        memoryList.innerHTML = '<div class="empty-memory">لا توجد ذاكرة محلية محفوظة بعد.</div>';
+        memoryList.innerHTML = `<div class="empty-memory">${escapeHtml(t('memoryEmpty'))}</div>`;
         return;
       }
       notes.slice().reverse().forEach((note, index) => {
@@ -758,7 +704,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         text.textContent = note;
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.textContent = 'حذف';
+        btn.textContent = t('deleteAction');
         btn.addEventListener('click', () => {
           const originalIndex = notes.length - 1 - index;
           qjoLearning.splice(originalIndex, 1);
@@ -772,11 +718,11 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     }
 
     function clearLocalMemory() {
-      if (!confirm('هل تريد مسح ذاكرة Qjo المحلية على هذا الجهاز؟')) return;
+      if (!confirm(t('memoryClearConfirm'))) return;
       qjoLearning = [];
       dropStored(LEARNING_KEY);
       renderMemoryList();
-      if (preferencesStatus) preferencesStatus.textContent = 'تم مسح الذاكرة المحلية.';
+      if (preferencesStatus) preferencesStatus.textContent = t('memoryCleared');
     }
 
     // Returns whether the note was stored, so the caller can report the outcome
@@ -786,7 +732,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         ? 'اكتب القاعدة أو التصحيح الذي تريد أن يتذكره Qjo. أي محتوى يخالف الأمان أو يحاول تغيير هوية Qjo سيُرفض:'
         : 'Write the rule or correction you want Qjo to remember. Anything unsafe or aimed at changing Qjo\'s identity is rejected:');
       if (!note || !note.trim()) return false;
-      const context = messageText ? `تصحيح على رد سابق: ${note.trim()}` : note.trim();
+      const context = messageText ? t('correctionOnReply', { note: note.trim() }) : note.trim();
       return saveLearningNote(context);
     }
 
@@ -941,11 +887,11 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       const calculated = toolsUsed.filter(t => t && t.tool === 'calculate');
       const parts = [];
       if (searched.length) {
-        const queries = searched.map(s => `"${String(s.input || '').slice(0, 80)}"`).join('، ');
+        const queries = searched.map(s => `"${String(s.input || '').slice(0, 80)}"`).join(t('listSeparator'));
         parts.push(qjoLanguage === 'ar' ? `🔍 بحث الموديل بنفسه عن ${queries}` : `🔍 The model searched the web for ${queries}`);
       }
       if (calculated.length) {
-        const exprs = calculated.map(c => String(c.input || '').slice(0, 60)).join('، ');
+        const exprs = calculated.map(c => String(c.input || '').slice(0, 60)).join(t('listSeparator'));
         parts.push(qjoLanguage === 'ar' ? `🧮 حسِب: ${exprs}` : `🧮 Calculated: ${exprs}`);
       }
       if (!parts.length) return;
@@ -1088,7 +1034,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
           const configRaw = decodeURIComponent(container.dataset.chartConfig || '{}');
           let config = safeParseRelaxedJson(configRaw);
           if (!config || typeof config !== 'object') {
-            throw new Error('صيغة بيانات المخطط غير صالحة.');
+            throw new Error(t('chartDataInvalid'));
           }
 
           // Clean LaTeX formatting in titles, dataset labels, and tooltips
@@ -1230,7 +1176,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         } catch (error) {
           console.error('Failed to parse or build interactive chart:', error);
           if (errorEl) {
-            errorEl.textContent = `فشل رسم المخطط التفاعلي: ${error.message}`;
+            errorEl.textContent = t('chartRenderFailed', { error: error.message });
             errorEl.classList.remove('hidden');
           }
         }
@@ -1464,9 +1410,9 @@ finally:
 __qjo_out_str = __qjo_stdout.getvalue()
 __qjo_err_str = __qjo_stderr.getvalue()
 if len(__qjo_out_str) > 40000:
-    __qjo_out_str = __qjo_out_str[:40000] + "\\n... [تم اقتطاع باقي المخرجات لتجاوز الحد الأقصى]"
+    __qjo_out_str = __qjo_out_str[:40000] + "\\n... " + ${JSON.stringify(t('pyOutputTruncated'))}
 if len(__qjo_err_str) > 20000:
-    __qjo_err_str = __qjo_err_str[:20000] + "\\n... [تم اقتطاع رسائل التحذير]"
+    __qjo_err_str = __qjo_err_str[:20000] + "\\n... " + ${JSON.stringify(t('pyWarningsTruncated'))}
 
 {
     "stdout": __qjo_out_str,
@@ -2106,11 +2052,11 @@ if len(__qjo_err_str) > 20000:
             }).join('');
             
             html += `<div class="quiz-question-block" id="q-block-${container.id}-${qIdx}" style="display: ${qIdx === 0 ? 'block' : 'none'};">
-              <div class="quiz-progress" style="font-size: 10px; color: #64748B; font-weight: 700; margin-bottom: 6px;">السؤال ${qIdx + 1} من ${questions.length}</div>
+              <div class="quiz-progress" style="font-size: 10px; color: #64748B; font-weight: 700; margin-bottom: 6px;">${escapeHtml(t('quizProgress', { n: qIdx + 1, total: questions.length }))}</div>
               <div class="quiz-question-title" style="font-size: 14px; font-weight: 700; color: #0F172A; margin-bottom: 12px;">${q.question}</div>
               <div class="quiz-options-list">${optionsHtml}</div>
               <div class="quiz-explanation-note text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-3 mt-3 text-xs hidden"></div>
-              ${qIdx < questions.length - 1 ? `<button class="quiz-next-btn" style="background: #123B7A; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; margin-top: 12px; display: none;">السؤال التالي ➡️</button>` : ''}
+              ${qIdx < questions.length - 1 ? `<button class="quiz-next-btn" style="background: #123B7A; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; margin-top: 12px; display: none;">${escapeHtml(t('quizNext'))}</button>` : ''}
             </div>`;
           });
           
@@ -2146,7 +2092,7 @@ if len(__qjo_err_str) > 20000:
                 }
                 
                 if (explanationNote) {
-                  explanationNote.innerHTML = `<strong>${isCorrect ? '✅ صحيح!' : '❌ خاطئ!'}</strong> ${opt.dataset.explanation || ''}`;
+                  explanationNote.innerHTML = `<strong>${escapeHtml(isCorrect ? t('quizCorrect') : t('quizWrong'))}</strong> ${opt.dataset.explanation || ''}`;
                   explanationNote.classList.remove('hidden');
                 }
                 
@@ -2437,7 +2383,7 @@ if len(__qjo_err_str) > 20000:
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(String(reader.result || ''));
-        reader.onerror = () => reject(reader.error || new Error('تعذر قراءة الملف'));
+        reader.onerror = () => reject(reader.error || new Error(t('fileReadFailed')));
         reader.readAsText(file);
       });
     }
@@ -2446,7 +2392,7 @@ if len(__qjo_err_str) > 20000:
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(String(reader.result || ''));
-        reader.onerror = () => reject(reader.error || new Error('تعذر قراءة الصورة'));
+        reader.onerror = () => reject(reader.error || new Error(t('imageReadFailed')));
         reader.readAsDataURL(file);
       });
     }
@@ -2456,7 +2402,7 @@ if len(__qjo_err_str) > 20000:
       const img = await new Promise((resolve, reject) => {
         const image = new Image();
         image.onload = () => resolve(image);
-        image.onerror = () => reject(new Error('تعذر تجهيز الصورة'));
+        image.onerror = () => reject(new Error(t('imagePrepareFailed')));
         image.src = originalUrl;
       });
 
@@ -2530,14 +2476,14 @@ if len(__qjo_err_str) > 20000:
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result);
-        reader.onerror = () => reject(reader.error || new Error('تعذر قراءة الملف'));
+        reader.onerror = () => reject(reader.error || new Error(t('fileReadFailed')));
         reader.readAsArrayBuffer(file);
       });
     }
 
     async function readPdfFile(file) {
       if (!window.pdfjsLib) {
-        throw new Error('قارئ PDF غير متاح');
+        throw new Error(t('pdfReaderUnavailable'));
       }
 
       const buffer = await readArrayBuffer(file);
@@ -2562,7 +2508,7 @@ if len(__qjo_err_str) > 20000:
         }
       }
       if (!result) {
-        throw new Error('PDF لا يحتوي نصًا قابلًا للاستخراج، وOCR لم يستخرج نصًا واضحًا. قد تحتاج نسخة أوضح.');
+        throw new Error(t('pdfNoText'));
       }
 
       const header = `PDF pages processed: ${maxPages} of ${pdf.numPages}\nExtraction method: ${usedOcr ? 'OCR fallback on rendered pages' : 'embedded PDF text'}\nExtracted characters before trimming: ${result.length}\n\n`;
@@ -2572,7 +2518,7 @@ if len(__qjo_err_str) > 20000:
       const tailSize = PDF_MAX_CHARS - headSize;
       return header
         + result.slice(0, headSize)
-        + `\n\n[... تم اختصار جزء من منتصف الملف بسبب كبر الحجم. حلّل الأجزاء المتاحة بوضوح، واذكر أن الملف أطول من السياق الحالي إذا لزم الأمر ...]\n\n`
+        + `\n\n[... part of the middle of this file was left out because of its size. Analyze the parts that are present, and say the file is longer than the available context if that matters ...]\n\n`
         + result.slice(-tailSize);
     }
 
@@ -2608,7 +2554,7 @@ if len(__qjo_err_str) > 20000:
           type: file.type || 'unknown',
           size: file.size,
           file,
-          status: 'جاهز',
+          status: t('statusReady'),
           text: '',
           fullText: '',
           dataUrl: ''
@@ -2618,46 +2564,46 @@ if len(__qjo_err_str) > 20000:
         const imageFile = file.type.startsWith('image/');
 
         if (pdfFile && file.size > 35 * 1024 * 1024) {
-          item.status = 'PDF كبير جدًا؛ يحتاج تقسيم أو Backend OCR';
+          item.status = t('statusPdfTooLarge');
         } else if (imageFile && file.size > 12 * 1024 * 1024) {
-          item.status = 'صورة كبيرة جدًا';
+          item.status = t('statusImageTooLarge');
         } else if (!pdfFile && !imageFile && file.size > 5 * 1024 * 1024) {
-          item.status = 'كبير جدًا';
+          item.status = t('statusTooLarge');
         } else if (isReadableTextFile(file)) {
           try {
             const full = await readTextFile(file);
             item.fullText = full.slice(0, 240000);
             item.text = full.slice(0, TEXT_FILE_MAX_CHARS);
-            item.status = full.length > TEXT_FILE_MAX_CHARS ? 'نص مقروء + RAG' : 'نص مقروء';
+            item.status = full.length > TEXT_FILE_MAX_CHARS ? t('statusTextReadRag') : t('statusTextRead');
           } catch (_) {
-            item.status = 'تعذر القراءة';
+            item.status = t('statusReadFailed');
           }
         } else if (pdfFile) {
           try {
             item.text = await readPdfFile(file);
             item.fullText = item.text;
-            item.status = item.text.length >= PDF_MAX_CHARS ? 'PDF ضخم مقروء + RAG' : 'PDF مقروء';
+            item.status = item.text.length >= PDF_MAX_CHARS ? t('statusPdfReadRag') : t('statusPdfRead');
           } catch (error) {
-            item.status = error?.message || 'تعذر قراءة PDF';
+            item.status = error?.message || t('statusPdfFailed');
           }
         } else if (imageFile) {
           try {
             item.dataUrl = await compressImageToDataUrl(file);
-            item.status = 'صورة مضغوطة؛ محاولة OCR...';
+            item.status = t('statusImageOcrTrying');
             renderAttachments();
             const ocrText = await ocrDataUrl(item.dataUrl, file.name);
             if (ocrText) {
               item.text = `OCR text extracted from image (${file.name}):\n${ocrText}`;
               item.fullText = item.text;
-              item.status = 'صورة + OCR جاهزة للتحليل';
+              item.status = t('statusImageOcrReady');
             } else {
-              item.status = 'صورة مضغوطة وجاهزة للتحليل';
+              item.status = t('statusImageReady');
             }
           } catch (_) {
-            item.status = 'تعذر قراءة الصورة';
+            item.status = t('imageReadFailed');
           }
         } else {
-          item.status = 'مرفق فقط';
+          item.status = t('statusAttachOnly');
         }
 
         pendingAttachments.push(item);
@@ -2679,14 +2625,14 @@ if len(__qjo_err_str) > 20000:
       pendingAttachments.forEach(item => {
         const chip = document.createElement('div');
         chip.className = 'attachment-chip';
-        const icon = item.type.startsWith('image/') ? 'صورة' : 'ملف';
+        const icon = item.type.startsWith('image/') ? t('attachKindImage') : t('attachKindFile');
         chip.innerHTML = `
           <div class="attachment-icon">${icon}</div>
           <div class="attachment-info">
             <strong>${escapeHtml(item.name)}</strong>
             <span>${escapeHtml(item.status)} · ${escapeHtml(formatBytes(item.size))}</span>
           </div>
-          <button type="button" aria-label="حذف المرفق">×</button>
+          <button type="button" aria-label="${escapeHtml(t('removeAttachment'))}">×</button>
         `;
         chip.querySelector('button').addEventListener('click', () => removeAttachment(item.id));
         attachmentTray.appendChild(chip);
@@ -3093,7 +3039,7 @@ if len(__qjo_err_str) > 20000:
       const content = [
         {
           type: 'text',
-          text: combinedText + (qjoLanguage === 'ar'
+          text: combinedText + (QjoDomain.language.replyLanguage(combinedText, qjoLanguage) === 'ar'
             ? '\n\nحلّل الصورة/الصور المرفقة مباشرة وبالعربية. المطلوب: تحليل سريع ودقيق جدًا بمستوى منتج AI عالمي. ابدأ بالخلاصة فورًا، ثم اذكر التفاصيل المهمة فقط. لا تستخدم قالبًا طويلًا ولا حشوًا. استخرج النص المقروء بدقة. فرّق بين ما تراه فعليًا وبين الاستنتاج. إذا كانت الصورة تصميمًا/واجهة/شعارًا، قيّم التركيب، الألوان، الوضوح، التسلسل البصري، الاحترافية، والمشاكل العملية. أعطِ تحسينات محددة وقابلة للتنفيذ. لا ترد بالإنجليزية إلا إذا طلب المستخدم ذلك.'
             : '\n\nAnalyze the attached image(s) directly in the user language. Be fast, highly precise, and high-signal like a top-tier AI product. Start with the answer, then provide only the most important details. Avoid boilerplate and filler. Extract readable text accurately. Separate visible facts from interpretation. For design/UI/logo images, evaluate composition, colors, clarity, visual hierarchy, polish, and practical issues. Give specific actionable improvements.')
         }
@@ -3366,7 +3312,7 @@ if len(__qjo_err_str) > 20000:
       const quickAnswer = data.answer || selected.find(r => r.providerAnswer)?.providerAnswer || '';
       const wantsTable = /(جدول|table|مقارنة|compare)/i.test(String(originalText || ''));
       const wantsBullets = /(نقاط|مختصر|bullets|bullet points|list)/i.test(String(originalText || ''));
-      const requiredOutput = qjoLanguage === 'ar'
+      const requiredOutput = QjoDomain.language.replyLanguage(originalText, qjoLanguage) === 'ar'
         ? `تعليمات البحث: اتبع صيغة المستخدم المطلوبة أولًا${wantsTable ? ' — إذا طلب جدولًا فارسم جدول Markdown واضح' : ''}${wantsBullets ? ' — إذا طلب نقاطًا فاجعلها نقاطًا مرتبة' : ''}. لا تفرض قالبًا ثابتًا. استخدم المصادر فقط لدعم الحقائق الحالية، واربط أهم الادعاءات بروابط Markdown مثل [1](URL). لا تسرد المصادر بلا داعٍ.`
         : `Search instructions: follow the user's requested format first${wantsTable ? ' — if they asked for a table, produce a clear Markdown table' : ''}${wantsBullets ? ' — if they asked for bullets, use concise bullets' : ''}. Do not force a fixed answer template. Use sources only to support current factual claims and cite key claims with Markdown links like [1](URL). Do not over-list sources.`;
 
@@ -3425,14 +3371,14 @@ if len(__qjo_err_str) > 20000:
 
     function getLocalSafetyRefusal(text) {
       if (!isUnsafeSecurityBypassRequest(text)) return '';
-      return qjoLanguage === 'ar'
+      return QjoDomain.language.replyLanguage(text, qjoLanguage) === 'ar'
         ? 'لا أستطيع مساعدتك في تجاوز الحماية أو الاختراق أو سرقة المفاتيح. أقدر أساعدك بدلًا من ذلك بتأمين شبكتك، اختبار الحماية بشكل قانوني، أو بناء قائمة فحص أمنية دفاعية.'
         : 'I can’t help with bypassing protection, hacking, or stealing keys. I can help you secure your network, run lawful security checks, or build a defensive security checklist.';
     }
 
     function getLocalSmallTalkReply(text) {
       const q = String(text || '').trim().toLowerCase().replace(/[؟?!.،,]/g, '').replace(/\s+/g, ' ');
-      const ar = qjoLanguage === 'ar' || /[\u0600-\u06FF]/.test(q);
+      const ar = QjoDomain.language.replyLanguage(q, qjoLanguage) === 'ar';
 
       const greetings = ['مرحبا', 'هلا', 'هاي', 'اهلا', 'أهلا', 'السلام عليكم', 'صباح الخير', 'مساء الخير', 'شو يا وردة', 'يا وردة', 'ورد', 'hi', 'hello', 'hey'];
       const howAreYou = ['كيفك', 'كيف الحال', 'كيف الامور', 'كيف الأمور', 'شلونك', 'ازيك', 'عامل ايه', 'how are you', 'how is it going'];
@@ -3491,7 +3437,9 @@ if len(__qjo_err_str) > 20000:
       btn.addEventListener('click', () => {
         if (busy) return;
         row.remove();
-        sendMessage(qjoLanguage === 'ar'
+        // In the answer's language: an English "continue" under an Arabic
+        // answer invites the rest of it in English.
+        sendMessage(QjoDomain.language.replyLanguage(answerWrap.innerText, qjoLanguage) === 'ar'
           ? 'أكمل من حيث توقفت بالضبط. لا تُعِد ما كتبته، وابدأ مباشرة من الجملة الناقصة.'
           : 'Continue from exactly where you stopped. Do not repeat anything already written.');
       });
@@ -3548,7 +3496,7 @@ if len(__qjo_err_str) > 20000:
       history.push(userMessage);
       history.push(assistantMessage);
 
-      await ensureChatDocument(userText || 'محادثة');
+      await ensureChatDocument(userText || t('defaultChatTitle'));
       await safePersistMessage(userMessage);
       await safePersistMessage(assistantMessage);
     }
@@ -3575,7 +3523,7 @@ if len(__qjo_err_str) > 20000:
       const clarificationContext = clarificationCandidates.length
         ? `\n\nPossible user typo/intent correction: The user wrote "${rawText}". It may mean: ${clarificationCandidates.join(', ')}. If the answer depends on this and search results support the corrected meaning, proceed but briefly mention the interpretation. If still ambiguous, ask a short clarification.`
         : '';
-      const text = rawText || (pendingAttachments.length ? 'حلّل المرفقات المرفقة قدر الإمكان.' : '');
+      const text = rawText || (pendingAttachments.length ? t('analyzeAttachments') : '');
       const attachmentContext = await buildAttachmentContext(text);
       const attachmentsForRag = pendingAttachments.slice();
       if (!text || busy) return;
@@ -3597,11 +3545,11 @@ if len(__qjo_err_str) > 20000:
       }
 
       if (fileProcessing) {
-        addMessage('system', 'انتظر حتى يكتمل تجهيز الملفات ثم أرسل الرسالة.', 'error');
+        addMessage('system', t('waitForFiles'), 'error');
         return;
       }
       if (!navigator.onLine) {
-        addMessage('system', 'لا يوجد اتصال بالإنترنت حاليًا. حاول بعد عودة الاتصال.', 'error');
+        addMessage('system', t('offline'), 'error');
         return;
       }
 
@@ -3612,8 +3560,8 @@ if len(__qjo_err_str) > 20000:
       clearDraft();
       autoResize();
 
-      const displayText = rawText || 'أرسلت مرفقات';
-      const attachmentNames = pendingAttachments.length ? '\n\nالمرفقات: ' + pendingAttachments.map(a => a.name).join(', ') : '';
+      const displayText = rawText || t('sentAttachments');
+      const attachmentNames = pendingAttachments.length ? '\n\n' + t('attachmentsLabel') + pendingAttachments.map(a => a.name).join(', ') : '';
       const hasAttachmentAnalysis = hasReadableAttachments();
       const hadImageAttachments = hasImageAttachments();
       const apiModel = hadImageAttachments
@@ -3679,7 +3627,7 @@ if len(__qjo_err_str) > 20000:
           appendReasoningStep(qjoLanguage === 'ar' ? 'تم اختيار وتلخيص أقوى المصادر' : 'Synthesizing verified sources', true);
         }
         const continuityHint = buildContextContinuityHint(rawText);
-        const savedUserContent = text + clarificationContext + attachmentContext + (hadImageAttachments ? '\n\n[تم إرفاق صورة/صور وتحليلها في وقت الإرسال]' : '');
+        const savedUserContent = text + clarificationContext + attachmentContext + (hadImageAttachments ? '\n\n' + t('imagesAnalyzedNote') : '');
         const apiUserContent = hadImageAttachments
           ? buildCurrentUserApiContent(text + clarificationContext + webSearchContext, attachmentContext)
           : text + clarificationContext + attachmentContext + webSearchContext;
@@ -3846,7 +3794,7 @@ if len(__qjo_err_str) > 20000:
         if (looksTransient && nothingDelivered && !options.autoRetried) {
           if (view.bubble) {
             view.clearForFailure();
-            view.bubble.innerHTML = escapeHtml('الخادم بده لحظة يصحى... جاري إعادة المحاولة تلقائيًا.');
+            view.bubble.innerHTML = escapeHtml(t('wakingServer'));
           }
           pendingAutoRetry = { text: rawText || text, wrap: view.wrap };
           return;
@@ -4286,16 +4234,16 @@ if len(__qjo_err_str) > 20000:
           validateFirebaseConfig(config);
           return config;
         } catch (error) {
-          throw new Error('صيغة Firebase Config غير صحيحة. الصق كود firebaseConfig فقط أو الكود الكامل من Firebase.');
+          throw new Error(t('firebaseConfigBadFormat'));
         }
       }
     }
 
     function validateFirebaseConfig(config) {
-      if (!config || typeof config !== 'object') throw new Error('Firebase Config غير صالح.');
+      if (!config || typeof config !== 'object') throw new Error(t('firebaseConfigInvalid'));
       const required = ['apiKey', 'authDomain', 'projectId', 'appId'];
       const missing = required.filter(key => !config[key]);
-      if (missing.length) throw new Error('Firebase Config ناقص: ' + missing.join(', '));
+      if (missing.length) throw new Error(t('firebaseConfigMissing', { fields: missing.join(', ') }));
     }
 
     function getStoredFirebaseConfig() {
@@ -4404,8 +4352,8 @@ if len(__qjo_err_str) > 20000:
       }
       authBrowserTip.hidden = false;
       authBrowserTip.textContent = isInAppBrowser()
-        ? 'لأفضل تجربة، افتح Qjo من Safari أو Chrome مباشرة بدل متصفح التطبيقات الداخلي.'
-        : 'أنت تتصفح داخل إطار مضمّن. افتح Qjo من الرابط المباشر ليثبت تسجيل الدخول.';
+        ? t('authTipInApp')
+        : t('authTipEmbedded');
     }
 
     function setAuthGrace(ms = AUTH_GRACE_MS) {
@@ -4477,14 +4425,14 @@ if len(__qjo_err_str) > 20000:
           return;
         }
         showAuthOverlay(true);
-        setAuthMessage('تعذر تحميل خدمة تسجيل الدخول. تحقق من الاتصال بالإنترنت وافتح الصفحة عبر http://localhost وليس file://.');
+        setAuthMessage(t('authLoadFailed'));
         return;
       }
 
       const config = getStoredFirebaseConfig();
       if (!config) {
         showAuthOverlay(true);
-        setAuthMessage('جاري تجهيز تسجيل الدخول... إذا بقيت الرسالة أكثر من ثوانٍ حدّث الصفحة مرة واحدة.');
+        setAuthMessage(t('authPreparing'));
         return;
       }
 
@@ -4502,7 +4450,7 @@ if len(__qjo_err_str) > 20000:
         // user about.
         await applyAuthPersistence(true);
         if (!authPersistenceReady) {
-          setAuthMessage('تعذر تثبيت جلسة الدخول في المتصفح. فعّل الكوكيز والتخزين أو جرّب متصفحًا آخر.');
+          setAuthMessage(t('authPersistFailed'));
         }
 
         try {
@@ -4514,7 +4462,7 @@ if len(__qjo_err_str) > 20000:
           setAuthMessage(cleanAuthError(error));
         }
 
-        if (!authError.textContent || authError.textContent.includes('جاري تجهيز')) {
+        if (!authError.textContent || authError.textContent === t('authPreparing')) {
           setAuthMessage('');
         }
 
@@ -4560,7 +4508,7 @@ if len(__qjo_err_str) > 20000:
         });
       } catch (error) {
         showAuthOverlay(true);
-        setAuthMessage('فشل تفعيل تسجيل الدخول: ' + error.message);
+        setAuthMessage(t('authEnableFailed', { error: error.message }));
       }
     }
 
@@ -4603,7 +4551,7 @@ if len(__qjo_err_str) > 20000:
 
     async function saveUserPreferences() {
       if (!firebaseReady || !currentUser || !db) {
-        preferencesStatus.textContent = 'سجّل دخولك أولًا لحفظ التفضيلات.';
+        preferencesStatus.textContent = t('prefsSignInFirst');
         return;
       }
       const prefs = {
@@ -4619,9 +4567,9 @@ if len(__qjo_err_str) > 20000:
           preferencesUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
         userPreferences = prefs;
-        preferencesStatus.textContent = 'تم حفظ التفضيلات.';
+        preferencesStatus.textContent = t('prefsSaved');
       } catch (error) {
-        preferencesStatus.textContent = 'تعذر حفظ التفضيلات. تحقق من صلاحيات Firebase.';
+        preferencesStatus.textContent = t('prefsSaveFailed');
       }
     }
 
@@ -4630,16 +4578,16 @@ if len(__qjo_err_str) > 20000:
       const chosen = readStored('qjo_user_avatar'); // 'google' | 'initial' | 'svg:<id>'
       if (!user) {
         renderAvatar(avatarEl, { type: 'initial', letter: 'Q' });
-        userName.textContent = 'مستخدم';
+        userName.textContent = t('defaultUserName');
         userEmail.textContent = t('notSigned');
         if (settingsAccountEmail) settingsAccountEmail.textContent = t('notSigned');
         rebindAvatarTrigger();
         return;
       }
-      const display = user.displayName || (user.email ? user.email.split('@')[0] : 'مستخدم');
+      const display = user.displayName || (user.email ? user.email.split('@')[0] : t('defaultUserName'));
       userName.textContent = display;
-      userEmail.textContent = user.email || 'حساب';
-      if (settingsAccountEmail) settingsAccountEmail.textContent = user.email || user.displayName || 'حساب';
+      userEmail.textContent = user.email || t('defaultAccount');
+      if (settingsAccountEmail) settingsAccountEmail.textContent = user.email || user.displayName || t('defaultAccount');
       // Render avatar based on choice
       if (chosen === 'google' && user.photoURL) {
         renderAvatar(avatarEl, { type: 'image', src: user.photoURL });
@@ -4729,7 +4677,7 @@ if len(__qjo_err_str) > 20000:
         }
         await new Promise(resolve => setTimeout(resolve, 150));
       }
-      setAuthMessage('تسجيل الدخول لم يجهز. حدّث الصفحة مرة واحدة، وإذا استمرت المشكلة افتح الموقع من الرابط المباشر وليس من داخل Preview.');
+      setAuthMessage(t('authNotReady'));
       return false;
     }
 
@@ -4799,7 +4747,7 @@ if len(__qjo_err_str) > 20000:
       if (!firebaseReady && !(await ensureFirebaseReady())) return;
       const email = authEmail.value.trim();
       const pass = authPassword.value;
-      if (!email || !pass) return setAuthMessage('أدخل البريد وكلمة المرور.');
+      if (!email || !pass) return setAuthMessage(t('authEnterEmailPassword'));
       setAuthMessage('');
       try {
         setAuthBusy(true);
@@ -4818,8 +4766,8 @@ if len(__qjo_err_str) > 20000:
       if (!firebaseReady && !(await ensureFirebaseReady())) return;
       const email = authEmail.value.trim();
       const pass = authPassword.value;
-      if (!email || !pass) return setAuthMessage('أدخل البريد وكلمة المرور.');
-      if (pass.length < 6) return setAuthMessage('كلمة المرور يجب أن تكون 6 أحرف أو أكثر.');
+      if (!email || !pass) return setAuthMessage(t('authEnterEmailPassword'));
+      if (pass.length < 6) return setAuthMessage(t('authPasswordShort'));
       setAuthMessage('');
       try {
         setAuthBusy(true);
@@ -4835,14 +4783,14 @@ if len(__qjo_err_str) > 20000:
 
     function cleanAuthError(error) {
       const code = error?.code || '';
-      if (code.includes('popup')) return 'تم إغلاق نافذة تسجيل الدخول.';
-      if (code.includes('email-already-in-use')) return 'هذا البريد مستخدم مسبقًا.';
-      if (code.includes('invalid-credential') || code.includes('wrong-password')) return 'بيانات الدخول غير صحيحة.';
-      if (code.includes('user-not-found')) return 'لا يوجد حساب بهذا البريد.';
-      if (code.includes('unauthorized-domain')) return 'الدومين غير مضاف في Firebase Authorized domains.';
-      if (code.includes('web-storage-unsupported')) return 'المتصفح يمنع التخزين المطلوب لتسجيل الدخول. فعّل cookies/localStorage أو جرّب متصفحًا آخر.';
-      if (code.includes('operation-not-supported-in-this-environment')) return 'تسجيل الدخول لا يعمل من file://. افتح الموقع من رابط https أو localhost.';
-      return error?.message || 'تعذر تسجيل الدخول.';
+      if (code.includes('popup')) return t('authPopupClosed');
+      if (code.includes('email-already-in-use')) return t('authEmailInUse');
+      if (code.includes('invalid-credential') || code.includes('wrong-password')) return t('authInvalidCredential');
+      if (code.includes('user-not-found')) return t('authUserNotFound');
+      if (code.includes('unauthorized-domain')) return t('authUnauthorizedDomain');
+      if (code.includes('web-storage-unsupported')) return t('authStorageBlocked');
+      if (code.includes('operation-not-supported-in-this-environment')) return t('authFileProtocol');
+      return error?.message || t('authFailed');
     }
 
     function userChatsRef() {
@@ -4877,7 +4825,7 @@ if len(__qjo_err_str) > 20000:
         allChatsCache = allChatsCache.map(chat => chat.id === chatId ? { ...chat, title: cleanTitle } : chat);
         renderChatList(allChatsCache);
       } catch (error) {
-        alert('تعذر إعادة تسمية المحادثة. تحقق من الاتصال وصلاحيات Firestore.');
+        alert(t('renameFailed'));
       }
     }
 
@@ -4895,7 +4843,7 @@ if len(__qjo_err_str) > 20000:
 
     function exportCurrentChatMarkdown() {
       if (!history.length) {
-        alert('لا توجد رسائل لتصديرها في هذه المحادثة.');
+        alert(t('nothingToExport'));
         return;
       }
       const safeTitle = (allChatsCache.find(chat => chat.id === currentChatId)?.title || 'Qjo Chat').replace(/[\\/:*?"<>|]/g, '-');
@@ -4983,11 +4931,11 @@ if len(__qjo_err_str) > 20000:
       allChatsList.innerHTML = '';
       const visibleChats = filteredAllChats();
       if (!allChatsCache.length) {
-        allChatsList.innerHTML = '<div class="empty-chats">لا توجد محادثات بعد</div>';
+        allChatsList.innerHTML = `<div class="empty-chats">${escapeHtml(t('emptyChats'))}</div>`;
         return;
       }
       if (!visibleChats.length) {
-        allChatsList.innerHTML = '<div class="empty-chats">لا توجد نتائج مطابقة</div>';
+        allChatsList.innerHTML = `<div class="empty-chats">${escapeHtml(t('noMatchingChats'))}</div>`;
         return;
       }
       visibleChats.forEach(chat => allChatsList.appendChild(createChatRow(chat, false)));
@@ -5036,14 +4984,14 @@ if len(__qjo_err_str) > 20000:
         allChatsCache = previousChats;
         renderChatList(allChatsCache);
         console.error('Delete chat failed:', error);
-        alert('تعذر حذف المحادثة. تحقق من الاتصال أو صلاحيات Firebase.');
+        alert(t('deleteChatFailed'));
       }
     }
 
     async function ensureChatDocument(firstText) {
       if (!firebaseReady || !currentUser) return null;
       if (currentChatId) return currentChatId;
-      const title = (firstText || 'محادثة جديدة').slice(0, 48);
+      const title = (firstText || t('newChat')).slice(0, 48);
       const doc = await userChatsRef().add({
         title,
         messageCount: 0,
@@ -5082,13 +5030,13 @@ if len(__qjo_err_str) > 20000:
         const chatRef = userChatsRef().doc(chatId);
         const doc = await chatRef.get();
         if (!doc.exists) {
-          alert('هذه المحادثة غير موجودة أو تم حذفها.');
+          alert(t('chatNotFound'));
           return;
         }
 
         const data = doc.data() || {};
         if (data.deleted) {
-          alert('هذه المحادثة محذوفة.');
+          alert(t('chatDeleted'));
           return;
         }
 
@@ -5162,7 +5110,7 @@ if len(__qjo_err_str) > 20000:
         setTimeout(() => scrollToBottom(false), 50);
       } catch (error) {
         console.error('Load chat failed:', error);
-        alert('تعذر فتح المحادثة. غالبًا المشكلة من Firestore Rules لمسار الرسائل. حدّث القواعد ثم جرّب مرة أخرى.');
+        alert(t('openChatFailed'));
       }
     }
 
@@ -5255,7 +5203,7 @@ if len(__qjo_err_str) > 20000:
     // other delegated handler treats them as an app switch.
     [qsparkNavBtn, qcodeNavBtn].forEach((btn) => {
       if (!btn) return;
-      btn.addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); showMicroToast('هذه الميزة قادمة قريبًا ✨'); });
+      btn.addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); showMicroToast(t('comingSoon')); });
       btn.style.cursor='pointer';
     });
 
@@ -5267,7 +5215,7 @@ if len(__qjo_err_str) > 20000:
       if (QJO_APPS_COMING_SOON.has(targetApp)) {
         event.preventDefault();
         event.stopPropagation();
-        showMicroToast('هذه الميزة قادمة قريبًا ✨');
+        showMicroToast(t('comingSoon'));
       }
     });
 
@@ -5300,32 +5248,32 @@ if len(__qjo_err_str) > 20000:
     settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal) closeSettings(); });
     copyAdminLinkBtn.addEventListener('click', async () => {
       const ok = await copyText(adminLink.value);
-      runtimeStatus.textContent = ok ? 'تم نسخ رابط لوحة الإدارة.' : 'تعذر النسخ التلقائي.';
+      runtimeStatus.textContent = ok ? t('adminLinkCopied') : t('copyFailed');
     });
     openAdminLinkBtn.addEventListener('click', () => window.open(adminLink.value, '_blank', 'noopener,noreferrer'));
 
     pasteRuntimeBtn.addEventListener('click', async () => {
       try {
         runtimeTokenInput.value = (await navigator.clipboard.readText()).trim();
-        if (runtimeTokenInput.value) setActivationStatus('', 'بانتظار الفحص');
+        if (runtimeTokenInput.value) setActivationStatus('', t('awaitingCheck'));
       } catch (_) {
-        runtimeStatus.textContent = 'المتصفح منع اللصق التلقائي. الصق الرمز يدويًا.';
+        runtimeStatus.textContent = t('pasteBlocked');
       }
     });
 
     toggleRuntimeBtn.addEventListener('click', () => {
       if (runtimeTokenInput.type === 'password') {
         runtimeTokenInput.type = 'text';
-        toggleRuntimeBtn.textContent = 'إخفاء';
+        toggleRuntimeBtn.textContent = t('hideAction');
       } else {
         runtimeTokenInput.type = 'password';
-        toggleRuntimeBtn.textContent = 'إظهار';
+        toggleRuntimeBtn.textContent = t('showAction');
       }
     });
 
     runtimeTokenInput.addEventListener('input', () => {
-      if (runtimeTokenInput.value.trim()) setActivationStatus('', 'بانتظار الفحص');
-      else if (!runtimeToken) setActivationStatus('', 'غير مفعل');
+      if (runtimeTokenInput.value.trim()) setActivationStatus('', t('awaitingCheck'));
+      else if (!runtimeToken) setActivationStatus('', t('notActive'));
     });
 
     saveRuntimeBtn.addEventListener('click', async () => {
@@ -5335,7 +5283,7 @@ if len(__qjo_err_str) > 20000:
           parseFirebaseConfig(firebaseRaw);
           writeStored(FIREBASE_CONFIG_KEY, firebaseRaw);
           if (!firebaseReady) initializeFirebase();
-          runtimeStatus.textContent = 'تم حفظ إعدادات Firebase. تشغيل الذكاء الاصطناعي يتم من الخادم الآمن.';
+          runtimeStatus.textContent = t('firebaseSettingsSaved');
           return;
         } catch (error) {
           runtimeStatus.textContent = error.message;
@@ -5348,7 +5296,7 @@ if len(__qjo_err_str) > 20000:
     forgetRuntimeBtn.addEventListener('click', () => {
       dropStored(STORAGE_KEY);
       dropStored(OLD_STORAGE_KEY);
-      runtimeStatus.textContent = 'تم حذف أي رموز قديمة من المتصفح. الإنتاج يستخدم الخادم الآمن.';
+      runtimeStatus.textContent = t('oldTokensCleared');
     });
 
     closeTrainingModal.addEventListener('click', closeTraining);
@@ -5359,8 +5307,8 @@ if len(__qjo_err_str) > 20000:
       updateTrainingStatus();
     });
     sampleTrainingBtn.addEventListener('click', () => {
-      trainingText.value = `Qjo مساعد عام قوي ومباشر للناس، اسمه Qjo وله هوية مستقلة كمساعد ذكاء اصطناعي.\nيرد بلغة المستخدم، وإذا كان المستخدم عربيًا يرد بعربية واضحة وسهلة.\nفي الوضع العادي: يرد باختصار ووضوح، مثل مساعد سريع ومفيد.\nفي الوضع المتقدم: يعطي شرحًا أعمق مع خطوات، أمثلة، مقارنة، وتحليل عملي.\nQjo يوازن بين التعاطف والصراحة: يتفهم المستخدم، لكنه يصحح الأخطاء بلطف ويعتمد على الحقائق.\nQjo لا يذكر أي تفاصيل داخلية عن التشغيل أو الرموز أو مزود الخدمة للمستخدمين.\nQjo لا يدعي قدرات غير موجودة، ولا يخترع معلومات أو مصادر.\nQjo يساعد في الأسئلة العامة، الكتابة، البرمجة، الدراسة، المشاريع، الأفكار، التخطيط، والتحليل، ويمتلك تخصصًا قويًا في هندسة الشبكات العصبية وتصميم نماذج التعلم العميق.\nQjo يحافظ على الخصوصية ولا يطلب كلمات مرور أو رموز تشغيل أو معلومات حساسة من المستخدمين.\nQjo يقدّم إجابات مرتبة وقابلة للتنفيذ، ويتجنب الحشو والمبالغة.\nعند تحليل الملفات أو الصور، Qjo يتعامل كخبير: يلخص، يستخرج النقاط المهمة، يكتشف المشاكل، يقيّم الجودة، ويقترح خطوات عملية. إذا لم يكن محتوى الملف مرئيًا له، يقول ذلك بصراحة ولا يدّعي أنه شاهده.`;
-      trainingStatus.textContent = 'تم وضع مثال جاهز. اضغط حفظ التدريب لاعتماده.';
+      trainingText.value = t('trainingSample');
+      trainingStatus.textContent = t('trainingSampleReady');
     });
     clearTrainingBtn.addEventListener('click', () => {
       qjoTraining = '';
@@ -5817,7 +5765,7 @@ if len(__qjo_err_str) > 20000:
         const initialBtn = document.createElement('button');
         initialBtn.type='button'; initialBtn.className='avatar-option'; initialBtn.dataset.val='initial';
         initialBtn.innerHTML = `<svg viewBox="0 0 100 100" width="64" height="64"><defs><linearGradient id="av-grad-init" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6366f1"/><stop offset="0.5" stop-color="#a855f7"/><stop offset="1" stop-color="#ec4899"/></linearGradient></defs><circle cx="50" cy="50" r="48" fill="url(#av-grad-init)"/><text x="50" y="62" text-anchor="middle" font-size="44" font-weight="800" fill="#fff" font-family="inherit">${currentUser && currentUser.displayName ? currentUser.displayName.trim().charAt(0).toUpperCase() : 'Q'}</text></svg>`;
-        initialBtn.addEventListener('click', () => { currentChoice='initial'; renderPreview(); status.textContent='اخترت الحرف الأول.'; });
+        initialBtn.addEventListener('click', () => { currentChoice='initial'; renderPreview(); status.textContent=t('avatarInitialChosen'); });
         grid.appendChild(initialBtn);
 
         // SVG avatars
@@ -5825,7 +5773,7 @@ if len(__qjo_err_str) > 20000:
           const btn = document.createElement('button');
           btn.type='button'; btn.className='avatar-option'; btn.dataset.val = 'svg:'+id;
           btn.innerHTML = buildAvatarSVG(id, 72);
-          btn.addEventListener('click', () => { currentChoice='svg:'+id; renderPreview(); status.textContent='أفاتار رائع! اضغط خارج النافذة أو إغلاق للحفظ.'; });
+          btn.addEventListener('click', () => { currentChoice='svg:'+id; renderPreview(); status.textContent=t('avatarChosen'); });
           grid.appendChild(btn);
         });
       }
@@ -5845,7 +5793,7 @@ if len(__qjo_err_str) > 20000:
         if(save){
           writeStored('qjo_user_avatar', currentChoice);
           updateUserUI(currentUser);
-          status.textContent = 'تم حفظ الصورة.';
+          status.textContent = t('avatarSaved');
         }
         modal.classList.remove('show');
         modal.setAttribute('aria-hidden','true');
@@ -5864,12 +5812,12 @@ if len(__qjo_err_str) > 20000:
         if(!(currentUser && currentUser.photoURL)) return;
         currentChoice = 'google';
         renderPreview();
-        status.textContent = 'سيتم استخدام صورة جوجل.';
+        status.textContent = t('avatarGoogle');
       });
       resetBtn && resetBtn.addEventListener('click', () => {
         currentChoice = 'initial';
         renderPreview();
-        status.textContent = 'تمت إعادة الصورة للحرف الأول.';
+        status.textContent = t('avatarReset');
       });
     })();
 
@@ -5957,7 +5905,7 @@ if len(__qjo_err_str) > 20000:
           const willShow = passwordInput.type === 'password';
           passwordInput.type = willShow ? 'text' : 'password';
           togglePassBtn.classList.toggle('showing-password', willShow);
-          togglePassBtn.setAttribute('title', willShow ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور');
+          togglePassBtn.setAttribute('title', willShow ? t('hidePassword') : t('showPassword'));
           togglePassBtn.setAttribute('aria-pressed', willShow ? 'true' : 'false');
 
           if (willShow) {

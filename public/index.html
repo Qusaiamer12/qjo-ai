@@ -1,7 +1,10 @@
 <!doctype html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
   <meta charset="utf-8" />
+  <!-- Language and direction before first paint: English unless chosen or the browser prefers Arabic. -->
+  <script src="/domain/language.js?v=qjo-v48-english"></script>
+  <script src="/lang-boot.js?v=qjo-v48-english"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
   <title>Qjo</title>
   <link rel="icon" href="/favicon.ico" sizes="any" />
@@ -42,7 +45,7 @@
         </div>
 
         <button class="new-chat" id="newChatBtn" type="button">
-          <span id="newChatText" data-i18n="newChat">محادثة جديدة</span>
+          <span id="newChatText" data-i18n="newChat">New chat</span>
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
             <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
           </svg>
@@ -50,11 +53,11 @@
 
 
         <div class="nav-group chat-history-group" id="chatHistoryGroup">
-          <div class="nav-label" data-i18n="chatsListLabel">المحادثات</div>
+          <div class="nav-label" data-i18n="chatsListLabel">Chats</div>
           <div class="chat-list" id="chatList">
-            <div class="empty-chats" data-i18n="emptyChats">لا توجد محادثات بعد</div>
+            <div class="empty-chats" data-i18n="emptyChats">No chats yet</div>
           </div>
-          <button class="show-all-chats" id="showAllChatsBtn" type="button" data-i18n="showAllChats">عرض كل المحادثات</button>
+          <button class="show-all-chats" id="showAllChatsBtn" type="button" data-i18n="showAllChats">Show all chats</button>
         </div>
 
         <div class="nav-group qjo-apps-group" style="margin-top:18px">
@@ -63,13 +66,13 @@
             <span class="nav-icon qjo-app-icon">Q</span>
             <span class="qjo-app-text">
               <strong>Qjo Assistant</strong>
-              <small data-i18n="currentAssistant">المساعد الحالي</small>
+              <small data-i18n="currentAssistant">Current Assistant</small>
             </span>
           </button>
           <!-- Q-Spark and Qcode moved to their own repos and ship later. They stay
                visible as a teaser but are inert: no href, aria-disabled, and the
                click handler in app.js only shows a "coming soon" toast. -->
-          <div class="nav-item qjo-app-item qjo-app-soon" id="qsparkNavBtn" data-qjo-app="qspark" role="link" aria-disabled="true" tabindex="-1" title="Q-Spark — قريبًا" data-i18n-title="qsparkSoon" aria-label="Q-Spark, coming soon">
+          <div class="nav-item qjo-app-item qjo-app-soon" id="qsparkNavBtn" data-qjo-app="qspark" role="link" aria-disabled="true" tabindex="-1" title="Q-Spark — Coming soon" data-i18n-title="qsparkSoon" aria-label="Q-Spark, coming soon">
             <span class="nav-icon qjo-app-icon">↯</span>
             <span class="qjo-app-text">
               <strong>Q-Spark</strong>
@@ -77,7 +80,7 @@
             </span>
             <span class="qjo-app-soon-badge" data-i18n="soon">Soon</span>
           </div>
-          <div class="nav-item qjo-app-item qjo-app-soon" id="qcodeNavBtn" data-qjo-app="qcode" role="link" aria-disabled="true" tabindex="-1" title="Qcode — قريبًا" data-i18n-title="qcodeSoon" aria-label="Qcode, coming soon">
+          <div class="nav-item qjo-app-item qjo-app-soon" id="qcodeNavBtn" data-qjo-app="qcode" role="link" aria-disabled="true" tabindex="-1" title="Qcode — Coming soon" data-i18n-title="qcodeSoon" aria-label="Qcode, coming soon">
             <span class="nav-icon qjo-app-icon">⌘</span>
             <span class="qjo-app-text">
               <strong>Qcode</strong>
@@ -88,10 +91,10 @@
         </div>
 
         <div class="nav-group" style="margin-top:18px">
-          <div class="nav-label" data-i18n="system">النظام</div>
+          <div class="nav-label" data-i18n="system">System</div>
           <button class="nav-item" id="themeToggleBtn" type="button">
             <span class="nav-icon">◐</span>
-            <span id="themeToggleBtnText">الوضع الداكن</span>
+            <span id="themeToggleBtnText">Dark mode</span>
           </button>
         </div>
       </div>
@@ -99,28 +102,28 @@
       <div class="sidebar-bottom-area">
         <div class="sidebar-card">
           <div class="sidebar-card-title">Qjo</div>
-          <div class="sidebar-card-text" data-i18n="sidebarText">مساعد ذكي يساعدك تفكر، تكتب، تتعلم، وتبني بسرعة ووضوح.</div>
+          <div class="sidebar-card-text" data-i18n="sidebarText">A smart assistant that helps you think, write, learn, and build with speed and clarity.</div>
         </div>
 
         <div class="account-card bottom-account" id="accountCard">
           <div class="avatar" id="userAvatar">Q</div>
           <div class="account-meta">
-            <div class="account-name" id="userName" data-i18n="defaultUserName">مستخدم</div>
-            <div class="account-email" id="userEmail" data-i18n="notSigned">غير مسجل</div>
+            <div class="account-name" id="userName" data-i18n="defaultUserName">User</div>
+            <div class="account-email" id="userEmail" data-i18n="notSigned">Not signed in</div>
           </div>
           <div class="account-actions">
-            <button class="account-settings" id="userSettingsBtn" type="button" title="الإعدادات" aria-label="الإعدادات" data-i18n-title="settingsTitle">
+            <button class="account-settings" id="userSettingsBtn" type="button" title="Settings" aria-label="Settings" data-i18n-aria-label="settingsTitle" data-i18n-title="settingsTitle">
               <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
                 <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" fill="none" stroke="currentColor" stroke-width="1.8"/>
                 <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.05.05a2.05 2.05 0 0 1-2.9 2.9l-.05-.05a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21a2.05 2.05 0 0 1-4.1 0v-.08a1.7 1.7 0 0 0-1.03-1.56 1.7 1.7 0 0 0-1.88.34l-.05.05a2.05 2.05 0 0 1-2.9-2.9l.05-.05A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3a2.05 2.05 0 0 1 0-4.1h.08A1.7 1.7 0 0 0 4.6 8.84a1.7 1.7 0 0 0-.34-1.88l-.05-.05a2.05 2.05 0 0 1 2.9-2.9l.05.05a1.7 1.7 0 0 0 1.88.34h.02A1.7 1.7 0 0 0 10.08 2.9V2.8a2.05 2.05 0 0 1 4.1 0v.08a1.7 1.7 0 0 0 1.03 1.56h.02a1.7 1.7 0 0 0 1.88-.34l.05-.05a2.05 2.05 0 0 1 2.9 2.9l-.05.05a1.7 1.7 0 0 0-.34 1.88v.02a1.7 1.7 0 0 0 1.56 1.03h.08a2.05 2.05 0 0 1 0 4.1h-.08A1.7 1.7 0 0 0 19.4 15Z" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </button>
-            <button class="account-logout-direct" id="directLogoutBtn" type="button" title="تسجيل الخروج" aria-label="تسجيل الخروج" data-i18n-title="logout">
+            <button class="account-logout-direct" id="directLogoutBtn" type="button" title="Log out" aria-label="Log out" data-i18n-aria-label="logout" data-i18n-title="logout">
               <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
                 <path d="M10 6H6.8A2.8 2.8 0 0 0 4 8.8v6.4A2.8 2.8 0 0 0 6.8 18H10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                 <path d="M14 8l4 4-4 4M18 12H9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
-              <span data-i18n="logoutDirectBtn">خروج</span>
+              <span data-i18n="logoutDirectBtn">Log out</span>
             </button>
           </div>
         </div>
@@ -128,9 +131,9 @@
     </aside>
 
     <main class="main">
-      <div class="network-banner" id="networkBanner" data-i18n="noInternet">لا يوجد اتصال بالإنترنت. سيتم تعطيل الإرسال مؤقتًا.</div>
+      <div class="network-banner" id="networkBanner" data-i18n="noInternet">No internet connection. Sending is temporarily disabled.</div>
       <header class="topbar">
-        <button class="mobile-menu" id="mobileMenuBtn" type="button" aria-label="القائمة">
+        <button class="mobile-menu" id="mobileMenuBtn" type="button" aria-label="Menu" data-i18n-aria-label="menuLabel">
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
             <path d="M5 7h14M5 12h14M5 17h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
           </svg>
@@ -138,23 +141,23 @@
 
         <div class="top-title">
           <strong>Qjo</strong>
-          <span id="topSubtitle">ذكاء واضح بتجربة راقية</span>
+          <span id="topSubtitle">Clear intelligence, refined experience</span>
         </div>
 
         <div class="top-actions">
-          <button class="icon-btn sidebar-toggle" id="sidebarToggle" type="button" title="إخفاء/إظهار الشريط الجانبي" aria-label="تبديل الشريط الجانبي" data-i18n-title="toggleSidebar">
+          <button class="icon-btn sidebar-toggle" id="sidebarToggle" type="button" title="Toggle sidebar" aria-label="Toggle sidebar" data-i18n-aria-label="toggleSidebar" data-i18n-title="toggleSidebar">
             <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
               <rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
               <path d="M9 4v16" stroke="currentColor" stroke-width="2"/>
               <path d="m5 9 3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </button>
-          <button class="icon-btn" id="clearBtn" type="button" title="محادثة جديدة" aria-label="محادثة جديدة" data-i18n-title="newChat">
+          <button class="icon-btn" id="clearBtn" type="button" title="New chat" aria-label="New chat" data-i18n-aria-label="newChat" data-i18n-title="newChat">
             <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
               <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             </svg>
           </button>
-          <button class="icon-btn" id="exportChatBtn" type="button" title="تصدير المحادثة" aria-label="تصدير المحادثة" data-i18n-title="exportChat">
+          <button class="icon-btn" id="exportChatBtn" type="button" title="Export chat" aria-label="Export chat" data-i18n-aria-label="exportChat" data-i18n-title="exportChat">
             <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
         </div>
@@ -163,13 +166,13 @@
       <section class="messages" id="messages">
         <div class="messages-inner" id="messagesInner">
           <section class="welcome" id="welcome">
-            <h1 id="welcomeTitle">ابنِ شيئًا <em>مذهلاً</em></h1>
-            <p id="welcomeText">ابدأ الكتابة بالأسفل، أو اختر من الأزرار لتبدأ بسرعة. Qjo يساعدك تفكر، تكتب، تتعلم وتبني بذكاء ووضوح.</p>
+            <h1 id="welcomeTitle">How can I <em>help you</em> today?</h1>
+            <p id="welcomeText">Ask, write, plan, learn, or build something new. Qjo is designed to give clear, practical answers without unnecessary complexity.</p>
           </section>
         </div>
       </section>
 
-      <button class="scroll-bottom-btn" id="scrollBottomBtn" type="button" aria-label="النزول لآخر المحادثة" title="النزول لآخر المحادثة" data-i18n-title="scrollToBottom">
+      <button class="scroll-bottom-btn" id="scrollBottomBtn" type="button" aria-label="Scroll to bottom" data-i18n-aria-label="scrollToBottom" title="Scroll to bottom" data-i18n-title="scrollToBottom">
         <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
           <path d="M12 5v14M6.5 13.5 12 19l5.5-5.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
@@ -179,49 +182,49 @@
         <div class="composer-shell">
           <div class="request-status" id="requestStatus">
             <span class="request-pulse"></span>
-            <span id="requestStatusText" data-i18n="statusThinking">Qjo يفكر...</span>
-            <button id="cancelRequestBtn" type="button" data-i18n="cancelBtn">إيقاف</button>
+            <span id="requestStatusText" data-i18n="statusThinking">Qjo is thinking...</span>
+            <button id="cancelRequestBtn" type="button" data-i18n="cancelBtn">Cancel</button>
           </div>
           <div class="attachment-tray" id="attachmentTray"></div>
           <div class="composer">
-            <button class="mobile-tools-trigger-btn" id="mobileToolsTriggerBtn" type="button" title="أدوات وتصنيفات الذكاء" aria-label="أدوات وتصنيفات الذكاء" data-i18n-title="mobileToolsTitle">
+            <button class="mobile-tools-trigger-btn" id="mobileToolsTriggerBtn" type="button" title="AI Tools &amp; Categories" aria-label="AI Tools &amp; Categories" data-i18n-aria-label="mobileToolsTitle" data-i18n-title="mobileToolsTitle">
               <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 5v14M5 12h14"/>
               </svg>
             </button>
-            <textarea id="input" placeholder="اكتب رسالتك هنا..." data-i18n-placeholder="placeholder" rows="1"></textarea>
+            <textarea id="input" placeholder="Message Qjo..." data-i18n-placeholder="placeholder" rows="1"></textarea>
             <div class="composer-function-toggles" id="composerToggles">
-            <button class="func-toggle search-toggle" id="toggleSearch" type="button" title="بحث في الويب" data-i18n-title="searchTitle">
+            <button class="func-toggle search-toggle" id="toggleSearch" type="button" title="Search the web" data-i18n-title="searchTitle">
               <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-              <span data-i18n="searchBtn">بحث</span>
+              <span data-i18n="searchBtn">Search</span>
             </button>
-            <button class="func-toggle deep-toggle" id="toggleDeep" type="button" title="بحث عميق متعمق" data-i18n-title="deepSearchTitle">
+            <button class="func-toggle deep-toggle" id="toggleDeep" type="button" title="Deep search" data-i18n-title="deepSearchTitle">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="2"/><circle cx="8" cy="8" r="3" fill="currentColor"/></svg>
-              <span data-i18n="deepSearchBtn">بحث عميق</span>
+              <span data-i18n="deepSearchBtn">Deep Search</span>
             </button>
-            <button class="func-toggle task-toggle" id="toggleTask" type="button" title="نفّذ الطلب على عدة خطوات مع خطة تتابعها" data-i18n-title="taskModeDesc" aria-pressed="false">
+            <button class="func-toggle task-toggle" id="toggleTask" type="button" title="Run the request over several steps with a plan you can follow" data-i18n-title="taskModeDesc" aria-pressed="false">
               <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>
-              <span data-i18n="taskBtn">مهمة</span>
+              <span data-i18n="taskBtn">Task</span>
             </button>
-            <div class="mode-segmented" id="modeSegmented" role="radiogroup" aria-label="وضع الإجابة" data-i18n-aria-label="modeGroup">
-              <button class="mode-seg-btn" id="normalModeBtn" type="button" role="radio" aria-checked="true" title="سريع ومباشر" data-i18n-title="flashModeTitle">
+            <div class="mode-segmented" id="modeSegmented" role="radiogroup" aria-label="Answer mode" data-i18n-aria-label="modeGroup">
+              <button class="mode-seg-btn" id="normalModeBtn" type="button" role="radio" aria-checked="true" title="Flash — fast, direct answers" data-i18n-title="flashModeTitle">
                 <span class="mode-seg-icon" aria-hidden="true">⚡</span>
-                <span id="normalModeText" data-i18n="normal">فلاش</span>
+                <span id="normalModeText" data-i18n="normal">Flash</span>
               </button>
-              <button class="mode-seg-btn" id="advancedModeBtn" type="button" role="radio" aria-checked="false" title="تحليل أعمق ودقة أعلى" data-i18n-title="maxModeTitle">
+              <button class="mode-seg-btn" id="advancedModeBtn" type="button" role="radio" aria-checked="false" title="Max — deeper analysis, higher accuracy" data-i18n-title="maxModeTitle">
                 <span class="mode-seg-icon" aria-hidden="true">◆</span>
-                <span id="advancedModeText" data-i18n="advanced">ماكس</span>
+                <span id="advancedModeText" data-i18n="advanced">Max</span>
               </button>
             </div>
           </div>
           <div class="composer-actions">
             <input id="fileInput" type="file" multiple accept="image/*,.txt,.md,.csv,.json,.pdf,.doc,.docx,.xls,.xlsx" hidden />
-            <button class="attach-btn" id="attachBtn" type="button" title="إرفاق ملف" aria-label="إرفاق ملف" data-i18n-title="attachFile">
+            <button class="attach-btn" id="attachBtn" type="button" title="Attach file" aria-label="Attach file" data-i18n-aria-label="attachFile" data-i18n-title="attachFile">
               <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
                 <path d="M21.44 11.05 12.25 20.24a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </button>
-            <button class="send-btn" id="sendBtn" type="button" title="إرسال" aria-label="إرسال" data-i18n-title="sendBtn">
+            <button class="send-btn" id="sendBtn" type="button" title="Send" aria-label="Send" data-i18n-aria-label="sendBtn" data-i18n-title="sendBtn">
               <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
                 <path d="M12 19V5M6.5 10.5 12 5l5.5 5.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
@@ -231,39 +234,39 @@
           <div class="quick-command-cats" id="quickCommandCats">
             <button class="quick-cat-btn" data-cat="code" type="button">
               <svg class="cat-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="m8 8-5 4 5 4M16 8l5 4-5 4M14 4l-4 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              <span data-i18n="catCode">توليد كود</span>
+              <span data-i18n="catCode">Code Gen</span>
             </button>
             <button class="quick-cat-btn" data-cat="launch" type="button">
               <svg class="cat-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 19V9a2 2 0 0 1 2-2h6l-2-2M14 3h7v7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="m10 14 11-11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-              <span data-i18n="catLaunch">إطلاق تطبيق</span>
+              <span data-i18n="catLaunch">Launch App</span>
             </button>
             <button class="quick-cat-btn" data-cat="ui" type="button">
               <svg class="cat-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-              <span data-i18n="catUi">مكونات UI</span>
+              <span data-i18n="catUi">UI Components</span>
             </button>
             <button class="quick-cat-btn" data-cat="theme" type="button">
               <svg class="cat-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c1 0 1-.8 1-1.5 0-.4-.2-.8-.4-1.1-.3-.4-.4-.8-.4-1.2 0-.7.5-1.2 1.2-1.2H16c3.3 0 6-2.7 6-6 0-5-4.5-9-10-9Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
-              <span data-i18n="catTheme">أفكار ثيمات</span>
+              <span data-i18n="catTheme">Themes</span>
             </button>
             <button class="quick-cat-btn" data-cat="dashboard" type="button">
               <svg class="cat-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-              <span data-i18n="catDashboard">لوحة مستخدم</span>
+              <span data-i18n="catDashboard">Dashboard</span>
             </button>
             <button class="quick-cat-btn" data-cat="landing" type="button">
               <svg class="cat-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="2" y="4" width="20" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M2 9h20M7 13h6M7 16h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-              <span data-i18n="catLanding">صفحة هبوط</span>
+              <span data-i18n="catLanding">Landing Page</span>
             </button>
             <button class="quick-cat-btn" data-cat="docs" type="button">
               <svg class="cat-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M14 3v5h5M9 13h6M9 17h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-              <span data-i18n="catDocs">رفع مستندات</span>
+              <span data-i18n="catDocs">Upload Docs</span>
             </button>
             <button class="quick-cat-btn" data-cat="images" type="button">
               <svg class="cat-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="9" r="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="m21 15-5-5L5 21" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
-              <span data-i18n="catAssets">صور وأصول</span>
+              <span data-i18n="catAssets">Assets</span>
             </button>
           </div>
           <div class="quick-suggestions-panel" id="quickSuggestionsPanel" hidden>
-            <div class="qs-header" id="qsHeader" data-i18n="qsHeader">اقتراحات</div>
+            <div class="qs-header" id="qsHeader" data-i18n="qsHeader">Shortcuts</div>
             <ul class="qs-list" id="qsList"></ul>
           </div>
         </div>
@@ -272,29 +275,29 @@
   </div>
 
   <!-- Floating Mobile Tools Notch (ChatGPT / Gemini style) -->
-  <button type="button" class="mobile-tools-notch" id="mobileToolsNotch" aria-label="أدوات وتصنيفات Qjo">
+  <button type="button" class="mobile-tools-notch" id="mobileToolsNotch" aria-label="Qjo tools &amp; categories" data-i18n-aria-label="toolsSheetLabel">
     <span class="notch-icon">⚡</span>
-    <span class="notch-text" data-i18n="tools">أدوات</span>
+    <span class="notch-text" data-i18n="tools">Tools</span>
     <span class="notch-indicator" id="notchIndicator"></span>
   </button>
 
   <!-- Mobile Tools Bottom Sheet / Drawer -->
   <div class="mobile-tools-sheet-backdrop" id="mobileToolsBackdrop"></div>
-  <div class="mobile-tools-sheet" id="mobileToolsSheet" role="dialog" aria-modal="true" aria-label="أدوات وتصنيفات Qjo">
+  <div class="mobile-tools-sheet" id="mobileToolsSheet" role="dialog" aria-modal="true" aria-label="Qjo tools &amp; categories" data-i18n-aria-label="toolsSheetLabel">
     <div class="sheet-drag-handle"></div>
     <div class="sheet-header">
       <div class="sheet-title">
         <span class="sheet-sparkle">⚡</span>
-        <span data-i18n="drawerTitle">أدوات وميزات Qjo</span>
+        <span data-i18n="drawerTitle">Qjo Tools &amp; Features</span>
       </div>
-      <button type="button" class="sheet-close-btn" id="closeToolsSheetBtn" aria-label="إغلاق">✕</button>
+      <button type="button" class="sheet-close-btn" id="closeToolsSheetBtn" aria-label="Close" data-i18n-aria-label="close">✕</button>
     </div>
     <div class="sheet-body">
-      <div class="sheet-section-title" data-i18n="modeGroup">وضع الإجابة</div>
+      <div class="sheet-section-title" data-i18n="modeGroup">Answer mode</div>
       <div class="sheet-mode-row" id="mobileSheetMode"></div>
-      <div class="sheet-section-title" data-i18n="drawerBlockAi">ميزات الذكاء النشطة</div>
+      <div class="sheet-section-title" data-i18n="drawerBlockAi">Active AI Features</div>
       <div class="sheet-toggles-grid" id="mobileSheetToggles"></div>
-      <div class="sheet-section-title" data-i18n="drawerBlockCats">التصنيفات والإنشاء السريع</div>
+      <div class="sheet-section-title" data-i18n="drawerBlockCats">Categories &amp; Quick Actions</div>
       <div class="sheet-cats-grid" id="mobileSheetCats"></div>
     </div>
   </div>
@@ -312,17 +315,11 @@
           </div>
           <div class="auth-hero-statement">
             <h1 class="hero-headline" id="authHeroTitle" data-i18n-html="authHeroTitle">
-              فكّر بعمق.<br>
-              ابْتَكِر بلا حدود.<br>
-              <span>أنجِز بذكاء فائق.</span>
+              Think deeply.<br>Create without limits.<br><span>Achieve with super intelligence.</span>
             </h1>
-            <p class="hero-subtext" id="authHeroDesc" data-i18n="authHeroDesc">
-              مساحة العمل المتكاملة للمطورين والمبدعين. سرعة فائقة، دقة استثنائية، وأدوات متقدمة ترتقي بإنتاجيتك إلى أعلى مستوى.
-            </p>
+            <p class="hero-subtext" id="authHeroDesc" data-i18n="authHeroDesc">The integrated workspace for developers and creators. Blazing speed, exceptional precision, and advanced tools elevating your productivity.</p>
           </div>
-          <div class="auth-hero-quote" id="authHeroQuote" data-i18n="authHeroQuote">
-            « الإبداع الحقيقي يبدأ عندما تلتقي فكرتك مع الأداة الصحيحة. »
-          </div>
+          <div class="auth-hero-quote" id="authHeroQuote" data-i18n="authHeroQuote">“True creativity begins when your idea meets the right tool.”</div>
         </div>
       </div>
 
@@ -421,8 +418,8 @@
         </div>
 
         <div class="auth-header-text">
-          <h2 data-i18n="authTitle">تسجيل الدخول إلى Qjo</h2>
-          <p data-i18n="authSub">سجّل دخولك لحفظ محادثاتك والوصول لكامل مزايا المنصة.</p>
+          <h2 data-i18n="authTitle">Sign in to Qjo</h2>
+          <p data-i18n="authSub">Sign in to save your chats and access all features.</p>
         </div>
 
         <div class="auth-browser-tip" id="authBrowserTip" hidden></div>
@@ -446,18 +443,18 @@
           </button>
         </div>
 
-        <div class="auth-divider"><span data-i18n="authOrEmail">أو بالبريد الإلكتروني</span></div>
+        <div class="auth-divider"><span data-i18n="authOrEmail">or with email</span></div>
 
         <div class="auth-fields">
           <div class="auth-field-group">
-            <label for="authEmail" data-i18n="authEmailLabel">البريد الإلكتروني</label>
+            <label for="authEmail" data-i18n="authEmailLabel">Email address</label>
             <input id="authEmail" type="email" placeholder="name@example.com" autocomplete="email" />
           </div>
           <div class="auth-field-group">
-            <label for="authPassword" data-i18n="authPasswordLabel">كلمة المرور</label>
+            <label for="authPassword" data-i18n="authPasswordLabel">Password</label>
             <div class="auth-input-wrap">
               <input id="authPassword" type="password" placeholder="••••••••••••" autocomplete="current-password" />
-              <button type="button" class="toggle-password-btn" id="togglePasswordVisibility" title="إظهار كلمة المرور" aria-label="إظهار أو إخفاء كلمة المرور">
+              <button type="button" class="toggle-password-btn" id="togglePasswordVisibility" title="Show password" aria-label="Show or hide the password" data-i18n-aria-label="togglePasswordLabel">
                 <svg class="eye-icon eye-open-icon" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
                   <circle cx="12" cy="12" r="3"/>
@@ -475,16 +472,16 @@
 
         <label class="remember-row" for="rememberMe">
           <input id="rememberMe" type="checkbox" checked />
-          <span data-i18n="authRemember">تذكرني على هذا الجهاز</span>
+          <span data-i18n="authRemember">Remember me on this device</span>
         </label>
 
         <div class="auth-actions">
-          <button class="primary-btn submit-btn" id="emailLoginBtn" type="button" data-i18n="authLoginBtn">تسجيل الدخول</button>
-          <button class="plain-btn signup-toggle-btn" id="emailSignupBtn" type="button" data-i18n="authSignupBtn">إنشاء حساب جديد</button>
+          <button class="primary-btn submit-btn" id="emailLoginBtn" type="button" data-i18n="authLoginBtn">Sign In</button>
+          <button class="plain-btn signup-toggle-btn" id="emailSignupBtn" type="button" data-i18n="authSignupBtn">Create New Account</button>
         </div>
 
         <div class="auth-error" id="authError"></div>
-        <div class="auth-note" data-i18n="authNote">Qjo يحفظ جلساتك بأمان ومحمي بأعلى معايير التشفير.</div>
+        <div class="auth-note" data-i18n="authNote">Qjo keeps your sessions secure and protected.</div>
       </div>
 
     </div>
@@ -493,28 +490,28 @@
 
 
   <div class="modal-backdrop" id="allChatsModal" aria-hidden="true">
-    <div class="modal all-chats-modal" role="dialog" aria-label="كل المحادثات">
+    <div class="modal all-chats-modal" role="dialog" aria-label="All chats" data-i18n-aria-label="allChatsLabel">
       <div class="modal-head">
-        <h2 data-i18n="allChatsTitle">كل المحادثات</h2>
-        <button class="plain-btn" id="closeAllChatsModal" type="button" data-i18n="close">إغلاق</button>
+        <h2 data-i18n="allChatsTitle">All Chats</h2>
+        <button class="plain-btn" id="closeAllChatsModal" type="button" data-i18n="close">Close</button>
       </div>
-      <input class="settings-input chat-search-input" id="chatSearchInput" placeholder="ابحث في أسماء المحادثات..." data-i18n-placeholder="searchChats" />
+      <input class="settings-input chat-search-input" id="chatSearchInput" placeholder="Search chats..." data-i18n-placeholder="searchChats" />
       <div class="all-chats-list" id="allChatsList"></div>
     </div>
   </div>
 
   <div class="modal-backdrop" id="userSettingsModal" aria-hidden="true">
-    <div class="modal user-settings-modal" role="dialog" aria-label="إعدادات المستخدم">
+    <div class="modal user-settings-modal" role="dialog" aria-label="User settings" data-i18n-aria-label="userSettingsLabel">
       <div class="modal-head">
-        <h2 data-i18n="settingsTitle">الإعدادات</h2>
-        <button class="plain-btn" id="closeUserSettingsModal" type="button" data-i18n="close">إغلاق</button>
+        <h2 data-i18n="settingsTitle">Settings</h2>
+        <button class="plain-btn" id="closeUserSettingsModal" type="button" data-i18n="close">Close</button>
       </div>
 
       <div class="settings-list">
         <div class="settings-row">
           <div>
-            <div class="settings-row-title" data-i18n="languageTitle">اللغة</div>
-            <div class="settings-row-desc" data-i18n="languageDesc">اختر لغة واجهة Qjo.</div>
+            <div class="settings-row-title" data-i18n="languageTitle">Language</div>
+            <div class="settings-row-desc" data-i18n="languageDesc">Choose Qjo interface language.</div>
           </div>
           <select id="languageSelect" class="settings-select">
             <option value="ar">العربية</option>
@@ -524,191 +521,192 @@
 
         <div class="settings-row">
           <div>
-            <div class="settings-row-title" data-i18n="appearanceTitle">المظهر</div>
-            <div class="settings-row-desc" data-i18n="appearanceDesc">بدّل بين الوضع الفاتح والداكن.</div>
+            <div class="settings-row-title" data-i18n="appearanceTitle">Appearance</div>
+            <div class="settings-row-desc" data-i18n="appearanceDesc">Switch between light and dark mode.</div>
           </div>
-          <button class="plain-btn" id="settingsThemeBtn" type="button" data-i18n="toggleAppearance">تبديل المظهر</button>
+          <button class="plain-btn" id="settingsThemeBtn" type="button" data-i18n="toggleAppearance">Toggle theme</button>
         </div>
 
         <div class="settings-row settings-row-stack">
           <div>
-            <div class="settings-row-title" data-i18n="customizationTitle">تخصيص Qjo</div>
-            <div class="settings-row-desc" data-i18n="customizationDesc">هذه التفضيلات تحفظ لحسابك وتساعد Qjo يخصص إجاباته لك.</div>
+            <div class="settings-row-title" data-i18n="customizationTitle">Qjo Customization</div>
+            <div class="settings-row-desc" data-i18n="customizationDesc">These preferences are saved to your account and help Qjo tailor responses.</div>
           </div>
           <div class="preferences-grid">
             <label>
-              <span data-i18n="responseStyle">أسلوب الرد</span>
+              <span data-i18n="responseStyle">Response Style</span>
               <select id="prefTone" class="settings-select">
-                <option value="balanced" data-i18n="styleBalanced">متوازن</option>
-                <option value="concise" data-i18n="styleConcise">مختصر جدًا</option>
-                <option value="detailed" data-i18n="styleDetailed">تفصيلي</option>
-                <option value="friendly" data-i18n="styleFriendly">ودود</option>
-                <option value="formal" data-i18n="styleFormal">رسمي</option>
+                <option value="balanced" data-i18n="styleBalanced">Balanced</option>
+                <option value="concise" data-i18n="styleConcise">Concise</option>
+                <option value="detailed" data-i18n="styleDetailed">Detailed</option>
+                <option value="friendly" data-i18n="styleFriendly">Friendly</option>
+                <option value="formal" data-i18n="styleFormal">Formal</option>
               </select>
             </label>
             <label>
-              <span data-i18n="expertiseLevel">مستوى الخبرة</span>
+              <span data-i18n="expertiseLevel">Expertise Level</span>
               <select id="prefExpertise" class="settings-select">
-                <option value="general" data-i18n="expGeneral">عام</option>
-                <option value="beginner" data-i18n="expBeginner">مبتدئ</option>
-                <option value="intermediate" data-i18n="expIntermediate">متوسط</option>
-                <option value="advanced" data-i18n="expAdvanced">متقدم</option>
-                <option value="expert" data-i18n="expExpert">خبير</option>
+                <option value="general" data-i18n="expGeneral">General</option>
+                <option value="beginner" data-i18n="expBeginner">Beginner</option>
+                <option value="intermediate" data-i18n="expIntermediate">Intermediate</option>
+                <option value="advanced" data-i18n="expAdvanced">Advanced</option>
+                <option value="expert" data-i18n="expExpert">Expert</option>
               </select>
             </label>
             <label>
-              <span data-i18n="addressingStyle">صيغة الخطاب</span>
+              <span data-i18n="addressingStyle">Addressing Style</span>
               <select id="prefAddressing" class="settings-select">
-                <option value="neutral" data-i18n="addrNeutral">محايد</option>
-                <option value="masculine" data-i18n="addrMasculine">مذكر</option>
-                <option value="feminine" data-i18n="addrFeminine">مؤنث</option>
+                <option value="neutral" data-i18n="addrNeutral">Neutral</option>
+                <option value="masculine" data-i18n="addrMasculine">Masculine</option>
+                <option value="feminine" data-i18n="addrFeminine">Feminine</option>
               </select>
             </label>
             <label class="preferences-wide">
-              <span data-i18n="interestsLabel">اهتماماتك أو مجالاتك</span>
-              <input id="prefInterests" class="settings-input" placeholder="مثال: برمجة، رياضيات، شبكات عصبية، بزنس..." data-i18n-placeholder="interestsPlaceholder" />
+              <span data-i18n="interestsLabel">Your interests or fields</span>
+              <input id="prefInterests" class="settings-input" placeholder="e.g. coding, math, AI, business..." data-i18n-placeholder="interestsPlaceholder" />
             </label>
             <label class="preferences-wide">
-              <span data-i18n="notesLabel">ملاحظات شخصية لـ Qjo</span>
-              <textarea id="prefNotes" class="settings-textarea" placeholder="مثال: أحب الإجابات المرتبة بجداول، لا تطوّل إلا عند الحاجة..." data-i18n-placeholder="notesPlaceholder"></textarea>
+              <span data-i18n="notesLabel">Personal notes for Qjo</span>
+              <textarea id="prefNotes" class="settings-textarea" placeholder="e.g. prefer structured tables, concise answers..." data-i18n-placeholder="notesPlaceholder"></textarea>
             </label>
           </div>
-          <button class="primary-btn" id="savePreferencesBtn" type="button" data-i18n="savePreferences">حفظ التفضيلات</button>
+          <button class="primary-btn" id="savePreferencesBtn" type="button" data-i18n="savePreferences">Save Preferences</button>
           <div class="settings-row-desc" id="preferencesStatus"></div>
         </div>
         <div class="settings-row">
-          <div class="settings-row-title" data-i18n="customInstructionsTitle">التعليمات المخصصة</div>
-          <div class="settings-row-desc" data-i18n="customInstructionsDesc">اكتب تعليمات دائمة يلتزم بها Qjo في كل رد — نبرتك، مجالك، وما تريد تجنّبه.</div>
-          <button class="primary-btn" id="openTrainingBtn" type="button" data-i18n="customInstructionsBtn">تحرير التعليمات المخصصة</button>
+          <div class="settings-row-title" data-i18n="customInstructionsTitle">Custom instructions</div>
+          <div class="settings-row-desc" data-i18n="customInstructionsDesc">Standing instructions Qjo follows in every answer — your tone, your field, what to avoid.</div>
+          <button class="primary-btn" id="openTrainingBtn" type="button" data-i18n="customInstructionsBtn">Edit custom instructions</button>
           <div class="memory-box">
-            <div class="settings-row-title" data-i18n="memoryTitle">ذاكرة Qjo المحلية</div>
-            <div class="settings-row-desc" data-i18n="memoryDesc">تصحيحاتك وتعليماتك المحلية المحفوظة على هذا الجهاز. يمكنك مراجعتها أو مسحها.</div>
+            <div class="settings-row-title" data-i18n="memoryTitle">Qjo Local Memory</div>
+            <div class="settings-row-desc" data-i18n="memoryDesc">Your local corrections and instructions saved on this device. You can review or clear them.</div>
             <div class="memory-list" id="memoryList"></div>
             <div class="modal-actions memory-actions">
-              <button class="plain-btn" id="refreshMemoryBtn" type="button" data-i18n="refreshMemory">تحديث الذاكرة</button>
-              <button class="danger-btn" id="clearMemoryBtn" type="button" data-i18n="clearMemory">مسح الذاكرة المحلية</button>
+              <button class="plain-btn" id="refreshMemoryBtn" type="button" data-i18n="refreshMemory">Refresh Memory</button>
+              <button class="danger-btn" id="clearMemoryBtn" type="button" data-i18n="clearMemory">Clear Local Memory</button>
             </div>
           </div>
         </div>
 
         <div class="settings-row">
           <div>
-            <div class="settings-row-title" data-i18n="accountTitle">الحساب</div>
-            <div class="settings-row-desc" id="settingsAccountEmail">غير مسجل</div>
+            <div class="settings-row-title" data-i18n="accountTitle">Account</div>
+            <div class="settings-row-desc" id="settingsAccountEmail">Not signed in</div>
           </div>
-          <button class="danger-btn" id="settingsLogoutBtn" type="button" data-i18n="logout">تسجيل الخروج</button>
+          <button class="danger-btn" id="settingsLogoutBtn" type="button" data-i18n="logout">Log out</button>
         </div>
       </div>
     </div>
   </div>
 
   <div class="modal-backdrop" id="settingsModal" aria-hidden="true">
-    <div class="modal" role="dialog" aria-label="إعدادات الإدارة">
+    <div class="modal" role="dialog" aria-label="Admin settings" data-i18n-aria-label="adminSettings">
       <div class="modal-head">
-        <h2>إعدادات الإدارة</h2>
-        <button class="plain-btn" id="closeModal" type="button">إغلاق</button>
+        <h2 data-i18n="adminSettings">Admin settings</h2>
+        <button class="plain-btn" id="closeModal" type="button" data-i18n="close">Close</button>
       </div>
 
-      <p>هذه إعدادات الإدارة الخاصة بتشغيل Qjo. الوصول لها مخفي عن المستخدمين العاديين.</p>
+      <p data-i18n="adminIntro">These are the admin settings for running Qjo. They are hidden from regular users.</p>
 
       <div class="field">
-        <label for="adminLink">رابط لوحة الإدارة</label>
+        <label for="adminLink" data-i18n="adminLinkLabel">Admin dashboard link</label>
         <div class="copy-row">
           <input id="adminLink" type="text" value="https://console.groq.com/keys" readonly />
-          <button class="plain-btn" id="copyAdminLinkBtn" type="button">نسخ</button>
-          <button class="plain-btn" id="openAdminLinkBtn" type="button">فتح</button>
+          <button class="plain-btn" id="copyAdminLinkBtn" type="button" data-i18n="copyAction">Copy</button>
+          <button class="plain-btn" id="openAdminLinkBtn" type="button" data-i18n="openAction">Open</button>
         </div>
-        <div class="small-note">للاستخدام الإداري فقط.</div>
+        <div class="small-note" data-i18n="adminOnly">For admin use only.</div>
       </div>
 
-      <div class="status-box" id="runtimeStatus">إعدادات التشغيل غير مفعلة.</div>
+      <div class="status-box" id="runtimeStatus" data-i18n="runtimeNotActive">Runtime settings are not active.</div>
 
       <div class="field">
-        <label for="runtimeTokenInput">رمز التشغيل الإداري</label>
+        <label for="runtimeTokenInput" data-i18n="runtimeTokenLabel">Admin runtime token</label>
         <div class="key-row">
-          <input id="runtimeTokenInput" type="password" placeholder="رمز التشغيل" autocomplete="off" />
-          <button class="plain-btn" id="toggleRuntimeBtn" type="button">إظهار</button>
-          <span class="status-pill" id="activationPill">غير مفعل</span>
+          <input id="runtimeTokenInput" type="password" placeholder="Runtime token" data-i18n-placeholder="runtimeTokenPlaceholder" autocomplete="off" />
+          <button class="plain-btn" id="toggleRuntimeBtn" type="button" data-i18n="showAction">Show</button>
+          <span class="status-pill" id="activationPill" data-i18n="notActive">Not active</span>
         </div>
-        <div class="small-note">للاستخدام الإداري فقط. لا يظهر هذا القسم للمستخدمين العاديين.</div>
+        <div class="small-note" data-i18n="adminOnlyHidden">For admin use only. Regular users never see this section.</div>
       </div>
 
       <div class="field">
-        <label for="modelInput">Model ID — ثابت</label>
+        <label for="modelInput" data-i18n="modelIdFixed">Model ID — fixed</label>
         <input id="modelInput" type="text" value="openai/gpt-oss-120b" readonly />
       </div>
 
       <div class="field">
         <label for="firebaseConfigInput">Firebase Config</label>
-        <textarea class="training-area firebase-config" id="firebaseConfigInput" placeholder='الصق إعدادات Firebase هنا بصيغة JSON أو كود firebaseConfig'></textarea>
-        <div class="small-note">مطلوب لتسجيل الدخول وحفظ المحادثات سحابيًا.</div>
+        <textarea class="training-area firebase-config" id="firebaseConfigInput" placeholder="Paste the Firebase settings here as JSON or as the firebaseConfig code" data-i18n-placeholder="firebaseConfigPlaceholder"></textarea>
+        <div class="small-note" data-i18n="firebaseConfigNote">Required for sign-in and saving chats to the cloud.</div>
       </div>
 
       <div class="modal-actions">
-        <button class="primary-btn" id="saveRuntimeBtn" type="button">فحص وتفعيل</button>
-        <button class="plain-btn" id="pasteRuntimeBtn" type="button">لصق الرمز</button>
-        <button class="danger-btn" id="forgetRuntimeBtn" type="button">حذف الرمز</button>
+        <button class="primary-btn" id="saveRuntimeBtn" type="button" data-i18n="checkAndEnable">Check and enable</button>
+        <button class="plain-btn" id="pasteRuntimeBtn" type="button" data-i18n="pasteToken">Paste token</button>
+        <button class="danger-btn" id="forgetRuntimeBtn" type="button" data-i18n="deleteToken">Delete token</button>
       </div>
 
-      <div class="status-box">تنبيه إداري: في نسخة HTML فقط، الإخفاء ليس حماية كاملة. النشر العام الآمن يحتاج Backend لاحقًا.</div>
+      <div class="status-box" data-i18n="adminHtmlWarning">Admin note: in the HTML-only copy, hiding is not real protection. A safe public deployment needs a backend.</div>
     </div>
   </div>
 
   <div class="modal-backdrop" id="trainingModal" aria-hidden="true">
-    <div class="modal" role="dialog" aria-label="تدريب Qjo النصي">
+    <div class="modal" role="dialog" aria-label="Qjo text training" data-i18n-aria-label="trainingTitle">
       <div class="modal-head">
-        <h2>تدريب Qjo النصي</h2>
-        <button class="plain-btn" id="closeTrainingModal" type="button">إغلاق</button>
+        <h2 data-i18n="trainingTitle">Qjo text training</h2>
+        <button class="plain-btn" id="closeTrainingModal" type="button" data-i18n="close">Close</button>
       </div>
 
-      <p>أضف هنا معلومات وتعليمات تريد Qjo يعتمد عليها. هذه ليست تدريبًا حقيقيًا للنموذج، لكنها تُرسل كتعليمات معرفة مع كل رسالة داخل هذه النسخة التجريبية.</p>
+      <p data-i18n="trainingIntro">Add information and instructions here for Qjo to rely on. This is not real model training — it is sent as knowledge instructions with every message in this browser.</p>
 
-      <textarea class="training-area" id="trainingText" placeholder="مثال:
-Qjo مساعد عام للناس.
-يرد بالعربي إذا المستخدم عربي.
-في الوضع العادي يجاوب باختصار.
-في الوضع المتقدم يعطي خطوات وأمثلة."></textarea>
+      <textarea class="training-area" id="trainingText" placeholder="Example:
+Qjo is a general assistant for people.
+It replies in Arabic when the user writes Arabic.
+In normal mode it answers briefly.
+In advanced mode it gives steps and examples." data-i18n-placeholder="trainingPlaceholder"></textarea>
 
       <div class="modal-actions">
-        <button class="primary-btn" id="saveTrainingBtn" type="button">حفظ التدريب</button>
-        <button class="plain-btn" id="sampleTrainingBtn" type="button">مثال جاهز</button>
-        <button class="danger-btn" id="clearTrainingBtn" type="button">حذف التدريب</button>
+        <button class="primary-btn" id="saveTrainingBtn" type="button" data-i18n="saveTraining">Save training</button>
+        <button class="plain-btn" id="sampleTrainingBtn" type="button" data-i18n="sampleTraining">Sample</button>
+        <button class="danger-btn" id="clearTrainingBtn" type="button" data-i18n="deleteTraining">Delete training</button>
       </div>
 
-      <div class="status-box" id="trainingStatus">لا يوجد تدريب محفوظ بعد.</div>
+      <div class="status-box" id="trainingStatus" data-i18n="trainingNone">No saved training yet.</div>
     </div>
   </div>
 
   <!-- Avatar Picker Modal -->
   <div class="modal-backdrop" id="avatarModal" aria-hidden="true">
-    <div class="modal" role="dialog" aria-label="اختر صورتك">
+    <div class="modal" role="dialog" aria-label="Choose your picture" data-i18n-aria-label="avatarModalLabel">
       <div class="modal-head">
-        <h2 data-i18n="avatarTitle">اختر صورتك</h2>
-        <button class="plain-btn" id="closeAvatarModal" type="button" data-i18n="close">إغلاق</button>
+        <h2 data-i18n="avatarTitle">Choose Your Avatar</h2>
+        <button class="plain-btn" id="closeAvatarModal" type="button" data-i18n="close">Close</button>
       </div>
-      <p data-i18n="avatarSub">اختر صورة شخصية من الأفاتارات الجاهزة، أو استخدم صورتك من جوجل إذا سجّلت الدخول بها.</p>
+      <p data-i18n="avatarSub">Choose a profile avatar, or use your Google profile photo.</p>
 
       <div class="avatar-preview" id="avatarPreview"></div>
-      <div class="avatar-picker-title" id="avatarPickerTitle" data-i18n="avatarMe">أنا</div>
-      <div class="avatar-picker-sub" data-i18n="avatarChooseFav">اختر أفاتارك المفضل</div>
+      <div class="avatar-picker-title" id="avatarPickerTitle" data-i18n="avatarMe">Me</div>
+      <div class="avatar-picker-sub" data-i18n="avatarChooseFav">Choose your avatar</div>
 
       <div class="avatar-picker-grid" id="avatarPickerGrid"></div>
 
       <div class="modal-actions" style="margin-top:14px">
         <button class="primary-btn" id="useGoogleAvatar" type="button" style="display:none">
-          <span data-i18n="avatarUseGoogle">استخدام صورة جوجل</span>
+          <span data-i18n="avatarUseGoogle">Use Google photo</span>
         </button>
-        <button class="plain-btn" id="resetAvatar" type="button" data-i18n="avatarResetInitial">إعادة للحرف</button>
+        <button class="plain-btn" id="resetAvatar" type="button" data-i18n="avatarResetInitial">Reset to initial</button>
       </div>
-      <div class="status-box" id="avatarStatus" style="margin-top:10px">اختر صورة من الأسفل.</div>
+      <div class="status-box" id="avatarStatus" style="margin-top:10px" data-i18n="avatarPickBelow">Choose a picture below.</div>
     </div>
   </div>
 
-  <script src="/domain/markdown.js?v=qjo-v47-modular" defer></script>
-  <script src="/domain/requestFailure.js?v=qjo-v47-modular" defer></script>
-  <script src="/domain/streamProtocol.js?v=qjo-v47-modular" defer></script>
-  <script src="/ui/streamingView.js?v=qjo-v47-modular" defer></script>
-  <script src="/boot.js?v=qjo-v47-modular" defer></script>
-  <script src="/app.js?v=qjo-v47-modular" defer></script>
+  <script src="/domain/i18n.js?v=qjo-v48-english" defer></script>
+  <script src="/domain/markdown.js?v=qjo-v48-english" defer></script>
+  <script src="/domain/requestFailure.js?v=qjo-v48-english" defer></script>
+  <script src="/domain/streamProtocol.js?v=qjo-v48-english" defer></script>
+  <script src="/ui/streamingView.js?v=qjo-v48-english" defer></script>
+  <script src="/boot.js?v=qjo-v48-english" defer></script>
+  <script src="/app.js?v=qjo-v48-english" defer></script>
 </body>
 </html>

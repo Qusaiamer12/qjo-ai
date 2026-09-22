@@ -13,6 +13,7 @@ const { chromium, devices } = require('playwright');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const BASE_URL = (process.env.QJO_BASE_URL || 'http://127.0.0.1:3994').replace(/\/+$/, '');
+const DEFAULT_LOCALE = 'ar-JO';
 
 /**
  * The Chromium binary to launch, in order of preference:
@@ -76,7 +77,12 @@ async function isolate(context) {
 async function launchBrowser() {
   const browser = await chromium.launch(launchOptions());
   const openContext = browser.newContext.bind(browser);
-  browser.newContext = async (options) => isolate(await openContext(options));
+  // English is the primary language, and a browser with no preference now
+  // gets English. The suites written before that assert the Arabic interface,
+  // so they run in an Arabic browser by default — which keeps the Arabic
+  // experience under test instead of dropping it. language.test.js asks for
+  // English (or anything else) explicitly with { locale }.
+  browser.newContext = async (options) => isolate(await openContext({ locale: DEFAULT_LOCALE, ...(options || {}) }));
   browser.newPage = async (options) => {
     const context = await browser.newContext(options);
     const page = await context.newPage();
