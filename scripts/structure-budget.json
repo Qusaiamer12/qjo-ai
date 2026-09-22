@@ -1,5 +1,5 @@
 {
-  "public/app.js": 6525,
+  "public/app.js": 6179,
   "server.js": 777,
   "src/agents/RoutingEngine.js": 824,
   "src/agents/TaskRunner.js": 310,

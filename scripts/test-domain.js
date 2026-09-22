@@ -7,6 +7,7 @@
 const assert = require('assert');
 const { classifyRequestFailure } = require('../public/domain/requestFailure.js');
 const { createSseParser, routeStreamChunk } = require('../public/domain/streamProtocol.js');
+const markdown = require('../public/domain/markdown.js');
 
 let pass = 0, fail = 0;
 function test(name, fn) {
@@ -305,6 +306,119 @@ function test(name, fn) {
       }
     }
     assert.strictEqual(rebuilt, answer, `reassembly differs:\n  got  ${rebuilt}\n  want ${answer}`);
+  });
+
+
+  console.log('\nMarkdown rendering cannot be turned into markup injection:');
+
+  // Every answer goes through this and lands in the page as HTML, which makes
+  // it the largest escaping surface in the front end. The property that holds
+  // it together: the whole input is escaped before any markup is generated, so
+  // a quote inside a link target becomes &quot; and cannot close an attribute.
+  // These assert on the rendered result, not on strings, because a test that
+  // greps for "<script" passes on output that is still dangerous.
+  const render = (src) => markdown.lightMarkdown(src);
+
+  const attacks = [
+    ['a raw script tag', '<script>alert(1)</script>'],
+    ['an image error handler', '<img src=x onerror=alert(1)>'],
+    ['breaking out of href', '[x](https://a" onmouseover="alert(1))'],
+    ['markup in a link label', '[<img src=x onerror=alert(1)>](https://a.com)'],
+    ['markup inside code', '`<img src=x onerror=alert(1)>`'],
+    ['markup inside bold', '**<img src=x onerror=alert(1)>**'],
+    ['markup in a table cell', '| a | b |\n| --- | --- |\n| <img src=x onerror=alert(1)> | y |'],
+    ['markup in a heading', '# <img src=x onerror=alert(1)>'],
+    ['an svg handler', '<svg onload=alert(1)>'],
+    ['an iframe', '<iframe src="javascript:alert(1)"></iframe>'],
+    ['a style block', '<style>body{display:none}</style>']
+  ];
+
+  for (const [label, payload] of attacks) {
+    test(`${label} renders inert`, () => {
+      const html = render(payload);
+      assert.ok(!/<script\b/i.test(html), `a script tag survived: ${html.slice(0, 120)}`);
+      assert.ok(!/<iframe\b/i.test(html), `an iframe survived: ${html.slice(0, 120)}`);
+      assert.ok(!/<style\b/i.test(html), `a style block survived: ${html.slice(0, 120)}`);
+      // Only an event handler INSIDE a real tag is dangerous. Escaped text
+      // reading "onerror=alert(1)" is inert, and a bare search for /\son\w+=/
+      // fails on output that is perfectly safe — the mirror image of a test
+      // that greps for "<script" and passes on output that is not.
+      assert.ok(!/<[a-z][^>]*\son\w+\s*=/i.test(html), `an event handler survived inside a tag: ${html.slice(0, 160)}`);
+      // The payload's own markup must have arrived escaped, not stripped: if a
+      // sanitiser silently dropped it we would never learn that it got through.
+      if (/^</.test(payload)) {
+        assert.ok(html.includes('&lt;'), `markup was neither escaped nor visible: ${html.slice(0, 120)}`);
+      }
+    });
+  }
+
+  test('a javascript: link never becomes an anchor', () => {
+    const html = render('[x](javascript:alert(1))');
+    assert.ok(!/href\s*=\s*["']?javascript:/i.test(html), html);
+  });
+
+  test('a link target cannot close its own attribute', () => {
+    const html = render('[x](https://a" onmouseover="alert(1))');
+    // The quote has to arrive escaped, or the attribute ends early.
+    assert.ok(!/href="[^"]*"\s+onmouseover/i.test(html), `attribute injection: ${html}`);
+  });
+
+  console.log('\nMarkdown still renders what it should:');
+
+  test('bold becomes strong', () => {
+    assert.ok(/<strong>غامق<\/strong>/.test(render('**غامق**')), render('**غامق**'));
+  });
+
+  test('inline code becomes code', () => {
+    assert.ok(/<code>x<\/code>/.test(render('`x`')), render('`x`'));
+  });
+
+  test('a real link becomes an anchor that opens safely', () => {
+    const html = render('[مصدر](https://example.com/a)');
+    assert.ok(/href="https:\/\/example\.com\/a"/.test(html), html);
+    assert.ok(/rel="noopener noreferrer"/.test(html), 'a new-tab link without noopener exposes window.opener');
+    assert.ok(/target="_blank"/.test(html), html);
+  });
+
+  test('a bare URL becomes a link', () => {
+    assert.ok(/<a [^>]*href="https:\/\/example\.com"/.test(render('شوف https://example.com هون')), render('شوف https://example.com هون'));
+  });
+
+  test('a table becomes a table', () => {
+    const html = render('| أ | ب |\n| --- | --- |\n| ١ | ٢ |');
+    assert.ok(/<table/.test(html), html.slice(0, 120));
+    assert.ok(/<th>أ<\/th>/.test(html), html.slice(0, 200));
+    assert.ok(/<td>١<\/td>/.test(html), html.slice(0, 250));
+  });
+
+  test('a malformed table does not throw', () => {
+    for (const bad of ['|', '| a |', '| a |\n| --- |', '|||\n|---|---|', '| a | b |\n| --- |\n| 1 |']) {
+      assert.doesNotThrow(() => render(bad), `threw on: ${JSON.stringify(bad)}`);
+    }
+  });
+
+  test('headings shift down so they nest under the page', () => {
+    // An answer must not emit an h1 that competes with the page's own heading.
+    assert.ok(!/<h1[\s>]/.test(render('# عنوان')), render('# عنوان'));
+  });
+
+  test('empty and non-string input do not throw', () => {
+    for (const input of ['', null, undefined, 0, false]) {
+      assert.doesNotThrow(() => render(input), `threw on ${JSON.stringify(input)}`);
+    }
+  });
+
+  test('a very long answer renders in reasonable time', () => {
+    const long = '## قسم\n\nفقرة تحليلية مع **غامق** و `كود` ورابط https://example.com\n\n- نقطة\n- أخرى\n\n'.repeat(300);
+    const started = Date.now();
+    const html = render(long);
+    const elapsed = Date.now() - started;
+    assert.ok(html.length > 1000, 'nothing rendered');
+    assert.ok(elapsed < 3000, `rendering took ${elapsed}ms — catastrophic backtracking somewhere`);
+  });
+
+  test('escapeHtml covers every character that can start markup', () => {
+    assert.strictEqual(markdown.escapeHtml('<>&"\''), '&lt;&gt;&amp;&quot;&#039;');
   });
 
   console.log('\n========================================');
