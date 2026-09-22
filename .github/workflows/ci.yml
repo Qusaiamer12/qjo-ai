@@ -63,6 +63,13 @@ jobs:
       - name: Search behaviour suite
         run: npm run test:search
 
+      # "It lost the ability to search." Real search service against fake
+      # Tavily, Serper, Google News, Wikipedia and DuckDuckGo over real HTTP:
+      # a rejected request, spent credits, a blocked fallback, a stalled body.
+      # Search must still answer, never invent a result, and say why it failed.
+      - name: Search providers suite
+        run: npm run test:search-providers
+
       # "It decides to search, then it just stops." Real llmService and
       # RoutingEngine against a fake provider over real HTTP: headers then
       # silence, keys that all stall, a search that never returns, every model

@@ -86,6 +86,7 @@ qjo-ai/
 │   │   ├── fetchPageTool.js
 │   │   └── workspaceTools.js
 │   └── search/
+│       ├── providers.js         Tavily, Serper, key-free fallbacks, per-provider health
 │       └── searchCore.js        Pure: ranking, query distillation, scoring
 ├── public/
 │   ├── index.html
@@ -175,6 +176,10 @@ Each of these exists because it happened.
 | Prompt exceeds the context window | Halved keeping both ends, retried, model told content was removed |
 | Context-length rejection | Not a key fault: no cooldown, no rotation |
 | Search provider unreachable | Raced against a budget; snippets beat perfect results nobody receives |
+| Search provider rejects the request (400/422) | Retried once with only the minimal documented parameters |
+| Search provider out of credits or key rejected | Logged once a minute, rests 10 min (quota) or 30 min (key) instead of being asked every query; reason visible in `/api/status` → `searchHealth` |
+| Every keyed search provider fails | Google News RSS, Wikipedia and DuckDuckGo run side by side, with time kept back for them |
+| Every search source fails | An empty result marked `unavailable`, never an invented one; the model is told search is down, not that nothing exists; not cached |
 | Answer cut off by token budget | Reported, with a continue action |
 | A step of a long task fails | Task stays alive; stepping again resumes from that point |
 | Render instance sleeps mid-task | State is in Firestore; the next step wakes it |

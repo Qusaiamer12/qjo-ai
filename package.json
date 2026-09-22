@@ -31,7 +31,8 @@
     "test:browser": "node tests/browser/run.js",
     "test:search-e2e": "node scripts/test-search-e2e.js",
     "test:route": "node scripts/test-chat-route.js",
-    "test:language": "node scripts/test-language.js"
+    "test:language": "node scripts/test-language.js",
+    "test:search-providers": "node scripts/test-search-providers.js"
   },
   "dependencies": {
     "@qdrant/js-client-rest": "^1.19.0",

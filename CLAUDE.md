@@ -57,6 +57,11 @@ Each of these produced a green result that meant nothing.
   check left the loop exiting before the reset ever ran; the suite stayed
   green and it looked like a gap in the tests. A surviving mutation is a
   question — is the test blind, or is the mutation dead? — not a verdict.
+- **A fallback that invents a result.** When every search provider failed,
+  a key-free fallback returned a placeholder ("Use the linked search page for
+  manual verification") that counted as success and was cached. Production
+  search looked alive in every metric while answering nothing. An empty
+  result must be empty, and a failure must be logged and visible.
 - **Verification that lives outside the repo.** 264 browser assertions spent
   weeks in a scratch directory that is deleted with the container. A check
   that is not committed and not in CI does not exist.
@@ -68,6 +73,8 @@ npm test                  # server behaviour
 npm run test:domain       # front-end pure logic, no browser
 npm run test:search       # search decision, results, budget
 npm run test:search-e2e   # hangs: fake provider over real HTTP, per-case watchdog
+npm run test:search-providers  # every search provider failing in every way
+npm run test:language     # English-first; every Arabic prompt phrase retained
 npm run test:route        # chat route: keep-alives, error events, fallback caching
 npm run test:agent        # tool loop bounds
 npm run test:tasks        # long-task durability across restarts

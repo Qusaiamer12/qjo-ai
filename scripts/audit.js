@@ -203,10 +203,14 @@ must(read('src/routes/search.js').includes("app.post('/api/search'"), '/api/sear
 must(read('src/routes/search.js').includes("app.post('/api/deep-search'"), '/api/deep-search exists');
 must(read('src/routes/export.js').includes("app.post('/api/export/code-zip'"), 'Code project ZIP endpoint exists');
 must(server.includes("require('./src/routes/export')") && read('src/routes/export.js').includes("app.post('/api/export/pdf'") && read('src/routes/export.js').includes("app.post('/api/export/pptx'") && read('src/services/exportService.js').includes('exportPdf') && read('src/services/exportService.js').includes('exportPptx'), 'Export route/service modules exist');
-must(read('src/services/searchService.js').includes('tavilySearch'), 'Tavily search support exists');
+must(read('src/search/providers.js').includes('async function tavily('), 'Tavily search support exists');
 must(read('src/services/searchService.js').includes('firecrawlScrape') && read('src/services/searchService.js').includes('enrichResultsWithFirecrawl'), 'Firecrawl enrichment exists');
-must(read('src/services/searchService.js').includes("search_depth: depth === 'advanced'"), 'Tavily advanced depth enabled');
-must(read('src/services/searchService.js').includes('include_raw_content'), 'Tavily raw content enabled for advanced');
+must(read('src/search/providers.js').includes("search_depth: advanced ? 'advanced' : 'basic'"), 'Tavily advanced depth enabled');
+must(read('src/search/providers.js').includes('include_raw_content: advanced'), 'Tavily raw content enabled for advanced');
+// When every provider failed, a placeholder "result" used to stand in for
+// search and was relayed to people as an answer. Empty must stay empty.
+const codeOnly = (file) => read(file).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+must(!/manual verification/i.test(codeOnly('src/search/providers.js')) && !/manual verification/i.test(codeOnly('src/services/searchService.js')), 'Search never invents a result when providers fail');
 must(server.includes('memoryCaches') && server.includes('cacheGet') && server.includes('cacheSet'), 'Search/cache performance layer exists');
 must(read('src/search/searchCore.js').includes('buildSearchBeastPlan') && read('src/search/searchCore.js').includes('rankSearchBeastResults') && read('src/services/searchService.js').includes('buildSearchBeastPlan'), 'Search Beast v2 ranking exists');
 

@@ -571,6 +571,7 @@ registerSystemRoutes(app, {
   hasFirebaseAdmin,
   adminEmailsSize: () => ADMIN_EMAILS.size,
   tavilyApiKey: TAVILY_API_KEY,
+  searchHealth: () => searchService.health(), // per provider, no keys; called after searchService exists
   firecrawlApiKey: FIRECRAWL_API_KEY,
   serperApiKey: process.env.SERPER_API_KEY,
   embeddingsService,
@@ -669,8 +670,6 @@ const searchService = createSearchService({
 registerSearchRoutes(app, { verifyFirebaseRequest, searchService });
 
 routingEngine.searchService = searchService;
-
-
 
 const chatPromptBuilder = createChatPromptBuilder();
 

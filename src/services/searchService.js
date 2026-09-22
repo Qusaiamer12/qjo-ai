@@ -4,6 +4,7 @@ const {
   rankSearchBeastResults
 } = require('../search/searchCore');
 const { validateSearchQueries } = require('../tools/searchTool');
+const { createSearchProviders, searchWasUnavailable } = require('../search/providers');
 
 function requireDeps(deps) {
   const required = ['stableCacheKey', 'cacheGet', 'cacheSet', 'memoryCaches'];
@@ -18,223 +19,39 @@ function createSearchService(deps) {
   const firecrawlApiKey = () => String(deps.firecrawlApiKey || '').trim();
   const serperApiKey = () => String(deps.serperApiKey || '').trim();
 
-  // ── Providers ────────────────────────────────────────────────────────────
+  // Providers, their health and the key-free fallbacks live in
+  // src/search/providers.js. Endpoints are injectable so tests can stand up
+  // fake providers over real HTTP.
+  const providers = createSearchProviders({
+    tavilyApiKey,
+    serperApiKey,
+    endpoints: deps.searchEndpoints,
+    fetchImpl: deps.fetchImpl
+  });
 
-  async function tavilySearch(query, maxResults = 5, depth = 'basic', mode = 'general') {
-    const key = tavilyApiKey();
-    if (!key) throw new Error('Tavily is not configured.');
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), depth === 'advanced' ? 18000 : 8000);
-    const body = {
-      query,
-      search_depth: depth === 'advanced' ? 'advanced' : 'basic',
-      max_results: maxResults,
-      include_answer: true,
-      include_raw_content: depth === 'advanced',
-      include_images: false,
-      exclude_domains: ['facebook.com', 'instagram.com', 'tiktok.com', 'threads.net', 'pinterest.com'],
-      // Mode-aware retrieval: news goes through the news topic with a
-      // freshness window; pricing/market get a wider one. Previously
-      // everything went out as topic:'general' with no date window.
-      topic: mode === 'news' ? 'news' : 'general',
-      country: 'jo'
-    };
-    if (mode === 'news') body.days = depth === 'advanced' ? 30 : 7;
-    else if (mode === 'pricing' || mode === 'market') body.days = 30;
-    const upstream = await fetch('https://api.tavily.com/search', {
-      method: 'POST',
-      signal: controller.signal,
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
-      body: JSON.stringify(body)
-    });
-    clearTimeout(timeout);
-    const data = await upstream.json().catch(() => ({}));
-    if (!upstream.ok) {
-      const err = new Error(data?.error || 'Search provider error.');
-      err.statusCode = upstream.status;
-      throw err;
-    }
-    const JUNK_DOMAINS = ['facebook.com', 'instagram.com', 'tiktok.com', 'threads.net', 'pinterest.com'];
-    return (data.results || [])
-      .filter(r => !JUNK_DOMAINS.some(d => String(r.url || '').toLowerCase().includes(d)))
-      .map((r) => ({
-        title: String(r.title || '').slice(0, 180),
-        url: String(r.url || '').slice(0, 700),
-        content: String(r.content || '').slice(0, depth === 'advanced' ? 1800 : 1200),
-        rawContent: String(r.raw_content || '').slice(0, depth === 'advanced' ? 3000 : 0),
-        publishedDate: String(r.published_date || r.publishedDate || '').slice(0, 40),
-        score: Number(r.score || 0),
-        query,
-        providerAnswer: data.answer ? String(data.answer).slice(0, 1200) : ''
-      }));
-  }
-
-  // Serper.dev — Google Search results via API (great Arabic/local coverage).
-  // Free tier: 2,500 one-time credits. We map mode→time window (tbs) and
-  // always pin gl:jo + query-language hl for the Jordan-first product.
-  async function serperSearch(query, maxResults = 5, mode = 'general') {
-    const key = serperApiKey();
-    if (!key) throw new Error('Serper is not configured.');
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 7000);
-    const isArabic = /[؀-ۿ]/.test(query);
-    const body = {
-      q: query,
-      num: Math.min(Math.max(maxResults, 1), 10),
-      gl: 'jo',
-      hl: isArabic ? 'ar' : 'en'
-    };
-    if (mode === 'news') body.tbs = 'qdr:w';
-    else if (mode === 'pricing' || mode === 'market') body.tbs = 'qdr:m';
-    const upstream = await fetch('https://google.serper.dev/search', {
-      method: 'POST',
-      signal: controller.signal,
-      headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    clearTimeout(timeout);
-    const data = await upstream.json().catch(() => ({}));
-    if (!upstream.ok) {
-      const err = new Error('Serper search provider error.');
-      err.statusCode = upstream.status;
-      throw err;
-    }
-    const answerText = String(
-      data.answerBox?.answer || data.answerBox?.snippet ||
-      (Array.isArray(data.answerBox?.snippetHighlighted) ? data.answerBox.snippetHighlighted.join(' ') : '') || ''
-    ).slice(0, 1200);
-    return ((data.organic) || []).map((r, i) => ({
-      title: String(r.title || '').slice(0, 180),
-      url: String(r.link || '').slice(0, 700),
-      content: String(r.snippet || '').slice(0, 1200),
-      publishedDate: String(r.date || '').slice(0, 40),
-      score: Math.max(0.05, 0.85 - i * 0.05),
-      query,
-      providerAnswer: answerText
-    })).filter(r => r.url);
-  }
-
-  // Last resort, key-free: DuckDuckGo. The old Instant Answer API almost
-  // never returns web results, so we now scrape the public HTML results page
-  // first (real web search, no key) and only then fall back to Instant Answer.
-  function decodeDdgEntities(text) {
-    return String(text || '')
-      .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"').replace(/&#x27;|&#39;/g, "'").replace(/&#x2F;/g, '/');
-  }
-
-  function unwrapDdgUrl(href) {
-    const raw = decodeDdgEntities(href || '');
-    const match = raw.match(/uddg=([^&]+)/);
-    if (match) { try { return decodeURIComponent(match[1]); } catch (_) { return raw; } }
-    if (raw.startsWith('//')) return 'https:' + raw;
-    return raw;
-  }
-
-  function stripHtml(text) {
-    return decodeDdgEntities(String(text || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim());
-  }
-
-  async function duckDuckGoHtmlSearch(query, maxResults = 5) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
-    try {
-      const response = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`, {
-        signal: controller.signal,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml'
-        }
-      });
-      clearTimeout(timeout);
-      if (!response.ok) return [];
-      const html = await response.text();
-      const results = [];
-      const blocks = html.match(/<div class="result results_links[^"]*"[\s\S]*?(?=<div class="result results_links|<div id="links" class="results_links_end|$)/g) || [];
-      for (const block of blocks.slice(0, Math.max(1, maxResults) + 2)) {
-        const linkMatch = block.match(/<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/i);
-        if (!linkMatch) continue;
-        const url = unwrapDdgUrl(linkMatch[1]).slice(0, 700);
-        const title = stripHtml(linkMatch[2]).slice(0, 180);
-        if (!url || !title || !/^https?:\/\//i.test(url)) continue;
-        const snippetMatch = block.match(/class="result__snippet"[^>]*>([\s\S]*?)<\/a>/i) || block.match(/class="result__snippet"[^>]*>([\s\S]*?)<\/div>/i);
-        const content = snippetMatch ? stripHtml(snippetMatch[1]).slice(0, 900) : '';
-        results.push({ title, url, content, score: Math.max(0.2, 0.6 - results.length * 0.05), query });
-        if (results.length >= maxResults) break;
-      }
-      return results;
-    } catch (_) {
-      clearTimeout(timeout);
-      return [];
-    }
-  }
-
-  async function duckDuckGoInstantAnswers(query, maxResults = 5) {
-    const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
-    const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
-    const data = await response.json().catch(() => ({}));
-    const results = [];
-    if (data.AbstractText) {
-      results.push({ title: data.Heading || query, url: data.AbstractURL || 'https://duckduckgo.com/?q=' + encodeURIComponent(query), content: data.AbstractText, score: 0.75, query });
-    }
-    function flatten(topics) {
-      for (const item of topics || []) {
-        if (results.length >= maxResults) break;
-        if (item.Text && item.FirstURL) results.push({ title: item.Text.split(' - ')[0].slice(0, 180), url: item.FirstURL, content: item.Text, score: 0.45, query });
-        if (item.Topics) flatten(item.Topics);
-      }
-    }
-    flatten(data.RelatedTopics);
-    return results.slice(0, maxResults);
-  }
-
-  async function duckDuckGoSearch(query, maxResults = 5) {
-    const htmlResults = await duckDuckGoHtmlSearch(query, maxResults);
-    if (htmlResults.length) return htmlResults;
-    const instant = await duckDuckGoInstantAnswers(query, maxResults);
-    if (instant.length) return instant;
-    return [{ title: 'DuckDuckGo search', url: 'https://duckduckgo.com/?q=' + encodeURIComponent(query), content: 'No instant answer was returned. Use the linked search page for manual verification.', score: 0.1, query }];
-  }
-
-  // Per-query resilient chain: Tavily → Serper → key-free DDG.
-  // If a configured provider fails (exhausted credits, outage, bad key), the
-  // SAME query transparently retries on the next provider — no dead searches
-  // just because a key hit its monthly cap.
+  /** One query through every provider; results only (kept for callers). */
   async function searchProvider(query, maxResults = 5, depth = 'basic', mode = 'general', deadlineMs = 0) {
-    const chain = [];
-    if (tavilyApiKey()) chain.push(['tavily', () => tavilySearch(query, maxResults, depth, mode)]);
-    if (serperApiKey()) chain.push(['serper', () => serperSearch(query, maxResults, mode)]);
-    chain.push(['duckduckgo', () => duckDuckGoSearch(query, maxResults)]);
-    let lastErr = null;
-    for (const [name, step] of chain) {
-      const remaining = deadlineMs ? deadlineMs - Date.now() : 0;
-      // Falling back is only worth it if there is time left to use the answer.
-      if (deadlineMs && remaining <= 250) {
-        console.warn(`[search] out of budget before trying ${name} for "${String(query).slice(0, 60)}"`);
-        break;
-      }
-      try {
-        // Checking the clock between providers is not enough: one provider that
-        // stops answering holds the whole request open on its own timeout,
-        // which is longer than the budget it is supposed to fit inside. Racing
-        // each attempt makes the budget mean what it says.
-        const r = deadlineMs
-          ? await Promise.race([
-            step(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error(`${name} exceeded the search budget`)), remaining))
-          ])
-          : await step();
-        if (r && r.length) return r;
-      } catch (e) { lastErr = e; }
-    }
-    if (lastErr && !deadlineMs) throw lastErr;
-    return [];
+    const { results } = await providers.search(query, { maxResults, depth, mode, deadlineMs });
+    return results;
   }
 
-  function activeProviderName() {
-    if (tavilyApiKey()) return 'tavily';
-    if (serperApiKey()) return 'serper';
-    return 'duckduckgo-fallback';
+  const activeProviderName = () => providers.activeProviderName();
+
+  /**
+   * Runs a query set and says what happened: 'ok', 'empty' (providers
+   * answered, nothing matched) or 'unavailable' (no provider answered at
+   * all). The model is told which, because "nothing found" and "search is
+   * down" call for different answers.
+   */
+  async function runQueries(queries, plan, deadline) {
+    const outcomes = await Promise.all(queries.map((q) => providers.search(q, {
+      maxResults: plan.maxResultsPerQuery, depth: plan.depth, mode: plan.mode, deadlineMs: deadline
+    })));
+    const merged = outcomes.flatMap((o) => o.results);
+    const attempts = outcomes.flatMap((o) => o.attempts);
+    const status = merged.length ? 'ok' : (searchWasUnavailable(attempts) ? 'unavailable' : 'empty');
+    const failures = [...new Set(attempts.filter((a) => a.ok === false).map((a) => `${a.provider}: ${a.error}`))].slice(0, 4);
+    return { merged, status, failures };
   }
 
   // ── LLM query rewriter (the single biggest quality lever for Arabic) ─────
@@ -361,9 +178,7 @@ function createSearchService(deps) {
     const plan = buildSearchBeastPlan(query, false);
     const queries = validateSearchQueriesRefined(await buildQuerySet(original, query, plan, 3));
     // The query set runs in parallel; per-query mode steers topic/freshness.
-    const batches = await Promise.allSettled(queries.map(q => searchProvider(q, plan.maxResultsPerQuery, plan.depth, plan.mode, deadline)));
-    const merged = [];
-    for (const batch of batches) if (batch.status === 'fulfilled') merged.push(...batch.value);
+    const { merged, status, failures } = await runQueries(queries, plan, deadline);
     let results = rankSearchBeastResults(merged, plan.mode, original || query).slice(0, plan.keepResults);
     // Reading pages makes the sources much stronger, but only if there is time
     // left. Snippets now beat perfect extraction the caller never receives.
@@ -371,8 +186,11 @@ function createSearchService(deps) {
       results = await enrichResultsWithFirecrawl(results, plan.enrichPages, deadline);
     }
     results = rankSearchBeastResults(results, plan.mode, original || query).slice(0, plan.keepResults).map((r, index) => ({ id: index + 1, ...r }));
-    const payload = { query, queries, originalQuestion: original, mode: plan.mode, plan: { queries: plan.queries, depth: plan.depth, enrichPages: plan.enrichPages }, provider: activeProviderName(), extractionProvider: firecrawlApiKey() ? 'firecrawl' : null, results, generatedAt: new Date().toISOString(), cached: false };
-    return deps.cacheSet(deps.memoryCaches.search, cacheKey, payload, 10 * 60 * 1000, 180);
+    const payload = { query, queries, originalQuestion: original, mode: plan.mode, plan: { queries: plan.queries, depth: plan.depth, enrichPages: plan.enrichPages }, provider: activeProviderName(), extractionProvider: firecrawlApiKey() ? 'firecrawl' : null, results, status, failures, generatedAt: new Date().toISOString(), cached: false };
+    // Only a search that found something is worth remembering. Caching an
+    // empty or failed one served the failure for ten minutes after the
+    // providers had recovered.
+    return results.length ? deps.cacheSet(deps.memoryCaches.search, cacheKey, payload, 10 * 60 * 1000, 180) : payload;
   }
 
   async function performDeepSearch({ rawQuestion, originalQuestion }) {
@@ -385,16 +203,14 @@ function createSearchService(deps) {
     if (cached) return { ...cached, cached: true };
     const planned = buildSearchBeastPlan(question, true);
     const queries = validateSearchQueriesRefined(await buildQuerySet(original, question, planned, 6));
-    const batches = await Promise.allSettled(queries.map(q => searchProvider(q, planned.maxResultsPerQuery, planned.depth, planned.mode, deadline)));
-    const merged = [];
-    for (const batch of batches) if (batch.status === 'fulfilled') merged.push(...batch.value);
+    const { merged, status, failures } = await runQueries(queries, planned, deadline);
     let results = rankSearchBeastResults(merged, planned.mode, original || question).slice(0, planned.keepResults);
     if (Date.now() < deadline - 5000) {
       results = await enrichResultsWithFirecrawl(results, planned.enrichPages, deadline);
     }
     results = rankSearchBeastResults(results, planned.mode, original || question).slice(0, planned.keepResults).map((r, index) => ({ id: index + 1, ...r }));
-    const payload = { question, queries, originalQuestion: original, mode: planned.mode, plan: { depth: planned.depth, enrichPages: planned.enrichPages, maxResultsPerQuery: planned.maxResultsPerQuery }, searchProvider: activeProviderName(), extractionProvider: firecrawlApiKey() ? 'firecrawl' : null, results, generatedAt: new Date().toISOString(), cached: false };
-    return deps.cacheSet(deps.memoryCaches.deepSearch, cacheKey, payload, 10 * 60 * 1000, 120);
+    const payload = { question, queries, originalQuestion: original, mode: planned.mode, plan: { depth: planned.depth, enrichPages: planned.enrichPages, maxResultsPerQuery: planned.maxResultsPerQuery }, searchProvider: activeProviderName(), extractionProvider: firecrawlApiKey() ? 'firecrawl' : null, results, status, failures, generatedAt: new Date().toISOString(), cached: false };
+    return results.length ? deps.cacheSet(deps.memoryCaches.deepSearch, cacheKey, payload, 10 * 60 * 1000, 120) : payload;
   }
 
   // Same validation as validateSearchQueries but tolerant: drops bad entries
@@ -412,7 +228,11 @@ function createSearchService(deps) {
     }
   }
 
-  return { performSearch, performDeepSearch, searchProvider, enrichResultsWithFirecrawl, rewriteQueryWithLLM };
+  return {
+    performSearch, performDeepSearch, searchProvider, enrichResultsWithFirecrawl, rewriteQueryWithLLM,
+    /** Per-provider health for /api/status: status codes and messages, never keys. */
+    health: () => providers.health.snapshot()
+  };
 }
 
 module.exports = { createSearchService };

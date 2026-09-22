@@ -27,6 +27,11 @@ function registerSystemRoutes(app, deps) {
         admin: deps.hasFirebaseAdmin() && deps.adminEmailsSize() > 0
       },
       providers: qjoProviders,
+      // Per search provider: last success, last failure (HTTP status and the
+      // provider's own message), and whether it is resting after a quota or
+      // credentials failure. This is where "search stopped working" becomes a
+      // reason instead of a mystery.
+      searchHealth: typeof deps.searchHealth === 'function' ? deps.searchHealth() : {},
       publicMessage: 'Qjo status endpoint. No secrets are exposed.'
     });
   });

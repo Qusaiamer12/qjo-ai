@@ -52,6 +52,9 @@ function evidenceFromSearch(payload) {
 function formatSearchResultsForTool(payload) {
   const results = (payload?.results || []).slice(0, MAX_SOURCES);
   const query = payload?.query || '';
+  if (!results.length && payload?.status === 'unavailable') {
+    return `Web search is unavailable right now — every search provider failed for "${query}". Tell the person plainly that live search did not work this time (not that the information does not exist), give what you know with a clear note that it may be out of date, and suggest asking again in a few minutes.`;
+  }
   if (!results.length) {
     return `No web results found for "${query}". Do not fill the gap from memory as if it were current: say plainly that you could not find up-to-date information, give what you know with that caveat, or try one different, simpler query.`;
   }

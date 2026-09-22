@@ -33,6 +33,7 @@ const WATCHED = [
   'src/services/llmService.js',
   'src/services/providerResponse.js',
   'src/services/searchService.js',
+  'src/search/providers.js',
   'src/search/searchCore.js',
   'src/services/systemPrompt.js',
   'src/services/knowledgeBase.js'
