@@ -15,6 +15,11 @@ const BUDGET_FILE = path.join(__dirname, 'structure-budget.json');
 // Files worth holding a line on. Anything not listed is free.
 const WATCHED = [
   'public/app.js',
+  'public/boot.js',
+  'public/domain/markdown.js',
+  'public/domain/requestFailure.js',
+  'public/domain/streamProtocol.js',
+  'public/ui/streamingView.js',
   'server.js',
   'src/agents/RoutingEngine.js',
   'src/agents/TaskRunner.js',

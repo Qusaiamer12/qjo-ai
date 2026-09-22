@@ -1,3 +1,11 @@
+// boot.js runs first and checks that every module app.js depends on actually
+// arrived. If one did not, it has already told the person and offered a reload;
+// running on regardless would only fail again somewhere less obvious — at load
+// on a destructuring error, or silently until the first message is sent.
+if (window.__qjoBootOk === false) {
+  throw new Error('Qjo: a required module did not load; app.js is not starting. See boot.js.');
+}
+
 window.MathJax = window.MathJax || {
   tex: {
     inlineMath: [['\\(', '\\)'], ['$', '$']],

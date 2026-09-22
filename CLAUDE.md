@@ -1,0 +1,90 @@
+# Working on Qjo
+
+## How work is done here: the loop
+
+Every change goes through this, not just the large ones. The owner asked for
+it explicitly, and the history of this repo is the reason: most real defects
+found here were found by re-checking work that already looked finished.
+
+1. **Measure before changing.** Numbers, not impressions. Line counts,
+   complexity, what a request actually sends, what reaches the model.
+2. **Make the change.**
+3. **Verify it in the real thing.** A browser for UI, the real route for
+   server behaviour. A unit test proves the function; it does not prove the
+   feature.
+4. **Attack your own verification.** A check you have never seen fail is not
+   a check. For anything that matters, break the code on purpose and confirm
+   the test goes red, then restore it and confirm it goes green.
+5. **Re-read the diff as a reviewer who wants to reject it.**
+6. **Fix what that finds, and go round again** until a pass finds nothing.
+7. **Only then commit and push.** Say what was verified and how.
+
+### Traps this repo has already fallen into
+
+Each of these produced a green result that meant nothing.
+
+- **Vacuous browser probes.** A probe checked `window.lightMarkdown ? render :
+  'NO_GLOBAL'`. When the renderer became a module the global vanished, every
+  case rendered the literal string `NO_GLOBAL`, found no handlers in it, and
+  reported "safe". Probes must refuse to run when their target is missing, and
+  must include a positive control that proves they are looking at real output.
+- **Assertions that match escaped text.** Searching rendered HTML for
+  `/\son\w+=/` fails on correctly escaped `&lt;img onerror=...&gt;`. The
+  mirror image — grepping for `<script` — passes on output that is still
+  dangerous. Assert on real tags, or parse the DOM.
+- **Top-level `const` is not a `window` property.** Function declarations at
+  the top of a classic script are; `const` and `let` are not. Moving a
+  function into a destructured binding removes its global.
+- **An unexported env var.** `SC=... node test.js` without `export` hands the
+  child `undefined`; the test crashes on `require` and its empty output looks
+  like a result. Check exit codes, not just the absence of red lines.
+- **A failure that does not explain itself.** A reload loop first showed up as
+  "Timeout 30000ms exceeded". Tests should fail with the name of the problem.
+- **Splitting a file multiplies its failure points.** One script either loads
+  or does not. Five scripts can partially load. `public/boot.js` exists because
+  of this.
+
+## Verifying
+
+```bash
+npm test                  # server behaviour
+npm run test:domain       # front-end pure logic, no browser
+npm run test:search       # search decision, results, budget
+npm run test:agent        # tool loop bounds
+npm run test:tasks        # long-task durability across restarts
+npm run test:fetch        # SSRF guards on fetch_page
+npm run test:resilience   # key cooldowns, context recovery, trim budgets
+npm run test:stream       # streaming integrity
+npm run test:routing      # request classification
+npm run test:pdf          # export rendering
+npm run typecheck         # JSDoc checked by tsc, no build output
+npm run lint              # complexity/depth/params ratchet + correctness
+npm run structure         # per-file line budgets: shrink, never grow
+npm run audit
+npm run scan-secrets
+```
+
+`npm run structure -- --update` records a file getting smaller. Never use it
+to let a file grow: split the new code into a module instead.
+
+## Shape of the code
+
+See `docs/ARCHITECTURE.md` for the layers, where new code goes, security
+boundaries and the failure table. In short:
+
+- `server.js` is the only composition root and the only reader of
+  `process.env`. Everything else receives its dependencies as arguments.
+- `public/domain/` is pure: no DOM, no network, no state. Loadable from a
+  script tag and from a Node test. New logic goes here whenever it can.
+- `public/ui/` owns DOM behaviour; `public/boot.js` refuses to start the app
+  if any module failed to load.
+- `public/app.js` is the shell and is shrinking. It has a line budget.
+
+## Things that must not regress
+
+- A provider returning an empty answer is a failure, never a result.
+- A context-length rejection is a request fault: no key cooldown, no rotation.
+- `fetch_page` opens model-chosen URLs: every address is checked after DNS
+  resolution and again on every redirect hop.
+- Markdown escapes the whole input before generating any markup.
+- A long task's state lives in the store, never in a variable.

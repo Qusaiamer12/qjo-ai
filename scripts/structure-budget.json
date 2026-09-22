@@ -1,5 +1,10 @@
 {
-  "public/app.js": 6179,
+  "public/app.js": 6187,
+  "public/boot.js": 100,
+  "public/domain/markdown.js": 429,
+  "public/domain/requestFailure.js": 92,
+  "public/domain/streamProtocol.js": 143,
+  "public/ui/streamingView.js": 277,
   "server.js": 777,
   "src/agents/RoutingEngine.js": 824,
   "src/agents/TaskRunner.js": 310,
