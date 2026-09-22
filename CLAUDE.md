@@ -52,6 +52,11 @@ Each of these produced a green result that meant nothing.
   CDN are unreachable from the dev container and reachable on GitHub, so the
   same suite can meet two different pages. Browser suites block every origin
   but the app's (`tests/browser/harness.js`).
+- **A mutation that cannot reach the code.** Re-creating "each key gets a
+  fresh time budget" by resetting the budget *after* the loop's out-of-time
+  check left the loop exiting before the reset ever ran; the suite stayed
+  green and it looked like a gap in the tests. A surviving mutation is a
+  question — is the test blind, or is the mutation dead? — not a verdict.
 - **Verification that lives outside the repo.** 264 browser assertions spent
   weeks in a scratch directory that is deleted with the container. A check
   that is not committed and not in CI does not exist.
@@ -62,6 +67,8 @@ Each of these produced a green result that meant nothing.
 npm test                  # server behaviour
 npm run test:domain       # front-end pure logic, no browser
 npm run test:search       # search decision, results, budget
+npm run test:search-e2e   # hangs: fake provider over real HTTP, per-case watchdog
+npm run test:route        # chat route: keep-alives, error events, fallback caching
 npm run test:agent        # tool loop bounds
 npm run test:tasks        # long-task durability across restarts
 npm run test:fetch        # SSRF guards on fetch_page
@@ -85,8 +92,13 @@ with N > 0; the runner reports anything else (a crash, a missing summary,
 zero assertions, a hang) as a failure. Set `QJO_CHROMIUM_PATH` to use a
 specific Chromium; otherwise the harness finds one.
 
-`npm run structure -- --update` records a file getting smaller. Never use it
-to let a file grow: split the new code into a module instead.
+`npm run structure -- --update` records a file getting smaller. The large
+files (`public/app.js`, `server.js`, `llmService.js`, `RoutingEngine.js`,
+`chat.js`) never grow: new code goes into a module. A small single-purpose
+module may grow with code that is its own job — a new failure kind in
+`requestFailure.js`, stream reading next to the stream parser — and the commit
+says so. Splitting a responsibility across files to satisfy a line count adds
+a file that can fail to load and buys nothing.
 
 ## Shape of the code
 

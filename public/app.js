@@ -3807,27 +3807,17 @@ if len(__qjo_err_str) > 20000:
           throw err;
         }
 
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        // Frame parsing and the think-tag split are pure logic and moved to
-        // public/domain/streamProtocol.js, where they can be tested against
-        // chunk boundaries that are hard to reproduce against a live stream —
-        // a frame cut mid-field, a think tag opening and closing chunks apart.
-        // What is left here is dispatch.
-        const sse = QjoDomain.createSseParser();
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          for (const { event, data } of sse.push(decoder.decode(value, { stream: true }))) {
+        // Reading, frame parsing, the stall watchdog and the think-tag split
+        // live in public/domain/streamProtocol.js, where they can be tested
+        // against chunk boundaries and silences that are hard to reproduce
+        // against a live stream. What is left here is dispatch.
+        const { stalled } = await QjoDomain.readEventStream(response.body, {
+          idleMs: Number(window.__qjoStreamIdleMs) || 45000,
+          onEvent: ({ event, data }) => {
             if (event === 'reasoning') {
               streamReasoningText(data.text || '');
             } else if (event === 'tool_call') {
-              ensureReasoningWidget();
-              if (data.status === 'done' || data.done) {
-                appendReasoningStep(data.label || `Used ${data.tool}`, true);
-              }
+              view.toolStep(data);
             } else if (event === 'chunk') {
               const routed = QjoDomain.routeStreamChunk(data.text || '', insideThinkTag);
               insideThinkTag = routed.insideThink;
@@ -3845,7 +3835,13 @@ if len(__qjo_err_str) > 20000:
               throw new Error(data.error || 'AI Streaming failed.');
             }
           }
-        }
+        });
+
+        // A connection that died before a word arrived is a failure worth one
+        // silent retry. One that died mid-answer keeps what arrived and is
+        // offered as cut short, with the same "continue" a truncated answer gets.
+        if (stalled && !String(view.answer || '').trim()) throw new Error('STREAM_STALLED');
+        if (stalled) answerWasTruncated = true;
 
         if (view.reasoningActive) view.finishReasoning();
         view.flushRenders();

@@ -122,6 +122,29 @@
       requestSmoothScroll();
     }
 
+    // A tool step appears when the tool starts and is ticked when it ends.
+    // It used to appear only once finished, so a search in progress was an
+    // empty card: the person could not tell working from frozen.
+    const TOOL_NAMES_AR = { web_search: 'بحث في الويب', fetch_page: 'قراءة صفحة', calculate: 'حساب' };
+    const toolSteps = new Map();
+    function toolStep({ tool = '', label = '', detail = '', status = '', done = false } = {}) {
+      const key = `${tool}:${detail}`;
+      let step = toolSteps.get(key);
+      if (!step) {
+        ensureReasoningCard();
+        step = document.createElement('div');
+        step.className = 'qjo-reasoning-step tool-step';
+        step.setAttribute('dir', 'auto');
+        reasoningTimeline.appendChild(step);
+        toolSteps.set(key, step);
+        requestSmoothScroll();
+      }
+      const finished = status === 'done' || done;
+      const name = (getLanguage() === 'ar' && TOOL_NAMES_AR[tool]) || label || tool;
+      step.classList.toggle('is-running', !finished);
+      step.innerHTML = `<span class="qjo-step-dot"></span>${finished ? '<span class="tool-check">✓</span>' : '<span class="tool-spinner" aria-hidden="true"></span>'}<span>${escapeHtml(detail ? `${name}: ${detail}` : name)}</span>`;
+    }
+
     // Reasoning deltas arrive as fast as tokens, 100+/sec. Touching the DOM and
     // scrolling on each one forced a synchronous layout per delta — measured at
     // 2.53ms, 28x the cost of the write itself, which is where most of the
@@ -253,6 +276,7 @@
       ensureElements,
       ensureReasoningCard,
       addStep,
+      toolStep,
       streamReasoning,
       finishReasoning,
       appendAnswer,

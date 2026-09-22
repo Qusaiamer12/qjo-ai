@@ -63,6 +63,20 @@ jobs:
       - name: Search behaviour suite
         run: npm run test:search
 
+      # "It decides to search, then it just stops." Real llmService and
+      # RoutingEngine against a fake provider over real HTTP: headers then
+      # silence, keys that all stall, a search that never returns, every model
+      # failing after a search. Each case has a watchdog, so a hang fails with
+      # its name instead of holding the job until it times out.
+      - name: Search end-to-end suite
+        run: npm run test:search-e2e
+
+      # The route over real HTTP: keep-alives while the answer is prepared, an
+      # error event when something throws mid-stream, and a sources-only
+      # fallback that is never cached.
+      - name: Chat route suite
+        run: npm run test:route
+
       # The agent loop is what separates this from a chat box: the model must be
       # able to act on what it just learned, and the loop must stay bounded.
       - name: Agent loop suite

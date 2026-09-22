@@ -142,64 +142,83 @@ async function readCapped(response) {
   return Buffer.concat(chunks.map(c => Buffer.from(c))).subarray(0, MAX_BYTES).toString('utf8');
 }
 
-async function fetchPage(rawUrl, { fetchImpl = fetch } = {}) {
+async function fetchPage(rawUrl, { fetchImpl = fetch, timeoutMs = TIMEOUT_MS } = {}) {
   let url = await assertUrlIsFetchable(rawUrl);
   const visited = [];
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
     visited.push(url.toString());
+    // One clock per hop covering the whole exchange, body included. It used to
+    // be cleared as soon as headers arrived, so a page that then sent nothing
+    // held the socket open for as long as it liked.
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-    let response;
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      response = await fetchImpl(url.toString(), {
-        redirect: 'manual',
-        signal: controller.signal,
-        headers: {
-          // Identify honestly; some sites serve a different page to unknown agents.
-          'User-Agent': 'QjoAI/1.0 (+https://github.com/Qusaiamer12/qjo-ai)',
-          'Accept': 'text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.5'
-        }
-      });
-    } catch (error) {
+      const outcome = await fetchHop(url, { fetchImpl, signal: controller.signal, timeoutMs });
+      if (outcome.redirectTo) {
+        url = outcome.redirectTo;
+        continue;
+      }
+      return { ...outcome.page, redirects: visited.slice(0, -1) };
+    } finally {
       clearTimeout(timer);
-      if (error?.name === 'AbortError') throw new Error(`The page did not respond within ${TIMEOUT_MS / 1000}s.`);
-      throw new Error(`Could not open the page: ${error?.message || error}`);
     }
-    clearTimeout(timer);
+  }
+  throw new Error('That URL redirected too many times.');
+}
 
-    // A public URL is allowed to redirect somewhere private, so each hop is
-    // re-validated rather than trusted because the first one passed.
-    if (response.status >= 300 && response.status < 400) {
-      const location = response.headers.get('location');
-      if (!location) throw new Error(`The page returned ${response.status} with no destination.`);
-      url = await assertUrlIsFetchable(new URL(location, url).toString());
-      continue;
-    }
+async function fetchHop(url, { fetchImpl, signal, timeoutMs }) {
+  let response;
+  try {
+    response = await fetchImpl(url.toString(), {
+      redirect: 'manual',
+      signal,
+      headers: {
+        // Identify honestly; some sites serve a different page to unknown agents.
+        'User-Agent': 'QjoAI/1.0 (+https://github.com/Qusaiamer12/qjo-ai)',
+        'Accept': 'text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.5'
+      }
+    });
+  } catch (error) {
+    if (error?.name === 'AbortError') throw new Error(`The page did not respond within ${timeoutMs / 1000}s.`);
+    throw new Error(`Could not open the page: ${error?.message || error}`);
+  }
 
-    if (!response.ok) throw new Error(`The page returned HTTP ${response.status}.`);
+  // A public URL is allowed to redirect somewhere private, so each hop is
+  // re-validated rather than trusted because the first one passed.
+  if (response.status >= 300 && response.status < 400) {
+    const location = response.headers.get('location');
+    if (!location) throw new Error(`The page returned ${response.status} with no destination.`);
+    return { redirectTo: await assertUrlIsFetchable(new URL(location, url).toString()) };
+  }
 
-    const contentType = (response.headers.get('content-type') || '').toLowerCase();
-    if (contentType && !/text\/html|text\/plain|application\/xhtml|application\/json|text\/markdown|application\/xml|text\/xml/.test(contentType)) {
-      throw new Error(`That URL is ${contentType.split(';')[0] || 'a binary file'}, which cannot be read as text.`);
-    }
+  if (!response.ok) throw new Error(`The page returned HTTP ${response.status}.`);
 
-    const body = await readCapped(response);
-    const isHtml = /html|xml/.test(contentType) || /^\s*<(!doctype|html)/i.test(body);
-    const text = isHtml ? htmlToText(body) : body.trim();
-    const title = isHtml ? titleOf(body) : '';
-    const clipped = text.length > MAX_TEXT_CHARS;
+  const contentType = (response.headers.get('content-type') || '').toLowerCase();
+  if (contentType && !/text\/html|text\/plain|application\/xhtml|application\/json|text\/markdown|application\/xml|text\/xml/.test(contentType)) {
+    throw new Error(`That URL is ${contentType.split(';')[0] || 'a binary file'}, which cannot be read as text.`);
+  }
 
-    return {
+  let body;
+  try {
+    body = await readCapped(response);
+  } catch (error) {
+    if (signal.aborted) throw new Error(`The page did not finish loading within ${timeoutMs / 1000}s.`);
+    throw new Error(`The page stopped sending before it finished: ${error?.message || error}`);
+  }
+  const isHtml = /html|xml/.test(contentType) || /^\s*<(!doctype|html)/i.test(body);
+  const text = isHtml ? htmlToText(body) : body.trim();
+  const title = isHtml ? titleOf(body) : '';
+  const clipped = text.length > MAX_TEXT_CHARS;
+
+  return {
+    page: {
       url: url.toString(),
       title,
       text: clipped ? text.slice(0, MAX_TEXT_CHARS) : text,
-      truncated: clipped,
-      redirects: visited.slice(0, -1)
-    };
-  }
-
-  throw new Error('That URL redirected too many times.');
+      truncated: clipped
+    }
+  };
 }
 
 // What the model actually sees. The header matters: without the resolved URL

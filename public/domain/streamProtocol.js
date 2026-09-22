@@ -64,6 +64,50 @@
   }
 
   /**
+   * Reads a streamed response to its end, handing each event to onEvent.
+   *
+   * Resolves { stalled: true } when no bytes at all arrive for idleMs. The
+   * server sends a keep-alive comment every 10 seconds while it works, so
+   * that much silence is a dead connection, not a slow answer. Before this
+   * the only limit was a 180-second timer that was cleared the moment the
+   * response headers arrived — and the server sends those immediately — so a
+   * stream that stopped mid-way left "searching…" on screen for good.
+   *
+   * An exception from onEvent (an `error` event, say) cancels the stream and
+   * propagates.
+   *
+   * @param {ReadableStream<Uint8Array>} body
+   * @param {{onEvent: (e: {event: string, data: any}) => void, idleMs: number}} options
+   * @returns {Promise<{stalled: boolean}>}
+   */
+  async function readEventStream(body, { onEvent, idleMs }) {
+    const reader = body.getReader();
+    const decoder = new TextDecoder();
+    const sse = createSseParser();
+    let stalled = false;
+    let timer = null;
+    const arm = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => { stalled = true; reader.cancel().catch(() => {}); }, idleMs);
+    };
+    arm();
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        arm();
+        for (const event of sse.push(decoder.decode(value, { stream: true }))) onEvent(event);
+      }
+    } catch (error) {
+      reader.cancel().catch(() => {});
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
+    return { stalled };
+  }
+
+  /**
    * Splits a streamed chunk between the reasoning channel and the answer.
    *
    * Some providers inline their thinking in the answer stream wrapped in
@@ -133,10 +177,11 @@
   const OPEN_TAG = '<think>';
   const CLOSE_TAG = '</think>';
 
-  const api = { createSseParser, routeStreamChunk };
+  const api = { createSseParser, routeStreamChunk, readEventStream };
 
   global.QjoDomain = global.QjoDomain || {};
   global.QjoDomain.createSseParser = createSseParser;
   global.QjoDomain.routeStreamChunk = routeStreamChunk;
+  global.QjoDomain.readEventStream = readEventStream;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

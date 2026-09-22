@@ -6,7 +6,7 @@
 // runs in milliseconds, which is the whole reason for pulling pure logic out.
 const assert = require('assert');
 const { classifyRequestFailure } = require('../public/domain/requestFailure.js');
-const { createSseParser, routeStreamChunk } = require('../public/domain/streamProtocol.js');
+const { createSseParser, routeStreamChunk, readEventStream } = require('../public/domain/streamProtocol.js');
 const markdown = require('../public/domain/markdown.js');
 
 let pass = 0, fail = 0;
@@ -419,6 +419,96 @@ function test(name, fn) {
 
   test('escapeHtml covers every character that can start markup', () => {
     assert.strictEqual(markdown.escapeHtml('<>&"\''), '&lt;&gt;&amp;&quot;&#039;');
+  });
+
+})();
+
+// Reading a live stream has timing in it, so these run as async tests after
+// the synchronous ones.
+async function testAsync(name, fn) {
+  try {
+    await fn();
+    pass++;
+    console.log(`  ✅ ${name}`);
+  } catch (error) {
+    fail++;
+    console.log(`  ❌ ${name}`);
+    console.log(`     ${String(error.message).split('\n').slice(0, 3).join('\n     ')}`);
+  }
+}
+
+// A body we control: `send` pushes text, `end` closes it; nothing else happens
+// unless the test says so, which is how a stalled connection looks.
+function controlledBody() {
+  let controller;
+  const body = new ReadableStream({ start(c) { controller = c; } });
+  const encoder = new TextEncoder();
+  return {
+    body,
+    send: (text) => controller.enqueue(encoder.encode(text)),
+    end: () => controller.close()
+  };
+}
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+
+(async () => {
+  console.log('\nReading a stream never waits forever:');
+
+  await testAsync('a stream that finishes delivers every event and is not stalled', async () => {
+    const { body, send, end } = controlledBody();
+    const events = [];
+    const reading = readEventStream(body, { idleMs: 500, onEvent: (e) => events.push(e) });
+    send(frame('chunk', { text: 'مرحبا' }));
+    send(frame('done', {}));
+    end();
+    const { stalled } = await reading;
+    assert.strictEqual(stalled, false);
+    assert.deepStrictEqual(events.map((e) => e.event), ['chunk', 'done']);
+  });
+
+  await testAsync('silence past the limit ends the read and says it stalled', async () => {
+    const { body, send } = controlledBody();
+    const events = [];
+    const started = Date.now();
+    const reading = readEventStream(body, { idleMs: 150, onEvent: (e) => events.push(e) });
+    send(frame('chunk', { text: 'جزء' }));
+    const { stalled } = await reading;
+    const took = Date.now() - started;
+    assert.strictEqual(stalled, true, 'not reported as stalled');
+    assert.strictEqual(events.length, 1, 'the part that arrived was lost');
+    assert.ok(took < 1000, `took ${took}ms to notice a 150ms silence`);
+  });
+
+  await testAsync('keep-alive comments reset the clock without producing events', async () => {
+    const { body, send, end } = controlledBody();
+    const events = [];
+    const reading = readEventStream(body, { idleMs: 200, onEvent: (e) => events.push(e) });
+    for (let i = 0; i < 6; i++) { await sleep(100); send(': keep-alive\n\n'); }
+    send(frame('chunk', { text: 'وصلت' }));
+    end();
+    const { stalled } = await reading;
+    assert.strictEqual(stalled, false, 'a stream kept alive for 600ms with a 200ms limit was called stalled');
+    assert.deepStrictEqual(events.map((e) => e.data.text), ['وصلت'], 'a comment was turned into an event');
+  });
+
+  await testAsync('an error thrown by the handler propagates and does not wait for the stream', async () => {
+    const { body, send } = controlledBody();
+    const reading = readEventStream(body, {
+      idleMs: 5000,
+      onEvent: (e) => { if (e.event === 'error') throw new Error(e.data.error); }
+    });
+    send(frame('error', { error: 'All AI providers failed' }));
+    const started = Date.now();
+    await assert.rejects(reading, /All AI providers failed/);
+    assert.ok(Date.now() - started < 1000, 'the error waited for the idle timer');
+  });
+
+  await testAsync('a stalled read is a transient failure with its own message', async () => {
+    const r = classifyRequestFailure({ message: 'STREAM_STALLED' }, { language: 'ar' });
+    assert.strictEqual(r.transient, true);
+    assert.strictEqual(r.kind, 'stalled');
+    assert.ok(/انقطع/.test(r.message), r.message);
   });
 
   console.log('\n========================================');

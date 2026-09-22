@@ -23,3 +23,6 @@ Thumbs.db
 # KB runtime vector cache (embedded once, rebuilt automatically if stale)
 knowledge/.vector-cache.json
 
+
+# Reports written by the eval scripts on every run
+evals/*-report-*.json

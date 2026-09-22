@@ -46,18 +46,37 @@ function createToolRegistry() {
     return tools.get(name)?.label || name;
   }
 
-  // Never throws: a tool failure is an observation the model should see and
-  // work around, not an error that ends the task.
-  async function execute(name, args, ctx = {}) {
+  // Never throws and never waits forever: a tool failure — including one that
+  // does not come back — is an observation the model should see and work
+  // around, not something that ends or freezes the task. The tool's own work
+  // cannot be cancelled from here, so a late result is simply ignored.
+  /**
+   * @param {string} name
+   * @param {object} [args]
+   * @param {object} [ctx]
+   * @param {{timeoutMs?: number}} [options]
+   */
+  async function execute(name, args, ctx = {}, { timeoutMs = 0 } = {}) {
     const tool = tools.get(name);
     if (!tool || !tool.available()) {
       return { ok: false, output: `Tool "${name}" is not available.` };
     }
+    let timer = null;
     try {
-      const output = await tool.run(args || {}, ctx);
+      const run = Promise.resolve().then(() => tool.run(args || {}, ctx));
+      const output = timeoutMs > 0
+        ? await Promise.race([
+          run,
+          new Promise((_, reject) => {
+            timer = setTimeout(() => reject(new Error(`${name} did not finish within ${Math.round(timeoutMs / 1000)}s`)), timeoutMs);
+          })
+        ])
+        : await run;
       return { ok: true, output };
     } catch (error) {
       return { ok: false, output: `Tool error: ${error?.message || error}` };
+    } finally {
+      clearTimeout(timer);
     }
   }
 

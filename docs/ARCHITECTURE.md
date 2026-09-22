@@ -66,13 +66,17 @@ qjo-ai/
 ├── src/
 │   ├── routes/                  HTTP boundary. Parse, validate, delegate,
 │   │   ├── chat.js              serialise. No business logic.
+│   │   ├── sse.js               Stream headers, keep-alives, cached replies
 │   │   └── tasks.js
 │   ├── agents/                  Orchestration: what to call, in what order,
 │   │   ├── RoutingEngine.js     what to do when it fails.
+│   │   ├── toolLoop.js          Tool rounds against the deadline; always ends in an answer
+│   │   ├── toolAnswer.js        Evidence as data, synthesis prompt, sources-only fallback
 │   │   ├── TaskRunner.js
 │   │   └── taskStore.js         Storage port (Firestore | memory adapter)
 │   ├── services/                One capability each, provider-facing.
-│   │   ├── llmService.js        Providers, keys, failover
+│   │   ├── llmService.js        Providers, keys, rotation, cooldowns
+│   │   ├── providerResponse.js  Reading a 200 body: SSE or JSON, under a timer
 │   │   ├── searchService.js     Search providers, enrichment
 │   │   ├── exportService.js     PDF/DOCX/PPTX rendering
 │   │   └── textSanitizer.js
@@ -87,7 +91,9 @@ qjo-ai/
 │   ├── index.html
 │   ├── app.js                   Shell: state and wiring. Shrinking.
 │   ├── domain/                  Pure functions. No DOM, no fetch, no state.
-│   │   └── markdown.js          Extracted so far
+│   │   ├── markdown.js
+│   │   ├── requestFailure.js    Error in, message and retry decision out
+│   │   └── streamProtocol.js    SSE parsing, think-tag split, stall watchdog
 │   ├── ui/                      Rendering and DOM behaviour
 │   └── net/                     API calls
 ├── scripts/                     Tests and checks, all runnable via npm
@@ -173,16 +179,23 @@ Each of these exists because it happened.
 | A step of a long task fails | Task stays alive; stepping again resumes from that point |
 | Render instance sleeps mid-task | State is in Firestore; the next step wakes it |
 | Rendering error after an answer arrives | Costs that decoration only, never the answer |
+| Provider sends headers, then nothing | The body is timed, not just the headers: before any output the call's deadline applies, after it a 15s silence ends the stream. A long answer that keeps arriving is never cut off |
+| Every key of a provider stalls | One budget shared by all keys, not a fresh one each |
+| A tool never returns | Raced against what is left of the deadline, one limit shared by every call in the round; the model is told it failed |
+| A page opened by `fetch_page` sends headers, then stalls | One clock per hop covers the body too; the socket is released |
+| The round after a search fails or stalls | Answer requested again without tools, the gathered results folded into the question, other providers first |
+| No model can answer after a search | The sources themselves, with links, dates and what each says; never cached |
+| The stream goes silent between server and page | Server sends a keep-alive every 10s; the page treats 45s of silence as a dropped connection — retried once if nothing arrived, kept and offered to continue if something did |
+| An exception after the stream started | An `error` event, not a bare close |
 
 ## Not done yet
 
 Honest list, in priority order.
 
-1. `sendMessage` is 588 lines with complexity 126. Splitting it into
-   request building, streaming, and finalisation is the single highest-value
-   remaining change.
-2. `public/app.js` still holds UI, network and state together. `domain/`
-   extraction has started; `ui/` and `net/` have not.
+1. `sendMessage` is down from 588 lines to ~320, complexity 126 to ~90;
+   request building is the next piece to come out.
+2. `public/app.js` still holds UI, network and state together. `domain/` and
+   `ui/` extraction has started; `net/` has not.
 3. `exportService.js` at 1,111 lines should split by output format.
 4. No coverage measurement. The suites are thorough but unmeasured.
 5. Type annotations cover new modules only.

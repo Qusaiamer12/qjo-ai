@@ -1914,6 +1914,21 @@ body:not(.dark) .qjo-reasoning-step {
   font-weight: 700;
   font-size: 14px;
 }
+.qjo-reasoning-step.tool-step.is-running {
+  color: var(--qjo-text-2, #a5a3c2);
+}
+.qjo-reasoning-step.tool-step .tool-spinner {
+  flex: none;
+  width: 11px;
+  height: 11px;
+  border: 2px solid currentColor;
+  border-inline-end-color: transparent;
+  border-radius: 50%;
+  animation: qjo-spin 0.8s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .qjo-reasoning-step.tool-step .tool-spinner { animation: none; }
+}
 
 .qjo-reasoning-divider {
   height: 1px;

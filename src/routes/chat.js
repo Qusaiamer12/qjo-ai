@@ -3,6 +3,7 @@ const { addContextContinuitySystemHint } = require('../agents/contextContinuity'
 const { addRouterSystemHint, routeUserRequestDeterministic } = require('../agents/RoutingEngine');
 const { addCalculatorSystemHint } = require('../tools/calculatorTool');
 const { sanitizeMathNotation, createStreamSanitizer } = require('../services/textSanitizer');
+const { sseHeaders, sendCachedResponse, startHeartbeat } = require('./sse');
 
 function requireDeps(deps) {
   const required = [
@@ -52,42 +53,6 @@ async function resolveGeoFast(ip, lookupFn) {
     .then(geo => { if (geo) geoCacheSet(ip, geo); })
     .catch(() => null);
   return null;
-}
-
-function sseHeaders(res) {
-  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
-  res.setHeader('Cache-Control', 'no-cache, no-transform, private');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no');
-  res.setHeader('Content-Encoding', 'none');
-  res.flushHeaders();
-  // Bypass Render/Cloudflare/Nginx proxy buffering by immediately sending 2KB padding comment.
-  // This forces reverse proxies to enter instant unbuffered pass-through mode!
-  res.write(': ' + ' '.repeat(2048) + '\n\n');
-  if (typeof res.flush === 'function') res.flush();
-}
-
-// Cached answers are delivered INSTANTLY (one single chunk): the previous
-// implementation re-typed cached answers character-by-character, making cache
-// hits SLOWER than fresh requests (up to ~30s for long answers).
-function sendCachedResponse(res, cached, useStreaming) {
-  if (useStreaming) {
-    sseHeaders(res);
-    res.write(`event: chunk\ndata: ${JSON.stringify({ text: cached.answer })}\n\n`);
-    res.write(`event: done\ndata: ${JSON.stringify({ provider: cached.provider, model: cached.model, toolsUsed: cached.toolsUsed || [], cached: true })}\n\n`);
-    res.end();
-    return true;
-  }
-  res.json({
-    answer: cached.answer,
-    provider: cached.provider,
-    model: cached.model,
-    finish_reason: 'cached',
-    continued: cached.continued || false,
-    toolsUsed: cached.toolsUsed || [],
-    cached: true
-  });
-  return true;
 }
 
 // Chat history trim.
@@ -252,6 +217,22 @@ function lastUserLanguage(messages) {
   return ar > text.length * 0.15 ? 'ar' : 'en';
 }
 
+// Caches a finished answer for identical follow-up requests.
+//
+// A sources-only reply exists because every model failed; caching it would
+// serve that fallback for the next quarter hour to everyone who asks the same
+// thing, long after the providers have recovered.
+function rememberAnswer(deps, cacheKey, ai, answer) {
+  if (!cacheKey || !deps.cacheSet || !answer || ai.degraded) return;
+  deps.cacheSet(deps.memoryCaches.completions, cacheKey, {
+    answer,
+    provider: ai.provider,
+    model: ai.model,
+    continued: ai.continued || false,
+    toolsUsed: ai.toolsUsed || []
+  }, 15 * 60 * 1000, 120);
+}
+
 function registerChatRoutes(app, deps) {
   requireDeps(deps);
 
@@ -401,7 +382,10 @@ function registerChatRoutes(app, deps) {
         if (typeof res.flush === 'function') res.flush();
       };
 
-      if (useStreaming) sseHeaders(res);
+      if (useStreaming) {
+        sseHeaders(res);
+        startHeartbeat(res, deps.heartbeatMs);
+      }
 
       const ai = await deps.routingEngine.callAgent({
         agentType: 'chat',
@@ -446,15 +430,7 @@ function registerChatRoutes(app, deps) {
       });
       const cleanAnswer = sanitizeMathNotation(String(finalAi.answer || ''));
 
-      if (cacheKey && deps.cacheSet && cleanAnswer) {
-        deps.cacheSet(deps.memoryCaches.completions, cacheKey, {
-          answer: cleanAnswer,
-          provider: finalAi.provider,
-          model: finalAi.model,
-          continued: finalAi.continued || false,
-          toolsUsed: finalAi.toolsUsed || []
-        }, 15 * 60 * 1000, 120);
-      }
+      rememberAnswer(deps, cacheKey, finalAi, cleanAnswer);
 
       if (useStreaming) flushChunks();
       responseFinished = true;
@@ -486,7 +462,12 @@ function registerChatRoutes(app, deps) {
       }
       console.error('[chat] error:', err.message);
       if (!res.headersSent) res.status(500).json({ error: 'Internal server error.' });
-      else try { res.end(); } catch (_) {}
+      // Mid-stream, a bare end() looked to the client like an answer that
+      // simply stopped. An error event says what happened, so it can retry.
+      else try {
+        res.write(`event: error\ndata: ${JSON.stringify({ error: 'Internal server error.' })}\n\n`);
+        res.end();
+      } catch (_) {}
     }
   });
 }

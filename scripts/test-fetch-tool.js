@@ -69,6 +69,12 @@ async function rejects(fn, why) {
     '/missing': { type: 'text/html', body: 'gone', status: 404 }
   };
   const server = http.createServer((req, res) => {
+    // Headers and the first words, then nothing: the connection stays open.
+    if (req.url === '/stall') {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.write('<html><body><p>بداية الصفحة');
+      return;
+    }
     if (req.url === '/redirect') { res.writeHead(302, { Location: '/article' }); return res.end(); }
     if (req.url === '/evil-redirect') { res.writeHead(302, { Location: 'http://169.254.169.254/latest/meta-data/' }); return res.end(); }
     if (req.url === '/loop') { res.writeHead(302, { Location: '/loop' }); return res.end(); }
@@ -145,7 +151,28 @@ async function rejects(fn, why) {
     await rejects(() => viaPublicName('/loop'), 'a redirect loop hung the request');
   });
 
+  await test('a page that sends headers and then stalls is abandoned on time', async () => {
+    const started = Date.now();
+    let message = '';
+    let watchdog;
+    const hung = new Promise((resolve) => { watchdog = setTimeout(() => resolve('HUNG'), 5000); });
+    const attempt = realFetchPage(base.replace('127.0.0.1', 'example.test') + '/stall', {
+      timeoutMs: 600,
+      fetchImpl: (url, init) => fetch(String(url).replace('example.test', '127.0.0.1'), init)
+    }).then(() => 'returned', (e) => { message = e.message; return 'rejected'; });
+    const outcome = await Promise.race([attempt, hung]);
+    clearTimeout(watchdog);
+    assert.notStrictEqual(outcome, 'HUNG', 'HUNG — still reading the stalled body after 5s');
+    const took = Date.now() - started;
+    assert.ok(message, 'a stalled body was returned as if it were the page');
+    assert.ok(took < 2500, `took ${took}ms with a 600ms limit — the body read was not timed`);
+    assert.ok(/did not finish loading/.test(message), `unhelpful error: ${message}`);
+  });
+
   require('dns').promises.lookup = originalLookup;
+  // A connection left open by a failing stall case would otherwise hold
+  // close() — and the whole suite — forever, hiding the failure it found.
+  server.closeAllConnections();
   await new Promise(r => server.close(r));
 
   console.log('\nHTML extraction details:');

@@ -30,6 +30,7 @@
       providerPressure: 'مزودات الذكاء تحت ضغط حاليًا (وصلنا الحد المؤقت للطلبات). انتظر دقيقة وأعد المحاولة.',
       notConfigured: 'مزودات الذكاء غير مضبوطة على الخادم. يرجى ضبط المفاتيح في لوحة التحكم.',
       transient: 'الخادم ما استجاب للطلب (غالبًا كان نايم أو تحت ضغط). جرّب "إعادة المحاولة".',
+      stalled: 'انقطع وصول الإجابة من الخادم قبل أن يبدأ الرد. جرّب "إعادة المحاولة".',
       generic: 'تعذر الاتصال بالخدمة حاليًا. يرجى المحاولة لاحقًا.',
       reasonLabel: 'السبب التقني: '
     }
@@ -69,6 +70,11 @@
     // An empty answer is worth retrying precisely because nothing was
     // delivered — there is no half-answer on screen to lose.
     if (message === 'EMPTY_ANSWER') return { message: copy.empty, transient: true, kind: 'empty' };
+
+    // The connection went silent past the keep-alive interval before a word
+    // arrived. Nothing is on screen to lose, and a dropped connection is the
+    // textbook case of something a second attempt fixes.
+    if (message === 'STREAM_STALLED') return { message: copy.stalled, transient: true, kind: 'stalled' };
 
     if (TRANSIENT_PATTERN.test(message) || status >= 500) {
       let text = copy.transient;

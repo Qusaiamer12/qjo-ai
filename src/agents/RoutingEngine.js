@@ -1,6 +1,8 @@
 const { CALCULATOR_TOOL } = require('../tools/calculatorTool');
 const { WEB_SEARCH_TOOL } = require('../tools/searchTool');
 const { createToolRegistry } = require('../tools/toolRegistry');
+const { evidenceFromSearch, formatSearchResultsForTool } = require('./toolAnswer');
+const { createToolLoop } = require('./toolLoop');
 const { z } = require('zod');
 
 // ── Zod Schema ──
@@ -212,39 +214,12 @@ function normalizeMode(mode) {
 }
 
 // ── Unified Routing Engine ──
+const TOOL_TURN_EXTRA_MS = 20000;
+
 function createRoutingEngine(deps) {
   const { llmService, safeCalculate, models, keys } = deps;
   let searchService = deps.searchService;
   if (!llmService || !models || !keys) throw new Error('createRoutingEngine missing core deps: llmService, models, or keys');
-
-  // What comes back is a search result, not an established fact, and the
-  // difference has to survive into the answer. Each entry carries its own link
-  // so a claim can be cited where it is made, and the closing note asks for the
-  // two behaviours that separate a researched answer from a confident guess:
-  // open the source when the detail matters, and say so when the evidence is
-  // thin or disagrees instead of smoothing it over.
-  function formatSearchResultsForTool(payload) {
-    const results = (payload?.results || []).slice(0, 6);
-    const query = payload?.query || '';
-    if (!results.length) {
-      return `No web results found for "${query}". Do not fill the gap from memory: say plainly that you could not find current information, or try a different, simpler query.`;
-    }
-
-    const body = results.map(r => {
-      const published = r.publishedDate || r.published_date;
-      const meta = [r.url, published ? `published ${String(published).slice(0, 10)}` : ''].filter(Boolean).join(' · ');
-      const extracted = r.firecrawl ? ' [full page text]' : ' [snippet only]';
-      return `[${r.id}] ${r.title || 'untitled'}${extracted}\n${meta}\n${String(r.content || '').slice(0, 900)}`;
-    }).join('\n\n');
-
-    return [
-      `Search results for "${query}":`,
-      '',
-      body,
-      '',
-      'Using these: cite the claims that came from them with markdown links like [1](url) so the reader can check. Anything marked "snippet only" is two lines out of a page — if a number, date or exact wording matters, open it with fetch_page before relying on it. If the sources disagree, or none of them actually answers the question, say that instead of presenting a confident answer the evidence does not support.'
-    ].join('\n');
-  }
 
   // Tools are declared in one registry rather than as if/else arms here, so a
   // new capability (fetch a page, write a project file) plugs in without
@@ -266,6 +241,9 @@ function createRoutingEngine(deps) {
     run: async (args, ctx) => {
       const payload = await searchService.performSearch({ rawQuery: args.query, originalQuestion: ctx.originalQuestion });
       ctx.note({ tool: 'web_search', input: payload.query || args.query, resultCount: (payload.results || []).length });
+      // Kept as data as well as text: if no model can write the answer, the
+      // sources are still the answer.
+      if (ctx.addEvidence) ctx.addEvidence(evidenceFromSearch(payload));
       return formatSearchResultsForTool(payload);
     }
   });
@@ -278,101 +256,9 @@ function createRoutingEngine(deps) {
   // host added them deliberately, so the model should know they exist.
   const extraToolNames = Object.keys(deps.extraTools || {});
 
-  const TOOL_OUTPUT_MAX_CHARS = 6000;
-
-  async function executeToolCalls(toolCalls, originalQuestion, onToolCall, onToolResult) {
-    const toolMessages = [];
-    const used = [];
-    for (const call of (toolCalls || []).slice(0, 4)) {
-      const name = call?.function?.name;
-      const label = toolRegistry.labelFor(name);
-      let args = {};
-      try {
-        args = JSON.parse(call.function.arguments || '{}');
-      } catch (_) {
-        // A malformed argument blob is the model's mistake to correct on the
-        // next round, not a reason to abandon the task.
-        toolMessages.push({ role: 'tool', tool_call_id: call.id, content: `Tool error: arguments were not valid JSON.` });
-        continue;
-      }
-
-      const detail = args.query || args.expression || args.url || args.path || '';
-      if (onToolCall) onToolCall({ tool: name, label, detail, status: 'running' });
-
-      let noted = false;
-      const ctx = {
-        originalQuestion,
-        note: (entry) => { used.push(entry); noted = true; }
-      };
-      const { output } = await toolRegistry.execute(name, args, ctx);
-      if (!noted) used.push({ tool: name, input: detail });
-
-      if (onToolCall) onToolCall({ tool: name, label, detail, status: 'done' });
-      // Built-in tools live in this registry rather than in the caller's, so
-      // without this hook a long task could not record what web_search or
-      // fetch_page actually returned — and would re-run them next step.
-      if (onToolResult) onToolResult({ tool: name, input: detail, output: String(output || '') });
-      toolMessages.push({ role: 'tool', tool_call_id: call.id, content: String(output || '').slice(0, TOOL_OUTPUT_MAX_CHARS) });
-    }
-    return { toolMessages, used };
-  }
-
-  // Tool use has to be a loop. Real research is search → read → search again →
-  // verify; building a project is write → run → read the error → fix. The
-  // previous code ran tools exactly once and then called back with
-  // `tools: undefined`, so the model could never act on what it had just
-  // learned. That single line was the biggest gap against a real agent.
-  const MAX_TOOL_ROUNDS = 6;
-  const MAX_TOTAL_TOOL_CALLS = 20;
-
-  async function runToolRounds({ provider, slot, params, originalQuestion, first }) {
-    let res = first;
-    let messages = params.messages;
-    const used = [];
-    const seen = new Set();
-    let totalCalls = 0;
-
-    for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-      const toolCalls = res.toolCalls || [];
-      if (!toolCalls.length) break;
-      if (totalCalls >= MAX_TOTAL_TOOL_CALLS) break;
-      if (params.deadlineMs && params.deadlineMs - Date.now() < 3000) break;
-
-      // Asking for the exact same thing again means the model is stuck rather
-      // than working, and each repeat costs a full round-trip.
-      const fresh = toolCalls.filter((call) => {
-        const signature = `${call?.function?.name}:${call?.function?.arguments}`;
-        if (seen.has(signature)) return false;
-        seen.add(signature);
-        return true;
-      });
-      if (!fresh.length) break;
-
-      const { toolMessages, used: roundUsed } = await executeToolCalls(fresh, originalQuestion, params.onToolCall, params.onToolResult);
-      if (!toolMessages.length) break;
-      totalCalls += toolMessages.length;
-      used.push(...roundUsed);
-      messages = [...messages, res.message, ...toolMessages];
-
-      // On the final allowed round the tools come off, so the model has to
-      // answer from what it has instead of asking for more and being cut off.
-      const closing = round === MAX_TOOL_ROUNDS - 1;
-      const next = await tryProvider(provider, slot, {
-        ...params,
-        messages,
-        // Text from a round that ends in another tool call is the model
-        // thinking out loud. Streaming it would interleave with the real
-        // answer, so only the closing round streams.
-        onChunk: closing ? params.onChunk : undefined,
-        tools: closing ? undefined : params.tools
-      });
-      if (!next.ok) break;
-      res = next;
-      if (closing) break;
-    }
-
-    return { ...res, toolsUsed: used, toolRounds: totalCalls };
-  }
+  // The tool loop and what happens when it cannot finish live in toolLoop.js;
+  // this engine supplies the registry and the provider call.
+  const { runToolRounds } = createToolLoop({ toolRegistry, tryProvider, isArabic: isArabicHeavyText });
 
   // ── Provider plumbing ──
   const hasKeys = (provider) => (keys[provider] || 0) > 0;
@@ -494,14 +380,13 @@ function createRoutingEngine(deps) {
 
       if (!wantsTools) return res;
 
-      const looped = await runToolRounds({ provider, slot, params, originalQuestion, first: res });
-      if (looped.ok && looped.answer) {
-        // The closing round usually ran with streaming off (see runToolRounds),
-        // so hand its answer over here rather than leaving the bubble empty.
-        if (params.onChunk && !looped.streamed) params.onChunk(looped.answer);
-        return looped;
-      }
-      return res; // better a tool-less first answer than a failed loop
+      // Always ends in an answer or an honest failure. It used to fall back to
+      // `res` here — the round that asked for the search — so a failed loop
+      // delivered "let me look that up" as the whole reply.
+      const looped = await runToolRounds({ provider, slot, params, originalQuestion, first: res, chain: list });
+      if (looped.ok) return looped;
+      last = looped;
+      failures.push({ provider, status: looped.status, error: looped.error });
     }
     // Aggregate diagnostics: if every attempt was throttled, say so clearly —
     // a generic opaque error used to hide the (very common) free-tier
@@ -576,6 +461,7 @@ function createRoutingEngine(deps) {
     useTools, routingDecision, onChunk, onReasoning, onToolCall, onToolResult, model,
     deadlineMs, budgetMs, signal
   } = {}) {
+    const budgetFromCaller = Boolean(deadlineMs || budgetMs);
     if (!deadlineMs) {
       // A large prompt legitimately takes longer before the first token: the
       // model has to ingest it. With a flat 40s budget, a document analysis
@@ -637,6 +523,13 @@ function createRoutingEngine(deps) {
       for (const name of extraToolNames) attach.push(name);
     }
     const tools = buildTools({ attach });
+    // A turn that may search, open a source and then write has more steps
+    // than one that only writes. The extra time is spent only if needed: a
+    // search answer still ends the moment it is written.
+    if (tools && !budgetFromCaller) {
+      deadlineMs += TOOL_TURN_EXTRA_MS;
+      base.deadlineMs = deadlineMs;
+    }
 
     // 1) Images: they only ever work on vision-capable slots. Previously every
     //    image request marched through text-only models and died.

@@ -175,6 +175,33 @@ const ask = (engine, extra = {}) => engine.callAgent({
     assert.ok(!offered.includes('ghost'), 'an unavailable tool was advertised: ' + JSON.stringify(offered));
   });
 
+  await test('a turn that may use tools gets more time, unless the caller set a budget', async () => {
+    const seen = [];
+    const engine = createRoutingEngine({
+      llmService: {
+        dispatch: async (provider, params) => {
+          seen.push({ tools: Boolean(params.tools), remaining: params.deadlineMs - Date.now() });
+          return { ok: true, answer: 'جواب.', provider, model: params.model, finish_reason: 'stop' };
+        },
+        hasKeys: () => true, hasAnyProvider: () => true
+      },
+      safeCalculate: null,
+      searchService: { performSearch: async () => ({ results: [] }) },
+      keys: { groq: 1, llm7: 0, qwen: 0, kimi: 0 },
+      models: { groqFlash: 'f', groqText: 't', groqCode: 't', groqVision: 'v' }
+    });
+    const messages = [{ role: 'user', content: 'ما آخر أخبار الطقس في عمّان اليوم؟' }];
+    await engine.callAgent({ mode: 'flash', messages });
+    await engine.callAgent({ mode: 'flash', messages, useTools: false });
+    await engine.callAgent({ mode: 'flash', messages, budgetMs: 30000 });
+    const [withTools, withoutTools, callerBudget] = seen;
+    assert.ok(withTools.tools && !withoutTools.tools, 'setup: tools were not offered as expected ' + JSON.stringify(seen));
+    assert.ok(withTools.remaining - withoutTools.remaining > 15000,
+      `tools got ${withTools.remaining}ms, no tools ${withoutTools.remaining}ms`);
+    assert.ok(callerBudget.tools && callerBudget.remaining <= 30000,
+      `a caller-set 30s budget was stretched to ${callerBudget.remaining}ms`);
+  });
+
   console.log('\n========================================');
   console.log(`${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
