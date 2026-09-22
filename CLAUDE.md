@@ -43,6 +43,18 @@ Each of these produced a green result that meant nothing.
 - **Splitting a file multiplies its failure points.** One script either loads
   or does not. Five scripts can partially load. `public/boot.js` exists because
   of this.
+- **A control that cannot fail.** The first isolation check "proved" CDN
+  requests were blocked, but this container's Chromium could not reach them
+  anyway; the next two controls were stopped by helmet's CSP and its
+  Cross-Origin-Resource-Policy. A negative result only means something once
+  the same probe, without the thing under test, gets a positive one.
+- **Tests that pass only because the network is broken.** Firebase and every
+  CDN are unreachable from the dev container and reachable on GitHub, so the
+  same suite can meet two different pages. Browser suites block every origin
+  but the app's (`tests/browser/harness.js`).
+- **Verification that lives outside the repo.** 264 browser assertions spent
+  weeks in a scratch directory that is deleted with the container. A check
+  that is not committed and not in CI does not exist.
 
 ## Verifying
 
@@ -62,7 +74,16 @@ npm run lint              # complexity/depth/params ratchet + correctness
 npm run structure         # per-file line budgets: shrink, never grow
 npm run audit
 npm run scan-secrets
+
+# Real page, real Chromium, real server (boots its own on a free port).
+npm ci --prefix tests/browser   # once: Playwright lives in its own package
+npm run test:browser            # all suites; `-- boot xss` to filter
 ```
+
+A browser suite passes only if it exits 0 and prints `N passed, 0 failed`
+with N > 0; the runner reports anything else (a crash, a missing summary,
+zero assertions, a hang) as a failure. Set `QJO_CHROMIUM_PATH` to use a
+specific Chromium; otherwise the harness finds one.
 
 `npm run structure -- --update` records a file getting smaller. Never use it
 to let a file grow: split the new code into a module instead.

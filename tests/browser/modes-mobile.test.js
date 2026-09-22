@@ -1,0 +1,26 @@
+const { launchBrowser, devices, BASE_URL } = require('./harness');
+(async () => {
+  const b = await launchBrowser();
+  const ctx = await b.newContext({ ...devices['iPhone 13'] });
+  const p = await ctx.newPage();
+  let pass=0, fail=0;
+  const ok=(c,m,d)=>{c?pass++:fail++;console.log(`${c?'✅':'❌'} ${m}`);if(!c&&d!==undefined)console.log('   ',JSON.stringify(d).slice(0,200));};
+  await p.goto(BASE_URL + '/', { waitUntil: 'domcontentloaded' });
+  await p.waitForTimeout(2200);
+  await p.evaluate(() => { const o=document.getElementById('authOverlay'); if(o){o.classList.remove('show');o.style.display='none';} });
+  await p.click('#mobileToolsTriggerBtn');
+  await p.waitForTimeout(600);
+  const cards = await p.$$eval('.sheet-mode-card', els => els.map(e => ({ text: e.querySelector('.sheet-mode-name')?.textContent, active: e.classList.contains('active'), h: Math.round(e.getBoundingClientRect().height) })));
+  ok(cards.length === 2, `mode switcher is in the mobile sheet (${cards.length} cards)`, cards);
+  ok(cards.every(c => c.h >= 44), `cards are comfortably tappable (${cards.map(c=>c.h).join(',')}px)`);
+  ok(cards[0]?.active === true, 'Flash shown as the current mode', cards);
+  await p.click('.sheet-mode-card:nth-child(2)');
+  await p.waitForTimeout(400);
+  const after = await p.evaluate(() => ({ mode: document.body.dataset.qjoMode, stored: localStorage.getItem('qjo_response_mode') }));
+  ok(after.mode === 'advanced' && after.stored === 'advanced', `tapping Max switches the mode (${after.mode})`, after);
+  const cards2 = await p.$$eval('.sheet-mode-card', els => els.map(e => e.classList.contains('active')));
+  ok(cards2[1] === true && cards2[0] === false, 'selection state updates in place', cards2);
+  await b.close();
+  console.log(`\n${pass} passed, ${fail} failed`);
+  process.exit(fail?1:0);
+})();

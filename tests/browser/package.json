@@ -1,0 +1,12 @@
+{
+  "name": "qjo-browser-tests",
+  "private": true,
+  "description": "Browser suites for Qjo. A separate package so Render's production install never pulls in test tooling. Install with: npm ci --prefix tests/browser",
+  "scripts": {
+    "test": "node run.js"
+  },
+  "devDependencies": {
+    "@babel/standalone": "8.0.5",
+    "playwright": "^1.63.0"
+  }
+}

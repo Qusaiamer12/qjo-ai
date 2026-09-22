@@ -147,6 +147,17 @@ module.exports = [
     rules: SHARED_RULES
   },
   {
+    // Browser suites run in Node but hand callbacks to page.evaluate(), which
+    // executes them inside the page — so both sets of globals are real here.
+    files: ['tests/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2023,
+      sourceType: 'commonjs',
+      globals: { ...NODE_GLOBALS, ...BROWSER_GLOBALS }
+    },
+    rules: SHARED_RULES
+  },
+  {
     // public/domain holds pure logic with no DOM, deliberately loadable both
     // from a script tag and from a Node test — so it sees `module` as well.
     files: ['public/domain/**/*.js'],
