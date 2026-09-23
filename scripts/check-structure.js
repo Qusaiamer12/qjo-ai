@@ -34,6 +34,7 @@ const WATCHED = [
   'src/services/exportService.js',
   'src/services/llmService.js',
   'src/services/providerResponse.js',
+  'src/services/providerLimits.js',
   'src/services/searchService.js',
   'src/search/providers.js',
   'src/search/searchCore.js',

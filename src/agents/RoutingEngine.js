@@ -4,6 +4,7 @@ const { createToolRegistry } = require('../tools/toolRegistry');
 const { evidenceFromSearch, formatSearchResultsForTool, sourcesForPage } = require('./toolAnswer');
 const { createToolLoop } = require('./toolLoop');
 const { continuationPrompts } = require('./continuation');
+const { shrinkMessages, fitToAllowance } = require('../services/providerLimits');
 const { z } = require('zod');
 
 // ── Zod Schema ──
@@ -203,6 +204,12 @@ const PIPELINES = {
   vision: [['groq', 'vision'], ['qwen', 'vision']]
 };
 
+// The last resort for a text request: Groq's vision model reads text as well,
+// and its per-minute allowance is several times the text models' (30K tokens
+// against 8K on the free tier), so a long request every other slot refused or
+// timed out on still gets an answer. Tried only when everything else failed.
+for (const name of ['flash', 'maxAr', 'maxEn', 'code']) PIPELINES[name].push(['groq', 'vision']);
+
 function normalizeMode(mode) {
   const m = String(mode || '').toLowerCase();
   if (m === 'code') return 'code';
@@ -280,33 +287,15 @@ function createRoutingEngine(deps) {
   async function tryProvider(provider, slot, params) {
     const model = slotModel(provider, slot);
     if (!model) return { ok: false, status: 501, error: `No ${slot} model for ${provider}.` };
-    return llmService.dispatch(provider, { model, ...params });
-  }
-
-  // Halves the biggest message so an over-long prompt can be retried instead
-  // of ending the request. The middle goes, not the tail: the question opens
-  // the message and the retrieved evidence closes it, so both ends carry more
-  // signal than the middle does. The model is told a cut happened rather than
-  // being handed a sentence that simply stops.
-  const SHRINK_NOTE = '\n\n[... part of this content was removed because the request exceeded the context limit. Work from the parts that remain, and say plainly if the missing part affects the accuracy of the answer ...]\n\n';
-
-  function shrinkMessages(messages) {
-    const list = Array.isArray(messages) ? messages : [];
-    let biggestIndex = -1;
-    let biggestLength = 0;
-    list.forEach((m, i) => {
-      const len = typeof m?.content === 'string' ? m.content.length : 0;
-      if (len > biggestLength) { biggestLength = len; biggestIndex = i; }
-    });
-    // Nothing large enough left to cut usefully.
-    if (biggestIndex === -1 || biggestLength < 2000) return null;
-
-    const target = Math.floor(biggestLength / 2);
-    const head = Math.floor(target * 0.6);
-    const tail = target - head;
-    const original = list[biggestIndex].content;
-    const shrunk = original.slice(0, head) + SHRINK_NOTE + original.slice(-tail);
-    return list.map((m, i) => (i === biggestIndex ? { ...m, content: shrunk } : m));
+    const res = await llmService.dispatch(provider, { model, ...params });
+    // Refused as more than this model's per-minute allowance, which the
+    // provider named: ask again with the answer room it can give. Here rather
+    // than once per chain, because every call has its own size — a round
+    // after a search carries the results too, and outgrew a fit made before it.
+    const fitted = !res.ok && fitToAllowance(params, res.tokenAllowance);
+    if (!fitted) return res;
+    console.warn(`[RoutingEngine] ${provider}/${slot} allowance is ${res.tokenAllowance.limit} tokens — asking again with ${fitted.max_tokens} of answer room (was ${params.max_tokens}).`);
+    return llmService.dispatch(provider, { model, ...fitted });
   }
 
   // Runs a chain of [provider, slot] attempts with a shared deadline. A
@@ -329,7 +318,9 @@ function createRoutingEngine(deps) {
       // momentary upstream restarts are usually gone within a second — this
       // avoids burning a whole provider slot (and surfacing the generic
       // "service unavailable" message to the user) over a one-off blip.
-      if (!res.ok && isTransientStatus(res.status) && !(params.deadlineMs && params.deadlineMs - Date.now() < 2500)) {
+      // Not after a timeout: that is the model being slow with this request,
+      // and asking again spent the same wait twice.
+      if (!res.ok && isTransientStatus(res.status) && !res.timedOut && !(params.deadlineMs && params.deadlineMs - Date.now() < 2500)) {
         console.warn(`[RoutingEngine] ${provider}/${slot} failed (${res.status}: ${String(res.error).slice(0, 100)}) — retrying once after 600ms.`);
         await sleep(600);
         res = await tryProvider(provider, slot, params);

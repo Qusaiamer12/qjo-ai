@@ -78,7 +78,7 @@ function test(name, fn) {
   test('every failure has a message in both languages, and English is the fallback', () => {
     const errors = [{ name: 'AbortError' }, { status: 413 }, { message: 'AI_BACKEND_MISSING' }, { message: 'AUTH_REQUIRED' },
       { message: 'RATE_LIMIT' }, { message: '429 too many requests' }, { message: 'No provider configured' },
-      { message: 'EMPTY_ANSWER' }, { message: 'STREAM_STALLED' }, { status: 503 }, { message: 'odd' }];
+      { message: 'EMPTY_ANSWER' }, { message: 'STREAM_STALLED' }, { status: 503 }, { message: 'All AI providers failed' }, { message: 'odd' }];
     for (const error of errors) {
       const en = classifyRequestFailure(error, { language: 'en' }).message;
       const ar = classifyRequestFailure(error, { language: 'ar' }).message;
@@ -87,6 +87,23 @@ function test(name, fn) {
       assert.ok(/[\u0621-\u064A]/.test(ar), `Arabic message is not Arabic: ${ar}`);
       assert.strictEqual(other, en, 'an unknown language did not fall back to English');
     }
+  });
+
+  test('every provider failing is not blamed on a sleeping server', () => {
+    // Reported: every long request ended in "the server was probably asleep"
+    // above a reason that said the opposite — the server answered, with
+    // [groq:413, llm7:504].
+    const reason = 'All AI providers failed. Last: llm7 timeout (1996ms). [groq:413, llm7:504]';
+    for (const language of ['en', 'ar']) {
+      const r = classifyRequestFailure({ message: reason }, { language });
+      assert.strictEqual(r.kind, 'providers');
+      assert.ok(!/asleep|نايم/.test(r.message), `still blames a cold start: ${r.message}`);
+      assert.ok(r.message.includes('[groq:413, llm7:504]'), 'the reason is hidden');
+    }
+    assert.ok(/AI services/.test(classifyRequestFailure({ message: reason }).message));
+    assert.ok(/خدمات الذكاء/.test(classifyRequestFailure({ message: reason }, { language: 'ar' }).message));
+    // A server that really did not answer still says so.
+    assert.strictEqual(classifyRequestFailure({ status: 503 }).kind, 'transient');
   });
 
   test('a stack trace is not pasted at the user', () => {

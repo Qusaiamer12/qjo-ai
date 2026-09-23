@@ -211,6 +211,10 @@ Each of these exists because it happened.
 | Every key of a provider stalls | One budget shared by all keys, not a fresh one each |
 | A tool never returns | Raced against what is left of the deadline, one limit shared by every call in the round; the model is told it failed |
 | A page opened by `fetch_page` sends headers, then stalls | One clock per hop covers the body too; the socket is released |
+| A request over a provider's per-minute size (Groq 413, "Limit 8000, Requested …") | Sent again, on every call including rounds after a search, with the answer room the provider named — if at least 1,024 tokens remain; otherwise straight to the next provider |
+| A provider slow to start on a long prompt | The wait for a first byte grows with the prompt (8 s + 2 s per 1K tokens, up to 30 s); a provider that stays silent is left after one wait — not each of its keys in turn, and not retried as a blip |
+| Every other slot refused or timed out | Groq's long-context model (30K tokens a minute on the free tier) is the last resort for text |
+| Every provider fails | The page says the AI services could not finish the request, with the reason — not that the server was asleep |
 | The round after a search fails or stalls | Answer requested again without tools, the gathered results folded into the question, other providers first |
 | No model can answer after a search | The sources themselves, with links, dates and what each says; never cached |
 | The stream goes silent between server and page | Server sends a keep-alive every 10s; the page treats 45s of silence as a dropped connection — retried once if nothing arrived, kept and offered to continue if something did |

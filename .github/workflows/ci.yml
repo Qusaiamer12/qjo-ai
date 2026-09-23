@@ -78,6 +78,13 @@ jobs:
       - name: Search end-to-end suite
         run: npm run test:search-e2e
 
+      # "Every long request fails after forty seconds." Production's providers
+      # as fakes over real HTTP: Groq refusing a request over its per-minute
+      # allowance (413, "Limit 8000, Requested …"), llm7 slow to start or never
+      # answering. The request must fit, wait once, and end in an answer.
+      - name: Long requests suite
+        run: npm run test:long-requests
+
       # English is the primary language, and the Arabic craft must survive it:
       # every Arabic phrase the prompt carried is checked against a snapshot
       # and must reach the model whenever Arabic is in play.

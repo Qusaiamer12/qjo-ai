@@ -69,6 +69,11 @@ Each of these produced a green result that meant nothing.
   results" with status `ok`. The end-to-end suite now runs the real search
   service against a fake provider over HTTP; stub below the thing under
   test, never the thing itself.
+- **A message that names the wrong cause.** Every long request ended in
+  "the server was probably asleep" above a technical reason that proved it
+  was awake: `[groq:413, llm7:504]`. The real causes — a request over Groq's
+  per-minute size, and a fixed 8-second wait for a first byte — went
+  unlooked-for while the message pointed at a cold start.
 - **Verification that lives outside the repo.** 264 browser assertions spent
   weeks in a scratch directory that is deleted with the container. A check
   that is not committed and not in CI does not exist.
@@ -80,6 +85,7 @@ npm test                  # server behaviour
 npm run test:domain       # front-end pure logic, no browser
 npm run test:search       # search decision, results, budget
 npm run test:search-e2e   # hangs: fake provider over real HTTP, per-case watchdog
+npm run test:long-requests  # long requests: Groq's per-minute size, slow first byte
 npm run test:search-providers  # every search provider failing in every way
 npm run test:language     # English-first; every Arabic prompt phrase retained
 npm run test:route        # chat route: keep-alives, error events, fallback caching

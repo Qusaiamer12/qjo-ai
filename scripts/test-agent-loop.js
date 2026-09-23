@@ -102,7 +102,10 @@ const ask = (engine, extra = {}) => engine.callAgent({
       { toolCalls: same }, { toolCalls: same }, { toolCalls: same }, { toolCalls: same }
     ]);
     await ask(engine);
-    assert.ok(rounds() <= 4, `it kept repeating an identical call (${rounds()} model calls)`);
+    // The first call, the repeat that stops the loop, then the closing answer
+    // asked once of each slot in the chain: Groq text, Groq flash and the
+    // long-context last resort.
+    assert.ok(rounds() <= 5, `it kept repeating an identical call (${rounds()} model calls)`);
   });
 
   await test('an endless tool-caller is capped', async () => {
@@ -110,7 +113,8 @@ const ask = (engine, extra = {}) => engine.callAgent({
     const script = Array.from({ length: 40 }, () => ({ toolCalls: [toolCall(String(++i), 'web_search', { query: 'q' + i })] }));
     const { engine, rounds } = engineWith(script);
     const res = await ask(engine);
-    assert.ok(rounds() <= 9, `the loop is unbounded (${rounds()} model calls)`);
+    // Six rounds, then the closing answer once per slot in the chain (three).
+    assert.ok(rounds() <= 10, `the loop is unbounded (${rounds()} model calls)`);
     assert.strictEqual(res.ok, true, 'a capped loop must still return something');
   });
 

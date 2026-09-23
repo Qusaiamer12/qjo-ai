@@ -85,6 +85,7 @@ const GOOD = '## النتيجة\n\nجواب كامل ومفيد للمستخدم
     const errText = await page.$$eval('.msg.assistant', els => els[els.length-1].innerText);
     ok(!/الخدمة جاهزة الآن/.test(errText), 'it no longer claims the service is ready', errText.slice(0, 120));
     ok(/السبب التقني/.test(errText), 'the real reason is shown so it can be diagnosed', errText.slice(0, 160));
+    ok(/خدمات الذكاء/.test(errText) && !/نايم/.test(errText), 'every provider failing is not blamed on a sleeping server', errText.slice(0, 160));
     const retry = await page.$('.retry-row button');
     ok(Boolean(retry), 'a retry button is offered');
 

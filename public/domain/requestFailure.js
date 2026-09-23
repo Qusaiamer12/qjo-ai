@@ -31,6 +31,7 @@
       providerPressure: 'The AI providers are under heavy load right now (temporary request limit). Wait a minute and try again.',
       notConfigured: 'The AI providers are not configured on the server. Set the keys in the dashboard.',
       transient: "The server didn't respond (it was probably asleep or busy). Press \"Retry\".",
+      providers: 'The AI services couldn\'t finish this request — they were too slow or turned it down. Press "Retry"; if it keeps happening, a shorter request goes through more easily.',
       stalled: 'The connection to the server dropped before the reply started. Press "Retry".',
       generic: "Couldn't reach the service right now. Please try again later.",
       reasonLabel: 'Technical reason: '
@@ -45,6 +46,7 @@
       providerPressure: 'مزودات الذكاء تحت ضغط حاليًا (وصلنا الحد المؤقت للطلبات). انتظر دقيقة وأعد المحاولة.',
       notConfigured: 'مزودات الذكاء غير مضبوطة على الخادم. يرجى ضبط المفاتيح في لوحة التحكم.',
       transient: 'الخادم ما استجاب للطلب (غالبًا كان نايم أو تحت ضغط). جرّب "إعادة المحاولة".',
+      providers: 'خدمات الذكاء ما قدرت تكمّل هالطلب — كانت بطيئة أو رفضته. جرّب "إعادة المحاولة"، وإذا تكرر، الطلب الأقصر بيمشي أسهل.',
       stalled: 'انقطع وصول الإجابة من الخادم قبل أن يبدأ الرد. جرّب "إعادة المحاولة".',
       generic: 'تعذر الاتصال بالخدمة حاليًا. يرجى المحاولة لاحقًا.',
       reasonLabel: 'السبب التقني: '
@@ -92,12 +94,16 @@
     if (message === 'STREAM_STALLED') return { message: copy.stalled, transient: true, kind: 'stalled' };
 
     if (TRANSIENT_PATTERN.test(message) || status >= 500) {
-      let text = copy.transient;
+      // Every AI provider failing is not the server sleeping: the server is
+      // the one reporting it. Blaming a cold start sent people looking for the
+      // wrong problem on every long request.
+      const providers = /All AI providers failed/i.test(message);
+      let text = providers ? copy.providers : copy.transient;
       // The real reason, when it is short enough to read. Hiding it made
       // failures impossible to diagnose from the screen.
       const detail = message.trim();
       if (detail && detail.length < MAX_TECHNICAL_DETAIL) text += '\n\n' + copy.reasonLabel + detail;
-      return { message: text, transient: true, kind: 'transient' };
+      return { message: text, transient: true, kind: providers ? 'providers' : 'transient' };
     }
 
     return { message: copy.generic, transient: false, kind: 'unknown' };

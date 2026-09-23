@@ -44,26 +44,11 @@ const MODEL_MIGRATIONS = {
   'gpt-oss': 'minimax-m2.7'
 };
 
+// Size refusals and how long to wait for a first byte: src/services/providerLimits.js.
+const { isContextLengthError, isRequestFault, tokenAllowance, headerWaitMs } = require('./providerLimits');
+
 function migratedModel(model) {
   return MODEL_MIGRATIONS[model] || null;
-}
-
-// A provider can reject the CALL or reject the REQUEST, and the two need
-// opposite handling. A rate limit or a dead key is about this key, so rotating
-// to the next one is exactly right. A prompt that exceeds the context window is
-// about the payload: every other key rejects it identically, so rotating only
-// spends more round-trips AND puts healthy keys on cooldown — one oversized
-// prompt used to sideline every key on every provider, degrading unrelated
-// requests for the whole cooldown window.
-function isContextLengthError(errorMsg) {
-  return /context[\s_-]*length|maximum context|too many tokens|reduce the length|input is too long|prompt is too long|exceeds? the (?:model|maximum)|token limit/i.test(String(errorMsg || ''));
-}
-
-function isRequestFault(status, errorMsg) {
-  if (status === 413 || status === 422) return true;
-  if (status !== 400) return false;
-  // A 400 naming a retired model is handled by migration, just above.
-  return !/decommissioned|no longer supported|not found|does not exist|invalid model/i.test(String(errorMsg || ''));
 }
 
 function createLlmService(config = {}) {
@@ -227,8 +212,9 @@ function createLlmService(config = {}) {
         break;
       }
       attemptIndex++;
-      // Fast connection timeout: get HTTP headers within 8s so dead keys are skipped in a flash.
-      const connectTimeout = Math.min(timeLeft(), 8000);
+      // How long this key may take to start answering grows with what it has
+      // to read first; a fixed 8s timed out every key on every long request.
+      const connectTimeout = Math.min(timeLeft(), headerWaitMs(messages));
       const attempt = wireAttemptSignal({ timeoutMs: connectTimeout, signal });
 
       try {
@@ -294,7 +280,8 @@ function createLlmService(config = {}) {
             status: response.status,
             error: errorMsg,
             requestFault: true,
-            contextLengthExceeded: isContextLengthError(errorMsg)
+            contextLengthExceeded: isContextLengthError(errorMsg),
+            tokenAllowance: tokenAllowance(errorMsg)
           };
         }
 
@@ -311,19 +298,24 @@ function createLlmService(config = {}) {
         markKeyFailure(key, { status: isTimeout ? 504 : 502, errorMsg: error.message });
         lastError = {
           status: isTimeout ? 504 : 502,
-          error: isTimeout ? `${provider} timeout (${connectTimeout}ms).` : (error.message || `${provider} request failed.`)
+          error: isTimeout ? `${provider} timeout (${connectTimeout}ms).` : (error.message || `${provider} request failed.`),
+          timedOut: isTimeout
         };
-        console.warn(`[llmService] ${provider} key #${attemptIndex}/${keys.length} error (${lastError.error}). Instant switch to next key.`);
+        console.warn(`[llmService] ${provider} key #${attemptIndex}/${keys.length} error (${lastError.error}).${isTimeout ? ' Not trying its other keys.' : ' Instant switch to next key.'}`);
+        // Silence is the model being slow with this request, not this key
+        // being dead: every key reaches the same model. Waiting on each in
+        // turn is how three keys became 8 + 8 + 2 seconds of nothing.
+        if (isTimeout) break;
         continue;
       }
     }
-    return { ok: false, status: lastError?.status || 429, error: lastError?.error || `All ${keys.length} ${provider} keys failed.` };
+    return { ok: false, status: lastError?.status || 429, error: lastError?.error || `All ${keys.length} ${provider} keys failed.`, timedOut: Boolean(lastError?.timedOut) };
   }
 
   // Facade methods mapping to the unified OpenAI-compatible caller
   async function callQwenChat(opts) { return callOpenAICompatible({ provider: 'qwen', baseUrl: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1', ...opts }); }
   async function callGroqChat(opts) {
-    const res = await callOpenAICompatible({ provider: 'groq', baseUrl: 'https://api.groq.com/openai/v1', ...opts });
+    const res = await callOpenAICompatible({ provider: 'groq', baseUrl: config.groqBaseUrl || 'https://api.groq.com/openai/v1', ...opts });
     if (res.ok) return { ok: true, upstream: { ok: true }, data: res.raw, ...res };
     return { ok: false, upstream: { ok: false, status: res.status }, data: { error: { message: res.error } }, ...res };
   }
