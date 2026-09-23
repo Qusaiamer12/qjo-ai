@@ -1,7 +1,7 @@
 const { CALCULATOR_TOOL } = require('../tools/calculatorTool');
 const { WEB_SEARCH_TOOL } = require('../tools/searchTool');
 const { createToolRegistry } = require('../tools/toolRegistry');
-const { evidenceFromSearch, formatSearchResultsForTool } = require('./toolAnswer');
+const { evidenceFromSearch, formatSearchResultsForTool, sourcesForPage } = require('./toolAnswer');
 const { createToolLoop } = require('./toolLoop');
 const { continuationPrompts } = require('./continuation');
 const { z } = require('zod');
@@ -236,8 +236,8 @@ function createRoutingEngine(deps) {
     label: 'Web search',
     available: () => Boolean(searchService),
     run: async (args, ctx) => {
-      const payload = await searchService.performSearch({ rawQuery: args.query, originalQuestion: ctx.originalQuestion });
-      ctx.note({ tool: 'web_search', input: payload.query || args.query, resultCount: (payload.results || []).length });
+      const payload = await searchService.performSearch({ rawQuery: args.query, originalQuestion: ctx.originalQuestion, queryFromModel: true });
+      ctx.note({ tool: 'web_search', input: payload.query || args.query, resultCount: (payload.results || []).length, sources: sourcesForPage(payload) });
       // Kept as data as well as text: if no model can write the answer, the
       // sources are still the answer.
       if (ctx.addEvidence) ctx.addEvidence(evidenceFromSearch(payload));
@@ -582,7 +582,7 @@ function createRoutingEngine(deps) {
       const next = await callAgent({ ...params, messages: workingMessages, temperature: Math.min(temperature, 0.3), max_tokens: Math.min(max_tokens, 1800) });
       if (!next.ok || !next.answer) break;
       combined += (combined.endsWith('\n') ? '' : '\n') + next.answer;
-      if (!isTruncatedProviderResponse(next)) return { ...next, answer: combined, continued: true };
+      if (!isTruncatedProviderResponse(next)) return { ...next, answer: combined, continued: true, toolsUsed: [...(ai.toolsUsed || []), ...(next.toolsUsed || [])] };
       workingMessages = [...workingMessages, { role: 'assistant', content: next.answer }, { role: 'user', content: prompts.again }];
     }
     return { ...ai, answer: combined, continued: true, finish_reason: 'continued_but_may_be_truncated' };

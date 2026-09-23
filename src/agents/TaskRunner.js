@@ -242,7 +242,7 @@ function createTaskRunner({ store, llmService, safeCalculate, searchService, key
     task.step += 1;
     task.workspace = workspace.snapshot();
     task.trace = [...task.trace, ...stepTrace].slice(-MAX_TRACE_ENTRIES);
-    task.toolsUsed = [...(task.toolsUsed || []), ...(res.toolsUsed || [])].slice(-100);
+    task.toolsUsed = [...(task.toolsUsed || []), ...(/** @type {Array<{sources?: unknown}>} */ (res.toolsUsed || [])).map(({ sources: _pageCards, ...entry }) => entry)].slice(-100);
 
     if (!res.ok) {
       // A failed step is not a failed task: the state is intact, and stepping

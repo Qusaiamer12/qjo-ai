@@ -21,8 +21,8 @@ function publishedOf(result) {
 /**
  * Search results as plain data, deduplicated by URL, so they can outlive the
  * formatted text the model saw.
- * @param {{results?: Array<{title?: string, url?: string, content?: string, snippet?: string, publishedDate?: string, published_date?: string}>, query?: string}} payload
- * @returns {Array<{title: string, url: string, content: string, published: string}>}
+ * @param {{results?: Array<{title?: string, url?: string, content?: string, snippet?: string, publishedDate?: string, published_date?: string, sourceKind?: string}>, query?: string}} payload
+ * @returns {Array<{title: string, url: string, content: string, published: string, kind: string}>}
  */
 function evidenceFromSearch(payload) {
   const out = [];
@@ -35,10 +35,22 @@ function evidenceFromSearch(payload) {
       title: String(r.title || url).trim(),
       url,
       content: String(r.content || r.snippet || '').replace(/\s+/g, ' ').trim(),
-      published: publishedOf(r)
+      published: publishedOf(r),
+      kind: String(r.sourceKind || 'web')
     });
   }
   return out;
+}
+
+/**
+ * What the page shows as source cards for one search. It rides in toolsUsed,
+ * which already reaches the page: a search the model ran by itself used to
+ * leave no sources on screen, only a line of text saying it had searched.
+ * @param {Parameters<typeof evidenceFromSearch>[0]} payload
+ */
+function sourcesForPage(payload) {
+  return evidenceFromSearch(payload).slice(0, MAX_SOURCES)
+    .map(({ title, url, published, kind }) => ({ title: title.slice(0, 160), url, published, kind }));
 }
 
 /**
@@ -160,6 +172,7 @@ function formatEvidenceAnswer(evidence, { arabic }) {
 
 module.exports = {
   evidenceFromSearch,
+  sourcesForPage,
   formatSearchResultsForTool,
   buildSynthesisMessages,
   formatEvidenceAnswer

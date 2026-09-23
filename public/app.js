@@ -3749,9 +3749,7 @@ if len(__qjo_err_str) > 20000:
         if (view.started && view.bubble) {
           decorateAssistantBubble(view.bubble, view.wrap, {
             extras: [
-              ['sources', () => {
-                if (lastSearchSources.length) appendSourceCards(view.wrap, lastSearchSources);
-              }],
+              ['sources', () => appendSourceCards(view.wrap, lastSearchSources.length ? lastSearchSources : QjoDomain.sourcesFromToolsUsed(lastMetadata.toolsUsed))],
               ['tools note', () => appendToolsUsedNote(view.wrap, lastMetadata.toolsUsed)],
               // Now that the answer is complete, re-decide the content-dependent
               // actions (exports, project ZIP) that could not be judged when the

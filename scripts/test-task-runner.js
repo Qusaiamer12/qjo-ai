@@ -154,6 +154,20 @@ function runnerWith(script, { store, extraTools = {} } = {}) {
     assert.strictEqual(afterRetry.status, 'running');
   });
 
+  await test('a task records what it searched, not every source card', async () => {
+    // Source cards are for the page. A task's record lives in one stored
+    // document; six links per search over a hundred searches would crowd it.
+    const { runner } = runnerWith([
+      { toolCalls: [toolCall('1', 'web_search', { query: 'سعر الذهب' })] },
+      { answer: 'بحثت.' }
+    ]);
+    const started = await runner.start({ uid: 'u1', goal: 'سعر الذهب' });
+    const task = await runner.step(started.id, { uid: 'u1' });
+    const searched = (task.toolsUsed || []).find((t) => t.tool === 'web_search');
+    assert.ok(searched && searched.input, `the search was not recorded: ${JSON.stringify(task.toolsUsed)}`);
+    assert.ok(!('sources' in searched), 'the stored task carries the page\'s source cards');
+  });
+
   await test('a runaway task stops at the step limit', async () => {
     const store = createMemoryTaskStore();
     const { runner } = runnerWith([{ answer: 'ما زلت أعمل...' }], { store });

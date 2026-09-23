@@ -11,6 +11,7 @@
 const assert = require('assert');
 const { createRoutingEngine } = require('../src/agents/RoutingEngine');
 const { WEB_SEARCH_TOOL } = require('../src/tools/searchTool');
+const { formatSearchResultsForTool } = require('../src/agents/toolAnswer');
 
 let pass = 0, fail = 0;
 function test(name, fn) {
@@ -354,6 +355,158 @@ const askWith = async (text, mode = 'flash') => {
   await test('an everyday question is not made expensive', () => {
     const plan = buildSearchBeastPlan('شرح مفهوم الجاذبية', false);
     assert.strictEqual(plan.enrichPages, 0, 'page extraction was turned on for a question that does not need it');
+  });
+
+  await test('a scorer question is not searched as a fixture list', () => {
+    const plan = buildSearchBeastPlan('current top scorer Real Madrid 2026', false);
+    assert.ok(!plan.queries.some((q) => /fixture|next match/i.test(q)), `a scorer question asked the engine for fixtures: ${JSON.stringify(plan.queries)}`);
+    assert.ok(plan.queries.some((q) => /goals/i.test(q)), `nothing asks for goals: ${JSON.stringify(plan.queries)}`);
+  });
+
+  await test('a fixture question still asks for the fixture', () => {
+    const plan = buildSearchBeastPlan('متى مباراة ريال مدريد القادمة', false);
+    assert.ok(plan.queries.some((q) => /موعد/.test(q)), JSON.stringify(plan.queries));
+  });
+
+
+  console.log('\nWhat the providers found reaches the model:');
+
+  // From production (Sep 2026): an Arabic conversation about Real Madrid; the
+  // model searched "current top scorer Real Madrid 2026" twice and was told
+  // "no results" both times. The provider had answered. The ranker judged
+  // relevance only against the person's Arabic words, found none of them in
+  // English pages, and dropped every result. Every test above fakes the whole
+  // search service, which is how this lived through all of them.
+  const ARABIC_CONVERSATION = ['كيفك', 'متى مباراة ريال مدريد القادمة', 'طيب مين هداف الدوري الاسباني حاليا؟', 'طب اسم مين هداف ريال مدريد الحالي'].join('\n\n');
+  const ENGLISH_PAGES = [
+    { title: 'Kylian Mbappé tops Real Madrid scoring chart in 2025-26', url: 'https://www.espn.com/soccer/story/mbappe-goals', content: 'Kylian Mbappé has scored 12 goals in La Liga this season, leading the squad.', score: 0.9 },
+    { title: 'Real Madrid statistics 2025/26 - top scorers', url: 'https://www.transfermarkt.com/real-madrid/leistungsdaten', content: 'Goals, assists and minutes for every Real Madrid player.', score: 0.85 },
+    { title: 'Vinícius Júnior and Mbappé goal tally', url: 'https://www.marca.com/en/football/real-madrid/goals.html', content: 'The forwards continue to share the goals.', score: 0.8 },
+    { title: 'Real Madrid squad stats', url: 'https://fbref.com/en/squads/53a2f082/Real-Madrid-Stats', content: 'Standard stats.', score: 0.7 }
+  ];
+
+  function tavilyService({ pages = ENGLISH_PAGES, rewriter } = {}) {
+    const sentQueries = [];
+    const fetchImpl = async (url, init) => {
+      const body = JSON.parse((init && init.body) || '{}');
+      if (!String(url).includes('tavily')) return new Response('', { status: 503 });
+      sentQueries.push(body.query);
+      return new Response(JSON.stringify({ results: pages }), { status: 200, headers: { 'content-type': 'application/json' } });
+    };
+    const service = createSearchService({
+      stableCacheKey: (...parts) => parts.join('|'),
+      cacheGet: () => null,
+      cacheSet: (_c, _k, v) => v,
+      memoryCaches: { search: new Map(), deepSearch: new Map() },
+      tavilyApiKey: 'tv-test',
+      fetchImpl,
+      llmService: rewriter,
+      queryRewriter: rewriter ? { provider: 'groq', model: 'fast' } : undefined
+    });
+    return { service, sentQueries };
+  }
+
+  await test('an Arabic conversation searched in English keeps the English results', async () => {
+    const { service } = tavilyService();
+    const payload = await service.performSearch({ rawQuery: 'current top scorer Real Madrid 2026', originalQuestion: ARABIC_CONVERSATION, queryFromModel: true });
+    // All four: every one matches the query that found it. Keeping "at least
+    // a few" would pass with relevance still judged against the Arabic alone.
+    assert.strictEqual(payload.results.length, ENGLISH_PAGES.length, `${payload.results.length} of ${ENGLISH_PAGES.length} results reached the model (status "${payload.status}")`);
+    assert.ok(payload.results.some((r) => /espn\.com/.test(r.url)), 'the best source was dropped');
+    assert.strictEqual(payload.status, 'ok');
+  });
+
+  await test('the same, as the model sees it: sources, not "no results"', async () => {
+    const { service } = tavilyService();
+    const payload = await service.performSearch({ rawQuery: 'Real Madrid leading scorer 2026', originalQuestion: 'طب اسم مين هداف ريال مدريد الحالي', queryFromModel: true });
+    const text = formatSearchResultsForTool(payload);
+    assert.ok(!/No web results found/.test(text), text.slice(0, 200));
+    assert.ok(/espn\.com/.test(text), 'the tool output has no sources');
+  });
+
+  await test('"ok" is never reported beside an empty list', async () => {
+    const { service } = tavilyService({ pages: [{ title: 'no link', url: '', content: 'x' }] });
+    const payload = await service.performSearch({ rawQuery: 'Real Madrid top scorer', originalQuestion: 'Real Madrid top scorer', queryFromModel: true });
+    assert.strictEqual(payload.results.length, 0);
+    assert.strictEqual(payload.status, 'empty', `status "${payload.status}" with nothing to show`);
+  });
+
+  await test('ranking prunes off-topic results but never empties what the providers found', () => {
+    const { rankSearchBeastResults } = require('../src/search/searchCore');
+    const unrelated = ['a', 'b', 'c', 'd', 'e', 'f'].map((k) => ({ title: `Page ${k}`, url: `https://site-${k}.example/x`, content: 'Nothing that matches.', score: 0.5 }));
+    const ranked = rankSearchBeastResults(unrelated, 'general', 'سؤال عن شيء مختلف تماما');
+    assert.ok(ranked.length >= 3, `the ranker turned ${unrelated.length} results into ${ranked.length}`);
+  });
+
+  await test('a query the model wrote is searched as written, not rewritten from the conversation', async () => {
+    const rewrites = [];
+    const rewriter = { dispatch: async (_p, params) => { rewrites.push(params); return { ok: true, answer: '{"native":"موعد مباراة ريال مدريد القادمة","english":"Real Madrid next match date"}' }; } };
+    const { service, sentQueries } = tavilyService({ rewriter });
+    const payload = await service.performSearch({ rawQuery: 'current top scorer Real Madrid 2026', originalQuestion: ARABIC_CONVERSATION, queryFromModel: true });
+    assert.strictEqual(rewrites.length, 0, 'the conversation was rewritten into queries anyway');
+    assert.strictEqual(payload.queries[0], 'current top scorer Real Madrid 2026');
+    assert.ok(!sentQueries.some((q) => /next match/i.test(q)), `an earlier topic reached the engine: ${JSON.stringify(sentQueries)}`);
+  });
+
+  await test('a question typed by the person is still rewritten (control)', async () => {
+    const rewrites = [];
+    const rewriter = { dispatch: async (_p, params) => { rewrites.push(params); return { ok: true, answer: '{"native":"هداف ريال مدريد","english":"Real Madrid top scorer"}' }; } };
+    const { service } = tavilyService({ rewriter });
+    await service.performSearch({ rawQuery: 'هداف ريال مدريد', originalQuestion: 'بدي أعرف مين هداف ريال مدريد هذا الموسم في كل البطولات مع عدد الأهداف لكل لاعب' });
+    assert.strictEqual(rewrites.length, 1, 'the rewriter never ran, so the test above proves nothing');
+  });
+
+  await test('each search hands the page its sources', async () => {
+    const results = ENGLISH_PAGES.map((r, i) => ({ id: i + 1, ...r }));
+    const engine = createRoutingEngine({
+      extraTools: HOST_TOOLS,
+      llmService: {
+        dispatch: async (provider, params) => {
+          if ((params.messages || []).some((m) => m.role === 'tool')) return { ok: true, answer: 'Mbappé [1](https://www.espn.com/soccer/story/mbappe-goals).', provider, model: params.model, finish_reason: 'stop' };
+          const call = { id: 't1', type: 'function', function: { name: 'web_search', arguments: '{"query":"Real Madrid top scorer"}' } };
+          return { ok: true, answer: '', provider, model: params.model, finish_reason: 'tool_calls', message: { role: 'assistant', tool_calls: [call] }, toolCalls: [call] };
+        },
+        hasKeys: () => true, hasAnyProvider: () => true
+      },
+      safeCalculate: null,
+      searchService: { performSearch: async ({ rawQuery }) => ({ query: rawQuery, results }) },
+      keys: { groq: 1, llm7: 0, qwen: 0, kimi: 0 },
+      models: { groqFlash: 'f', groqText: 't', groqCode: 't', groqVision: 'v' }
+    });
+    const res = await engine.callAgent({ agentType: 'chat', model: 't', mode: 'flash', max_tokens: 200, useTools: true, messages: [{ role: 'user', content: 'مين هداف ريال مدريد؟' }] });
+    const searched = (res.toolsUsed || []).find((t) => t.tool === 'web_search');
+    assert.ok(searched && Array.isArray(searched.sources), `no sources in toolsUsed: ${JSON.stringify(res.toolsUsed)}`);
+    assert.strictEqual(searched.sources[0].url, 'https://www.espn.com/soccer/story/mbappe-goals');
+    assert.ok(searched.sources.every((s) => s.title && /^https:/.test(s.url)), JSON.stringify(searched.sources));
+  });
+
+  await test('a long answer that is continued keeps its sources', async () => {
+    // The continuation is a fresh call; its result used to replace the first
+    // one wholesale, so an answer long enough to need finishing lost the
+    // record of the search it was written from — and with it the cards.
+    const results = ENGLISH_PAGES.map((r, i) => ({ id: i + 1, ...r }));
+    const engine = createRoutingEngine({
+      llmService: {
+        dispatch: async (provider, params) => {
+          const last = params.messages[params.messages.length - 1];
+          if (last.role === 'user' && /^(Continue|تابع)/.test(String(last.content))) return { ok: true, answer: '…and the rest.', provider, model: params.model, finish_reason: 'stop' };
+          if (params.messages.some((m) => m.role === 'tool')) return { ok: true, answer: 'A long answer that ran out of room', provider, model: params.model, finish_reason: 'length' };
+          const call = { id: 't1', type: 'function', function: { name: 'web_search', arguments: '{"query":"Real Madrid top scorer"}' } };
+          return { ok: true, answer: '', provider, model: params.model, finish_reason: 'tool_calls', message: { role: 'assistant', tool_calls: [call] }, toolCalls: [call] };
+        },
+        hasKeys: () => true, hasAnyProvider: () => true
+      },
+      safeCalculate: null,
+      searchService: { performSearch: async ({ rawQuery }) => ({ query: rawQuery, results }) },
+      keys: { groq: 1, llm7: 0, qwen: 0, kimi: 0 },
+      models: { groqFlash: 'f', groqText: 't', groqCode: 't', groqVision: 'v' }
+    });
+    const messages = [{ role: 'user', content: 'Who is Real Madrid\'s top scorer? Explain in detail.' }];
+    const ai = await engine.callAgent({ agentType: 'chat', model: 't', mode: 'flash', max_tokens: 200, useTools: true, messages });
+    const done = await engine.completeIfTruncated({ ai, messages, temperature: 0.5, max_tokens: 200 });
+    assert.ok(done.continued, `the answer was not continued, so this proves nothing: ${JSON.stringify(done).slice(0, 160)}`);
+    const searched = (done.toolsUsed || []).find((t) => t.tool === 'web_search');
+    assert.ok(searched && (searched.sources || []).length, `the continued answer lost its sources: ${JSON.stringify(done.toolsUsed)}`);
   });
 
   console.log('\n========================================');

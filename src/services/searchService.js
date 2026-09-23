@@ -145,11 +145,16 @@ function createSearchService(deps) {
 
   // Builds the final query set: LLM-rewritten queries first (when available),
   // then the heuristic plan for coverage and diversity.
-  async function buildQuerySet(rawOriginal, baseQuery, plan, maxQueries) {
+  //
+  // A query the model wrote is already the rewrite. Rewriting "the original
+  // question" instead meant rewriting the last four user messages joined
+  // together, so an earlier topic in the conversation could take two of the
+  // three query slots from the one the model actually asked for.
+  async function buildQuerySet(rawOriginal, baseQuery, plan, maxQueries, queryFromModel = false) {
     const queries = [];
     const original = String(rawOriginal || '').trim();
     const isDirectConcise = original.length <= 70 && baseQuery && baseQuery.length >= 4;
-    if (original && !isDirectConcise) {
+    if (original && !isDirectConcise && !queryFromModel) {
       const rewritten = await rewriteQueryWithLLM(original);
       if (rewritten) {
         if (rewritten.native) queries.push(rewritten.native);
@@ -161,13 +166,17 @@ function createSearchService(deps) {
     return [...new Set(queries.filter(Boolean))].slice(0, maxQueries);
   }
 
+  // The status describes what the model receives, so it is decided after
+  // ranking: "ok" beside an empty list is how "no results" hid a ranking fault.
+  const finalStatus = (status, results) => (results.length ? 'ok' : (status === 'unavailable' ? 'unavailable' : 'empty'));
+
   // Ceilings for one search request, measured from the moment it arrives.
   // Without them the worst case was the full provider chain per query plus page
   // extraction — long enough that the caller had given up.
   const SEARCH_BUDGET_MS = 11000;
   const DEEP_SEARCH_BUDGET_MS = 26000;
 
-  async function performSearch({ rawQuery, originalQuestion }) {
+  async function performSearch({ rawQuery, originalQuestion, queryFromModel = false }) {
     const deadline = Date.now() + SEARCH_BUDGET_MS;
     const query = distillSearchQueryServer(rawQuery);
     if (!query) { const err = new Error('Missing search query.'); err.statusCode = 400; throw err; }
@@ -176,7 +185,7 @@ function createSearchService(deps) {
     const cached = deps.cacheGet(deps.memoryCaches.search, cacheKey);
     if (cached) return { ...cached, cached: true };
     const plan = buildSearchBeastPlan(query, false);
-    const queries = validateSearchQueriesRefined(await buildQuerySet(original, query, plan, 3));
+    const queries = validateSearchQueriesRefined(await buildQuerySet(original, query, plan, 3, queryFromModel));
     // The query set runs in parallel; per-query mode steers topic/freshness.
     const { merged, status, failures } = await runQueries(queries, plan, deadline);
     let results = rankSearchBeastResults(merged, plan.mode, original || query).slice(0, plan.keepResults);
@@ -186,7 +195,7 @@ function createSearchService(deps) {
       results = await enrichResultsWithFirecrawl(results, plan.enrichPages, deadline);
     }
     results = rankSearchBeastResults(results, plan.mode, original || query).slice(0, plan.keepResults).map((r, index) => ({ id: index + 1, ...r }));
-    const payload = { query, queries, originalQuestion: original, mode: plan.mode, plan: { queries: plan.queries, depth: plan.depth, enrichPages: plan.enrichPages }, provider: activeProviderName(), extractionProvider: firecrawlApiKey() ? 'firecrawl' : null, results, status, failures, generatedAt: new Date().toISOString(), cached: false };
+    const payload = { query, queries, originalQuestion: original, mode: plan.mode, plan: { queries: plan.queries, depth: plan.depth, enrichPages: plan.enrichPages }, provider: activeProviderName(), extractionProvider: firecrawlApiKey() ? 'firecrawl' : null, results, status: finalStatus(status, results), failures, generatedAt: new Date().toISOString(), cached: false };
     // Only a search that found something is worth remembering. Caching an
     // empty or failed one served the failure for ten minutes after the
     // providers had recovered.
@@ -209,7 +218,7 @@ function createSearchService(deps) {
       results = await enrichResultsWithFirecrawl(results, planned.enrichPages, deadline);
     }
     results = rankSearchBeastResults(results, planned.mode, original || question).slice(0, planned.keepResults).map((r, index) => ({ id: index + 1, ...r }));
-    const payload = { question, queries, originalQuestion: original, mode: planned.mode, plan: { depth: planned.depth, enrichPages: planned.enrichPages, maxResultsPerQuery: planned.maxResultsPerQuery }, searchProvider: activeProviderName(), extractionProvider: firecrawlApiKey() ? 'firecrawl' : null, results, status, failures, generatedAt: new Date().toISOString(), cached: false };
+    const payload = { question, queries, originalQuestion: original, mode: planned.mode, plan: { depth: planned.depth, enrichPages: planned.enrichPages, maxResultsPerQuery: planned.maxResultsPerQuery }, searchProvider: activeProviderName(), extractionProvider: firecrawlApiKey() ? 'firecrawl' : null, results, status: finalStatus(status, results), failures, generatedAt: new Date().toISOString(), cached: false };
     return results.length ? deps.cacheSet(deps.memoryCaches.deepSearch, cacheKey, payload, 10 * 60 * 1000, 120) : payload;
   }
 

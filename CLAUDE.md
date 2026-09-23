@@ -62,6 +62,13 @@ Each of these produced a green result that meant nothing.
   manual verification") that counted as success and was cached. Production
   search looked alive in every metric while answering nothing. An empty
   result must be empty, and a failure must be logged and visible.
+- **A test double standing in for the part that broke.** Every search test
+  replaced `performSearch` with a stub, so ranking never met an Arabic
+  question searched in English — the case production hit on every search the
+  model wrote in English. It dropped every result and told the model "no
+  results" with status `ok`. The end-to-end suite now runs the real search
+  service against a fake provider over HTTP; stub below the thing under
+  test, never the thing itself.
 - **Verification that lives outside the repo.** 264 browser assertions spent
   weeks in a scratch directory that is deleted with the container. A check
   that is not committed and not in CI does not exist.

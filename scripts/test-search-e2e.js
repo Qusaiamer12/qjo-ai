@@ -13,6 +13,7 @@
 const http = require('http');
 const { createLlmService } = require('../src/services/llmService');
 const { createRoutingEngine } = require('../src/agents/RoutingEngine');
+const { createSearchService } = require('../src/services/searchService');
 const { STREAM_IDLE_MS } = require('../src/services/providerResponse');
 
 let pass = 0;
@@ -34,11 +35,20 @@ const openResponses = new Set();
 let handler = null;
 let calls = [];
 
+// The same server stands in for a search provider at /tavily, so a scenario
+// can run the real search service — ranking included — instead of a stub.
+let tavilyHandler = null;
+
 const provider = http.createServer((req, res) => {
   let raw = '';
   req.on('data', (d) => { raw += d; });
   req.on('end', () => {
     const body = JSON.parse(raw || '{}');
+    if (req.url.startsWith('/tavily')) {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(tavilyHandler(body)));
+      return;
+    }
     calls.push({ body, auth: req.headers.authorization, at: Date.now() });
     openResponses.add(res);
     res.on('close', () => openResponses.delete(res));
@@ -110,7 +120,24 @@ const SEARCH_RESULTS = {
   ]
 };
 
-function buildEngine({ baseUrl, keys = ['key-a'], search = async () => SEARCH_RESULTS, secondProvider = false }) {
+// The production search service, with only its network pointed here.
+function realSearchService(baseUrl) {
+  return createSearchService({
+    tavilyApiKey: 'tv-test',
+    searchEndpoints: { tavily: baseUrl.replace(/\/v1$/, '/tavily') },
+    stableCacheKey: (...parts) => parts.join('|'),
+    cacheGet: () => null,
+    cacheSet: (_c, _k, v) => v,
+    memoryCaches: { search: new Map(), deepSearch: new Map() },
+    // A rewriter that fixes on the conversation's earlier topic, as a real
+    // one given the last four messages can. Only a query the model did not
+    // write should ever reach it.
+    llmService: { dispatch: async () => ({ ok: true, answer: '{"native":"موعد مباراة ريال مدريد القادمة","english":"Real Madrid next match date"}' }) },
+    queryRewriter: { provider: 'groq', model: 'fast' }
+  });
+}
+
+function buildEngine({ baseUrl, keys = ['key-a'], search = async () => SEARCH_RESULTS, secondProvider = false, searchService = null }) {
   const llmService = createLlmService({
     llm7Keys: keys,
     llm7BaseUrl: baseUrl,
@@ -120,7 +147,7 @@ function buildEngine({ baseUrl, keys = ['key-a'], search = async () => SEARCH_RE
   return createRoutingEngine({
     llmService,
     safeCalculate: null,
-    searchService: { performSearch: ({ rawQuery, originalQuestion }) => search({ rawQuery, originalQuestion }) },
+    searchService: searchService || { performSearch: ({ rawQuery, originalQuestion }) => search({ rawQuery, originalQuestion }) },
     keys: { groq: 0, llm7: keys.length, qwen: 0, kimi: secondProvider ? 1 : 0 },
     models: { llm7Flash: 'fake-flash', llm7Text: 'fake-text', kimiFlash: 'fake-kimi', kimiText: 'fake-kimi' }
   });
@@ -128,13 +155,13 @@ function buildEngine({ baseUrl, keys = ['key-a'], search = async () => SEARCH_RE
 
 const QUESTION = 'مين هداف ريال مدريد هذا الموسم؟';
 
-async function ask(engine, { budgetMs, question = QUESTION } = {}) {
+async function ask(engine, { budgetMs, question = QUESTION, history = [] } = {}) {
   const chunks = [];
   const toolEvents = [];
   const started = Date.now();
   const res = await engine.callAgent({
     mode: 'flash',
-    messages: [{ role: 'user', content: question }],
+    messages: [...history, { role: 'user', content: question }],
     budgetMs,
     onChunk: (t) => chunks.push(t),
     onToolCall: (e) => toolEvents.push(e)
@@ -398,6 +425,42 @@ async function main() {
     ok(toolEvents.some((e) => e.tool === 'web_search' && e.status === 'running') && toolEvents.some((e) => e.tool === 'web_search' && e.status === 'done'), 'the search is announced and completed', toolEvents);
     ok((shown.match(/مبابي هو هداف/g) || []).length === 1, 'the answer is shown once', shown);
     ok(calls.length === 2 && calls[1].body.stream === true, 'the answer after the search is streamed, not one silent wait', calls.map((c) => c.body.stream));
+  });
+
+  // The production report, end to end. An Arabic conversation; the model
+  // searches in English; the provider answers with English pages. The ranker
+  // used to judge them against the Arabic words alone, drop every one, and
+  // hand the model "No web results found" — twice, for two phrasings.
+  await scenario('An Arabic conversation, an English search, English pages (the production report)', 25000, async (ok) => {
+    const searched = [];
+    tavilyHandler = (body) => {
+      searched.push(body.query);
+      return { results: [
+        { title: 'Kylian Mbappé tops Real Madrid scoring chart in 2025-26', url: 'https://www.espn.com/soccer/story/mbappe-goals', content: 'Kylian Mbappé has scored 12 goals in La Liga this season.', score: 0.9, published_date: '2026-09-21' },
+        { title: 'Real Madrid statistics 2025/26', url: 'https://www.transfermarkt.com/real-madrid/leistungsdaten', content: 'Goals and assists for every Real Madrid player.', score: 0.8 },
+        { title: 'Vinícius and Mbappé goal tally', url: 'https://www.marca.com/en/football/real-madrid/goals.html', content: 'The forwards share the goals.', score: 0.7 },
+        { title: 'Real Madrid squad stats', url: 'https://fbref.com/en/squads/53a2f082/Real-Madrid-Stats', content: 'Standard stats.', score: 0.6 }
+      ] };
+    };
+    let toolOutput = '';
+    handler = (body, res) => {
+      if (isFirstRound(body)) return reply.toolCall(res, body, 'web_search', { query: 'current top scorer Real Madrid 2026' });
+      toolOutput = (body.messages || []).filter((m) => m.role === 'tool').map((m) => m.content).join('\n');
+      return reply.text(res, body, 'مبابي هو هداف ريال مدريد هذا الموسم [1](https://www.espn.com/soccer/story/mbappe-goals).');
+    };
+    const history = [
+      { role: 'user', content: 'كيفك' }, { role: 'assistant', content: 'أهلًا!' },
+      { role: 'user', content: 'متى مباراة ريال مدريد القادمة' }, { role: 'assistant', content: '...' },
+      { role: 'user', content: 'طيب مين هداف الدوري الاسباني حاليا؟' }, { role: 'assistant', content: '...' }
+    ];
+    const { res } = await ask(buildEngine({ baseUrl, searchService: realSearchService(baseUrl) }), { budgetMs: 20000, question: 'طب اسم مين هداف ريال مدريد الحالي', history });
+    ok(searched[0] === 'current top scorer Real Madrid 2026', `the model's query reaches the provider first, as written (${JSON.stringify(searched)})`);
+    ok(!searched.some((q) => /next match|fixture|مباراة/i.test(q)), 'no earlier topic and no fixture padding reach the provider', searched);
+    ok(!/No web results found/.test(toolOutput) && /espn\.com/.test(toolOutput), 'the model receives the sources, not "no results"', toolOutput.slice(0, 200));
+    const searchUse = (res.toolsUsed || []).find((t) => t.tool === 'web_search');
+    ok(searchUse && searchUse.resultCount === 4, `every page the provider found is kept (${searchUse && searchUse.resultCount} of 4)`);
+    ok(searchUse && (searchUse.sources || []).some((s) => s.url === 'https://www.espn.com/soccer/story/mbappe-goals'), 'and the page gets them as source cards', searchUse);
+    ok(res.ok && /espn\.com/.test(res.answer || ''), 'the answer cites them', (res.answer || '').slice(0, 160));
   });
 
   provider.close();

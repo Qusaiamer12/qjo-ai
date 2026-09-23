@@ -162,6 +162,27 @@ function searchBeastRelevance(result, question) {
   return hits / terms.length;
 }
 
+// What a sports question is about, as the words to add to it. Every sports
+// question used to get "next match fixture date result latest" and "official
+// site season stats top scorer" appended, so "current top scorer Real Madrid"
+// asked the engine for fixtures it did not want.
+const SPORTS_FOCUS = [
+  { about: /هداف|هدافين|أهداف|اهداف|scorer|goals/i, ar: 'هدافين الموسم عدد الأهداف', en: 'top scorers goals this season' },
+  { about: /ترتيب|standings|league table/i, ar: 'جدول الترتيب', en: 'standings table' },
+  { about: /نتيجة|result|final score/i, ar: 'نتيجة آخر مباراة', en: 'latest result' },
+  { about: /مباراة|مباريات|لعبة|يلعب|موعد|القادم|fixture|next match|kick off|schedule/i, ar: 'موعد المباراة القادمة', en: 'next match fixture date' },
+  { about: /انتقالات|صفقة|transfer/i, ar: 'آخر أخبار الانتقالات', en: 'latest transfer news' }
+];
+
+// Words the query already has are not added again: "top scorer" plus
+// "top scorers goals" reads as noise to an engine, not emphasis.
+function sportsFocus(q) {
+  const { ar, en } = SPORTS_FOCUS.find(f => f.about.test(q)) || { ar: 'آخر الأخبار', en: 'latest news' };
+  const has = String(q).toLowerCase();
+  const fresh = (words) => words.split(' ').filter(w => !has.includes(w.toLowerCase().replace(/s$/, '').replace(/^ال/, ''))).join(' ');
+  return [fresh(ar), fresh(en)];
+}
+
 function buildSearchBeastPlan(question, deep = false) {
   const originalQuestion = compactQuery(question);
   const q = distillSearchQueryServer(question);
@@ -215,8 +236,8 @@ function buildSearchBeastPlan(question, deep = false) {
     add('دراسة بحثية ورقة علمية نتائج', 'research paper methodology results findings');
     add('arxiv PubMed Scholar IEEE', 'arxiv PubMed IEEE DOI Springer');
   } else if (mode === 'sports') {
-    add('الموعد والنتيجة آخر تحديث', 'next match fixture date result latest');
-    add('الموقع الرسمي إحصائيات الموسم', 'official site season stats top scorer');
+    const [ar, en] = sportsFocus(q);
+    if (isArabic ? ar : en) add(ar, en);
   } else if (/كأس العالم|world cup|نهائي|مباراة|fixture|schedule|final/i.test(q)) {
     add('مصدر رسمي موعد توقيت', 'official schedule dates fixtures');
   } else {
@@ -245,6 +266,8 @@ function buildSearchBeastPlan(question, deep = false) {
   };
 }
 
+const MIN_KEPT_RESULTS = 3;
+
 function rankSearchBeastResults(results, mode, question) {
   const byUrl = new Map();
   for (const result of results || []) {
@@ -254,7 +277,10 @@ function rankSearchBeastResults(results, mode, question) {
       ...result,
       sourceKind: sourceKind(result.url),
       reliabilityScore: scoreSource(result, mode),
-      relevanceScore: searchBeastRelevance(result, question)
+      // Relevant to the question, or to the query that found it. The model
+      // often searches in English for an Arabic question, and judged only
+      // against the Arabic words every English page scored zero.
+      relevanceScore: Math.max(searchBeastRelevance(result, question), searchBeastRelevance(result, result.query))
     };
     
     let baseScore = (source.reliabilityScore || 0) * 1.25 + (source.relevanceScore || 0) * 0.9 + (source.firecrawl ? 0.15 : 0);
@@ -282,10 +308,16 @@ function rankSearchBeastResults(results, mode, question) {
     if (!existing || source.finalScore > existing.finalScore) byUrl.set(key, source);
   }
   
-  const sorted = Array.from(byUrl.values())
-    .filter(r => (r.relevanceScore || 0) > 0 || /official|docs|government|academic|code\/repository/.test(r.sourceKind || '') || byUrl.size <= 3)
-    .sort((a, b) => (b.finalScore || 0) - (a.finalScore || 0));
-    
+  // The filter prunes off-topic pages; it never decides that the providers
+  // found nothing. When too few pass, the best of the rest make up the
+  // number — an empty list here told the model "no results" while the
+  // providers had answered.
+  const ranked = Array.from(byUrl.values()).sort((a, b) => (b.finalScore || 0) - (a.finalScore || 0));
+  const onTopic = (r) => (r.relevanceScore || 0) > 0 || /official|docs|government|academic|code\/repository/.test(r.sourceKind || '');
+  const passed = ranked.filter(onTopic);
+  const topUp = new Set(ranked.filter(r => !onTopic(r)).slice(0, Math.max(0, MIN_KEPT_RESULTS - passed.length)));
+  const sorted = ranked.filter(r => onTopic(r) || topUp.has(r));
+
   // Domain Diversification Guard - maximum 2 sources from the exact same domain
   const domainCounts = new Map();
   const diversified = [];

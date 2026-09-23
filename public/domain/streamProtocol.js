@@ -177,11 +177,37 @@
   const OPEN_TAG = '<think>';
   const CLOSE_TAG = '</think>';
 
-  const api = { createSseParser, routeStreamChunk, readEventStream };
+  /**
+   * The sources behind an answer, from the done event's toolsUsed: each
+   * search the model ran carries what it found. Two searches often find the
+   * same page, so the list is deduplicated and numbered in the order shown.
+   * Only http(s) links survive — this list becomes links on the page.
+   *
+   * @param {Array<{sources?: Array<{title?: string, url?: string, kind?: string}>}>} toolsUsed
+   * @param {number} [max]
+   * @returns {Array<{id: number, title: string, url: string, kind: string}>}
+   */
+  function sourcesFromToolsUsed(toolsUsed, max = 8) {
+    const out = [];
+    const seen = new Set();
+    for (const entry of Array.isArray(toolsUsed) ? toolsUsed : []) {
+      for (const source of (entry && Array.isArray(entry.sources)) ? entry.sources : []) {
+        const url = String((source && source.url) || '').trim();
+        if (!/^https?:\/\//i.test(url) || seen.has(url)) continue;
+        seen.add(url);
+        out.push({ id: out.length + 1, title: String(source.title || ''), url, kind: String(source.kind || 'web') });
+        if (out.length >= max) return out;
+      }
+    }
+    return out;
+  }
+
+  const api = { createSseParser, routeStreamChunk, readEventStream, sourcesFromToolsUsed };
 
   global.QjoDomain = global.QjoDomain || {};
   global.QjoDomain.createSseParser = createSseParser;
   global.QjoDomain.routeStreamChunk = routeStreamChunk;
   global.QjoDomain.readEventStream = readEventStream;
+  global.QjoDomain.sourcesFromToolsUsed = sourcesFromToolsUsed;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

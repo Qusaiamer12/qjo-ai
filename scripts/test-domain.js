@@ -6,7 +6,7 @@
 // runs in milliseconds, which is the whole reason for pulling pure logic out.
 const assert = require('assert');
 const { classifyRequestFailure } = require('../public/domain/requestFailure.js');
-const { createSseParser, routeStreamChunk, readEventStream } = require('../public/domain/streamProtocol.js');
+const { createSseParser, routeStreamChunk, readEventStream, sourcesFromToolsUsed } = require('../public/domain/streamProtocol.js');
 const markdown = require('../public/domain/markdown.js');
 
 let pass = 0, fail = 0;
@@ -564,6 +564,31 @@ const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n
     const started = Date.now();
     await assert.rejects(reading, /All AI providers failed/);
     assert.ok(Date.now() - started < 1000, 'the error waited for the idle timer');
+  });
+
+  console.log('\nThe sources behind an answer:');
+
+  await testAsync('every search the model ran contributes its sources, once each, numbered as shown', async () => {
+    const sources = sourcesFromToolsUsed([
+      { tool: 'web_search', sources: [{ title: 'A', url: 'https://a.example/1' }, { title: 'B', url: 'https://b.example/2' }] },
+      { tool: 'fetch_page', input: 'https://a.example/1' },
+      { tool: 'web_search', sources: [{ title: 'A again', url: 'https://a.example/1' }, { title: 'C', url: 'https://c.example/3', kind: 'news' }] }
+    ]);
+    assert.deepStrictEqual(sources.map((s) => [s.id, s.title, s.url]), [[1, 'A', 'https://a.example/1'], [2, 'B', 'https://b.example/2'], [3, 'C', 'https://c.example/3']]);
+    assert.strictEqual(sources[2].kind, 'news');
+  });
+
+  await testAsync('only web links become sources, and there is a ceiling', async () => {
+    const many = Array.from({ length: 12 }, (_, i) => ({ title: `S${i}`, url: `https://s${i}.example/` }));
+    const sources = sourcesFromToolsUsed([{ sources: [{ title: 'x', url: 'javascript:alert(1)' }, { title: 'y', url: 'data:text/html,hi' }, ...many] }]);
+    assert.ok(sources.every((s) => /^https:/.test(s.url)), JSON.stringify(sources.slice(0, 2)));
+    assert.strictEqual(sources.length, 8);
+  });
+
+  await testAsync('anything that is not a list of tool runs is no sources, not an exception', async () => {
+    for (const bad of [undefined, null, {}, 'x', [null], [{ sources: 'no' }], [{ sources: [null, {}] }]]) {
+      assert.deepStrictEqual(sourcesFromToolsUsed(/** @type {any} */ (bad)), []);
+    }
   });
 
   await testAsync('a stalled read is a transient failure with its own message', async () => {

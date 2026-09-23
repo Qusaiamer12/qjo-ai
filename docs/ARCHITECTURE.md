@@ -201,6 +201,8 @@ Each of these exists because it happened.
 | Search provider out of credits or key rejected | Logged once a minute, rests 10 min (quota) or 30 min (key) instead of being asked every query; reason visible in `/api/status` → `searchHealth` |
 | Every keyed search provider fails | Google News RSS, Wikipedia and DuckDuckGo run side by side, with time kept back for them |
 | Every search source fails | An empty result marked `unavailable`, never an invented one; the model is told search is down, not that nothing exists; not cached |
+| The model searches in another language than the question | Each result is judged against the query that found it as well as the question; ranking may prune, never empty, what the providers returned; the status is set after ranking |
+| The model searches on its own (no Search toggle) | Its sources ride in `toolsUsed` to the page as source cards; kept through a continued answer; not stored in a long task's record |
 | Answer cut off by token budget | Reported, with a continue action |
 | A step of a long task fails | Task stays alive; stepping again resumes from that point |
 | Render instance sleeps mid-task | State is in Firestore; the next step wakes it |
