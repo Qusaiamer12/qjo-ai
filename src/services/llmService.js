@@ -46,62 +46,15 @@ const MODEL_MIGRATIONS = {
 
 // Size refusals and how long to wait for a first byte: src/services/providerLimits.js.
 const { isContextLengthError, isRequestFault, tokenAllowance, headerWaitMs } = require('./providerLimits');
+const { createKeyPool } = require('./keyPool');
 
 function migratedModel(model) {
   return MODEL_MIGRATIONS[model] || null;
 }
 
 function createLlmService(config = {}) {
-  // ── High-Performance Key Circuit Breaker & Round-Robin Health Tracker ──
-  // Keeps track of per-key failures, cooldown timers, and request distributions.
-  const keyHealth = new Map(); // key -> { failures: 0, cooldownUntil: 0, successes: 0 }
-  const cursors = new Map();   // provider -> number
-
-  function getKeyRecord(key) {
-    let rec = keyHealth.get(key);
-    if (!rec) {
-      rec = { failures: 0, cooldownUntil: 0, successes: 0 };
-      keyHealth.set(key, rec);
-    }
-    return rec;
-  }
-
-  function markKeySuccess(key) {
-    const rec = getKeyRecord(key);
-    rec.failures = 0;
-    rec.cooldownUntil = 0;
-    rec.successes++;
-  }
-
-  /**
-   * Sidelines a key for a duration proportional to why it failed.
-   * @param {string} key
-   * @param {{status?: number, errorMsg?: string, retryAfterSec?: number}} failure
-   * @returns {number} cooldown applied, in milliseconds
-   */
-  function markKeyFailure(key, { status, errorMsg = '', retryAfterSec }) {
-    const rec = getKeyRecord(key);
-    rec.failures++;
-    const now = Date.now();
-
-    // Determine smart cooldown duration:
-    let cooldownMs = 15000; // default 15s
-    if (typeof retryAfterSec === 'number' && retryAfterSec > 0) {
-      cooldownMs = retryAfterSec * 1000;
-    } else if (status === 429 || /rate|quota|limit|tpm|rpm/i.test(errorMsg)) {
-      // Exponential backoff: 15s, 22s, 33s, 50s, capped at 60s
-      cooldownMs = Math.min(60000, 15000 * Math.pow(1.5, Math.min(rec.failures - 1, 4)));
-    } else if (status === 401 || /invalid|unauthorized|forbidden|deactivated/i.test(errorMsg)) {
-      // Bad/revoked key: sideline for 1 hour to protect latency
-      cooldownMs = 3600000;
-    } else if (status >= 500) {
-      // Transient server 5xx: short 5s cooldown
-      cooldownMs = 5000;
-    }
-
-    rec.cooldownUntil = now + cooldownMs;
-    return cooldownMs;
-  }
+  // Which key to try next and which to leave resting: src/services/keyPool.js.
+  const pool = config.keyPool || createKeyPool();
 
   function getKeys(provider) {
     switch (provider) {
@@ -111,46 +64,6 @@ function createLlmService(config = {}) {
       case 'kimi': return Array.isArray(config.kimiKeys) ? config.kimiKeys : [];
       default: return [];
     }
-  }
-
-  // Ultra-resilient key rotation:
-  // 1. Prioritizes healthy keys via round-robin cursor to balance load (4x TPM/RPM).
-  // 2. Automatically skips keys currently in cooldown.
-  // 3. If all keys are in cooldown, falls back to the one recovering soonest.
-  function rotateKeys(provider) {
-    const allKeys = getKeys(provider);
-    if (!allKeys.length) return [];
-    const now = Date.now();
-
-    const healthy = [];
-    const coolingDown = [];
-
-    for (const k of allKeys) {
-      const rec = getKeyRecord(k);
-      if (rec.cooldownUntil <= now) {
-        healthy.push(k);
-      } else {
-        coolingDown.push({ key: k, expiresAt: rec.cooldownUntil });
-      }
-    }
-
-    let prioritized = [];
-    if (healthy.length > 0) {
-      const cursor = cursors.get(provider) || 0;
-      for (let i = 0; i < healthy.length; i++) {
-        prioritized.push(healthy[(cursor + i) % healthy.length]);
-      }
-      cursors.set(provider, (cursor + 1) % healthy.length);
-
-      // Append cooling keys at the end as emergency fallbacks
-      coolingDown.sort((a, b) => a.expiresAt - b.expiresAt);
-      for (const item of coolingDown) prioritized.push(item.key);
-    } else {
-      coolingDown.sort((a, b) => a.expiresAt - b.expiresAt);
-      prioritized = coolingDown.map(c => c.key);
-    }
-
-    return prioritized;
   }
 
   // One abort controller per key attempt, cancelled by whichever comes first:
@@ -194,7 +107,15 @@ function createLlmService(config = {}) {
     if (mig) {
       model = mig;
     }
-    const keys = rotateKeys(provider);
+    const { keys, firmlyResting, nextInMs, allRejected } = pool.order(provider, getKeys(provider), model);
+    // Every key is resting for as long as the provider said to, or was
+    // rejected: asking again now is a guaranteed refusal, so the chain moves on
+    // without a round trip.
+    if (!keys.length && firmlyResting) {
+      return allRejected
+        ? { ok: false, status: 401, error: `${provider}: every key was rejected (check the keys).` }
+        : { ok: false, status: 429, error: `${provider} ${model}: rate limited — every key resting (next free in ${Math.ceil(nextInMs / 1000)}s).` };
+    }
     if (!keys.length || !baseUrl || !model) return { ok: false, status: 501, error: `${provider} is not configured.` };
 
     let lastError = null;
@@ -238,8 +159,8 @@ function createLlmService(config = {}) {
 
         if (response.ok) {
           const outcome = await readAnswerBody({ response, attempt, provider, model, onChunk, onReasoning, signal, timeLeft });
-          if (outcome.keyFailure) markKeyFailure(key, outcome.keyFailure);
-          else markKeySuccess(key);
+          if (outcome.keyFailure) pool.failure(provider, key, model, outcome.keyFailure);
+          else pool.success(provider, key, model);
           if (outcome.result) return outcome.result;
           lastError = outcome.error;
           console.warn(`[llmService] ${provider} key #${attemptIndex}/${keys.length}: ${outcome.error.error} Switching to next key instantly.`);
@@ -285,7 +206,7 @@ function createLlmService(config = {}) {
           };
         }
 
-        const cooldownApplied = markKeyFailure(key, { status: response.status, errorMsg, retryAfterSec });
+        const cooldownApplied = pool.failure(provider, key, model, { status: response.status, errorMsg, retryAfterSec });
         lastError = { status: response.status, error: errorMsg };
 
         // INSTANT KEY FAILOVER:
@@ -295,7 +216,7 @@ function createLlmService(config = {}) {
         attempt.done();
         if (attempt.wasExternal() || error.name === 'ClientAbortError') throw clientAbortError();
         const isTimeout = error.name === 'AbortError';
-        markKeyFailure(key, { status: isTimeout ? 504 : 502, errorMsg: error.message });
+        pool.failure(provider, key, model, { status: isTimeout ? 504 : 502, errorMsg: error.message });
         lastError = {
           status: isTimeout ? 504 : 502,
           error: isTimeout ? `${provider} timeout (${connectTimeout}ms).` : (error.message || `${provider} request failed.`),
@@ -348,6 +269,8 @@ function createLlmService(config = {}) {
     callKimiChat,
     dispatch,
     hasKeys: (provider) => getKeys(provider).length > 0,
+    /** Per provider, key position and model: rests and last errors. Never keys. */
+    health: () => pool.snapshot({ groq: getKeys('groq'), llm7: getKeys('llm7'), qwen: getKeys('qwen'), kimi: getKeys('kimi') }),
     normalizeProviderFinishReason,
     hasAnyProvider: () => ['groq', 'llm7', 'qwen', 'kimi'].some(p => getKeys(p).length > 0)
   };

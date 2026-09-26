@@ -172,6 +172,21 @@ async function ask(port, question = 'سؤال', extraBody = {}) {
     } finally { server.close(); }
   });
 
+  await test('through the real route, a message carries the playbooks it needs and no others', async () => {
+    const { buildChatSystemPrompt } = require('../src/services/systemPrompt');
+    const sent = [];
+    const capture = async ({ messages, onChunk }) => { sent.push(messages); onChunk('ok'); return { ok: true, answer: 'ok', provider: 'p', model: 'm' }; };
+    const { server, port } = await startApp(capture, { buildChatSystemPrompt });
+    try {
+      await ask(port, 'كيفك');
+      await ask(port, 'اكتبلي رسالة تغطية لوظيفة مطور ويب');
+      const [greeting, coverLetter] = sent.map((m) => m.filter((x) => x.role === 'system').map((x) => x.content).join('\n'));
+      assert.ok(!/JOB APPLICATIONS|SHORT VIDEO SCRIPTS|PRACTICAL COOKING/.test(greeting), 'a greeting carried specialised playbooks');
+      assert.ok(greeting.length <= 13500, `a greeting's system prompt is ${greeting.length} chars`);
+      assert.ok(/JOB APPLICATIONS/.test(coverLetter) && /يسعدني التقدم لوظيفتكم الموقرة/.test(coverLetter), 'a cover letter request did not get its playbook, in both languages');
+    } finally { server.close(); }
+  });
+
   await test('the runtime line is English, uses the page\'s time zone, and never invents a place', async () => {
     const { server, port } = await startApp(answer, { buildChatSystemPrompt: builder });
     try {

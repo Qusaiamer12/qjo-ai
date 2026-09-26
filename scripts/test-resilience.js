@@ -104,6 +104,56 @@ const MESSAGES = [{ role: 'user', content: 'مرحبا' }];
     assert.ok(calls.length >= 2, 'a bad key must fail over');
   });
 
+  // Groq limits each model separately and says how long to wait. Replaying a
+  // real session against those limits counted 33 guaranteed refusals in ten
+  // messages: a key resting for exactly as long as Groq said was still tried
+  // "as an emergency", and one model's limit benched the key for the other.
+  const limited = (retryAfter) => ({
+    ok: false, status: 429,
+    headers: { get: (h) => (String(h).toLowerCase() === 'retry-after' ? String(retryAfter) : null) },
+    json: async () => ({ error: { message: 'Rate limit reached for model on tokens per minute (TPM): Limit 8000, Used 7000, Requested 5000. Please try again in 30s.' } }),
+    text: async () => '{}'
+  });
+  const OK = () => jsonResponse(200, { choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }] });
+  const oneKey = () => createLlmService({ groqKeys: ['only'], groqBaseUrl: 'https://example.invalid/v1' });
+
+  await test('a key resting for as long as the provider said is not asked again before then', async () => {
+    const calls = stubFetch((n) => (n === 1 ? limited(30) : OK()));
+    const service = oneKey();
+    await service.callGroqChat({ model: 'fast', messages: MESSAGES, max_tokens: 100 });
+    const again = await service.callGroqChat({ model: 'fast', messages: MESSAGES, max_tokens: 100 });
+    assert.strictEqual(calls.length, 1, `asked again ${calls.length - 1} time(s) during a 30s rest Groq asked for`);
+    assert.strictEqual(again.status, 429, 'the caller is not told it was a rate limit');
+    assert.ok(/rate limited/.test(again.error), again.error);
+  });
+
+  await test('one model\'s limit leaves the same key free for another model', async () => {
+    const calls = stubFetch((n) => (n === 1 ? limited(30) : OK()));
+    const service = oneKey();
+    await service.callGroqChat({ model: 'fast', messages: MESSAGES, max_tokens: 100 });
+    const other = await service.callGroqChat({ model: 'large', messages: MESSAGES, max_tokens: 100 });
+    assert.strictEqual(other.ok, true, 'the second model, with its own allowance, was never asked');
+    assert.strictEqual(calls[1] && calls[1].body.model, 'large');
+  });
+
+  await test('a rejected key rests for every model, and is named as rejected', async () => {
+    const calls = stubFetch(() => jsonResponse(401, { error: { message: 'Invalid API Key' } }));
+    const service = oneKey();
+    await service.callGroqChat({ model: 'fast', messages: MESSAGES, max_tokens: 100 });
+    const other = await service.callGroqChat({ model: 'large', messages: MESSAGES, max_tokens: 100 });
+    assert.strictEqual(calls.length, 1, 'a rejected key was tried again for another model');
+    assert.strictEqual(other.status, 401, `a rejected key reported as ${other.status}`);
+  });
+
+  await test('the health report names keys by position, never by value', async () => {
+    stubFetch((n) => (n === 1 ? limited(30) : OK()));
+    const service = createLlmService({ groqKeys: ['gsk_secret_one', 'gsk_secret_two'], groqBaseUrl: 'https://example.invalid/v1' });
+    await service.callGroqChat({ model: 'fast', messages: MESSAGES, max_tokens: 100 });
+    const report = JSON.stringify(service.health());
+    assert.ok(!/gsk_secret/.test(report), 'a key leaked into the health report');
+    assert.ok(/"resting":"\d+s \(firm\)"/.test(report) && /"lastStatus":429/.test(report), report.slice(0, 300));
+  });
+
   await test('a decommissioned model still migrates', async () => {
     const seen = [];
     stubFetch((n, info) => {

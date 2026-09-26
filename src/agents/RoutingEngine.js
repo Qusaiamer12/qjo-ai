@@ -179,15 +179,15 @@ function isLiteRequest(messages) {
 // ── Pipeline definitions ──
 // Order = quality × fit for the pipeline's job. Providers without keys (or
 // without a model configured for the requested slot) are skipped at runtime.
-// IMPORTANT: spread attempts across DIFFERENT providers first, never retry the
-// same provider account back-to-back — when one provider is rate-limited, all
-// its slots (flash/text/code) share the same quota and will fail instantly,
-// wasting precious deadline budget.
+// Groq's second model comes before the other providers: Groq limits tokens and
+// requests per MODEL, so when one model's minute is spent the other's is not,
+// and it answers several times faster than the aggregators. (A spent
+// gpt-oss-20b used to hand over straight to the slowest provider.)
 const PIPELINES = {
   // Lite track: greetings only — spread across all providers for max resilience.
-  lite: [['groq', 'flash'], ['llm7', 'flash'], ['qwen', 'flash'], ['kimi', 'flash']],
+  lite: [['groq', 'flash'], ['groq', 'text'], ['llm7', 'flash'], ['qwen', 'flash'], ['kimi', 'flash']],
   // Flash mode: high velocity — cross-provider fallback chain.
-  flash: [['groq', 'flash'], ['llm7', 'flash'], ['qwen', 'flash'], ['kimi', 'flash']],
+  flash: [['groq', 'flash'], ['groq', 'text'], ['llm7', 'flash'], ['qwen', 'flash'], ['kimi', 'flash']],
   // Max mode (Arabic-heavy): larger models, cross-provider. Qwen and Kimi rank
   // ahead of the llm7 aggregator here because they are markedly stronger in
   // Arabic, which is what isArabicHeavyText() selects this chain for. Groq
@@ -195,11 +195,11 @@ const PIPELINES = {
   // the Arabic preference applies where it costs nothing: the fallback order.
   // (maxAr and maxEn used to be byte-identical, which made the Arabic detection
   // above a no-op.)
-  maxAr: [['groq', 'text'], ['qwen', 'text'], ['kimi', 'text'], ['llm7', 'text'], ['groq', 'flash']],
+  maxAr: [['groq', 'text'], ['qwen', 'text'], ['kimi', 'text'], ['groq', 'flash'], ['llm7', 'text']],
   // Max mode (English / mixed): larger models, cross-provider.
-  maxEn: [['groq', 'text'], ['llm7', 'text'], ['qwen', 'text'], ['kimi', 'text'], ['groq', 'flash']],
+  maxEn: [['groq', 'text'], ['groq', 'flash'], ['llm7', 'text'], ['qwen', 'text'], ['kimi', 'text']],
   // Code mode: text-grade models first, cross-provider.
-  code: [['groq', 'text'], ['llm7', 'text'], ['kimi', 'code'], ['qwen', 'code'], ['groq', 'flash']],
+  code: [['groq', 'text'], ['groq', 'flash'], ['llm7', 'text'], ['kimi', 'code'], ['qwen', 'code']],
   // Vision requests: vision-capable slots (Groq & Qwen vision).
   vision: [['groq', 'vision'], ['qwen', 'vision']]
 };

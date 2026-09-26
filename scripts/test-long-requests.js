@@ -10,8 +10,8 @@
 //   - Groq's free tier counts a request as its prompt plus the answer room it
 //     reserves (max_tokens), and refuses one larger than the model's
 //     per-minute allowance with 413 "Request too large … Limit 8000,
-//     Requested 12345". The system prompt alone is 4,000–6,100 tokens, so a
-//     long request never fit, and nothing tried to make it fit.
+//     Requested 12345". The system prompt was 4,000–6,100 tokens then (3,200
+//     now), so a long request never fit, and nothing tried to make it fit.
 //   - llm7 takes longer than eight seconds to start answering a long request.
 //     Eight seconds was the fixed wait for response headers, per key: three
 //     keys timed out in turn (8 + 8 + 2 s), and then the whole provider was
@@ -47,6 +47,7 @@ let calls = [];
 let llm7 = { headerDelayMs: 0, dead: false };
 let groqSearchesFirst = false;
 let groqDown = false;
+let groqDailySpent = [];
 const open = new Set();
 
 function streamText(res, text) {
@@ -68,6 +69,10 @@ const server = http.createServer((req, res) => {
     res.on('close', () => open.delete(res));
 
     if (provider === 'groq') {
+      if (groqDailySpent.includes(body.model)) {
+        res.writeHead(429, { 'content-type': 'application/json', 'retry-after': '3600' });
+        return res.end(JSON.stringify({ error: { message: `Rate limit reached for model \`${body.model}\` in organization \`org_test\` service tier \`on_demand\` on tokens per day (TPD): Limit 200000, Used 199800, Requested 5200. Please try again in 1h2m.` } }));
+      }
       if (groqDown) {
         res.writeHead(503, { 'content-type': 'application/json' });
         return res.end(JSON.stringify({ error: { message: 'Service Unavailable' } }));
@@ -138,6 +143,13 @@ async function ask(engine, { userChars, maxTokens = 4000, mode = 'flash', englis
   return { res, shown: chunks.join(''), ms: Date.now() - started };
 }
 
+// Message sizes, in characters of Arabic, that keep each scenario what it
+// says it is now that the system prompt is ~3,200 tokens: one that Groq
+// refuses with 4,000 tokens of answer room but takes with a smaller one, and
+// one too large for the 8K models even with a short answer.
+const FITS_WHEN_RESIZED = 6000;
+const TOO_LARGE_FOR_8K = 16000;
+
 async function scenario(name, limitMs, fn) {
   console.log(`\n${name}`);
   calls = [];
@@ -175,7 +187,7 @@ async function main() {
 
   await scenario('Groq is asked again with the answer room it can actually give', 30000, async (ok) => {
     llm7 = { headerDelayMs: 0, dead: true };
-    const { res } = await ask(engine, { userChars: 1200, maxTokens: 4000 });
+    const { res } = await ask(engine, { userChars: FITS_WHEN_RESIZED, maxTokens: 4000 });
     const [first, second] = groqCalls();
     ok(first && second, `a refused request is resent, not abandoned (${groqCalls().length} Groq calls)`);
     ok(second && second.input + second.maxTokens <= 8000, `the resend fits the allowance Groq named (${second && second.input + second.maxTokens} of 8000)`, second);
@@ -186,7 +198,7 @@ async function main() {
 
   await scenario('Too large for Groq even with a short answer: llm7 is given time to start', 90000, async (ok) => {
     llm7 = { headerDelayMs: 12000, dead: false };
-    const { res, ms } = await ask(engine, { userChars: 9000, maxTokens: 4000 });
+    const { res, ms } = await ask(engine, { userChars: TOO_LARGE_FOR_8K, maxTokens: 4000 });
     const first = groqCalls()[0];
     const toSameModel = groqCalls().filter((c) => first && c.model === first.model);
     ok(first && GROQ_TPM[first.model] === 8000 && toSameModel.length === 1, `no resend when the answer would be uselessly short (${toSameModel.length} calls to the 8K model)`, groqCalls().map((c) => c.model));
@@ -196,7 +208,7 @@ async function main() {
 
   await scenario('llm7 never answers: one bounded wait, then a model with room answers', 90000, async (ok) => {
     llm7 = { headerDelayMs: 0, dead: true };
-    const { res, ms } = await ask(engine, { userChars: 9000, maxTokens: 4000 });
+    const { res, ms } = await ask(engine, { userChars: TOO_LARGE_FOR_8K, maxTokens: 4000 });
     ok(llm7Calls().length === 1, `llm7 is waited on once — not once per key, and not again as a "blip" (${llm7Calls().length} calls)`, llm7Calls().map((c) => c.key));
     ok(res.ok && /llama-4-scout/.test(res.answer || ''), `the long-context Groq model answers instead of nothing (${Math.round(ms / 1000)}s)`, res.error || res.answer);
     ok(ms < 60000, `inside the request's budget (${Math.round(ms / 1000)}s)`);
@@ -205,7 +217,7 @@ async function main() {
   await scenario('A resized request that searches stays resized for the next round', 60000, async (ok) => {
     llm7 = { headerDelayMs: 0, dead: true };
     groqSearchesFirst = true;
-    const { res } = await ask(engine, { userChars: 1200, maxTokens: 4000 });
+    const { res } = await ask(engine, { userChars: FITS_WHEN_RESIZED, maxTokens: 4000 });
     groqSearchesFirst = false;
     const all = groqCalls();
     const fits = (c) => c.input + c.maxTokens <= (GROQ_TPM[c.model] || 8000);
@@ -228,6 +240,27 @@ async function main() {
     groqDown = false;
     ok(llm7Calls().length === 1, `one llm7 key, then on (${llm7Calls().length} llm7 calls in ${Math.round(ms / 1000)}s)`, llm7Calls().map((c) => c.key));
     ok(!res.ok && /All AI providers failed/.test(res.error || ''), 'and an honest failure when nothing answers', res.error);
+  });
+
+  // Groq limits each model separately. A spent gpt-oss-20b used to send the
+  // chain straight to llm7 — the slowest provider — past a Groq model with a
+  // full allowance of its own; and the spent model was asked again, key by
+  // key, on every message for the rest of the day.
+  await scenario('One Groq model out of its daily allowance: the other Groq model answers', 30000, async (ok) => {
+    const fresh = buildEngine(baseUrl);
+    llm7 = { headerDelayMs: 0, dead: false };
+    groqDailySpent = ['openai/gpt-oss-20b', 'openai/gpt-oss-120b'].filter((m) => m !== 'openai/gpt-oss-120b');
+    const first = await fresh.callAgent({ mode: 'flash', messages: [{ role: 'user', content: 'hi' }], max_tokens: 1000, onChunk: () => {} });
+    const spentCalls = groqCalls().filter((c) => c.model === 'openai/gpt-oss-20b').length;
+    const second = await fresh.callAgent({ mode: 'flash', messages: [{ role: 'user', content: 'hello again' }], max_tokens: 1000, onChunk: () => {} });
+    // A greeting takes the short chain; an ordinary question the full one.
+    const question = await fresh.callAgent({ mode: 'flash', messages: [{ role: 'user', content: 'Explain the difference between a process and a thread' }], max_tokens: 1000, onChunk: () => {} });
+    groqDailySpent = [];
+    ok(first.ok && /gpt-oss-120b/.test(first.answer || ''), 'Groq\'s other model answers, not llm7', first.error || first.answer);
+    ok(llm7Calls().length === 0, `llm7 was not needed (${llm7Calls().length} calls)`);
+    ok(groqCalls().filter((c) => c.model === 'openai/gpt-oss-20b').length === spentCalls, 'the spent model is not asked again while it rests', groqCalls().map((c) => c.model));
+    ok(second.ok, 'and the next message is answered too', second.error);
+    ok(question.ok && /gpt-oss-120b/.test(question.answer || '') && llm7Calls().length === 0, 'an ordinary question, too, goes to Groq\'s other model before llm7', question.error || question.answer);
   });
 
   await scenario('A short request is untouched', 20000, async (ok) => {

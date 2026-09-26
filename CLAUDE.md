@@ -74,6 +74,16 @@ Each of these produced a green result that meant nothing.
   was awake: `[groq:413, llm7:504]`. The real causes — a request over Groq's
   per-minute size, and a fixed 8-second wait for a first byte — went
   unlooked-for while the message pointed at a cold start.
+- **A prompt that grows one feature at a time.** Every playbook — video
+  scripts, cover letters, recipes, venting, charts — was added to the
+  always-on prompt, and the language change added the Arabic rules beside the
+  English ones. Nothing failed; it just got slower. Measured from the real
+  page it had reached 5,800–6,900 tokens, so Groq's free tier (8,000 a
+  minute, answer room included) refused almost every Arabic message and the
+  slowest provider carried everything. A playbook goes in
+  `src/services/playbooks.js` and is sent when the message calls for it;
+  `test-language.js` holds the prompt to a size ceiling, and
+  `node tests/browser/measure-request.js` shows what a message really sends.
 - **Verification that lives outside the repo.** 264 browser assertions spent
   weeks in a scratch directory that is deleted with the container. A check
   that is not committed and not in CI does not exist.
@@ -105,6 +115,11 @@ npm run scan-secrets
 # Real page, real Chromium, real server (boots its own on a free port).
 npm ci --prefix tests/browser   # once: Playwright lives in its own package
 npm run test:browser            # all suites; `-- boot xss` to filter
+
+# Measurements, not tests — run before and after changing what a request
+# carries or how providers are chosen:
+node tests/browser/measure-request.js   # tokens a real message sends, by part
+node scripts/sim-session.js [repoRoot]  # a session against Groq's real limits
 ```
 
 A browser suite passes only if it exits 0 and prints `N passed, 0 failed`
@@ -139,6 +154,10 @@ boundaries and the failure table. In short:
   string goes into `public/domain/i18n.js` in both languages, never inline.
   A new rule for Arabic writing goes into `src/services/arabicPrompt.js`; the
   snapshot in `scripts/fixtures/arabic-prompt-baseline.json` only grows.
+- The always-on prompt stays under its ceiling (`test-language.js`). A rule
+  only some messages need is a playbook, chosen by the message.
+- Provider limits are per model: a key resting for one model is free for
+  another, and a rest the provider named (retry-after) is kept, not tried.
 
 - A provider returning an empty answer is a failure, never a result.
 - A context-length rejection is a request fault: no key cooldown, no rotation.

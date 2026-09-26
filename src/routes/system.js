@@ -32,6 +32,10 @@ function registerSystemRoutes(app, deps) {
       // credentials failure. This is where "search stopped working" becomes a
       // reason instead of a mystery.
       searchHealth: typeof deps.searchHealth === 'function' ? deps.searchHealth() : {},
+      // The same for the AI providers: per key position and model, whether it
+      // is resting and why, and its last error. "The providers are under
+      // pressure" becomes which one, on which model, for how long.
+      providerHealth: typeof deps.providerHealth === 'function' ? deps.providerHealth() : {},
       publicMessage: 'Qjo status endpoint. No secrets are exposed.'
     });
   });

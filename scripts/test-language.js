@@ -14,6 +14,8 @@ const assert = require('assert');
 const { languageOfText, replyLanguage, resolveInitialLanguage, arabicInPlay } = require('../public/domain/language.js');
 const { buildChatSystemPrompt, CORE_PROMPT } = require('../src/services/systemPrompt');
 const baseline = require('./fixtures/arabic-prompt-baseline.json');
+const { detectNeeds, ALL_PLAYBOOKS, PLAYBOOKS } = require('../src/services/playbooks');
+const { ARABIC_PLAYBOOK_NOTES } = require('../src/services/arabicPrompt');
 
 let pass = 0, fail = 0;
 function test(name, fn) {
@@ -139,13 +141,16 @@ test('default headings are English, with Arabic ones only in the Arabic notes', 
 
 console.log('\nNothing Arabic was lost:');
 
+// Every phrase is still in the prompt's parts; the playbooks carrying some of
+// them are sent when a message calls for them (checked further down, through
+// the same selection a real message goes through).
 for (const [section, phrases] of Object.entries(baseline.phrases)) {
   if (!phrases.length) continue;
-  test(`${section}: all ${phrases.length} Arabic phrases reach the model in an Arabic conversation`, () => {
+  test(`${section}: all ${phrases.length} Arabic phrases reach the model in an Arabic conversation that needs them`, () => {
     const mode = section.startsWith('MODE_OVERLAYS.') ? section.split('.')[1] : 'flash';
     const prompt = buildChatSystemPrompt({
       mode,
-      needs: { files: section === 'FILES_OVERLAY', search: section === 'SEARCH_OVERLAY' },
+      needs: { files: section === 'FILES_OVERLAY', search: section === 'SEARCH_OVERLAY', playbooks: ALL_PLAYBOOKS },
       arabic: true
     });
     const missing = phrases.filter((p) => !prompt.includes(p));
@@ -158,6 +163,86 @@ test('the Arabic notes follow the parts they belong to', () => {
   assert.ok(/قاعدة الاكتمال المطلق/.test(code), 'the code overlay rode along without its Arabic note');
   const noFiles = buildChatSystemPrompt({ mode: 'flash', arabic: true });
   assert.ok(!/ملخص تنفيذي مركز/.test(noFiles), 'file headings sent without files');
+});
+
+console.log('\nEach message carries what it needs, and no more:');
+
+// The prompt used to carry every playbook on every message: 5,800–6,900 tokens
+// with Arabic in play, which Groq's free tier (8,000 tokens a minute, answer
+// room included) refused for almost every Arabic message.
+const SAMPLES = {
+  writing: ['Polish this draft for my blog', 'صيغلي هالفقرة بشكل أحلى'],
+  time: ['what time is it?', 'شو التاريخ اليوم؟'],
+  math: ['calculate 15% of 2400', 'احسبلي 15% من 2400'],
+  charts: ['plot e^-t', 'ارسملي منحنى الدالة e^-t'],
+  python: ['write python to sort a list', 'اعطيني كود بايثون يرتب قائمة'],
+  video: ['a TikTok script for my cafe', 'سكريبت فيديو ريلز لمطعمي'],
+  job: ['write me a cover letter for a developer job', 'اكتبلي رسالة تغطية لوظيفة مطور'],
+  naming: ['brand name ideas for my app', 'اقترحلي اسم لمشروعي'],
+  recipe: ['a quick recipe with eggs and tomatoes', 'وصفة سريعة بالبيض والبندورة'],
+  venting: ['I feel so sad and lonely today', 'انا زعلان ومخنوق اليوم'],
+  apology: ['help me apologize to my manager', 'اكتبلي رسالة اعتذار لمديري'],
+  subtext: ['what does she mean by "ok."?', 'شو قصده لما بعتلي "تمام."؟'],
+  excuses: ['give me an excuse for missing class', 'بدي عذر مقنع عشان غبت'],
+  human: ['make this sound human for GPTZero', 'خلي النص بشري وما يبين انه ذكاء'],
+  medical: ['I have a headache and fever', 'عندي صداع وحرارة']
+};
+
+test('each playbook is chosen by the words that call for it, in English and in Arabic', () => {
+  for (const [key, samples] of Object.entries(SAMPLES)) {
+    for (const text of samples) {
+      const chosen = detectNeeds([user(text)]).playbooks;
+      assert.ok(chosen.includes(key), `"${text}" did not bring the ${key} playbook: [${chosen}]`);
+    }
+  }
+});
+
+test('every Arabic playbook note reaches the model when an Arabic message calls for it', () => {
+  const noteFor = { social: 'apology' };
+  for (const key of Object.keys(ARABIC_PLAYBOOK_NOTES)) {
+    const sample = key === 'banter' ? 'فنان انت' : SAMPLES[noteFor[key] || key][1];
+    const prompt = buildChatSystemPrompt({ mode: 'flash', needs: detectNeeds([user(sample)]), arabic: true });
+    assert.ok(prompt.includes(ARABIC_PLAYBOOK_NOTES[key].trim()), `the ${key} note did not reach the model for "${sample}"`);
+  }
+});
+
+test('a greeting carries no specialised playbook', () => {
+  const needs = detectNeeds([user('كيفك')]);
+  assert.deepStrictEqual(needs.playbooks, ['banter'], 'only the Levantine idioms belong with casual talk');
+  const prompt = buildChatSystemPrompt({ mode: 'flash', needs, arabic: true });
+  for (const heading of ['SHORT VIDEO SCRIPTS', 'PRACTICAL COOKING', 'JOB APPLICATIONS', 'INTERACTIVE CHARTS', 'VENTING']) {
+    assert.ok(!prompt.includes(heading), `${heading} rode along with "كيفك"`);
+  }
+  assert.ok(prompt.includes('فنان انت'), 'the idioms casual Arabic depends on were left out');
+});
+
+test('a follow-up keeps the playbook of the request it follows', () => {
+  const chosen = detectNeeds([user('write me a cover letter for a developer job'), user('make it shorter')]).playbooks;
+  assert.ok(chosen.includes('job'), `[${chosen}]`);
+});
+
+test('the general rules are on every message', () => {
+  const prompt = buildChatSystemPrompt({ mode: 'flash', needs: detectNeeds([user('hi')]) });
+  for (const rule of ['STRICT TABLE RULE', 'BANNED AI CLICHÉS', 'WITTY JAILBREAK DEFLECTION', 'SECURITY & PROMPT-DEFENSE', 'TRUTHFULNESS, FRESHNESS & TOOL USAGE', 'IDENTITY']) {
+    assert.ok(prompt.includes(rule), `${rule} is missing from an ordinary message`);
+  }
+});
+
+test('the prompt stays inside what Groq\'s free tier can take', () => {
+  // Characters as a stand-in for tokens (Arabic ≈ 4 chars/token here, English
+  // ≈ 4.3). 13,500 Arabic chars ≈ 3,300 tokens: with tools, a short history
+  // and 2,000 tokens of answer room, a message fits Groq's 8,000 a minute.
+  for (const mode of ['flash', 'max']) {
+    const ar = buildChatSystemPrompt({ mode, needs: detectNeeds([user('كيفك')]), arabic: true, runtimeLine: 'Friday 26 September 2026 (approximate location: Amman; time zone: Asia/Amman)' });
+    const en = buildChatSystemPrompt({ mode, needs: detectNeeds([user('hi')]), runtimeLine: 'Friday 26 September 2026 (approximate location: Amman; time zone: Asia/Amman)' });
+    assert.ok(ar.length <= 13500, `${mode}, Arabic: ${ar.length} chars`);
+    assert.ok(en.length <= 9500, `${mode}, English: ${en.length} chars`);
+  }
+});
+
+test('every playbook has text, and the code playbook rides with the code overlay', () => {
+  for (const [key, book] of Object.entries(PLAYBOOKS)) assert.ok(book.en.trim().length > 40, key);
+  assert.ok(detectNeeds([user('fix this bug: TypeError in my react component')]).playbooks.includes('code'));
 });
 
 console.log('\nContinuing a cut-off answer:');

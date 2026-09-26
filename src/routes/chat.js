@@ -6,6 +6,7 @@ const { sanitizeMathNotation, createStreamSanitizer } = require('../services/tex
 const { sseHeaders, sendCachedResponse, startHeartbeat } = require('./sse');
 const { arabicInPlay } = require('../../public/domain/language');
 const { describeRuntime, lastUserLanguage } = require('./runtimeContext');
+const { detectNeeds } = require('../services/playbooks');
 
 function requireDeps(deps) {
   const required = [
@@ -134,19 +135,6 @@ function trimForChat(messages) {
     total -= messageLength(trimmed.shift());
   }
   return trimmed;
-}
-
-function detectNeeds(userText) {
-  const t = String(userText || '');
-  return {
-    search: /source pack|connected search|connected deep search|web search note|search query used/i.test(t),
-    files: /user attached files|pdf pages processed|ocr text extracted|extraction method|attachment index|المرفقات/i.test(t),
-    // Code is no longer a selectable mode — the UI offers Flash and Max only —
-    // so the engineering overlay (zero-laziness, file-path headers, security and
-    // error-handling rules) is attached whenever the request is code-shaped
-    // instead of waiting for a mode that can never be chosen.
-    code: /```|\bfunction\b|\bconst\b|\bclass\b|\bimport\b|stack trace|traceback|compile|debug|refactor|npm |yarn |pip |docker|regex|api\b|sdk\b|react|node\.js|typescript|javascript|python|java\b|sql\b|كود|برمج|برمجة|دالة|كلاس|مكتبة|خطأ برمجي|صحح الكود|اكتب لي برنامج|تطبيق ويب/i.test(t)
-  };
 }
 
 // The client ships its own system message carrying per-user personalization
@@ -289,7 +277,7 @@ function registerChatRoutes(app, deps) {
         geo, cachedGeo: geoCacheGet(ip), clientTimeZone: req.body.timeZone
       });
       const userMessages = trimForChat(cleanedMessages.filter(m => m.role !== 'system'));
-      const needs = detectNeeds(userMessages.map(m => (typeof m.content === 'string' ? m.content : '')).join('\n'));
+      const needs = detectNeeds(userMessages);
       const clientSystemMessages = cleanedMessages
         .filter(m => m.role === 'system')
         .slice(0, 2)

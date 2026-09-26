@@ -415,7 +415,6 @@ async function lookupClientGeo(ip) {
 }
 
 
-
 const llmService = createLlmService({
   groqKeys: GROQ_API_KEYS,
   llm7Keys: LLM7_API_KEYS,
@@ -572,6 +571,7 @@ registerSystemRoutes(app, {
   adminEmailsSize: () => ADMIN_EMAILS.size,
   tavilyApiKey: TAVILY_API_KEY,
   searchHealth: () => searchService.health(), // per provider, no keys; called after searchService exists
+  providerHealth: () => llmService.health(), // per AI provider, key position and model; no keys
   firecrawlApiKey: FIRECRAWL_API_KEY,
   serperApiKey: process.env.SERPER_API_KEY,
   embeddingsService,

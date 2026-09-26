@@ -250,7 +250,8 @@ const PRODUCTION = {
       adminConfigService: { readAdminConfig: () => ({}) }, verifyAdminRequest: async () => false,
       version: 't', qjoProviders: () => ({}), tavilyApiKey: 'tvly-SECRET-123', serperApiKey: 'serper-SECRET-456',
       embeddingsService: { configuredCount: () => 0 }, hasFirebaseAdmin: () => false, adminEmailsSize: () => 0,
-      getClientIp: () => '', searchHealth: () => svc.health()
+      getClientIp: () => '', searchHealth: () => svc.health(),
+      providerHealth: () => ({ groq: { keys: 2, detail: [{ key: 1, model: 'openai/gpt-oss-20b', resting: '30s (firm)', lastStatus: 429 }] } })
     });
     const statusServer = http.createServer(app);
     await new Promise((r) => statusServer.listen(0, '127.0.0.1', r));
@@ -262,6 +263,7 @@ const PRODUCTION = {
       assert.strictEqual(json.searchHealth.tavily.lastError.kind, 'auth');
       assert.ok(/invalid API key/.test(json.searchHealth.tavily.lastError.message));
       assert.ok(!/SECRET/.test(text), 'a key leaked into /api/status');
+      assert.strictEqual(json.providerHealth.groq.detail[0].lastStatus, 429, 'AI provider health is not reported');
     } finally {
       statusServer.close();
     }

@@ -106,6 +106,13 @@ function test(name, fn) {
     assert.strictEqual(classifyRequestFailure({ status: 503 }).kind, 'transient');
   });
 
+  test('one rate limit among other failures is not called "under pressure"', () => {
+    const mixed = classifyRequestFailure({ message: 'All AI providers failed. Last: llm7 timeout (18000ms). [groq:429, llm7:504]' });
+    assert.strictEqual(mixed.kind, 'providers', `a single 429 in the detail decided the message: ${mixed.kind}`);
+    const allLimited = classifyRequestFailure({ message: 'All AI providers rate-limited (429). Retry in ~1 minute. [groq:429, llm7:429]' });
+    assert.strictEqual(allLimited.kind, 'rate-limit', 'every provider limited is still named as such');
+  });
+
   test('a stack trace is not pasted at the user', () => {
     const wall = 'All AI providers failed. ' + 'x'.repeat(400);
     const { message } = classifyRequestFailure({ message: wall });

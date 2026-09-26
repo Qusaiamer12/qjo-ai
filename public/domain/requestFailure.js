@@ -77,7 +77,10 @@
     if (message === 'AI_BACKEND_MISSING') return { message: copy.backendMissing, transient: false, kind: 'backend-missing' };
     if (message === 'AUTH_REQUIRED') return { message: copy.authRequired, transient: false, kind: 'auth-required' };
     if (message === 'RATE_LIMIT') return { message: copy.rateLimit, transient: false, kind: 'rate-limit' };
-    if (/rate.?limit|429|too many requests/i.test(message)) {
+    // Only when every provider was limited. "All AI providers failed … [groq:429,
+    // llm7:504]" used to land here because of one 429 in the detail, and said
+    // "under pressure, wait a minute" about a failure that was something else.
+    if (/rate.?limit|429|too many requests/i.test(message) && !/All AI providers failed/i.test(message)) {
       return { message: copy.providerPressure, transient: false, kind: 'rate-limit' };
     }
     if (/No provider configured|No AI provider is configured/i.test(message)) {
