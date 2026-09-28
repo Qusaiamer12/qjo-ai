@@ -174,6 +174,7 @@ const SAMPLES = {
   writing: ['Polish this draft for my blog', 'صيغلي هالفقرة بشكل أحلى'],
   time: ['what time is it?', 'شو التاريخ اليوم؟'],
   math: ['calculate 15% of 2400', 'احسبلي 15% من 2400'],
+  ui: ['build me a landing page for my cafe', 'صمملي موقع شخصي لمصمم جرافيك'],
   charts: ['plot e^-t', 'ارسملي منحنى الدالة e^-t'],
   python: ['write python to sort a list', 'اعطيني كود بايثون يرتب قائمة'],
   video: ['a TikTok script for my cafe', 'سكريبت فيديو ريلز لمطعمي'],
@@ -214,6 +215,13 @@ test('a greeting carries no specialised playbook', () => {
     assert.ok(!prompt.includes(heading), `${heading} rode along with "كيفك"`);
   }
   assert.ok(prompt.includes('فنان انت'), 'the idioms casual Arabic depends on were left out');
+});
+
+test('a location, a blood test or an investment is not a website to build', () => {
+  for (const text of ['وين موقعي؟', 'شو موقع عمان على الخريطة', 'fix this python bug: IndexError', 'what are the components of blood?', 'شو مكونات الدم', 'how do I balance my investment portfolio']) {
+    const chosen = detectNeeds([user(text)]).playbooks;
+    assert.ok(!chosen.includes('ui'), `"${text}" brought the interfaces playbook: [${chosen}]`);
+  }
 });
 
 test('a follow-up keeps the playbook of the request it follows', () => {

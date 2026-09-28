@@ -38,7 +38,9 @@ const MESSAGES = [
   ['question needing search (ar)', 'مين هداف ريال مدريد الحالي؟'],
   ['explanation (ar)', 'اشرحلي الفرق بين الذكاء الاصطناعي وتعلم الآلة'],
   ['long request (ar)', 'اكتبلي خطة مشروع تفصيلية كاملة لتطبيق توصيل طلبات في عمّان، مع كل المراحل والميزانية والمخاطر وخطة التسويق'],
-  ['question (en)', 'Explain recursion with a short example']
+  ['question (en)', 'Explain recursion with a short example'],
+  ['interface (ar)', 'صمملي موقع شخصي لمصمم جرافيك'],
+  ['interface (en)', 'Build me a landing page for my cafe in React']
 ];
 
 function describe(label, body) {

@@ -107,18 +107,15 @@
     return { html: `<div class="md-table-wrap" id="table-instance-${startIndex}"><table class="md-table">${thead}${tbody}</table></div>`, nextIndex: index };
   }
 
+  // Whether a block gets a Preview tab is decided by the same classifier that
+  // builds the preview (codeProject.js), so a tab never opens onto nothing.
   function isPreviewableHtml(normalizedLang, code, extractedPath) {
-    const lang = String(normalizedLang || '').toLowerCase();
-    const ext = extractedPath ? extractedPath.split('.').pop().toLowerCase() : '';
-    if (lang === 'html' || lang === 'htm' || ext === 'html' || ext === 'htm' || lang === 'svg' || ext === 'svg') {
-      return true;
-    }
-    const trimmed = String(code || '').trim();
-    if ((lang === 'xml' || lang === 'jsx' || lang === 'tsx' || lang === 'javascript' || lang === 'js' || !lang || lang === 'code') &&
-        (/<!doctype\s+html/i.test(trimmed) || /<html\b/i.test(trimmed) || (trimmed.startsWith('<') && /<\/[a-z][a-z0-9]*>$/i.test(trimmed)))) {
-      return true;
-    }
-    return false;
+    const project = global.QjoDomain && global.QjoDomain.codeProject
+      ? global.QjoDomain.codeProject
+      : (typeof require === 'function' ? require('./codeProject.js') : null);
+    if (!project) return false;
+    const kind = project.kindOf({ lang: normalizedLang, code, path: extractedPath });
+    return kind === 'html' || kind === 'svg' || kind === 'react';
   }
 
   function lightMarkdown(text) {

@@ -24,6 +24,8 @@ const WATCHED = [
   'public/domain/streamProtocol.js',
   'public/ui/streamingView.js',
   'public/ui/sandbox.js',
+  'public/ui/canvas.js',
+  'public/domain/codeProject.js',
   'server.js',
   'src/agents/RoutingEngine.js',
   'src/agents/TaskRunner.js',

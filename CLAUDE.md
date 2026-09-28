@@ -84,6 +84,13 @@ Each of these produced a green result that meant nothing.
   `src/services/playbooks.js` and is sent when the message calls for it;
   `test-language.js` holds the prompt to a size ceiling, and
   `node tests/browser/measure-request.js` shows what a message really sends.
+- **Routing that a sandboxed iframe walks around.** Chromium runs an iframe
+  sandboxed without same-origin — every code preview — in a process of its
+  own, and Playwright's routes did not reach it: the harness's block and a
+  suite's stubs were both bypassed, the preview fetched React from the real
+  CDN, and in this container that failed while on GitHub it would have
+  passed. The harness keeps those frames in process, and harness.test.js
+  proves the block holds inside one, against a control that loads.
 - **Verification that lives outside the repo.** 264 browser assertions spent
   weeks in a scratch directory that is deleted with the container. A check
   that is not committed and not in CI does not exist.
@@ -93,6 +100,7 @@ Each of these produced a green result that meant nothing.
 ```bash
 npm test                  # server behaviour
 npm run test:domain       # front-end pure logic, no browser
+npm run test:code-studio  # which blocks make one preview, and the document it runs
 npm run test:search       # search decision, results, budget
 npm run test:search-e2e   # hangs: fake provider over real HTTP, per-case watchdog
 npm run test:long-requests  # long requests: Groq's per-minute size, slow first byte

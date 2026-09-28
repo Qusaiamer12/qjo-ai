@@ -95,10 +95,13 @@ qjo-ai/
 │   ├── domain/                  Pure functions. No DOM, no fetch, no state.
 │   │   ├── language.js          Which language a text is in; which one the page opens in
 │   │   ├── i18n.js              Every interface string, English and Arabic, same keys
+│   │   ├── codeProject.js       Which code blocks make one preview; the document it runs
 │   │   ├── markdown.js
 │   │   ├── requestFailure.js    Error in, message and retry decision out
 │   │   └── streamProtocol.js    SSE parsing, think-tag split, stall watchdog
 │   ├── ui/                      Rendering and DOM behaviour
+│   │   ├── sandbox.js           Runs generated JS/Python in an opaque-origin iframe's worker
+│   │   └── canvas.js            Code previews, inline and in the side studio
 │   └── net/                     API calls
 ├── scripts/                     Tests and checks, all runnable via npm
 └── docs/
@@ -164,7 +167,8 @@ thresholds that start where you are get tightened.
 |---|---|
 | `fetch_page` opens model-chosen URLs | http/https only; private, loopback and link-local refused including `169.254.169.254`; DNS resolved and every resolved address checked; redirects followed manually with each hop re-validated; response streamed under a cap |
 | Workspace file paths come from the model | Absolute paths, drive paths and traversal are validation errors; the workspace is an object in task state, never the filesystem |
-| User JavaScript execution | Web Worker from a `blob:` URL, off the main thread |
+| User JavaScript and Python execution | A worker inside an iframe sandboxed to `allow-scripts` only (`public/ui/sandbox.js`): origin `null`, so no access to the page, its storage or the signed-in session; a run past its limit ends the iframe; plot images accepted only as base64 |
+| Code previews (HTML, React) | An iframe sandboxed to `allow-scripts allow-modals`, never `allow-same-origin`; the document is built by `public/domain/codeProject.js`; file names the model chose are inserted as text |
 | Answer HTML | Escaped before insertion; markdown rendering never emits raw user HTML |
 | Provider keys | `server.js` only, never sent to the client; `scan-secrets` blocks commits |
 | Task access | Every task route checks the caller owns the task |

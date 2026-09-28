@@ -331,6 +331,9 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       lightMarkdown
     } = QjoDomain.markdown;
 
+    // Previews of an answer's code, and the side canvas: public/ui/canvas.js.
+    const codeStudio = QjoUI.createCodeStudio({ t });
+
     function sanitizeStoredMessageContent(content, role) {
       if (role !== 'user' || typeof content !== 'string') return content;
       // Strip any leaked internal search injection, source pack, or scraper excerpts
@@ -345,50 +348,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
 
 
 
-
-
-    function buildPreviewHtml(rawCode) {
-      let trimmed = String(rawCode || '').trim();
-      if (trimmed.startsWith('<svg') || trimmed.includes('xmlns="http://www.w3.org/2000/svg"')) {
-        return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:24px;background:#f8fafc;}svg{max-width:100%;max-height:85vh;}</style></head><body>${trimmed}</body></html>`;
-      }
-      if (/<!doctype\s+html/i.test(trimmed) || /<html\b/i.test(trimmed)) {
-        if (!trimmed.includes('tailwindcss.com') && !trimmed.includes('tailwind')) {
-          // A real closing tag. It used to be written escaped (<\/script>),
-          // which HTML does not end a script with, so the rest of the page was
-          // swallowed and a full-document preview came out blank.
-          trimmed = trimmed.replace(/<\/head>/i, '<script src="https://cdn.tailwindcss.com"></script></head>');
-        }
-        return trimmed;
-      }
-      const isRtl = /[\u0600-\u06FF]/.test(trimmed);
-      return `<!DOCTYPE html>
-<html lang="${isRtl ? 'ar' : 'en'}" dir="${isRtl ? 'rtl' : 'ltr'}">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    body {
-      font-family: ${isRtl ? "'IBM Plex Sans Arabic', 'Inter'" : "'Inter', 'IBM Plex Sans Arabic'"}, -apple-system, BlinkMacSystemFont, sans-serif;
-      margin: 0;
-      padding: 16px;
-      background-color: #ffffff;
-      color: #0f172a;
-      min-height: 100vh;
-      box-sizing: border-box;
-    }
-    * { box-sizing: border-box; }
-  </style>
-</head>
-<body>
-  ${trimmed}
-</body>
-</html>`;
-    }
 
 
     // Runs the optional enhancements over a finished assistant bubble. Each is
@@ -1214,106 +1173,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       initializePythonRunButtons(element);
       initializeJsRunButtons(element);
       initializeCodeViewToggles(element);
-      initializeLivePreviewTabs(element);
-    }
-
-    function initializeLivePreviewTabs(element) {
-      if (!element) return;
-
-      element.querySelectorAll('.code-tab-btn').forEach(tabBtn => {
-        if (tabBtn.dataset.initialized) return;
-        tabBtn.dataset.initialized = 'true';
-
-        tabBtn.addEventListener('click', (e) => {
-          e.preventDefault();
-          const wrapper = tabBtn.closest('.code-block-wrapper');
-          if (!wrapper) return;
-
-          const tabType = tabBtn.dataset.tab;
-          wrapper.querySelectorAll('.code-tab-btn').forEach(b => b.classList.remove('active'));
-          tabBtn.classList.add('active');
-
-          const codePre = wrapper.querySelector('pre');
-          const previewContainer = wrapper.querySelector('.live-preview-container');
-          const expandBtn = wrapper.querySelector('.preview-expand-btn');
-
-          if (tabType === 'preview') {
-            if (codePre) codePre.classList.add('hidden');
-            if (previewContainer) {
-              previewContainer.classList.remove('hidden');
-              const iframe = previewContainer.querySelector('.live-preview-iframe');
-              if (iframe && !iframe.srcdoc) {
-                const rawCode = decodeURIComponent(previewContainer.dataset.code || '');
-                iframe.srcdoc = buildPreviewHtml(rawCode);
-              }
-            }
-            if (expandBtn) expandBtn.classList.remove('hidden');
-          } else {
-            if (codePre) codePre.classList.remove('hidden');
-            if (previewContainer) previewContainer.classList.add('hidden');
-            if (expandBtn) expandBtn.classList.add('hidden');
-          }
-        });
-      });
-
-      element.querySelectorAll('.preview-size-btn').forEach(sizeBtn => {
-        if (sizeBtn.dataset.initialized) return;
-        sizeBtn.dataset.initialized = 'true';
-
-        sizeBtn.addEventListener('click', (e) => {
-          e.preventDefault();
-          const previewContainer = sizeBtn.closest('.live-preview-container');
-          if (!previewContainer) return;
-
-          const size = sizeBtn.dataset.size;
-          previewContainer.querySelectorAll('.preview-size-btn').forEach(b => b.classList.remove('active'));
-          sizeBtn.classList.add('active');
-
-          const viewport = previewContainer.querySelector('.preview-viewport');
-          if (viewport) {
-            viewport.classList.toggle('mobile-view', size === 'mobile');
-            viewport.classList.toggle('desktop-view', size !== 'mobile');
-          }
-        });
-      });
-
-      element.querySelectorAll('.preview-reload-btn').forEach(reloadBtn => {
-        if (reloadBtn.dataset.initialized) return;
-        reloadBtn.dataset.initialized = 'true';
-
-        reloadBtn.addEventListener('click', (e) => {
-          e.preventDefault();
-          const previewContainer = reloadBtn.closest('.live-preview-container');
-          if (!previewContainer) return;
-          const iframe = previewContainer.querySelector('.live-preview-iframe');
-          if (iframe) {
-            const rawCode = decodeURIComponent(previewContainer.dataset.code || '');
-            iframe.srcdoc = buildPreviewHtml(rawCode);
-          }
-        });
-      });
-
-      element.querySelectorAll('.preview-expand-btn').forEach(expandBtn => {
-        if (expandBtn.dataset.initialized) return;
-        expandBtn.dataset.initialized = 'true';
-
-        expandBtn.addEventListener('click', (e) => {
-          e.preventDefault();
-          const wrapper = expandBtn.closest('.code-block-wrapper');
-          if (!wrapper) return;
-          const previewContainer = wrapper.querySelector('.live-preview-container');
-          if (!previewContainer) return;
-
-          const isFs = previewContainer.classList.toggle('is-fullscreen');
-          document.body.classList.toggle('has-fullscreen-preview', isFs);
-          expandBtn.title = isFs
-            ? (qjoLanguage === 'ar' ? 'تصغير المعاينة' : 'Minimize preview')
-            : (qjoLanguage === 'ar' ? 'تكبير المعاينة' : 'Fullscreen preview');
-          expandBtn.innerHTML = isFs
-            ? `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="4 14 10 14 10 20"></polyline><polyline points="20 10 14 10 14 4"></polyline><line x1="14" y1="10" x2="21" y2="3"></line><line x1="10" y1="14" x2="3" y2="21"></line></svg>`
-            : `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>`;
-        });
-      });
+      codeStudio.initializePreviews(element);
     }
 
     // ── Running code: public/ui/sandbox.js ───────────────────────────────

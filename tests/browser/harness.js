@@ -43,10 +43,19 @@ function findChromium() {
   return undefined;
 }
 
-/** @returns {import('playwright').LaunchOptions} */
+/**
+ * Chromium runs an iframe sandboxed without same-origin — every code preview
+ * and the code sandbox — in a process of its own, and Playwright's routes do
+ * not reach that process: its requests went straight to the network, past the
+ * harness's block and past a suite's stubs. With the frames kept in process
+ * they are routed like any other; what the web can observe (an opaque origin,
+ * no storage, no access to the parent) is the same. harness.test.js checks it.
+ * @returns {import('playwright').LaunchOptions}
+ */
 function launchOptions() {
   const executablePath = findChromium();
-  return executablePath ? { executablePath } : {};
+  const args = ['--disable-features=IsolateSandboxedIframes'];
+  return executablePath ? { executablePath, args } : { args };
 }
 
 /**

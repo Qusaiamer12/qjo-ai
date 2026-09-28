@@ -58,6 +58,17 @@ LITERARY CRAFTSMANSHIP, GRAMMAR & TEXT RESTRUCTURING
   • Write the fully corrected, production-ready, runnable code FIRST in a clear fenced code block.
   • Follow the code with a brief, laser-focused technical explanation of the root cause and why the fix works.`
   },
+  ui: {
+    // A page, a component, a screen — built to run in Qjo's preview studio.
+    // "موقع" alone is also "location", so it counts only as a site to build.
+    match: /\b(website|web ?site|landing page|web ?page|home ?page|web app|user interface|ui|ux|front-?end|dashboard|portfolio (?:site|website|page)|navbar|html|css|tailwind|react|jsx|tsx)\b|موقع\s*(ويب|إلكتروني|الكتروني|شخصي)|(صمم|صمّم|اعمل|ابني|سوي|برمج)\S*\s+(لي\s+)?(موقع|صفحة|واجهة|تطبيق)|صفحة هبوط|صفحة ويب|واجهة|لوحة تحكم|داشبورد|بورتفوليو|رياكت|ريأكت/i,
+    en: `
+- INTERFACES (pages, components, dashboards) — the answer previews live in Qjo's studio:
+  • Deliver one runnable piece: a single complete HTML file (CSS in <style>, JS in <script>), or one React component with export default. If you split HTML, CSS and JS, name the blocks (index.html, style.css, script.js) and link them by those names.
+  • React previews can import only react, react-dom and lucide-react; Tailwind classes are available. No other packages, no local imports, no build step.
+  • Style with Tailwind utilities; responsive from 360px to desktop; real hover, focus and active states; every control usable by keyboard and labelled.
+  • Real, specific content in the reply language — never lorem ipsum. Interactive where it helps (tabs, filters, validated forms), with state that actually works.`
+  },
   charts: {
     match: /\b(plot|graph|chart|curve|diagram|visuali[sz]e)\b|رسم|ارسم|منحنى|منحني|مخطط|بياني|دالة/i,
     en: `

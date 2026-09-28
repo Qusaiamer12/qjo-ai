@@ -39,6 +39,9 @@ ARABIC EXAMPLES FOR THE GENERAL RULES
 // Word for word what the always-on prompt used to carry for every message.
 // "social" goes with any of apology, subtext and excuses.
 const ARABIC_PLAYBOOK_NOTES = {
+  ui: `
+ARABIC INTERFACES
+- An Arabic page: dir="rtl" and lang="ar" on <html>, the Cairo font, and a mirrored layout (arrows and directional icons flipped). Interface text in natural Arabic, not translated English.`,
   banter: `
 - Common Arab/Levantine Idioms & Banter:
   • "فنان انت" / "فنان" / "وحش" / "كبير" / "كفو" / "يسعد قلبك" / "يسعد دينك":

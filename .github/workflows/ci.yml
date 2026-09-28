@@ -46,6 +46,8 @@ jobs:
       # in a real browser.
       - name: Front-end domain suite
         run: npm run test:domain
+      - name: Code studio suite (what an answer previews as)
+        run: npm run test:code-studio
 
       - name: Type check
         run: npm run typecheck
