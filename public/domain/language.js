@@ -80,6 +80,17 @@
   }
 
   /**
+   * The language of a whole document — an answer being exported to a file.
+   * Judged on all of it, not its first line: a report often opens with an
+   * English heading over an Arabic body.
+   * @param {string} text
+   * @returns {'ar' | 'en' | null}
+   */
+  function documentLanguage(text) {
+    return judge(String(text || ''));
+  }
+
+  /**
    * The language to answer a message in when the page answers it itself (a
    * greeting, the time): the message's language, and the interface language
    * only when the message does not say.
@@ -122,7 +133,7 @@
     return recent.some((t) => countLetters(t).arabic >= MIN_LETTERS || ASKS_FOR_ARABIC.test(t));
   }
 
-  const api = { languageOfText, replyLanguage, resolveInitialLanguage, arabicInPlay, countLetters };
+  const api = { languageOfText, documentLanguage, replyLanguage, resolveInitialLanguage, arabicInPlay, countLetters };
 
   if (typeof window !== 'undefined') {
     const host = /** @type {any} */ (window);

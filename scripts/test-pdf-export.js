@@ -21,9 +21,11 @@ const path = require('path');
 const servicePath = path.join(__dirname, '..', 'src', 'services', 'exportService.js');
 const source = fs.readFileSync(servicePath, 'utf8');
 const mod = { exports: {} };
+// Its own require, so the service's relative requires resolve from its folder.
+const serviceRequire = require('module').createRequire(servicePath);
 new Function('require', 'module', 'exports', '__dirname',
   `${source}\nmodule.exports.__internals = { markdownToExportHtml, inlineMarkdownToHtml, buildExportHtmlDocument, katexStylesheet, renderMathToHtml };`
-)(require, mod, mod.exports, path.dirname(servicePath));
+)(serviceRequire, mod, mod.exports, path.dirname(servicePath));
 
 const { markdownToExportHtml, inlineMarkdownToHtml, buildExportHtmlDocument, katexStylesheet } = mod.exports.__internals;
 

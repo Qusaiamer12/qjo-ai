@@ -17,6 +17,23 @@ const ANSWER = [
   '| أ | ١ |'
 ].join('\n');
 
+// The file's direction follows the answer, not the interface. The page used to
+// send the interface language, so an English answer asked for in the Arabic
+// interface was exported right to left.
+async function exportDirectionFollowsAnswer(page, sent, ask, ok) {
+  const ENGLISH = ['## Result', '', 'A detailed explanation in English, long enough to be worth exporting to a file.', 'A second paragraph adds enough length for the export toolbar to appear reliably.'].join('\n');
+  await page.route('**/api/chat', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'text/event-stream', body: `event: chunk\ndata: ${JSON.stringify({ text: ENGLISH })}\n\nevent: done\ndata: {}\n\n` });
+  });
+  await ask('explain it in English');
+  sent.exports.length = 0;
+  await page.click('.msg.assistant:last-of-type .msg-action-btn[title*="Word"]');
+  await page.waitForTimeout(900);
+  const body = sent.exports[0] ? sent.exports[0].body : null;
+  const pageDir = await page.evaluate(() => document.documentElement.dir);
+  ok(Boolean(body) && body.rtl === false && pageDir === 'rtl', 'an English answer in the Arabic interface is exported left to right', body);
+}
+
 (async () => {
   const browser = await launchBrowser();
   const ctx = await browser.newContext();
@@ -91,6 +108,7 @@ const ANSWER = [
   await page.click('.msg.assistant .msg-action-btn[title*="Word"]');
   await page.waitForTimeout(900);
   ok(sent.exports.some(e => e.endpoint === 'docx'), 'Word export calls /api/export/docx', sent.exports);
+  ok(sent.exports[0]?.body?.rtl === true, 'an Arabic answer is exported right to left', sent.exports[0]?.body?.rtl);
 
   // ── ZIP appears because the answer carries a file-path code block ──
   sent.exports.length = 0;
@@ -120,6 +138,8 @@ const ANSWER = [
   const userBubbles = await page.$$eval('.msg.user', els => els.map(e => e.innerText.trim().slice(0, 24)));
   const dupes = userBubbles.length !== new Set(userBubbles).size;
   ok(!dupes, `the question is not duplicated (${userBubbles.length} user bubbles)`, userBubbles);
+
+  await exportDirectionFollowsAnswer(page, sent, ask, ok);
 
   // ── A short answer gets no export clutter ──
   await page.route('**/api/chat', async (route) => {

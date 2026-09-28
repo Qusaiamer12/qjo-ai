@@ -807,7 +807,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       const endpoint = EXPORT_ENDPOINTS[format];
       if (!endpoint) return false;
       const safeName = String(title || 'qjo-export').replace(/[\\/:*?"<>|]+/g, '-').slice(0, 60) || 'qjo-export';
-      return postForDownload(endpoint, { title, content, rtl: qjoLanguage === 'ar' }, `${safeName}.${format}`);
+      return postForDownload(endpoint, { title, content, rtl: QjoDomain.language.documentLanguage(content) === 'ar' }, `${safeName}.${format}`);
     }
 
     function appendSourceCards(messageWrap, sources) {
