@@ -23,6 +23,7 @@ const WATCHED = [
   'public/domain/requestFailure.js',
   'public/domain/streamProtocol.js',
   'public/ui/streamingView.js',
+  'public/ui/sandbox.js',
   'server.js',
   'src/agents/RoutingEngine.js',
   'src/agents/TaskRunner.js',

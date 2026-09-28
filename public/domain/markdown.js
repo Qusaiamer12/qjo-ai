@@ -178,7 +178,7 @@
         `.trim();
         codeBlocks.push(placeholder);
       } else if (normalizedLang === 'mermaid') {
-        const placeholder = `<div class="mermaid" style="background: white; padding: 12px; border-radius: 8px; margin: 14px 0; overflow-x: auto; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); color: #0F172A;">${code.trim()}</div>`;
+        const placeholder = `<div class="mermaid" style="background: white; padding: 12px; border-radius: 8px; margin: 14px 0; overflow-x: auto; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); color: #0F172A;">${escapeHtml(code.trim())}</div>`;
         codeBlocks.push(placeholder);
       } else if (normalizedLang === 'quiz' || normalizedLang === 'json-quiz') {
         const quizDataEscaped = encodeURIComponent(code.trim());

@@ -354,7 +354,10 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       }
       if (/<!doctype\s+html/i.test(trimmed) || /<html\b/i.test(trimmed)) {
         if (!trimmed.includes('tailwindcss.com') && !trimmed.includes('tailwind')) {
-          trimmed = trimmed.replace(/<\/head>/i, '<script src="https://cdn.tailwindcss.com"><\\/script></head>');
+          // A real closing tag. It used to be written escaped (<\/script>),
+          // which HTML does not end a script with, so the rest of the page was
+          // swallowed and a full-document preview came out blank.
+          trimmed = trimmed.replace(/<\/head>/i, '<script src="https://cdn.tailwindcss.com"></script></head>');
         }
         return trimmed;
       }
@@ -1313,248 +1316,34 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       });
     }
 
-    // ── Pyodide WebAssembly Python Execution Engine ──
-    let pyodideInstance = null;
-    let pyodideLoadPromise = null;
-
-    async function getPyodideInstance(onStatus) {
-      if (pyodideInstance) return pyodideInstance;
-      if (pyodideLoadPromise) return pyodideLoadPromise;
-
-      pyodideLoadPromise = (async () => {
-        if (typeof loadPyodide === 'undefined') {
-          if (onStatus) onStatus(qjoLanguage === 'ar' ? 'تحميل بيئة بايثون (WASM)...' : 'Loading Pyodide WASM...');
-          await new Promise((resolve, reject) => {
-            const s = document.createElement('script');
-            s.src = 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js';
-            s.async = true;
-            s.onload = resolve;
-            s.onerror = () => reject(new Error(qjoLanguage === 'ar' ? 'فشل تحميل محرك بايثون من CDN. تحقق من اتصال الإنترنت.' : 'Failed to load Pyodide from CDN. Check connection.'));
-            document.head.appendChild(s);
-          });
-        }
-
-        if (onStatus) onStatus(qjoLanguage === 'ar' ? 'تهيئة محرك بايثون...' : 'Initializing Python engine...');
-        const py = await loadPyodide({
-          indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/'
-        });
-        pyodideInstance = py;
-        return py;
-      })();
-
-      try {
-        return await pyodideLoadPromise;
-      } catch (err) {
-        pyodideLoadPromise = null;
-        throw err;
-      }
-    }
-
-    async function executePythonCodeInSandbox(code, onStatus) {
-      const py = await getPyodideInstance(onStatus);
-      
-      if (onStatus) onStatus(qjoLanguage === 'ar' ? 'تحميل الحزم المستخدمة...' : 'Loading packages...');
-      try {
-        await py.loadPackagesFromImports(code);
-      } catch (pkgErr) {
-        console.warn('[Pyodide] package load warning:', pkgErr);
-      }
-
-      if (onStatus) onStatus(qjoLanguage === 'ar' ? 'جاري التشغيل...' : 'Running code...');
-      
-      py.globals.set('__qjo_user_code', code);
-      
-      const runnerScript = `
-import sys
-from io import StringIO
-
-__qjo_stdout = StringIO()
-__qjo_stderr = StringIO()
-__qjo_old_stdout = sys.stdout
-__qjo_old_stderr = sys.stderr
-sys.stdout = __qjo_stdout
-sys.stderr = __qjo_stderr
-
-__qjo_error = None
-__qjo_images = []
-
-if 'matplotlib' in __qjo_user_code:
-    try:
-        import matplotlib
-        matplotlib.use('Agg')
-    except Exception:
-        pass
-
-try:
-    __qjo_compiled = compile(__qjo_user_code, '<qjo-sandbox>', 'exec')
-    exec(__qjo_compiled, globals())
-    
-    if 'matplotlib.pyplot' in sys.modules:
-        import matplotlib.pyplot as plt
-        import base64
-        from io import BytesIO
-        for fig_num in plt.get_fignums():
-            fig = plt.figure(fig_num)
-            buf = BytesIO()
-            fig.savefig(buf, format='png', bbox_inches='tight', dpi=120)
-            buf.seek(0)
-            __qjo_images.append(base64.b64encode(buf.read()).decode('utf-8'))
-            plt.close(fig)
-except Exception:
-    import traceback
-    __qjo_error = traceback.format_exc()
-finally:
-    sys.stdout = __qjo_old_stdout
-    sys.stderr = __qjo_old_stderr
-
-__qjo_out_str = __qjo_stdout.getvalue()
-__qjo_err_str = __qjo_stderr.getvalue()
-if len(__qjo_out_str) > 40000:
-    __qjo_out_str = __qjo_out_str[:40000] + "\\n... " + ${JSON.stringify(t('pyOutputTruncated'))}
-if len(__qjo_err_str) > 20000:
-    __qjo_err_str = __qjo_err_str[:20000] + "\\n... " + ${JSON.stringify(t('pyWarningsTruncated'))}
-
-{
-    "stdout": __qjo_out_str,
-    "stderr": __qjo_err_str,
-    "error": __qjo_error,
-    "images": __qjo_images
-}
-`;
-
-      const startTime = performance.now();
-      const pyResult = await py.runPythonAsync(runnerScript);
-      const durationMs = Math.round(performance.now() - startTime);
-      const result = pyResult.toJs({ dict_converter: Object.fromEntries });
-      
-      if (pyResult && typeof pyResult.destroy === 'function') {
-        try { pyResult.destroy(); } catch (_) {}
-      }
-      
-      return {
-        stdout: String(result.stdout || ''),
-        stderr: String(result.stderr || ''),
-        error: result.error ? String(result.error) : null,
-        images: Array.isArray(result.images) ? result.images : [],
-        durationMs
-      };
-    }
-
-    // ── JavaScript sandbox (Web Worker) ──────────────────────────────────
-    // The worker runs on its own thread, so user code cannot touch the page's
-    // DOM, and an infinite loop blocks only the worker — the watchdog below
-    // terminates it instead of freezing the tab. The worker is built from a
-    // blob: URL, which the app's CSP allows via `worker-src 'self' blob:`.
+    // ── Running code: public/ui/sandbox.js ───────────────────────────────
+    // An iframe with no origin of its own runs it in a worker, so generated
+    // code cannot read the page, its storage or the signed-in session, and a
+    // run past its limit is stopped. Results are treated as untrusted there.
     const JS_SANDBOX_TIMEOUT_MS = 5000;
+    const PY_STATUS = {
+      loading: ['تحميل بيئة بايثون (WASM)...', 'Loading Pyodide WASM...'],
+      initializing: ['تهيئة محرك بايثون...', 'Initializing Python engine...'],
+      packages: ['تحميل الحزم المستخدمة...', 'Loading packages...'],
+      running: ['جاري التشغيل...', 'Running code...']
+    };
 
-    const JS_WORKER_SOURCE = `
-      self.onmessage = function (event) {
-        var logs = [];
-        var MAX_ENTRIES = 300;
+    function executePythonCodeInSandbox(code, onStatus) {
+      return QjoUI.sandbox.runPython(code, {
+        onStatus: (s) => { if (onStatus && PY_STATUS[s]) onStatus(PY_STATUS[s][qjoLanguage === 'ar' ? 0 : 1]); },
+        timeoutMessage: t('pyTimeout', { s: 30 }),
+        truncated: { stdout: t('pyOutputTruncated'), stderr: t('pyWarningsTruncated') }
+      });
+    }
 
-        function format(value, depth) {
-          depth = depth || 0;
-          if (value === null) return 'null';
-          if (value === undefined) return 'undefined';
-          var type = typeof value;
-          if (type === 'string') return depth === 0 ? value : JSON.stringify(value);
-          if (type === 'number' || type === 'boolean') return String(value);
-          if (type === 'function') return '[Function: ' + (value.name || 'anonymous') + ']';
-          if (type === 'symbol' || type === 'bigint') return String(value);
-          if (value instanceof Error) return value.name + ': ' + value.message;
-          try {
-            var seen = new WeakSet();
-            return JSON.stringify(value, function (key, val) {
-              if (typeof val === 'object' && val !== null) {
-                if (seen.has(val)) return '[Circular]';
-                seen.add(val);
-              }
-              if (typeof val === 'function') return '[Function: ' + (val.name || 'anonymous') + ']';
-              if (typeof val === 'bigint') return String(val);
-              return val;
-            }, 2);
-          } catch (e) {
-            return String(value);
-          }
-        }
-
-        function push(kind, args) {
-          if (logs.length >= MAX_ENTRIES) return;
-          logs.push({ kind: kind, text: args.map(function (a) { return format(a, 0); }).join(' ') });
-        }
-
-        // console.table renders as aligned columns, matching the browser.
-        function renderTable(data) {
-          if (data === null || typeof data !== 'object') return format(data, 0);
-          var isArray = Array.isArray(data);
-          var rowKeys = isArray ? data.map(function (_, i) { return String(i); }) : Object.keys(data);
-          var columns = [];
-          var primitiveOnly = true;
-          rowKeys.forEach(function (rk) {
-            var row = isArray ? data[Number(rk)] : data[rk];
-            if (row !== null && typeof row === 'object') {
-              primitiveOnly = false;
-              Object.keys(row).forEach(function (c) {
-                if (columns.indexOf(c) === -1) columns.push(c);
-              });
-            }
-          });
-          if (primitiveOnly) columns = ['Values'];
-          var header = ['(index)'].concat(columns);
-          var body = rowKeys.map(function (rk) {
-            var row = isArray ? data[Number(rk)] : data[rk];
-            var cells = columns.map(function (c) {
-              if (primitiveOnly) return format(row, 1);
-              if (row === null || typeof row !== 'object') return '';
-              return Object.prototype.hasOwnProperty.call(row, c) ? format(row[c], 1) : '';
-            });
-            return [rk].concat(cells);
-          });
-          var widths = header.map(function (h, i) {
-            return Math.max(String(h).length, body.reduce(function (m, r) {
-              return Math.max(m, String(r[i] === undefined ? '' : r[i]).length);
-            }, 0));
-          });
-          function line(cells) {
-            return '| ' + cells.map(function (c, i) {
-              return String(c === undefined ? '' : c).padEnd(widths[i]);
-            }).join(' | ') + ' |';
-          }
-          var divider = '|-' + widths.map(function (w) { return '-'.repeat(w); }).join('-|-') + '-|';
-          // Escaped: this source lives inside a template literal, so a bare
-          // \\n would become a real newline and break the emitted worker.
-          return [line(header), divider].concat(body.map(line)).join('\\n');
-        }
-
-        self.console = {
-          log: function () { push('log', [].slice.call(arguments)); },
-          info: function () { push('log', [].slice.call(arguments)); },
-          debug: function () { push('log', [].slice.call(arguments)); },
-          warn: function () { push('warn', [].slice.call(arguments)); },
-          error: function () { push('error', [].slice.call(arguments)); },
-          table: function (data) {
-            if (logs.length >= MAX_ENTRIES) return;
-            logs.push({ kind: 'table', text: renderTable(data) });
-          }
-        };
-
-        var started = Date.now();
-        try {
-          var result = (0, eval)(event.data.code);
-          if (result !== undefined) {
-            logs.push({ kind: 'return', text: format(result, 0) });
-          }
-          self.postMessage({ ok: true, logs: logs, durationMs: Date.now() - started });
-        } catch (error) {
-          self.postMessage({
-            ok: false,
-            logs: logs,
-            error: (error && error.stack) ? String(error.stack) : String(error && error.message ? error.message : error),
-            durationMs: Date.now() - started
-          });
-        }
-      };
-    `;
+    // Resolves to { ok, logs, error, durationMs, timedOut }. Never rejects:
+    // a failure is data the caller renders, including the auto-fix affordance.
+    function executeJavaScriptInSandbox(code) {
+      return QjoUI.sandbox.runJavaScript(code, {
+        timeoutMs: JS_SANDBOX_TIMEOUT_MS,
+        timeoutMessage: t('jsTimeout', { s: JS_SANDBOX_TIMEOUT_MS / 1000 })
+      });
+    }
 
     // ── TypeScript transpiler (lazy) ─────────────────────────────────────
     // @babel/standalone is 2.3MB against the TypeScript compiler's 8.7MB, and
@@ -1597,58 +1386,6 @@ if len(__qjo_err_str) > 20000:
       return Babel.transform(code, { presets: ['typescript'], filename: 'snippet.ts' }).code;
     }
 
-    // Resolves to { ok, logs, error, durationMs, timedOut }. Never rejects:
-    // a failure is data the caller renders, including the auto-fix affordance.
-    function executeJavaScriptInSandbox(code) {
-      return new Promise((resolve) => {
-        let worker = null;
-        let blobUrl = '';
-        let settled = false;
-        let watchdog = null;
-
-        const cleanup = () => {
-          if (watchdog) clearTimeout(watchdog);
-          try { if (worker) worker.terminate(); } catch (_) { /* already gone */ }
-          try { if (blobUrl) URL.revokeObjectURL(blobUrl); } catch (_) { /* ignore */ }
-        };
-
-        const finish = (payload) => {
-          if (settled) return;
-          settled = true;
-          cleanup();
-          resolve(payload);
-        };
-
-        try {
-          blobUrl = URL.createObjectURL(new Blob([JS_WORKER_SOURCE], { type: 'application/javascript' }));
-          worker = new Worker(blobUrl);
-        } catch (err) {
-          finish({ ok: false, logs: [], error: `Sandbox unavailable: ${err?.message || err}`, durationMs: 0 });
-          return;
-        }
-
-        const startedAt = Date.now();
-        worker.onmessage = (event) => finish(event.data);
-        worker.onerror = (event) => {
-          event.preventDefault?.();
-          finish({ ok: false, logs: [], error: event.message || 'Worker error.', durationMs: Date.now() - startedAt });
-        };
-
-        watchdog = setTimeout(() => {
-          finish({
-            ok: false,
-            logs: [],
-            timedOut: true,
-            error: qjoLanguage === 'ar'
-              ? `تم إيقاف التنفيذ بعد ${JS_SANDBOX_TIMEOUT_MS / 1000} ثوانٍ. غالبًا يوجد حلقة لا نهائية (Infinite Loop) في الكود.`
-              : `Execution halted after ${JS_SANDBOX_TIMEOUT_MS / 1000}s. The code most likely contains an infinite loop.`,
-            durationMs: Date.now() - startedAt
-          });
-        }, JS_SANDBOX_TIMEOUT_MS);
-
-        worker.postMessage({ code });
-      });
-    }
 
     // ── Auto-fix: hand a failing snippet + its error straight to Qjo ──────
     // Without this the user has to copy the traceback out of the terminal and
@@ -2048,12 +1785,12 @@ if len(__qjo_err_str) > 20000:
           
           questions.forEach((q, qIdx) => {
             const optionsHtml = (q.options || []).map((opt, oIdx) => {
-              return `<button class="quiz-option-btn" data-correct="${opt === q.answer}" data-explanation="${escapeHtml(q.explanation || '')}" style="display: block; width: 100%; text-align: right; background: white; border: 1px solid #CBD5E1; padding: 8px 12px; margin: 6px 0; border-radius: 6px; font-size: 12px; cursor: pointer; transition: all 0.2s;">${opt}</button>`;
+              return `<button class="quiz-option-btn" data-correct="${opt === q.answer}" data-explanation="${escapeHtml(q.explanation || '')}" style="display: block; width: 100%; text-align: right; background: white; border: 1px solid #CBD5E1; padding: 8px 12px; margin: 6px 0; border-radius: 6px; font-size: 12px; cursor: pointer; transition: all 0.2s;">${escapeHtml(String(opt))}</button>`;
             }).join('');
             
             html += `<div class="quiz-question-block" id="q-block-${container.id}-${qIdx}" style="display: ${qIdx === 0 ? 'block' : 'none'};">
               <div class="quiz-progress" style="font-size: 10px; color: #64748B; font-weight: 700; margin-bottom: 6px;">${escapeHtml(t('quizProgress', { n: qIdx + 1, total: questions.length }))}</div>
-              <div class="quiz-question-title" style="font-size: 14px; font-weight: 700; color: #0F172A; margin-bottom: 12px;">${q.question}</div>
+              <div class="quiz-question-title" style="font-size: 14px; font-weight: 700; color: #0F172A; margin-bottom: 12px;">${escapeHtml(String(q.question ?? ''))}</div>
               <div class="quiz-options-list">${optionsHtml}</div>
               <div class="quiz-explanation-note text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-3 mt-3 text-xs hidden"></div>
               ${qIdx < questions.length - 1 ? `<button class="quiz-next-btn" style="background: #123B7A; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; margin-top: 12px; display: none;">${escapeHtml(t('quizNext'))}</button>` : ''}
@@ -2092,7 +1829,7 @@ if len(__qjo_err_str) > 20000:
                 }
                 
                 if (explanationNote) {
-                  explanationNote.innerHTML = `<strong>${escapeHtml(isCorrect ? t('quizCorrect') : t('quizWrong'))}</strong> ${opt.dataset.explanation || ''}`;
+                  explanationNote.innerHTML = `<strong>${escapeHtml(isCorrect ? t('quizCorrect') : t('quizWrong'))}</strong> ${escapeHtml(opt.dataset.explanation || '')}`;
                   explanationNote.classList.remove('hidden');
                 }
                 

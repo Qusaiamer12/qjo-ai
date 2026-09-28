@@ -26,7 +26,8 @@
     ['markdown rendering', () => window.QjoDomain && window.QjoDomain.markdown],
     ['request failure handling', () => window.QjoDomain && window.QjoDomain.classifyRequestFailure],
     ['stream protocol', () => window.QjoDomain && window.QjoDomain.createSseParser],
-    ['streaming view', () => window.QjoUI && window.QjoUI.createStreamingView]
+    ['streaming view', () => window.QjoUI && window.QjoUI.createStreamingView],
+    ['code sandbox', () => window.QjoUI && window.QjoUI.sandbox]
   ];
 
   const RELOAD_FLAG = 'qjo_boot_reloaded';

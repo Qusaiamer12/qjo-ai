@@ -1,33 +1,46 @@
 const fs = require('fs');
-const { launchBrowser, repoFile } = require('./harness');
+const { launchBrowser, repoFile, BASE_URL } = require('./harness');
 const app = repoFile('public/app.js');
-// The app loads Babel from a CDN at a pinned version. The suite runs the same
-// build from the devDependency, and the first assertion below fails if the
-// two versions drift apart — otherwise this would be testing a different
+// The app loads Babel from a CDN at a pinned version. The suite serves the same
+// build from the devDependency at that URL, and the first assertion below fails
+// if the two versions drift apart — otherwise this would be testing a different
 // compiler from the one people get.
 const babelPackage = require('@babel/standalone/package.json');
 const babel = fs.readFileSync(require.resolve('@babel/standalone/babel.min.js'), 'utf8');
 
-// Pull the shipped worker + sandbox + transpile helpers verbatim.
-const workerFrom = app.indexOf('const JS_WORKER_SOURCE = `');
-const transpileTo = app.indexOf('    function initializeJsRunButtons(element) {');
-const src = app.slice(workerFrom, transpileTo);
+// The shipped run + transpile helpers, verbatim. They run on the real page, so
+// code goes through the real sandbox module under the app's real CSP.
+const from = app.indexOf('    // ── Running code: public/ui/sandbox.js');
+const to = app.indexOf('    // ── Auto-fix: hand a failing snippet');
+if (from < 0 || to < from) {
+  console.log('❌ the run/transpile section of public/app.js was not found — refusing to test a guess');
+  process.exit(1);
+}
+const src = app.slice(from, to);
+const EXPECTED_BABEL_URL = `https://cdn.jsdelivr.net/npm/@babel/standalone@${babelPackage.version}/babel.min.js`;
 
 (async () => {
   const browser = await launchBrowser();
   const page = await browser.newPage();
-  await page.setContent('<!doctype html><html><body></body></html>');
-  // Stand in for the CDN fetch: the loader short-circuits when window.Babel exists.
-  await page.addScriptTag({ content: babel });
-  await page.evaluate(`
-    window.qjoLanguage = 'en';
-    const JS_SANDBOX_TIMEOUT_MS = 3000;
+  // Stand in for the CDN at exactly the tested version: a loader asking for
+  // any other build meets the harness's block and the runs below fail.
+  await page.route(EXPECTED_BABEL_URL, (route) =>
+    route.fulfill({ status: 200, contentType: 'application/javascript', headers: { 'access-control-allow-origin': '*' }, body: babel }));
+  await page.goto(BASE_URL + '/', { waitUntil: 'domcontentloaded' });
+  await page.waitForFunction(() => window.QjoUI && window.QjoUI.sandbox, null, { timeout: 15000 }).catch(() => {});
+  if (!await page.evaluate(() => Boolean(window.QjoUI && window.QjoUI.sandbox))) {
+    console.log('❌ the sandbox module is not on the page — refusing to report anything');
+    await browser.close();
+    process.exit(1);
+  }
+  await page.evaluate(`(() => {
+    const qjoLanguage = 'en';
+    const t = (key) => key;
     ${src}
     window.transpileTypeScript = transpileTypeScript;
     window.executeJavaScriptInSandbox = executeJavaScriptInSandbox;
-    window.loadBabelStandalone = loadBabelStandalone;
     window.BABEL_URL = BABEL_STANDALONE_URL;
-  `);
+  })()`);
 
   let pass = 0, fail = 0;
   const check = (ok, m, d) => { ok ? pass++ : fail++; console.log(`${ok ? '✅' : '❌'} ${m}`); if (!ok && d !== undefined) console.log('   ', JSON.stringify(d).slice(0, 320)); };
@@ -39,8 +52,11 @@ const src = app.slice(workerFrom, transpileTo);
 
   // The CDN path must match the real package layout, at the version tested here.
   const url = await page.evaluate(() => window.BABEL_URL);
-  const expectedUrl = `https://cdn.jsdelivr.net/npm/@babel/standalone@${babelPackage.version}/babel.min.js`;
-  check(url === expectedUrl, `the app loads the Babel build this suite tests (${url})`, { expectedUrl });
+  check(url === EXPECTED_BABEL_URL, `the app loads the Babel build this suite tests (${url})`, { expected: EXPECTED_BABEL_URL });
+
+  // Babel is not on the page until someone runs TypeScript: the first run
+  // below goes through the app's own loader, not a script this suite injected.
+  check(await page.evaluate(() => typeof window.Babel === 'undefined'), 'the transpiler is not loaded until it is needed');
 
   let r = await runTs(`
 interface User { name: string; age: number }
@@ -75,7 +91,7 @@ const s = new Stack<string>(); s.push('a'); s.push('b'); console.log('size', s.s
   // The sandbox guarantees still hold on the TS path.
   const t0 = Date.now();
   r = await runTs(`const go = (): void => { while(true){} }; go();`);
-  check(!r.ok && r.timedOut, `infinite loop in TS still terminated (${Date.now()-t0}ms)`, r);
+  check(!r.ok && r.timedOut && r.error === 'jsTimeout', `infinite loop in TS still terminated (${Date.now()-t0}ms)`, r);
   check(await page.evaluate(() => 1+1) === 2, 'main thread still responsive');
 
   await browser.close();
