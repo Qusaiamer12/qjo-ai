@@ -83,7 +83,6 @@ const QWEN_API_KEYS = String(process.env.QWEN_API_KEYS || process.env.QWEN_API_K
   .map(k => k.trim())
   .filter(Boolean);
 
-
 const EMBEDDING_API_KEYS = String(process.env.EMBEDDING_API_KEYS || process.env.EMBEDDING_API_KEY || '')
   .split(',')
   .map(k => k.trim())
@@ -414,9 +413,9 @@ async function lookupClientGeo(ip) {
   }
 }
 
-
 const llmService = createLlmService({
   groqKeys: GROQ_API_KEYS,
+  groqBaseUrl: process.env.GROQ_BASE_URL || undefined,
   llm7Keys: LLM7_API_KEYS,
   llm7BaseUrl: LLM7_BASE_URL,
   hasLlm7: true,

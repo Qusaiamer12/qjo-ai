@@ -336,6 +336,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     // Files from an answer — export buttons and the download card.
     const answerExports = QjoUI.createAnswerExports({ downloadExport, t, toast: (m) => showMicroToast(m) });
     const sourceStrip = QjoUI.createSourceStrip({ t, getLanguage: () => qjoLanguage });
+    const imagePrep = QjoUI.createImagePrep();
 
     function sanitizeStoredMessageContent(content, role) {
       if (role !== 'user' || typeof content !== 'string') return content;
@@ -1930,37 +1931,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       });
     }
 
-    function readDataUrl(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result || ''));
-        reader.onerror = () => reject(reader.error || new Error(t('imageReadFailed')));
-        reader.readAsDataURL(file);
-      });
-    }
-
-    async function compressImageToDataUrl(file, maxSize = 1600, quality = 0.82) {
-      const originalUrl = await readDataUrl(file);
-      const img = await new Promise((resolve, reject) => {
-        const image = new Image();
-        image.onload = () => resolve(image);
-        image.onerror = () => reject(new Error(t('imagePrepareFailed')));
-        image.src = originalUrl;
-      });
-
-      const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
-      const width = Math.max(1, Math.round(img.width * scale));
-      const height = Math.max(1, Math.round(img.height * scale));
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d', { alpha: true });
-      ctx.drawImage(img, 0, 0, width, height);
-      const type = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
-      return canvas.toDataURL(type, type === 'image/jpeg' ? quality : undefined);
-    }
-
-
     async function waitForTesseract(maxMs = 3500) {
       const start = Date.now();
       while (!window.Tesseract && Date.now() - start < maxMs) {
@@ -2130,7 +2100,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
           }
         } else if (imageFile) {
           try {
-            item.dataUrl = await compressImageToDataUrl(file);
+            item.dataUrl = (await imagePrep.prepare(file, QjoDomain.imagePlan.capPerImage(1))).dataUrl;
             item.status = t('statusImageOcrTrying');
             renderAttachments();
             const ocrText = await ocrDataUrl(item.dataUrl, file.name);
@@ -2572,8 +2542,11 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       return await buildRetrievedAttachmentContext(userQuery);
     }
 
-    function buildCurrentUserApiContent(text, attachmentContext) {
-      const imageAttachments = pendingAttachments.filter(item => item.type.startsWith('image/') && item.dataUrl).slice(0, 5);
+    // Takes the message's attachments as they were when it was sent: the tray
+    // is emptied as soon as the question appears, and reading it here meant no
+    // image had ever reached the model — only the OCR text gathered earlier.
+    function buildCurrentUserApiContent(text, attachmentContext, attachments) {
+      const imageAttachments = attachments.filter(item => item.type.startsWith('image/') && item.dataUrl).slice(0, QjoDomain.imagePlan.LIMITS.maxImages);
       const combinedText = text + attachmentContext;
 
       if (!imageAttachments.length) return combinedText;
@@ -3171,8 +3144,9 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         }
         const continuityHint = buildContextContinuityHint(rawText);
         const savedUserContent = text + clarificationContext + attachmentContext + (hadImageAttachments ? '\n\n' + t('imagesAnalyzedNote') : '');
+        await imagePrep.fitMessage(attachmentsForRag);
         const apiUserContent = hadImageAttachments
-          ? buildCurrentUserApiContent(text + clarificationContext + webSearchContext, attachmentContext)
+          ? buildCurrentUserApiContent(text + clarificationContext + webSearchContext, attachmentContext, attachmentsForRag)
           : text + clarificationContext + attachmentContext + webSearchContext;
 
         const userMessage = { role: 'user', content: savedUserContent };

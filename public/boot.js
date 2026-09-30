@@ -33,7 +33,9 @@
     ['file requests', () => window.QjoDomain && window.QjoDomain.fileRequest],
     ['answer exports', () => window.QjoUI && window.QjoUI.createAnswerExports],
     ['source tiers', () => window.QjoDomain && window.QjoDomain.sourceTier],
-    ['source strip', () => window.QjoUI && window.QjoUI.createSourceStrip]
+    ['source strip', () => window.QjoUI && window.QjoUI.createSourceStrip],
+    ['image sizing', () => window.QjoDomain && window.QjoDomain.imagePlan],
+    ['image preparation', () => window.QjoUI && window.QjoUI.createImagePrep]
   ];
 
   const RELOAD_FLAG = 'qjo_boot_reloaded';

@@ -126,8 +126,8 @@
     // It used to appear only once finished, so a search in progress was an
     // empty card: the person could not tell working from frozen.
     const TOOL_NAMES = {
-      en: { web_search: 'Searching the web', fetch_page: 'Reading a page', calculate: 'Calculating' },
-      ar: { web_search: 'بحث في الويب', fetch_page: 'قراءة صفحة', calculate: 'حساب' }
+      en: { web_search: 'Searching the web', fetch_page: 'Reading a page', calculate: 'Calculating', read_image: 'Reading the image' },
+      ar: { web_search: 'بحث في الويب', fetch_page: 'قراءة صفحة', calculate: 'حساب', read_image: 'قراءة الصورة' }
     };
     const toolSteps = new Map();
     function toolStep({ tool = '', label = '', detail = '', status = '', done = false } = {}) {

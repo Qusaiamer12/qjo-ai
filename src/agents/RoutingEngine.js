@@ -3,6 +3,7 @@ const { WEB_SEARCH_TOOL } = require('../tools/searchTool');
 const { createToolRegistry } = require('../tools/toolRegistry');
 const { evidenceFromSearch, formatSearchResultsForTool, sourcesForPage } = require('./toolAnswer');
 const { createToolLoop } = require('./toolLoop');
+const { createVisionPipeline } = require('./visionPipeline');
 const { continuationPrompts } = require('./continuation');
 const { shrinkMessages, fitToAllowance } = require('../services/providerLimits');
 const { z } = require('zod');
@@ -412,6 +413,7 @@ function createRoutingEngine(deps) {
     if (!attach.length) return undefined;
     return toolRegistry.schemasFor(attach);
   }
+  const visionPipeline = createVisionPipeline({ runChain, pipelines: PIPELINES, buildTools });
 
   /**
    * Runs one model turn, including its tool loop and provider failover.
@@ -519,13 +521,17 @@ function createRoutingEngine(deps) {
       base.deadlineMs = deadlineMs;
     }
 
-    // 1) Images: they only ever work on vision-capable slots. Previously every
-    //    image request marched through text-only models and died.
+    const wantCode = route.intent === 'code' || normMode === 'code';
+    const pipeline = wantCode
+      ? PIPELINES.code
+      : (normMode === 'max' ? (arabicHeavy ? PIPELINES.maxAr : PIPELINES.maxEn) : PIPELINES.flash);
+
+    // 1) Images: read by a vision-capable slot; an exercise is then solved by
+    //    a text model from what was read (visionPipeline.js). On failure the
+    //    text chain still answers from any attached text.
     if (hasImages) {
-      const res = await runChain(PIPELINES.vision, { ...base, maxPerProviderMs: 16000 });
+      const res = await visionPipeline.answer({ base, messages, textChain: pipeline, extraMs: budgetFromCaller ? 0 : 20000 });
       if (res.ok) return res;
-      // fall through to the normal chain; text models will at least answer
-      // from any extracted/attached text instead of hard failing.
     }
 
     // 2) Lite fast track — single short greeting message.
@@ -540,17 +546,10 @@ function createRoutingEngine(deps) {
     //    Note: filter only the EXACT [provider,slot] pair — dropping the whole
     //    provider here used to leave single-key users with zero fallbacks.
     const explicit = locateExplicitModel(model);
-    const wantCode = route.intent === 'code' || normMode === 'code';
-    const pipeline = wantCode
-      ? PIPELINES.code
-      : (normMode === 'max' ? (arabicHeavy ? PIPELINES.maxAr : PIPELINES.maxEn) : PIPELINES.flash);
-
     const chain = explicit && !hasImages
       ? [explicit, ...pipeline.filter(([p, s]) => !(p === explicit[0] && s === explicit[1]))]
       : pipeline;
 
-    // normalizeMode only ever returns 'code' | 'max' | 'flash', so the old
-    // extra `normMode === 'normal'` test here could never be true.
     return runChain(chain, {
       ...base,
       tools: hasImages ? undefined : tools,

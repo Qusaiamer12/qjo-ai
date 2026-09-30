@@ -72,6 +72,13 @@ jobs:
       - name: Source tiers suite
         run: npm run test:sources
 
+      # A study question in a picture: the vision model reads it, a text model
+      # solves it with the calculator. Real llmService and RoutingEngine
+      # against a fake Groq over HTTP: what each model was sent, what the
+      # person saw, and one pass when either stage fails.
+      - name: Study images suite
+        run: npm run test:vision
+
       # "It lost the ability to search." Real search service against fake
       # Tavily, Serper, Google News, Wikipedia and DuckDuckGo over real HTTP:
       # a rejected request, spent credits, a blocked fallback, a stalled body.

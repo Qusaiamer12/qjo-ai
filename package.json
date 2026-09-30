@@ -27,6 +27,7 @@
     "test:tasks": "node scripts/test-task-runner.js",
     "test:search": "node scripts/test-search.js",
     "test:sources": "node scripts/test-sources.js",
+    "test:vision": "node scripts/test-vision.js",
     "structure": "node scripts/check-structure.js",
     "typecheck": "tsc --noEmit",
     "test:domain": "node scripts/test-domain.js",

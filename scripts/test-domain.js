@@ -645,6 +645,32 @@ const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n
     assert.strictEqual(worthExporting('| x | y |\n| - | - |\n| 1 | 2 |'), true);
   });
 
+  console.log('\nHow an attached image is sent (imagePlan.js):');
+  const { LIMITS, encodings, capPerImage } = require('../public/domain/imagePlan.js');
+
+  test('a phone screenshot keeps enough width to read', () => {
+    const [first] = encodings({ width: 1170, height: 2532, type: 'image/png' });
+    assert.deepStrictEqual(first, { width: 946, height: 2048, format: 'image/png' });
+  });
+
+  test('a PNG is tried as PNG, then JPEG, then smaller, never larger', () => {
+    const steps = encodings({ width: 3024, height: 4032, type: 'image/png' });
+    assert.strictEqual(steps[0].format, 'image/png');
+    assert.ok(steps.slice(1).every((s) => s.format === 'image/jpeg'), JSON.stringify(steps));
+    const sides = steps.map((s) => Math.max(s.width, s.height));
+    assert.ok(sides.every((side, i) => i === 0 || side <= sides[i - 1]) && sides[0] === 2048 && sides[sides.length - 1] === 1024, sides.join(','));
+  });
+
+  test('a JPEG is never tried as PNG, and a small image is never enlarged', () => {
+    const steps = encodings({ width: 640, height: 480, type: 'image/jpeg' });
+    assert.ok(steps.every((s) => s.format === 'image/jpeg' && s.width === 640 && s.height === 480), JSON.stringify(steps));
+  });
+
+  test('one image fits Groq\'s 4 MB; five fit one request together', () => {
+    assert.ok(capPerImage(1) <= 4 * 1024 * 1024 && capPerImage(1) === LIMITS.maxImageChars);
+    assert.ok(capPerImage(5) * 5 <= LIMITS.maxMessageChars && LIMITS.maxMessageChars < 8 * 1024 * 1024);
+  });
+
   console.log('\n========================================');
   console.log(`${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
