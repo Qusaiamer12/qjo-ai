@@ -6,6 +6,9 @@ const { isMostlyRtl } = require('./export/markdownModel');
 const { buildDocx } = require('./export/docx');
 const { buildXlsx } = require('./export/xlsx');
 const { buildPptx } = require('./export/pptx');
+const { fontFaceCss } = require('./export/fonts');
+const { buildPdfFallback } = require('./export/pdfFallback');
+const { assertUrlIsFetchable } = require('../tools/fetchPageTool');
 
 function stripMarkdown(input) {
   return String(input || '')
@@ -36,17 +39,6 @@ function safeExportPayload(req) {
 function sendExportError(res, error, fallback) {
   const status = error && error.statusCode >= 400 && error.statusCode < 500 ? error.statusCode : 500;
   res.status(status).json({ error: (error && error.message) || fallback });
-}
-
-function findFontPath() {
-  const candidates = [
-    '/usr/share/fonts/truetype/noto/NotoNaskhArabic-Regular.ttf',
-    '/usr/share/fonts/truetype/noto/NotoSansArabic-Regular.ttf',
-    '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
-    '/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf',
-    '/usr/share/fonts/truetype/freefont/FreeSans.ttf'
-  ];
-  return candidates.find(fp => fs.existsSync(fp));
 }
 
 function parseMarkdownSections(content, fallbackTitle = 'Qjo') {
@@ -96,10 +88,6 @@ function sectionToBullets(section, maxBullets = 6) {
     .map(b => b.length > 170 ? b.slice(0, 167) + '...' : b);
 }
 
-function removeCodeBlocks(content) {
-  return String(content || '').replace(/```[\s\S]*?```/g, '\n[Code block extracted separately]\n');
-}
-
 function _mixedDirectionNote(rtl) {
   return rtl ? 'Arabic / English mixed content' : 'English / mixed content';
 }
@@ -122,18 +110,6 @@ function _splitSlidesFromMarkdown(title, content) {
   }
 
   return slides.slice(0, 20);
-}
-
-function drawPdfHeader(doc, title, rtl) {
-  doc.fillColor('#123B7A').fontSize(9).text('Qjo AI', 54, 30, { align: rtl ? 'right' : 'left', width: 486 });
-  doc.moveTo(54, 48).lineTo(540, 48).strokeColor('#E2E8F0').lineWidth(1).stroke();
-  doc.fillColor('#0F172A');
-}
-
-function drawPdfFooter(doc, pageNumber) {
-  doc.moveTo(54, 790).lineTo(540, 790).strokeColor('#E2E8F0').lineWidth(1).stroke();
-  doc.fontSize(8).fillColor('#64748B').text(`Qjo • Page ${pageNumber}`, 54, 802, { align: 'center', width: 486 });
-  doc.fillColor('#0F172A');
 }
 
 function escapeHtmlExport(value) {
@@ -224,7 +200,9 @@ function inlineMarkdownToHtml(value) {
       (_, alt, src) => `<img src="${src}" alt="${alt}" />`)
     .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2">$1</a>')
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    .replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s).,،:;!?]|$)/g, '$1<em>$2</em>')
+    // An Arabic conjunction or preposition joins the word it precedes:
+    // "و*نص مائل*" is "و" then italics, as in any Markdown renderer.
+    .replace(/(^|[\s(\u0600-\u06FF])\*([^*\n]+)\*(?=[\s).,،:;!?]|$)/g, '$1<em>$2</em>')
     .replace(/~~([^~]+)~~/g, '<del>$1</del>');
   return restoreSegments(isolateBidiRuns(html), store);
 }
@@ -436,10 +414,13 @@ function katexStylesheet() {
 // (fonts-noto-core, fonts-noto-extra, fonts-dejavu-core), which is what makes
 // "every language" true rather than aspirational: Noto is explicitly designed
 // to cover all scripts, and Chromium falls back per-glyph down the list.
+// The embedded faces first (export/fonts.js): Arabic, then Latin and Greek,
+// then symbols. A server font listed before them — "Noto Sans Arabic" carries
+// Latin letters too — would decide how a PDF looks by what the server has.
 const UI_FONT_STACK = [
-  "'Noto Naskh Arabic'", "'Noto Sans Arabic'", "'Noto Kufi Arabic'",
-  "'Cairo'", "'Amiri'",
-  "'Noto Sans'", "'DejaVu Sans'", "'Liberation Sans'",
+  "'Noto Naskh Arabic'", "'Noto Sans'", "'Noto Sans Math'",
+  "'Noto Sans Arabic'", "'Noto Kufi Arabic'", "'Cairo'", "'Amiri'",
+  "'DejaVu Sans'", "'Liberation Sans'",
   "'Noto Sans Hebrew'", "'Noto Sans Devanagari'", "'Noto Sans Thai'",
   "'Noto Sans CJK SC'", "'Noto Sans CJK JP'", "'Noto Sans CJK KR'",
   "'WenQuanYi Zen Hei'", "'IPAGothic'",
@@ -449,8 +430,11 @@ const UI_FONT_STACK = [
 
 // Code needs a monospace face that still has Arabic coverage: a string literal
 // containing Arabic used to render as empty boxes in the code block.
+// The embedded Arabic face comes straight after the embedded mono one: a
+// system monospace font with Arabic glyphs but no shaping drew a comment's
+// letters apart.
 const MONO_FONT_STACK = [
-  "'Noto Sans Mono'", "'DejaVu Sans Mono'", "'Liberation Mono'",
+  "'Noto Sans Mono'", "'Noto Naskh Arabic'", "'DejaVu Sans Mono'", "'Liberation Mono'",
   'ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas',
   "'Noto Sans Arabic'", "'DejaVu Sans'",
   'monospace'
@@ -471,6 +455,7 @@ function buildExportHtmlDocument({ title, content, rtl }) {
   const timeText = escapeHtmlExport(now.toLocaleTimeString(rtl ? 'ar-JO' : 'en-GB', { hour: '2-digit', minute: '2-digit' }));
 
   return `<!doctype html><html lang="${lang}" dir="${dir}"><head><meta charset="utf-8"><style>
+  ${fontFaceCss()}
   ${katexStylesheet()}
 
   @page { size: A4; margin: 20mm 16mm 20mm 16mm; }
@@ -589,27 +574,59 @@ function buildExportHtmlDocument({ title, content, rtl }) {
   </body></html>`;
 }
 
+// Chromium for PDFs: where puppeteer's configuration puts it, else the
+// project's own cache (.puppeteerrc.cjs), found from this file — puppeteer
+// looks for its configuration in the working directory, not here. A path set
+// explicitly (PUPPETEER_EXECUTABLE_PATH) is used as set: if it is missing,
+// Chromium is missing.
+function chromiumPath(puppeteer) {
+  let found = null;
+  try { found = puppeteer.executablePath(); } catch (_) { found = null; }
+  if (found && fs.existsSync(found)) return found;
+  if (found && !/[\\/]puppeteer[\\/]chrome(-headless-shell)?[\\/]/.test(found)) return null;
+  const root = path.join(__dirname, '..', '..', '.cache', 'puppeteer', 'chrome');
+  try {
+    for (const build of fs.readdirSync(root)) {
+      const candidate = path.join(root, build, 'chrome-linux64', 'chrome');
+      if (fs.existsSync(candidate)) return candidate;
+    }
+  } catch (_) { /* no cache */ }
+  return null;
+}
+
 async function renderHtmlPdfWithPuppeteer(payload) {
-  let puppeteer;
-  try { puppeteer = require('puppeteer'); } catch (_) { return null; }
+  const puppeteer = require('puppeteer');
+  const executablePath = chromiumPath(puppeteer);
+  if (!executablePath) throw new Error('Chromium is not installed (npx puppeteer browsers install chrome)');
   const html = buildExportHtmlDocument(payload);
-  const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox','--disable-setuid-sandbox','--font-render-hinting=medium'] });
+  const browser = await puppeteer.launch({ executablePath, headless: true, args: ['--no-sandbox','--disable-setuid-sandbox','--font-render-hinting=medium'] });
   try {
     const page = await browser.newPage();
-    // 'load' is enough now that fonts, math CSS and styles are all inline. The
-    // old networkidle0 wait existed only for the Google Fonts import and cost
-    // every export a network round-trip — and a 30s stall plus a downgrade to
-    // the plain PDFKit renderer whenever the CDN was unreachable.
-    await page.setContent(html, { waitUntil: 'load', timeout: 20000 });
-    // Remote images still need a moment; bounded so a dead URL cannot hang the
-    // export.
-    // The callback below is serialized and executed inside the page, where
+    // The document is the model's answer, and Chromium runs on the server: an
+    // image in it at http://169.254.169.254/ or http://localhost:... would be
+    // fetched from inside the network. Only inline data and images at public
+    // addresses load — each checked after DNS resolution, and again on every
+    // redirect, by the same guard fetch_page uses. Nothing else loads at all.
+    await page.setRequestInterception(true);
+    page.on('request', (request) => {
+      const url = request.url();
+      if (/^(data|about|blob):/i.test(url)) { request.continue(); return; }
+      if (!/^https?:/i.test(url) || request.resourceType() !== 'image') { request.abort('blockedbyclient'); return; }
+      assertUrlIsFetchable(url).then(() => request.continue(), () => request.abort('blockedbyclient')).catch(() => {});
+    });
+    // Fonts, math CSS and styles are all inline, so the document is ready at
+    // DOMContentLoaded. Waiting for 'load' also waited for every image: one
+    // slow image host held the export for the full 20 s and then dropped it
+    // to the plain renderer. Images get a bounded wait of their own instead.
+    await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 20000 });
+    // The callbacks below are serialized and executed inside the page, where
     // `document` exists; the linter only knows this file's Node globals.
     /* eslint-disable no-undef */
     await page.evaluate(() => Promise.race([
       Promise.all(Array.from(document.images).filter(i => !i.complete).map(i => new Promise(r => { i.onload = i.onerror = r; }))),
       new Promise(r => setTimeout(r, 5000))
     ])).catch(() => {});
+    await page.evaluate(() => document.fonts.ready).catch(() => {});
     /* eslint-enable no-undef */
     await page.emulateMediaType('screen');
     const rtl = Boolean(payload.rtl);
@@ -627,57 +644,33 @@ async function renderHtmlPdfWithPuppeteer(payload) {
   } finally { await browser.close(); }
 }
 
+// Which engine printed the last PDF and why the other was not used: shown in
+// /api/status, so "the PDF looks wrong" can be checked against the server.
+const lastPdf = { engine: null, at: null, fallbackReason: null };
+
+function pdfEngineStatus() {
+  let chromium = false;
+  try { chromium = Boolean(chromiumPath(require('puppeteer'))); } catch (_) { chromium = false; }
+  return { chromium, last: { ...lastPdf } };
+}
+
 async function exportPdf(req, res) {
   try {
     const payload = safeExportPayload(req);
-    const htmlPdf = await renderHtmlPdfWithPuppeteer(payload).catch(error => {
-      console.warn('HTML PDF render failed, falling back to PDFKit:', error.message);
-      return null;
-    });
-    if (htmlPdf) {
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(payload.title)}.pdf"; filename*=UTF-8''${encodeURIComponent(payload.title)}.pdf`);
-      return res.send(htmlPdf);
+    let reason = null;
+    let pdf = await renderHtmlPdfWithPuppeteer(payload).catch((error) => { reason = error.message; return null; });
+    const engine = pdf ? 'chromium' : 'fallback';
+    if (!pdf) {
+      console.warn('HTML PDF render unavailable, using the built-in renderer:', reason || 'puppeteer not installed');
+      pdf = await buildPdfFallback(payload);
     }
-
-    // Fallback: legacy PDFKit renderer if Chromium is unavailable.
-    const { title, content, rtl } = payload;
-    const doc = new PDFDocument({ size: 'A4', margin: 54, bufferPages: true });
-    const chunks = [];
-    doc.on('data', chunk => chunks.push(chunk));
-    doc.on('end', () => {
-      const buffer = Buffer.concat(chunks);
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(title)}.pdf"; filename*=UTF-8''${encodeURIComponent(title)}.pdf`);
-      res.send(buffer);
-    });
-    const fontPath = findFontPath();
-    if (fontPath) doc.font(fontPath);
-    drawPdfHeader(doc, title, rtl);
-    doc.y = 72;
-    doc.fillColor('#0F172A').fontSize(24).text(title, { align: rtl ? 'right' : 'left', width: 486, lineGap: 3 });
-    doc.moveDown(1);
-    doc.fillColor('#64748B').fontSize(10).text(`Generated by Qjo AI • ${new Date().toLocaleDateString()}`, { align: rtl ? 'right' : 'left', width: 486 });
-    doc.moveDown(1.4);
-    const sections = parseMarkdownSections(removeCodeBlocks(content), title);
-    sections.forEach((section, index) => {
-      if (index > 0) doc.moveDown(0.8);
-      if (doc.y > 700) doc.addPage();
-      doc.fillColor('#123B7A').fontSize(15).text(section.title, { align: rtl ? 'right' : 'left', width: 486 });
-      doc.moveDown(0.35);
-      sectionToBullets(section, 9).forEach(bullet => {
-        if (doc.y > 750) doc.addPage();
-        doc.fillColor('#0F172A').fontSize(11).text('• ' + bullet, { align: rtl ? 'right' : 'left', width: 486, lineGap: 5 });
-        doc.moveDown(0.25);
-      });
-    });
-    const range = doc.bufferedPageRange();
-    for (let i = range.start; i < range.start + range.count; i++) { doc.switchToPage(i); drawPdfHeader(doc, title, rtl); drawPdfFooter(doc, i + 1); }
-    doc.end();
+    Object.assign(lastPdf, { engine, at: new Date().toISOString(), fallbackReason: pdf && engine === 'fallback' ? String(reason || 'puppeteer not installed').slice(0, 300) : null });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(payload.title)}.pdf"; filename*=UTF-8''${encodeURIComponent(payload.title)}.pdf`);
+    res.send(pdf);
   } catch (error) {
-    res.status(error.statusCode || 500).json({ error: error.message || 'PDF export failed.' });
+    sendExportError(res, error, 'PDF export failed.');
   }
-
 }
 
 function sanitizeZipPath(input, index = 0) {
@@ -786,4 +779,4 @@ async function exportImageToPdf(req, res) {
   }
 }
 
-module.exports = { exportPdf, exportCodeZip, exportPptx, exportDocx, exportXlsx, exportImageToPdf };
+module.exports = { exportPdf, exportCodeZip, exportPptx, exportDocx, exportXlsx, exportImageToPdf, pdfEngineStatus };

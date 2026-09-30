@@ -78,11 +78,13 @@ qjo-ai/
 │   │   ├── llmService.js        Providers, keys, rotation, cooldowns
 │   │   ├── providerResponse.js  Reading a 200 body: SSE or JSON, under a timer
 │   │   ├── searchService.js     Search providers, enrichment
-│   │   ├── exportService.js     Export routes: PDF and ZIP; Word, Excel and slides via export/
+│   │   ├── exportService.js     Export routes; PDF via Chromium (images guarded) or export/pdfFallback.js
 │   │   ├── export/markdownModel.js  One reading of an answer's Markdown for every file
 │   │   ├── export/docx.js       Word: headings, lists, tables, code, right to left
 │   │   ├── export/xlsx.js       Excel: typed cells, frozen filtered header, totals
 │   │   ├── export/pptx.js       Slides: a slide per section, tables and code paged, KPI and comparison layouts
+│   │   ├── export/pdfFallback.js  PDF without Chromium: per-character fonts, right-to-left lines, tables, code
+│   │   ├── export/fonts.js      Embedded Noto fonts (OFL) for both PDF engines
 │   │   ├── exportService.js     PDF/DOCX/PPTX rendering
 │   │   └── textSanitizer.js
 │   ├── tools/                   Model-callable capabilities. Schema and
@@ -173,6 +175,7 @@ thresholds that start where you are get tightened.
 | `fetch_page` opens model-chosen URLs | http/https only; private, loopback and link-local refused including `169.254.169.254`; DNS resolved and every resolved address checked; redirects followed manually with each hop re-validated; response streamed under a cap |
 | Workspace file paths come from the model | Absolute paths, drive paths and traversal are validation errors; the workspace is an object in task state, never the filesystem |
 | User JavaScript and Python execution | A worker inside an iframe sandboxed to `allow-scripts` only (`public/ui/sandbox.js`): origin `null`, so no access to the page, its storage or the signed-in session; a run past its limit ends the iframe; plot images accepted only as base64 |
+| Images in an exported PDF | The document is the model's answer, printed by Chromium on the server: every request is intercepted; only inline data and images at public addresses load, each checked after DNS resolution and on every redirect by `fetch_page`'s guard |
 | Code previews (HTML, React) | An iframe sandboxed to `allow-scripts allow-modals`, never `allow-same-origin`; the document is built by `public/domain/codeProject.js`; file names the model chose are inserted as text |
 | Answer HTML | Escaped before insertion; markdown rendering never emits raw user HTML |
 | Provider keys | `server.js` only, never sent to the client; `scan-secrets` blocks commits |

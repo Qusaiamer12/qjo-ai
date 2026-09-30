@@ -41,6 +41,13 @@ function check(condition, label, detail) {
 console.log('\nQjo PDF Export Suite');
 console.log('====================\n');
 
+// ── Emphasis ─────────────────────────────────────────────────────────────────
+console.log('Emphasis');
+const joined = inlineMarkdownToHtml('نص عادي و*نص مائل* هنا');
+check(/و<em>نص مائل<\/em>/.test(joined) && !joined.includes('*'), 'italics right after an Arabic conjunction ("و*...*")', joined);
+const product = inlineMarkdownToHtml('the product 2*3*4 is 24');
+check(!product.includes('<em>'), 'a multiplication is not italics', product);
+
 // ── Math ─────────────────────────────────────────────────────────────────────
 console.log('Math');
 const inlineMath = inlineMarkdownToHtml('المعادلة $x = \\frac{a}{b}$ هنا');

@@ -1,4 +1,6 @@
 node_modules/
+# Puppeteer's Chromium (.puppeteerrc.cjs)
+.cache/
 
 # Local env / secrets
 .env

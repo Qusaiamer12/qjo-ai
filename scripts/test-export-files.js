@@ -15,6 +15,10 @@ const model = require('../src/services/export/markdownModel');
 const { buildDocx, directionRuns } = require('../src/services/export/docx');
 const { buildXlsx } = require('../src/services/export/xlsx');
 const { buildPptx, kpiCards } = require('../src/services/export/pptx');
+const fallback = require('../src/services/export/pdfFallback');
+const fontkit = require('fontkit');
+const fs = require('fs');
+const { fontPath } = require('../src/services/export/fonts');
 const { exportDocx, exportXlsx, exportPptx } = require('../src/services/exportService');
 
 let pass = 0, fail = 0;
@@ -306,6 +310,36 @@ function call(handler, body) {
     const code = layouts.slides.filter((sl) => sl.texts.some((t) => t.includes('step(')));
     assert.strictEqual(code.length, 2, 'thirty lines, two slides');
     assert.ok(code[0].texts.join('\n').includes('step(0);') && code[1].texts.join('\n').includes('step(29);'));
+  });
+
+  console.log('\nPDF without Chromium:');
+  await test('each fallback font has a PostScript name of its own — PDFKit keeps one font per name', () => {
+    const names = Object.values(fallback.FACES).map((file) => fontkit.create(fs.readFileSync(fontPath(file))).postscriptName);
+    assert.strictEqual(new Set(names).size, names.length, names.join(', '));
+  });
+  await test('each character is drawn in a font that has it; what none has is spelled plainly', () => {
+    const faces = (text) => fallback.fontPieces(text, fallback.CHAINS.regular).map((p) => `${p.face}:${p.text}`);
+    assert.deepStrictEqual(faces('aΔب'), ['sans:a', 'math:Δ', 'arabic:ب']);
+    assert.deepStrictEqual(fallback.fontPieces('H₂O e⁻ˣ', fallback.CHAINS.regular).map((p) => p.text).join(''), 'H2O e^(-x)');
+  });
+  await test('a line is laid out as a browser would: Arabic from the right, English kept in order inside it', () => {
+    const t = (text, dir, space = false) => ({ text, dir, space });
+    const line = [t('نص', 'R'), t(' ', 'N', true), t('English', 'L'), t(' ', 'N', true), t('words', 'L'), t(' ', 'N', true), t('هنا', 'R')];
+    assert.deepStrictEqual(fallback.visualOrder(line, true).map((x) => x.text).join(''), 'هنا English wordsنص'.replace('wordsنص', 'words نص'));
+    const english = [t('Say', 'L'), t(' ', 'N', true), t('مرحبا', 'R'), t(' ', 'N', true), t('بالعالم', 'R'), t('.', 'N')];
+    assert.deepStrictEqual(fallback.visualOrder(english, false).map((x) => x.text).join(''), 'Say بالعالم مرحبا.');
+  });
+  const fallbackPdf = (await fallback.buildPdfFallback({ title: 'تقرير', content: ARABIC })).toString('latin1');
+  await test('the fonts travel inside the file, and nothing falls back to a font without Arabic', () => {
+    for (const name of ['NotoNaskhArabic-Regular', 'NotoSans-Regular', 'NotoSansMono-Regular']) assert.ok(fallbackPdf.includes(name), name);
+    assert.ok(!/Helvetica/.test(fallbackPdf), 'a standard font with no Arabic was used');
+  });
+  await test('no page is left with only its footer', async () => {
+    assert.strictEqual(count(fallbackPdf, /\/Type \/Page\b/g), 1, 'the sample is one page');
+    const long = ARABIC + '\n\n' + Array.from({ length: 50 }, (_, i) => `فقرة رقم ${i + 1} فيها نص عربي طويل بما يكفي ليأخذ سطرين كاملين في الصفحة عند الطباعة، مع كلمات English بينها.`).join('\n\n');
+    const pdf = (await fallback.buildPdfFallback({ title: 'طويل', content: long })).toString('latin1');
+    const pages = count(pdf, /\/Type \/Page\b/g);
+    assert.ok(pages >= 3 && pages <= 6, `${pages} pages for about three pages of text`);
   });
 
   console.log('\nThe routes:');

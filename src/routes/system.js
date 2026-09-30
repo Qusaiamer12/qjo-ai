@@ -1,3 +1,5 @@
+const { pdfEngineStatus } = require('../services/exportService');
+
 function registerSystemRoutes(app, deps) {
   if (!deps?.adminConfigService) throw new Error('registerSystemRoutes missing adminConfigService');
   if (!deps?.verifyAdminRequest) throw new Error('registerSystemRoutes missing verifyAdminRequest');
@@ -36,6 +38,9 @@ function registerSystemRoutes(app, deps) {
       // is resting and why, and its last error. "The providers are under
       // pressure" becomes which one, on which model, for how long.
       providerHealth: typeof deps.providerHealth === 'function' ? deps.providerHealth() : {},
+      // Whether Chromium is there to print PDFs, and which engine printed the
+      // last one and why the other was not used.
+      pdf: pdfEngineStatus(),
       publicMessage: 'Qjo status endpoint. No secrets are exposed.'
     });
   });

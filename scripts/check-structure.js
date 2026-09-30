@@ -30,6 +30,8 @@ const WATCHED = [
   'src/services/export/docx.js',
   'src/services/export/xlsx.js',
   'src/services/export/pptx.js',
+  'src/services/export/pdfFallback.js',
+  'src/services/export/fonts.js',
   'server.js',
   'src/agents/RoutingEngine.js',
   'src/agents/TaskRunner.js',

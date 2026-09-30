@@ -3,7 +3,8 @@ services:
     name: qjo-ai
     env: node
     plan: free
-    buildCommand: npm install
+    # The second step makes sure Chromium is there for PDFs (see .puppeteerrc.cjs).
+    buildCommand: npm install && npx puppeteer browsers install chrome
     startCommand: npm start
     envVars:
       - key: NODE_VERSION
