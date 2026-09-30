@@ -18,7 +18,7 @@
   "src/services/export/xlsx.js": 130,
   "src/services/export/pptx.js": 353,
   "src/services/export/pdfFallback.js": 384,
-  "src/services/export/fonts.js": 53,
+  "src/services/export/fonts.js": 68,
   "server.js": 776,
   "src/agents/RoutingEngine.js": 706,
   "src/agents/TaskRunner.js": 310,
