@@ -21,7 +21,7 @@ const { launchBrowser, BASE_URL } = require('./harness');
   }
 
   // ── Every module, dropped permanently ──
-  for (const blocked of ['/domain/language.js', '/domain/i18n.js', '/domain/markdown.js', '/domain/requestFailure.js', '/domain/streamProtocol.js', '/ui/streamingView.js', '/ui/sandbox.js', '/domain/codeProject.js', '/ui/canvas.js', '/domain/fileRequest.js', '/ui/answerExports.js']) {
+  for (const blocked of ['/domain/language.js', '/domain/i18n.js', '/domain/markdown.js', '/domain/requestFailure.js', '/domain/streamProtocol.js', '/ui/streamingView.js', '/ui/sandbox.js', '/domain/codeProject.js', '/ui/canvas.js', '/domain/fileRequest.js', '/ui/answerExports.js', '/domain/sourceTier.js', '/ui/sourceStrip.js']) {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
     let navigations = 0;

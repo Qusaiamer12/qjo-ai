@@ -7,7 +7,7 @@
 // round that asked for the search as if it were the reply.
 'use strict';
 
-const { buildSynthesisMessages, formatEvidenceAnswer } = require('./toolAnswer');
+const { buildSynthesisMessages, formatEvidenceAnswer, TOOL_OUTPUT_BUDGET } = require('./toolAnswer');
 
 /**
  * @param {object} deps
@@ -16,7 +16,7 @@ const { buildSynthesisMessages, formatEvidenceAnswer } = require('./toolAnswer')
  * @param {(text: string) => boolean} deps.isArabic
  */
 function createToolLoop({ toolRegistry, tryProvider, isArabic }) {
-  const TOOL_OUTPUT_MAX_CHARS = 6000;
+  const TOOL_OUTPUT_MAX_CHARS = TOOL_OUTPUT_BUDGET;
 
   // timeoutMs is the budget for the whole round, shared by every call in it.
   // Each call used to get all of it, so a round of three stuck searches took
@@ -55,7 +55,10 @@ function createToolLoop({ toolRegistry, tryProvider, isArabic }) {
       const { output } = await toolRegistry.execute(name, args, ctx, { timeoutMs: remaining });
       if (!noted) used.push({ tool: name, input: detail });
 
-      if (onToolCall) onToolCall({ tool: name, label, detail, status: 'done' });
+      // A search's sources go to the page the moment it finishes, so they are
+      // on screen while the answer is still being written.
+      const sources = noted ? used[used.length - 1].sources : undefined;
+      if (onToolCall) onToolCall({ tool: name, label, detail, status: 'done', ...(Array.isArray(sources) && sources.length ? { sources } : {}) });
       // Built-in tools live in this registry rather than in the caller's, so
       // without this hook a long task could not record what web_search or
       // fetch_page actually returned — and would re-run them next step.

@@ -51,8 +51,16 @@
       .replaceAll("'", '&#039;');
   }
 
+  // Code spans are set aside before links are looked for and put back after:
+  // `[1](https://…)` written as code is an example of the syntax, and it used
+  // to come out as a live link inside the code.
+  const CODE_MARK = /\uE000(\d+)\uE001/g;
+
   function parseInlineMarkdown(text) {
-    let value = String(text);
+    const spans = [];
+    let value = String(text)
+      .replace(/[\uE000\uE001]/g, '')
+      .replace(/`([^`]+)`/g, (_, code) => `\uE000${spans.push(code) - 1}\uE001`);
 
     // Markdown links: [label](https://example.com)
     value = value.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_, label, url) => {
@@ -66,8 +74,8 @@
     });
 
     return value
-      .replace(/`([^`]+)`/g, '<code>$1</code>')
-      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(CODE_MARK, (_, i) => `<code>${spans[Number(i)]}</code>`);
   }
 
   function isTableSeparator(line) {

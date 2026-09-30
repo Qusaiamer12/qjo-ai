@@ -1,3 +1,5 @@
+const { tierOf, TIER_WEIGHT } = require('../../public/domain/sourceTier');
+
 function normalizeUrl(url) {
   try {
     const u = new URL(url);
@@ -47,9 +49,17 @@ function distillSearchQueryServer(text) {
 }
 
 
+// A medical question. Arabic words are matched whole, with or without "ال":
+// "مرض" must not catch "نتائج مرضية", and "حامل" alone is as often "حامل
+// اللقب" (the title holder) as pregnancy; "الحمل" is also an engineer's load.
+const MEDICAL_EN = /\b(?:symptoms?|diagnosis|dosage|doses?|side effects?|treatments? (?:for|of|options)|medications?|drugs?|diseases?|syndrome|pregnan\w*|blood pressure|diabetes|antibiotics?|clinical)\b/i;
+const MEDICAL_AR = /(?<![\u0600-\u06FF])(?:ال|لل)?(?:أعراض|اعراض|جرعة|جرعه|جرعات|علاج|تشخيص|دواء|أدوية|ادوية|مرض|أمراض|امراض|مرضى|سكري|حوامل|مضاد حيوي|مضادات حيوية|آثار جانبية|اثار جانبية|ضغط الدم)(?![\u0600-\u06FF])/;
+
 function inferSearchMode(question) {
   const q = String(question || '').toLowerCase();
   if (/(paper|study|research|journal|doi|arxiv|pubmed|scholar|دراسة|بحث علمي|ورقة|أكاديمي|منهجية)/i.test(q)) return 'academic';
+  // Before "technical": "side effects of this drug" is not a bug report.
+  if (MEDICAL_EN.test(q) || MEDICAL_AR.test(q)) return 'medical';
   if (/(api|sdk|docs|documentation|github|npm|error|bug|deploy|install|setup|توثيق|خطأ|برمجة|كود|مكتبة)/i.test(q)) return 'technical';
   if (/(price|pricing|cost|plans|subscription|سعر|أسعار|تكلفة|اشتراك|خطة)/i.test(q)) return 'pricing';
   if (/(news|today|breaking|latest|أخبار|اليوم|عاجل|آخر)/i.test(q)) return 'news';
@@ -66,37 +76,34 @@ function domainOf(url) {
   catch { return ''; }
 }
 
+// How far a result's publisher can be leaned on, as a bonus on the provider's
+// own score. The tier comes from one classifier (public/domain/sourceTier.js)
+// that also labels the result for the model and the page. The mode adds to
+// the tiers that question calls for: papers for research, clinical sources for
+// a medical question, documentation and code for a technical one.
+const MODE_TIERS = {
+  academic: { academic: 0.3, medical: 0.25 },
+  medical: { medical: 0.35, academic: 0.2, official: 0.1 },
+  technical: { docs: 0.3, code: 0.25, community: 0.15 },
+  news: { news: 0.25 },
+  sports: { news: 0.15 }
+};
+// A regional publisher for this app's readers: Jordan, the Gulf, Egypt.
+const REGIONAL = /\.(jo|sa|eg|ae|kw|qa|bh|om|lb|ps|iq|sy)$/;
+
 function scoreSource(result, mode) {
   const domain = domainOf(result.url);
-  let score = Number(result.score || 0);
-  const officialSignals = ['docs.', 'developer.', 'developers.', 'support.', 'help.', 'firebase.google.com', 'cloud.google.com', 'github.com', 'npmjs.com'];
-  const academicSignals = ['arxiv.org', 'pubmed.ncbi.nlm.nih.gov', 'ncbi.nlm.nih.gov', 'nature.com', 'science.org', 'ieee.org', 'acm.org', 'springer.com', 'sciencedirect.com'];
-  const govEduSignals = ['.gov', '.edu', '.org'];
-  const newsSignals = ['reuters.com', 'apnews.com', 'bbc.com', 'aljazeera.com', 'techcrunch.com', 'theverge.com', 'wired.com', 'bloomberg.com', 'ft.com'];
-  const lowSignals = ['reddit.com', 'quora.com', 'medium.com', 'forum', 'stackoverflow.com', 'facebook.com', 'x.com', 'twitter.com'];
-  const arabJordanSignals = ['.jo', '.gov.jo', '.edu.jo', '.sa', '.eg', '.ae', 'amman.jo', 'jordan.gov.jo', 'moi.gov.jo', 'customs.gov.jo', 'ssc.gov.jo', 'mfa.gov.jo'];
-
-  if (officialSignals.some(x => domain.includes(x))) score += 0.35;
-  if (govEduSignals.some(x => domain.includes(x))) score += 0.18;
-  if (arabJordanSignals.some(x => domain.endsWith(x) || domain.includes(x))) score += 0.30;
-  if (mode === 'academic' && academicSignals.some(x => domain.includes(x))) score += 0.45;
-  if (mode === 'news' && newsSignals.some(x => domain.includes(x))) score += 0.25;
-  if (mode === 'technical' && (domain.includes('github.com') || domain.includes('docs.') || domain.includes('developer'))) score += 0.35;
-  if (lowSignals.some(x => domain.includes(x))) score -= mode === 'technical' && domain.includes('stackoverflow.com') ? 0.05 : 0.22;
+  const tier = tierOf(result.url);
+  let score = Number(result.score || 0) + (TIER_WEIGHT[tier] - TIER_WEIGHT.web) * 0.6;
+  score += (MODE_TIERS[mode] && MODE_TIERS[mode][tier]) || 0;
+  if (REGIONAL.test(domain)) score += 0.3;
   if (result.firecrawl) score += 0.12;
   return score;
 }
 
+/** The result's tier, under the name the rest of the pipeline has used. */
 function sourceKind(url) {
-  const d = domainOf(url);
-  if (!d) return 'unknown';
-  if (d.includes('docs.') || d.includes('developer') || d.includes('support') || d.includes('help')) return 'official/docs';
-  if (d.includes('github.com')) return 'code/repository';
-  if (d.includes('arxiv') || d.includes('pubmed') || d.includes('ieee') || d.includes('acm') || d.includes('nature')) return 'academic';
-  if (d.endsWith('.gov')) return 'government';
-  if (d.endsWith('.edu')) return 'education';
-  if (d.includes('reuters') || d.includes('apnews') || d.includes('bbc') || d.includes('techcrunch') || d.includes('theverge')) return 'news';
-  return 'web';
+  return tierOf(url);
 }
 
 function buildDeepSearchQueries(question) {
@@ -235,6 +242,8 @@ function buildSearchBeastPlan(question, deep = false) {
   } else if (mode === 'academic') {
     add('دراسة بحثية ورقة علمية نتائج', 'research paper methodology results findings');
     add('arxiv PubMed Scholar IEEE', 'arxiv PubMed IEEE DOI Springer');
+  } else if (mode === 'medical') {
+    add('مصدر طبي موثوق وزارة الصحة', 'clinical guidelines WHO NIH Mayo Clinic');
   } else if (mode === 'sports') {
     const [ar, en] = sportsFocus(q);
     if (isArabic ? ar : en) add(ar, en);
@@ -261,7 +270,7 @@ function buildSearchBeastPlan(question, deep = false) {
     // pages; the search budget skips this entirely when time is short, so it
     // cannot turn into a stall.
     enrichPages: deep
-      ? (mode === 'academic' || mode === 'technical' ? 4 : 3)
+      ? (mode === 'academic' || mode === 'technical' || mode === 'medical' ? 4 : 3)
       : (mode === 'news' || mode === 'sports' || mode === 'pricing' ? 2 : 0)
   };
 }
@@ -313,7 +322,9 @@ function rankSearchBeastResults(results, mode, question) {
   // number — an empty list here told the model "no results" while the
   // providers had answered.
   const ranked = Array.from(byUrl.values()).sort((a, b) => (b.finalScore || 0) - (a.finalScore || 0));
-  const onTopic = (r) => (r.relevanceScore || 0) > 0 || /official|docs|government|academic|code\/repository/.test(r.sourceKind || '');
+  // An authoritative publisher stays even when no word matched: a title in
+  // another script, or a page the engine matched on meaning.
+  const onTopic = (r) => (r.relevanceScore || 0) > 0 || /^(official|medical|academic|docs)$/.test(r.sourceKind || '');
   const passed = ranked.filter(onTopic);
   const topUp = new Set(ranked.filter(r => !onTopic(r)).slice(0, Math.max(0, MIN_KEPT_RESULTS - passed.length)));
   const sorted = ranked.filter(r => onTopic(r) || topUp.has(r));

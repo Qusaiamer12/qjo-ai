@@ -65,6 +65,13 @@ jobs:
       - name: Search behaviour suite
         run: npm run test:search
 
+      # Who published a source: one classifier for the ranking, the label the
+      # model sees and the page's source strip. A ministry in Amman was "web",
+      # every ".org" was treated as official, and the date and text of each
+      # source were dropped before they reached the page.
+      - name: Source tiers suite
+        run: npm run test:sources
+
       # "It lost the ability to search." Real search service against fake
       # Tavily, Serper, Google News, Wikipedia and DuckDuckGo over real HTTP:
       # a rejected request, spent credits, a blocked fallback, a stalled body.

@@ -31,7 +31,9 @@
     ['code previews', () => window.QjoDomain && window.QjoDomain.codeProject],
     ['code studio', () => window.QjoUI && window.QjoUI.createCodeStudio],
     ['file requests', () => window.QjoDomain && window.QjoDomain.fileRequest],
-    ['answer exports', () => window.QjoUI && window.QjoUI.createAnswerExports]
+    ['answer exports', () => window.QjoUI && window.QjoUI.createAnswerExports],
+    ['source tiers', () => window.QjoDomain && window.QjoDomain.sourceTier],
+    ['source strip', () => window.QjoUI && window.QjoUI.createSourceStrip]
   ];
 
   const RELOAD_FLAG = 'qjo_boot_reloaded';

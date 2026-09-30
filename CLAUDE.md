@@ -91,6 +91,10 @@ Each of these produced a green result that meant nothing.
   CDN, and in this container that failed while on GitHub it would have
   passed. The harness keeps those frames in process, and harness.test.js
   proves the block holds inside one, against a control that loads.
+- **A request Playwright never routes.** Playwright aborts every request whose
+  URL ends in `/favicon.ico` before any route sees it, so a test can neither
+  serve nor observe one — a site's own icon could never load in a suite. The
+  source strip takes icons from one service at a path that can be routed.
 - **Verification that lives outside the repo.** 264 browser assertions spent
   weeks in a scratch directory that is deleted with the container. A check
   that is not committed and not in CI does not exist.
@@ -102,6 +106,7 @@ npm test                  # server behaviour
 npm run test:domain       # front-end pure logic, no browser
 npm run test:code-studio  # which blocks make one preview, and the document it runs
 npm run test:search       # search decision, results, budget
+npm run test:sources      # who published a source: ranking, what the model and page get
 npm run test:search-e2e   # hangs: fake provider over real HTTP, per-case watchdog
 npm run test:long-requests  # long requests: Groq's per-minute size, slow first byte
 npm run test:search-providers  # every search provider failing in every way

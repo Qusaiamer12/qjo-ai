@@ -178,14 +178,17 @@
   const CLOSE_TAG = '</think>';
 
   /**
-   * The sources behind an answer, from the done event's toolsUsed: each
-   * search the model ran carries what it found. Two searches often find the
-   * same page, so the list is deduplicated and numbered in the order shown.
-   * Only http(s) links survive — this list becomes links on the page.
+   * The sources behind an answer, from the done event's toolsUsed or from
+   * tool_call events: each search the model ran carries what it found. Two
+   * searches often find the same page, so the list is deduplicated and
+   * numbered in the order shown. Only http(s) links survive — this list
+   * becomes links on the page. The date, site and snippet used to be dropped
+   * here; they are what a citation shows.
    *
-   * @param {Array<{sources?: Array<{title?: string, url?: string, kind?: string}>}>} toolsUsed
+   * @param {Array<{sources?: Array<SourceIn>}>} toolsUsed
    * @param {number} [max]
-   * @returns {Array<{id: number, title: string, url: string, kind: string}>}
+   * @returns {Array<{id: number, title: string, url: string, kind: string, site: string, published: string, snippet: string}>}
+   * @typedef {{title?: string, url?: string, kind?: string, site?: string, published?: string, snippet?: string}} SourceIn
    */
   function sourcesFromToolsUsed(toolsUsed, max = 8) {
     const out = [];
@@ -195,7 +198,10 @@
         const url = String((source && source.url) || '').trim();
         if (!/^https?:\/\//i.test(url) || seen.has(url)) continue;
         seen.add(url);
-        out.push({ id: out.length + 1, title: String(source.title || ''), url, kind: String(source.kind || 'web') });
+        out.push({
+          id: out.length + 1, title: String(source.title || ''), url, kind: String(source.kind || 'web'),
+          site: String(source.site || ''), published: String(source.published || ''), snippet: String(source.snippet || '')
+        });
         if (out.length >= max) return out;
       }
     }

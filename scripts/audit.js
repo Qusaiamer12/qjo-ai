@@ -219,8 +219,8 @@ must(read('src/agents/RoutingEngine.js').includes('classifyQjoRequest') && serve
 must(server.includes('app.use(compression'), 'Compression middleware enabled');
 must(app.includes('SOURCE PACK'), 'Frontend sends source pack to model');
 must(app.includes('formatSearchSourcesForPrompt'), 'Search sources formatter exists');
-must(app.includes('appendSourceCards'), 'Source cards renderer exists');
-must(css.includes('source-cards'), 'Source cards CSS exists');
+must(read('public/ui/sourceStrip.js').includes('createSourceStrip') && app.includes('sourceStrip.add('), 'Source strip renderer exists');
+must(read('public/ui/sourceStrip.js').includes('.qjo-sources-row') && read('public/domain/sourceTier.js').includes('tierOf'), 'Source strip styles and tiers exist');
 must(app.includes('Markdown citations') || app.includes('[1](URL)'), 'Search instructions require Markdown citations');
 must(read('src/services/searchService.js').includes("require('../search/searchCore')") && read('src/search/searchCore.js').includes('buildSearchBeastPlan') && read('src/search/searchCore.js').includes('rankSearchBeastResults'), 'Search core module extracted from server monolith');
 must(server.includes("require('./src/routes/search')") && read('src/routes/search.js').includes('registerSearchRoutes') && read('src/services/searchService.js').includes('createSearchService') && read('src/tools/searchTool.js').includes('SearchQueriesSchema'), 'Search route/service/tool modules exist');

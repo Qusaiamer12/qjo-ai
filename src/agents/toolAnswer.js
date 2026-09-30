@@ -9,9 +9,15 @@
 // the person watched the app decide to search and then deliver nothing.
 'use strict';
 
+const { tierOf, siteName } = require('../../public/domain/sourceTier');
+
 const MAX_SOURCES = 6;
 const SNIPPET_CHARS = 900;
+// What the tool loop passes on of one tool's output (toolLoop.js).
+const TOOL_OUTPUT_BUDGET = 6000;
 const FALLBACK_SNIPPET_CHARS = 320;
+// What the page shows of a source under its citation: a sentence or two.
+const PAGE_SNIPPET_CHARS = 240;
 
 function publishedOf(result) {
   const raw = result?.publishedDate || result?.published_date || '';
@@ -36,22 +42,31 @@ function evidenceFromSearch(payload) {
       url,
       content: String(r.content || r.snippet || '').replace(/\s+/g, ' ').trim(),
       published: publishedOf(r),
-      kind: String(r.sourceKind || 'web')
+      kind: tierOf(url)
     });
   }
   return out;
 }
 
 /**
- * What the page shows as source cards for one search. It rides in toolsUsed,
- * which already reaches the page: a search the model ran by itself used to
- * leave no sources on screen, only a line of text saying it had searched.
+ * What the page shows of one search: each source's title, site, tier, date
+ * and a sentence of what it says. It rides on the finished tool_call event
+ * and in toolsUsed. The date and the text used to be dropped here, so a
+ * citation could say where a claim came from but not what the source said.
  * @param {Parameters<typeof evidenceFromSearch>[0]} payload
  */
 function sourcesForPage(payload) {
   return evidenceFromSearch(payload).slice(0, MAX_SOURCES)
-    .map(({ title, url, published, kind }) => ({ title: title.slice(0, 160), url, published, kind }));
+    .map(({ title, url, published, kind, content }) => ({
+      title: title.slice(0, 160), url, site: siteName(url), published, kind, snippet: trimToSentence(content, PAGE_SNIPPET_CHARS)
+    }));
 }
+
+// How each tier is named to the model, so it can weigh what it cites.
+const TIER_NOTES = {
+  official: 'official', medical: 'medical authority', academic: 'academic', docs: 'official docs', reference: 'reference',
+  news: 'news', code: 'code repository', community: 'forum/social — opinion, not evidence', web: 'web'
+};
 
 /**
  * What the model sees after calling web_search.
@@ -71,26 +86,32 @@ function formatSearchResultsForTool(payload) {
     return `No web results found for "${query}". Do not fill the gap from memory as if it were current: say plainly that you could not find up-to-date information, give what you know with that caveat, or try one different, simpler query.`;
   }
 
-  const body = results.map((r) => {
-    const published = publishedOf(r);
-    const meta = [r.url, published ? `published ${published}` : 'date unknown'].filter(Boolean).join(' · ');
-    const extracted = r.firecrawl ? ' [full page text]' : ' [snippet only]';
-    return `[${r.id}] ${r.title || 'untitled'}${extracted}\n${meta}\n${String(r.content || '').slice(0, SNIPPET_CHARS)}`;
-  }).join('\n\n');
-
-  return [
-    `Search results for "${query}" (retrieved ${new Date().toISOString().slice(0, 10)}):`,
-    '',
-    body,
-    '',
+  const header = `Search results for "${query}" (retrieved ${new Date().toISOString().slice(0, 10)}):`;
+  const rules = [
     'How to answer from these:',
     '- Open with the direct answer in one or two sentences, then the supporting detail. Use headings or a short list only when the answer has parts.',
     '- Cite each claim where it is made, as a markdown link: [1](url). Only cite a source for what it actually says.',
-    '- When sources disagree, prefer the most recent dated one and say that they disagree.',
+    '- Check each key number, date and name against the other sources. If they differ, say so in one line — which source says what — then go with the most recent and most authoritative (official, medical, academic before news, before web and forums). Never average conflicting figures.',
     '- "snippet only" is two lines of a page: if a number, date or exact wording matters, open it with fetch_page before relying on it.',
     '- If none of them answers the question, say so plainly instead of writing a confident answer the evidence does not support.',
     '- Answer in the language the person wrote in.'
   ].join('\n');
+  const entries = results.map((r) => {
+    const published = publishedOf(r);
+    const meta = [r.url, TIER_NOTES[tierOf(r.url)], published ? `published ${published}` : 'date unknown'].join(' · ');
+    const extracted = r.firecrawl ? ' [full page text]' : ' [snippet only]';
+    return { head: `[${r.id}] ${String(r.title || 'untitled').slice(0, 200)}${extracted}\n${meta}\n`, content: String(r.content || '') };
+  });
+  // The tool loop keeps the first TOOL_OUTPUT_BUDGET characters. With six
+  // full results this output used to run past it, and what was cut was the
+  // end: every rule above — cite, flag disagreement, open a snippet before
+  // relying on it. The results' text now shares what is left once the
+  // header, the rules and each result's title and link are counted.
+  const fixed = header.length + rules.length + entries.reduce((n, e) => n + e.head.length + 2, 0) + 4;
+  const perResult = Math.max(120, Math.min(SNIPPET_CHARS, Math.floor((TOOL_OUTPUT_BUDGET - fixed) / entries.length)));
+  const body = entries.map((e) => e.head + e.content.slice(0, perResult)).join('\n\n');
+
+  return [header, '', body, '', rules].join('\n');
 }
 
 function textOf(content) {
@@ -171,6 +192,7 @@ function formatEvidenceAnswer(evidence, { arabic }) {
 }
 
 module.exports = {
+  TOOL_OUTPUT_BUDGET,
   evidenceFromSearch,
   sourcesForPage,
   formatSearchResultsForTool,

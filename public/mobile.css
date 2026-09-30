@@ -171,8 +171,7 @@
   .message-content,
   pre,
   code,
-  td,
-  .source-card {
+  td {
     overflow-wrap: anywhere !important;
     word-break: break-word !important;
     max-width: 100% !important;
@@ -1325,5 +1324,23 @@
   .mode-seg-btn {
     padding: 5px 9px !important;
     font-size: 11.5px !important;
+  }
+}
+
+/* Links in an answer read as links on a phone. Rules above painted them
+   #7dd3fc on white in light mode (about 1.8:1 contrast) and the text's own
+   white in dark mode. body:not(#_) outranks those rules without touching
+   them: an id inside :not counts as an id. The source strip and citations
+   (public/ui/sourceStrip.js) set their own colours. */
+@media (max-width: 768px) {
+  body:not(#_):not(.dark) .msg.assistant .bubble a:not(.qjo-source):not(.qjo-cite),
+  body:not(#_):not(.dark) .msg.assistant .bubble a:not(.qjo-source):not(.qjo-cite) * {
+    color: #1d4ed8 !important;
+    -webkit-text-fill-color: #1d4ed8 !important;
+  }
+  body.dark:not(#_) .msg.assistant .bubble a:not(.qjo-source):not(.qjo-cite),
+  body.dark:not(#_) .msg.assistant .bubble a:not(.qjo-source):not(.qjo-cite) * {
+    color: #7dd3fc !important;
+    -webkit-text-fill-color: #7dd3fc !important;
   }
 }

@@ -335,6 +335,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     const codeStudio = QjoUI.createCodeStudio({ t });
     // Files from an answer — export buttons and the download card.
     const answerExports = QjoUI.createAnswerExports({ downloadExport, t, toast: (m) => showMicroToast(m) });
+    const sourceStrip = QjoUI.createSourceStrip({ t, getLanguage: () => qjoLanguage });
 
     function sanitizeStoredMessageContent(content, role) {
       if (role !== 'user' || typeof content !== 'string') return content;
@@ -362,6 +363,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         ['charts', () => initializeChartsInElement(bubble)],
         ['code blocks', () => initializeCodeBlockCopyButtons(bubble)],
         ['quizzes', () => initializeQuizzesInElement(bubble)],
+        ['citations', () => sourceStrip.decorate(bubble)],
         ['diagrams', () => {
           if (typeof mermaid !== 'undefined') mermaid.init(undefined, bubble.querySelectorAll('.mermaid'));
         }]
@@ -811,35 +813,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       if (!endpoint) return false;
       const safeName = String(title || 'qjo-export').replace(/[\\/:*?"<>|]+/g, '-').slice(0, 60) || 'qjo-export';
       return postForDownload(endpoint, { title, content, rtl: QjoDomain.language.documentLanguage(content) === 'ar' }, `${safeName}.${format}`);
-    }
-
-    function appendSourceCards(messageWrap, sources) {
-      const cleanSources = (Array.isArray(sources) ? sources : [])
-        .filter(s => s && s.url && /^https?:\/\//i.test(s.url))
-        .slice(0, 8);
-      if (!messageWrap || !cleanSources.length) return;
-
-      const box = document.createElement('div');
-      box.className = 'source-cards';
-      const title = document.createElement('div');
-      title.className = 'source-cards-title';
-      title.textContent = qjoLanguage === 'ar' ? 'المصادر' : 'Sources';
-      box.appendChild(title);
-
-      const grid = document.createElement('div');
-      grid.className = 'source-cards-grid';
-      cleanSources.forEach((source, index) => {
-        const link = document.createElement('a');
-        link.className = 'source-card';
-        link.href = source.url;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        const label = source.domain || sourceDomain(source.url) || 'source';
-        link.innerHTML = `<span class="source-index">${source.id || index + 1}</span><span class="source-main"><strong>${escapeHtml(source.title || label)}</strong><small>${escapeHtml(label)} · ${escapeHtml(source.kind || 'web')}</small></span>`;
-        grid.appendChild(link);
-      });
-      box.appendChild(grid);
-      messageWrap.appendChild(box);
     }
 
     // Shows a small "the model itself searched/calculated" note whenever
@@ -3193,6 +3166,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         }
         const webSearchContext = await getWebSearchContext(searchTextForDecision);
         if (webSearchContext) {
+          sourceStrip.add(view.wrap, lastSearchSources);
           appendReasoningStep(qjoLanguage === 'ar' ? 'تم اختيار وتلخيص أقوى المصادر' : 'Synthesizing verified sources', true);
         }
         const continuityHint = buildContextContinuityHint(rawText);
@@ -3269,6 +3243,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
               streamReasoningText(data.text || '');
             } else if (event === 'tool_call') {
               view.toolStep(data);
+              sourceStrip.add(view.wrap, data.sources);
             } else if (event === 'chunk') {
               const routed = QjoDomain.routeStreamChunk(data.text || '', insideThinkTag);
               insideThinkTag = routed.insideThink;
@@ -3318,7 +3293,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         if (view.started && view.bubble) {
           decorateAssistantBubble(view.bubble, view.wrap, {
             extras: [
-              ['sources', () => appendSourceCards(view.wrap, lastSearchSources.length ? lastSearchSources : QjoDomain.sourcesFromToolsUsed(lastMetadata.toolsUsed))],
+              ['sources', () => { sourceStrip.add(view.wrap, QjoDomain.sourcesFromToolsUsed(lastMetadata.toolsUsed)); sourceStrip.finish(view.wrap); }],
               ['tools note', () => appendToolsUsedNote(view.wrap, lastMetadata.toolsUsed)],
               // Now that the answer is complete, re-decide the content-dependent
               // actions (exports, project ZIP) that could not be judged when the

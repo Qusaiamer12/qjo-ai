@@ -110,7 +110,7 @@ const QUERIES = [
     await page.click('#sendBtn');
     await page.waitForFunction(() => /مبابي/.test((document.querySelector('.msg.assistant:last-of-type') || document.body).innerText), { timeout: 8000 }).catch(() => {});
     await page.waitForTimeout(600);
-    const cards = await page.$$eval('.source-cards .source-card', (els) => els.map((a) => ({ href: a.getAttribute('href'), text: a.innerText, imgs: a.querySelectorAll('img').length })));
+    const cards = await page.$$eval('.qjo-sources .qjo-source', (els) => els.map((a) => ({ href: a.getAttribute('href'), text: a.innerText, titleTags: a.querySelector('.qjo-source-title').childElementCount })));
     const pwned = await page.evaluate(() => window.__pwned === 1);
     return { ctx, cards, pwned, errors };
   }
@@ -125,9 +125,9 @@ const QUERIES = [
         { title: 'the same page again', url: 'https://www.espn.com/soccer/story/mbappe-goals', kind: 'web' }
       ]
     }]);
-    ok(cards.length === 2, `the sources appear under the answer (${cards.length} cards; duplicate and non-web link dropped)`, cards);
+    ok(cards.length === 2, `the sources appear with the answer (${cards.length} cards; duplicate and non-web link dropped)`, cards);
     ok(cards[0] && cards[0].href === 'https://www.espn.com/soccer/story/mbappe-goals' && /Mbappé/.test(cards[0].text), 'each card links its source', cards[0]);
-    ok(cards.every((c) => c.imgs === 0) && !pwned, 'a title is text, never markup');
+    ok(cards.every((c) => c.titleTags === 0) && !pwned, 'a title is text, never markup');
     ok(!cards.some((c) => /^javascript:/i.test(c.href || '')), 'no card can run script');
     ok(errors.length === 0, 'no JS errors', errors.slice(0, 2));
     await ctx.close();
