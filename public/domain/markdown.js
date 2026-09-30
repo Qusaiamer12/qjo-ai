@@ -64,6 +64,17 @@
   const MATH = /\\\((?:[^\\]|\\(?!\)))+?\\\)|\\\[[^\n]+?\\\]|\$\$[^$\n]+?\$\$|(^|[^\\$\w])\$(?=[^\s$])([^$\n]*?[^\s\\$])\$(?![\d$])/g;
   const MATH_MARK = /\uE002(\d+)\uE003/g;
 
+  // Italics and strikethrough, on text only — never inside a tag the lines
+  // above made, so a link's address keeps its underscores. A marker counts
+  // only against a word: "2*3*4" and snake_case stay as written, while an
+  // Arabic letter before it ("و*نص*") does not stop it.
+  function emphasis(text) {
+    return text
+      .replace(/(^|[^A-Za-z0-9*])\*(?=[^\s*])([^*\n]*?[^\s*])\*(?![A-Za-z0-9*])/g, '$1<em>$2</em>')
+      .replace(/(^|[^A-Za-z0-9_])_(?=[^\s_])([^_\n]*?[^\s_])_(?![A-Za-z0-9_])/g, '$1<em>$2</em>')
+      .replace(/~~(?=\S)([^~\n]*?\S)~~/g, '<del>$1</del>');
+  }
+
   function parseInlineMarkdown(text) {
     const spans = [];
     const math = [];
@@ -86,7 +97,9 @@
     });
 
     return value
-      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*\*\*(?=[^\s*])(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+      .replace(/\*\*(?=[^\s*])(.+?)\*\*/g, '<strong>$1</strong>')
+      .split(/(<[^>]*>)/).map((part, i) => (i % 2 ? part : emphasis(part))).join('')
       .replace(/\\\$/g, '$') // "\$5": a price written with an escape
       .replace(CODE_MARK, (_, i) => `<code>${spans[Number(i)]}</code>`)
       .replace(MATH_MARK, (_, i) => math[Number(i)]);
@@ -350,7 +363,45 @@
     });
 
     safe = escapeHtml(safe);
-    const lines = safe.replace(/\r\n/g, '\n').split('\n');
+    return renderLines(safe.replace(/\r\n/g, '\n').split('\n'))
+      .replace(/@@CODE_BLOCK_(\d+)@@/g, (_, id) => codeBlocks[Number(id)] || '');
+  }
+
+  // A quote whose first line names its kind is a callout: GitHub's markers
+  // ("> [!TIP]") or the emoji the teaching playbook uses ("> 💡"). The
+  // title is the page's, in its language, unless the note gives its own.
+  /** @type {Array<[RegExp, string, string]>} */
+  const CALLOUTS = [
+    [/^\[!(?:tip|key|idea|hint)\]\s*|^💡\s*/i, 'tip', '💡'],
+    [/^\[!(?:warning|caution|mistake|important)\]\s*|^⚠️?\s*/i, 'warning', '⚠️'],
+    [/^\[!(?:clinical|practice|practical|application)\]\s*|^🩺\s*/i, 'practice', '🩺'],
+    [/^\[!(?:summary|tldr|takeaway)\]\s*|^📌\s*/i, 'summary', '📌'],
+    [/^\[!(?:note|info)\]\s*|^📝\s*/i, 'note', '📝']
+  ];
+  const CALLOUT_KEYS = { tip: 'calloutTip', warning: 'calloutWarning', practice: 'calloutPractice', summary: 'calloutSummary', note: 'calloutNote' };
+
+  function translate(key) {
+    const i18n = (global.QjoDomain && global.QjoDomain.i18n) || (typeof require === 'function' ? require('./i18n.js') : null);
+    return i18n ? i18n.createTranslator(getLanguage)(key) : key;
+  }
+
+  /** A "> …" block, as a quote or a callout. Its lines are rendered as blocks. */
+  function renderQuote(inner) {
+    const first = inner[0] || '';
+    const found = CALLOUTS.find(([marker]) => marker.test(first));
+    if (!found) return `<blockquote>${renderLines(inner)}</blockquote>`;
+    const [marker, kind, icon] = found;
+    const rest = first.replace(marker, '');
+    // "> 💡 **Why it works**" on its own line is the note's own title.
+    const ownTitle = rest.match(/^\*\*([^*]+)\*\*:?\s*$/);
+    const title = ownTitle ? parseInlineMarkdown(ownTitle[1]) : escapeHtml(translate(CALLOUT_KEYS[kind]));
+    const body = ownTitle ? inner.slice(1) : [rest, ...inner.slice(1)];
+    return `<div class="qjo-callout" data-kind="${kind}"><div class="qjo-callout-title"><span aria-hidden="true">${icon}</span> ${title}</div><div class="qjo-callout-body">${renderLines(body)}</div></div>`;
+  }
+
+  // Block by block: code placeholders, tables, headings, rules, lists, quotes
+  // and paragraphs. Called again for the lines inside a quote.
+  function renderLines(lines) {
     const out = [];
     const paragraph = [];
 
@@ -401,6 +452,14 @@
         continue;
       }
 
+      if (/^&gt;/.test(trimmed)) {
+        flushParagraph();
+        const inner = [];
+        while (i < lines.length && /^&gt;/.test(lines[i].trim())) inner.push(lines[i++].trim().replace(/^&gt;\s?/, ''));
+        out.push(renderQuote(inner));
+        continue;
+      }
+
       if (/^[-*]\s+/.test(trimmed)) {
         flushParagraph();
         const items = [];
@@ -428,7 +487,7 @@
     }
 
     flushParagraph();
-    return out.join('\n').replace(/@@CODE_BLOCK_(\d+)@@/g, (_, id) => codeBlocks[Number(id)] || '');
+    return out.join('\n');
   }
 
   const api = {

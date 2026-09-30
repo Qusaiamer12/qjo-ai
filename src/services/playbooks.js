@@ -109,7 +109,8 @@ LITERARY CRAFTSMANSHIP, GRAMMAR & TEXT RESTRUCTURING
     - Standard libraries as well as \`math\`, \`random\`, \`statistics\`, \`numpy\`, \`sympy\`, and \`pandas\` are supported.`
   },
   video: {
-    match: /video|reels?\b|tik ?tok|shorts|youtube|script|فيديو|ريلز|ريل|تيك ?توك|يوتيوب|سكريبت|سيناريو|مونتاج/i,
+    // "script" alone matched JavaScript, TypeScript and every Python script.
+    match: /video|reels?\b|tik ?tok|\bshorts\b|youtube|\b(?:ad|advert|commercial|promo|voice-?over) script\b|فيديو|ريلز|ريل|تيك ?توك|يوتيوب|سكريبت|سيناريو|مونتاج/i,
     en: `
 - SHORT VIDEO SCRIPTS (Reels / TikTok / Shorts):
   • Employ the proven AIDA marketing architecture (Attention, Interest, Desire, Action).
@@ -196,6 +197,24 @@ LITERARY CRAFTSMANSHIP, GRAMMAR & TEXT RESTRUCTURING
   4. The result in bold with its unit and sensible significant figures, then a one-line check (units, order of magnitude or a limiting case).
   5. What it means in one or two sentences: physically, for the design, or clinically. A dose is a calculation to confirm with a pharmacist or doctor, never an instruction.
 - Notation: inline \\( … \\), display $$ … $$, chemistry \\ce{2H2 + O2 -> 2H2O}, units upright (\\mathrm{m\\,s^{-2}}).`
+  },
+  teach: {
+    // Explaining a topic or preparing for an exam — not "explain this error",
+    // which the code rules answer.
+    match: {
+      test: (t) => /\b(?:explain|teach me|lesson|lecture|revise|revision|study|studying|exam|midterm|quiz me|help me understand)\b|اشرح|شرح|فهمني|فهّمني|وضح|وضّح|درس|ادرس|مراجعة|راجع|امتحان|اختبار|محاضرة/i.test(t)
+        && !/\b(?:error|bug|exception|traceback|stack trace|crash(?:es|ed)?)\b|(?<![\u0600-\u06FF])(?:ها|هال|ال|بال|لل)?(?:خطأ|غلط)(?![\u0600-\u06FF])|ايرور|إيرور/i.test(t)
+    },
+    en: `
+- TEACHING A TOPIC (explanations, lessons, revision):
+  • The idea in one plain sentence first, then how it works, then an example.
+  • Mark what matters with a callout, only where it earns its place (one per kind at most):
+    > [!TIP] the key to understanding it
+    > [!WARNING] the mistake people make most
+    > [!CLINICAL] what it means in practice — at the bedside, on site, in the code
+  • A process, cycle or pathway: a \`\`\`mermaid flowchart with short labels (no quotes or brackets inside a label).
+  • End a long explanation with > [!SUMMARY] and three to five bullets.
+  • For study or exam preparation, end with a \`\`\`quiz block of three questions: [{"question": "…", "options": ["…", "…", "…", "…"], "answer": "the correct option, word for word", "explanation": "…"}].`
   },
   medical: {
     match: /symptom|\bpain|doctor|medicin|headache|fever|\bsick\b|dizz|pregnan|\bpills?\b|\bdose|blood pressure|وجع|ألم|دكتور|طبيب|مرض|مريض|أعراض|اعراض|دواء|صداع|حرارة|سخونة|دوخة|حامل|جرعة|كحة|رشح|ضغط الدم|سكري/i,

@@ -166,6 +166,13 @@ function call(handler, body) {
     assert.deepStrictEqual(rows, [5, 5, 5, 5]);
     assert.ok(!/\| ?---/.test(arabicDoc) && !/```/.test(arabicDoc), 'no Markdown left in the text');
   });
+  await test('a callout reaches the file titled, not as "[!TIP]", in the document\'s language', async () => {
+    const en = await docxXml(await buildDocx({ title: 'Notes', content: '# Notes\n\n> [!TIP]\n> Derivatives measure change.\n\n> ⚠️ Units first.' }));
+    const ar = await docxXml(await buildDocx({ title: 'ملاحظات', content: '# ملاحظات\n\n> [!WARNING]\n> الطلاب ينسون الوحدات.' }));
+    assert.ok(/Key idea/.test(en) && /Common mistake/.test(en) && !/\[!TIP\]|⚠/.test(en), 'English callout titles');
+    assert.ok(/خطأ شائع/.test(ar) && !/\[!WARNING\]/.test(ar), 'Arabic callout title');
+  });
+
   await test('headings are Word headings', () => {
     assert.ok(/w:pStyle w:val="Title"/.test(arabicDoc));
     for (const n of [1, 2, 3]) assert.ok(new RegExp(`w:pStyle w:val="Heading${n}"`).test(arabicDoc), `Heading${n}`);

@@ -187,9 +187,24 @@ const SAMPLES = {
   excuses: ['give me an excuse for missing class', 'بدي عذر مقنع عشان غبت'],
   human: ['make this sound human for GPTZero', 'خلي النص بشري وما يبين انه ذكاء'],
   medical: ['I have a headache and fever', 'عندي صداع وحرارة'],
+  teach: ['Explain photosynthesis to me', 'اشرحلي دورة كريبس', 'help me revise for my biology exam', 'بدي أراجع للامتحان'],
   problem: ['A car accelerates at 3.2 m/s² for 12 s. Find its speed.', 'سيارة تتسارع بتسارع 3.2 م/ث² لمدة 12 ثانية، احسب سرعتها',
     'Dose is 15 mg/kg for an 18 kg child: how many mL of 120 mg/5 mL syrup?', 'احسب مولارية محلول فيه 0.5 مول في 250 مل']
 };
+
+test('code is not a video script: "javascript", "typescript", "python script"', () => {
+  for (const text of ['explain closures in javascript', 'write a typescript function', 'python script to rename files']) {
+    const chosen = detectNeeds([user(text)]).playbooks;
+    assert.ok(!chosen.includes('video'), `"${text}" brought the video playbook: [${chosen}]`);
+  }
+});
+
+test('"explain this error" is a code question, not a lesson', () => {
+  for (const text of ['explain this error: TypeError: x is undefined', 'اشرحلي هالخطأ بالكود']) {
+    const chosen = detectNeeds([user(text)]).playbooks;
+    assert.ok(!chosen.includes('teach'), `"${text}" brought the teaching playbook: [${chosen}]`);
+  }
+});
 
 test('the worked-problem playbook needs a figure or an ask, not just a subject word', () => {
   for (const text of ['قوة الشخصية مهمة في القيادة', 'we need more energy in the team', 'شو رأيك بسرعة الانترنت عندكم', 'السرعة عندكم ممتازة']) {

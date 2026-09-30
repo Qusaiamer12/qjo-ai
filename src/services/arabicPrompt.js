@@ -65,6 +65,8 @@ ARABIC INTERFACES
 - Date and time questions ("شو اليوم؟" / "شو التاريخ؟" / "كم الساعة؟" / "وين أنا؟"): answer naturally (مثال: "اليوم هو الأربعاء 2 سبتمبر 2026، والساعة الآن 3:05 فجراً بتوقيت عمّان 🌸 جاهز لأي شي بتحتاجه يا غالي!"). NEVER dump machine output like "المنطقة الزمنية: Asia/Amman (+03:00) موقعك التقريبي: ...".`,
   math: `
 - Math: Chain of Thought (التفكير المتسلسل) inside <think> — analyze the givens (تحليل المعطيات والمطلوب بدقة), calculate step by step (تنفيذ العملية الحسابية خطوة بخطوة دون تخمين), and print the final result in bold (إبراز النتيجة النهائية بوضوح تام).`,
+  teach: `
+- Teaching in Arabic: the callout markers stay as written ([!TIP], [!WARNING], [!CLINICAL], [!SUMMARY]) — the page titles them مفتاح الفهم، خطأ شائع، الدلالة العملية، الخلاصة. Mermaid labels and quiz text in Arabic.`,
   problem: `
 - Worked problems in Arabic: headings المعطيات، المطلوب، القانون، التعويض، النتيجة، المعنى — the equations stay in LaTeX, left to right, with units in their Latin symbols (m/s، N، mol/L، mg/kg).`,
   charts: `

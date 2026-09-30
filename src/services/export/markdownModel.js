@@ -15,6 +15,7 @@
 'use strict';
 
 const { documentLanguage } = require('../../../public/domain/language');
+const { createTranslator } = require('../../../public/domain/i18n');
 
 const ARABIC_LETTER = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
 const LATIN_LETTER = /[A-Za-z\u00C0-\u024F]/;
@@ -58,6 +59,22 @@ const INLINE_MATH = /^\$(?!\s)([^$\n]*?[\\^_{}=][^$\n]*?)(?<!\s)\$(?!\d)/;
  * @param {Omit<Run, 'text'>} [marks]
  * @returns {Run[]}
  */
+// A callout ("> [!TIP]", "> 💡") is a quote with a title: the marker is
+// replaced by the title in the document's language, in bold. It used to
+// reach the file as "[!TIP]".
+const CALLOUT = /^(?:\[!(tip|key|idea|hint|warning|caution|mistake|important|clinical|practice|practical|application|summary|tldr|takeaway|note|info)\]|(💡|⚠️?|🩺|📌|📝))\s*/i;
+const CALLOUT_KIND = { tip: 'Tip', key: 'Tip', idea: 'Tip', hint: 'Tip', '💡': 'Tip', warning: 'Warning', caution: 'Warning', mistake: 'Warning', important: 'Warning', '⚠': 'Warning', '⚠️': 'Warning',
+  clinical: 'Practice', practice: 'Practice', practical: 'Practice', application: 'Practice', '🩺': 'Practice', summary: 'Summary', tldr: 'Summary', takeaway: 'Summary', '📌': 'Summary', note: 'Note', info: 'Note', '📝': 'Note' };
+
+/** @returns {Run[]} the callout's title, with its marker taken off the quote's first line */
+function calloutTitle(quote, rtl) {
+  const m = CALLOUT.exec(quote[0] || '');
+  if (!m) return [];
+  quote[0] = quote[0].slice(m[0].length);
+  const t = createTranslator(() => (rtl ? 'ar' : 'en'));
+  return [{ text: `${t(`callout${CALLOUT_KIND[(m[1] || m[2]).toLowerCase()]}`)}${quote[0] ? ': ' : ''}`, bold: true }];
+}
+
 function parseInline(text, marks = {}) {
   const runs = [];
   let plain = '';
@@ -303,8 +320,8 @@ function parseMarkdown(markdown, options = {}) {
       flushParagraph();
       const quote = [];
       while (i < lines.length && lines[i].trim().startsWith('>')) quote.push(lines[i++].trim().replace(/^>\s?/, ''));
-      const runs = [];
-      quote.forEach((q, k) => { if (k) runs.push({ text: '', break: true }); runs.push(...parseInline(q)); });
+      const runs = calloutTitle(quote, rtl);
+      quote.forEach((q, k) => { if (k && q) runs.push({ text: '', break: true }); runs.push(...parseInline(q)); });
       blocks.push({ type: 'quote', runs, rtl: firstStrongRtl(quote.join(' ')) ?? rtl });
       continue;
     }

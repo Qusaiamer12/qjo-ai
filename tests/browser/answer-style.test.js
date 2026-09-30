@@ -1,0 +1,114 @@
+// How an explanation looks, through the real page: quotes, callouts (key
+// idea, common mistake, in practice, summary), italics and strikethrough —
+// and a quiz written exactly as the teaching playbook tells the model to
+// write one, answered by clicking, so the instruction and the page agree.
+const { launchBrowser, BASE_URL } = require('./harness');
+
+// The quiz is written in the shape the teaching playbook's own example gives
+// the model, read from the playbook: if the instruction drifts from what the
+// page reads, this goes red.
+const { PLAYBOOKS } = require('../../src/services/playbooks');
+const example = JSON.parse(PLAYBOOKS.teach.en.match(/```quiz block[^[]*(\[\{[^\n]*\}\])/)[1])[0];
+const asTaught = (question, options, correct, explanation) => Object.fromEntries(Object.keys(example).map((key) => [key, {
+  question, options, explanation, answer: typeof example.answer === 'number' ? options.indexOf(correct) : correct
+}[key]]));
+const QUIZ = [
+  asTaught('What does a derivative measure?', ['Area', 'Rate of change', 'Volume', 'Mass'], 'Rate of change', 'It is the instantaneous rate of change.'),
+  asTaught('d/dx of x²?', ['x', '2x', 'x²', '2'], '2x', 'Power rule.')
+];
+const ANSWER = [
+  'A derivative is *the rate of change* — ~~the area~~.',
+  '',
+  '> A plain quote about calculus.',
+  '',
+  '> [!TIP]',
+  '> Think of the slope of the tangent.',
+  '',
+  '> ⚠️ Forgetting the chain rule.',
+  '',
+  '> [!CLINICAL]',
+  '> Drug clearance rates are derivatives.',
+  '',
+  '> 💡 **<img src=x onerror="window.__pwned=1">Own title**',
+  '> body',
+  '',
+  '> [!SUMMARY]',
+  '> - slope',
+  '> - rate',
+  '',
+  '```quiz',
+  JSON.stringify(QUIZ),
+  '```'
+].join('\n');
+
+let browser;
+let pass = 0, fail = 0;
+const ok = (c, m, d) => { c ? pass++ : fail++; console.log(`${c ? '✅' : '❌'} ${m}`); if (!c && d !== undefined) console.log('   ', JSON.stringify(d).slice(0, 300)); };
+
+async function open({ lang = 'en', mobile = false } = {}) {
+  const ctx = await browser.newContext(mobile ? { viewport: { width: 390, height: 780 }, isMobile: true, hasTouch: true } : { viewport: { width: 1200, height: 900 } });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.route('**/api/chat', (route) => route.fulfill({ status: 200, contentType: 'text/event-stream',
+    body: `event: chunk\ndata: ${JSON.stringify({ text: ANSWER })}\n\nevent: done\ndata: {}\n\n` }));
+  await page.addInitScript(`try { localStorage.setItem('qjo_language', '${lang}'); } catch (_) {}`);
+  await page.goto(BASE_URL + '/', { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(2000);
+  await page.addStyleTag({ content: '#authOverlay{display:none !important;visibility:hidden !important;pointer-events:none !important;}' });
+  await page.fill('#input', 'explain derivatives');
+  await page.click('#sendBtn');
+  await page.waitForFunction(() => document.querySelector('.msg.assistant:last-of-type .qjo-callout'), null, { timeout: 8000 }).catch(() => {});
+  await page.waitForTimeout(600);
+  return { ctx, page, errors };
+}
+
+const callouts = (page) => page.$$eval('.msg.assistant:last-of-type .qjo-callout', (els) => els.map((el) => ({
+  kind: el.dataset.kind,
+  title: el.querySelector('.qjo-callout-title').innerText.trim(),
+  titleColor: getComputedStyle(el.querySelector('.qjo-callout-title')).color,
+  titleTags: [...el.querySelectorAll('.qjo-callout-title *')].map((n) => n.tagName.toLowerCase()),
+  bodyTags: [...el.querySelectorAll('.qjo-callout-body *')].map((n) => n.tagName.toLowerCase())
+})));
+
+async function english() {
+  const { ctx, page, errors } = await open();
+  const found = await callouts(page);
+  ok(found.map((c) => c.kind).join(',') === 'tip,warning,practice,tip,summary', `each callout by its kind (${found.map((c) => c.kind)})`, found);
+  ok(found[0].title.includes('Key idea') && found[1].title.includes('Common mistake') && found[2].title.includes('In practice') && found[4].title.includes('Summary'),
+    `titled in the page's language (${found.map((c) => c.title).join(' | ')})`);
+  ok(found[3].title.includes('Own title') && found[3].title.includes('<img') && !found[3].titleTags.includes('img'), `a callout can name itself, and its name is text (${found[3].titleTags})`);
+  ok(found[4].bodyTags.includes('ul') && found[4].bodyTags.filter((t) => t === 'li').length === 2, 'a summary keeps its bullets');
+  const quote = await page.$eval('.msg.assistant:last-of-type .qjo-streamed-content > blockquote', (q) => q.innerText.trim()).catch(() => '');
+  ok(/plain quote about calculus/.test(quote), 'a plain quote is a quote');
+  const emphasis = await page.$eval('.msg.assistant:last-of-type .qjo-streamed-content p', (p) => ({ em: (p.querySelector('em') || {}).textContent, del: (p.querySelector('del') || {}).textContent }));
+  ok(emphasis.em === 'the rate of change' && emphasis.del === 'the area', `italics and strikethrough (${JSON.stringify(emphasis)})`);
+
+  // The quiz, in the playbook's format, answered by clicking.
+  const quiz = await page.$$eval('.msg.assistant:last-of-type .quiz-question-block', (els) => els.length);
+  ok(quiz === 2, `the quiz the playbook teaches renders as ${quiz} questions`);
+  await page.click('.msg.assistant:last-of-type .quiz-question-block >> nth=0 >> .quiz-option-btn >> text=Rate of change');
+  await page.waitForTimeout(300);
+  const verdict = await page.$eval('.msg.assistant:last-of-type .quiz-question-block', (b) => b.innerText);
+  ok(/Correct/.test(verdict) && /instantaneous rate of change/.test(verdict), 'its right answer is marked right, with the explanation', verdict.slice(0, 200));
+  ok(!(await page.evaluate(() => window.__pwned)), 'nothing in a callout ran');
+  ok(errors.length === 0, 'no JS errors', errors.slice(0, 2));
+  await ctx.close();
+}
+
+async function arabicOnAPhone() {
+  const { ctx, page } = await open({ lang: 'ar', mobile: true });
+  const found = await callouts(page);
+  ok(found[0] && found[0].title.includes('مفتاح الفهم') && found[1].title.includes('خطأ شائع') && found[4].title.includes('الخلاصة'), `in Arabic (${found.map((c) => c.title).join(' | ')})`);
+  // Phone rules repaint every span in a bubble; a callout keeps its colour.
+  ok(found[1] && found[1].titleColor === 'rgb(220, 38, 38)', `on a phone the title keeps its colour (${found[1] && found[1].titleColor})`);
+  await ctx.close();
+}
+
+(async () => {
+  browser = await launchBrowser();
+  for (const scenario of [english, arabicOnAPhone]) await scenario();
+  await browser.close();
+  console.log(`\n${pass} passed, ${fail} failed`);
+  process.exit(fail ? 1 : 0);
+})();

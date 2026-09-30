@@ -673,6 +673,39 @@ const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n
     assert.ok(!/<img/.test(out) && /&lt;img/.test(out), out);
   });
 
+  console.log('\nQuotes, callouts and emphasis (markdown.js):');
+  const html = (t) => markdown.lightMarkdown(t).replace(/\n/g, '');
+
+  test('a quote is a quote, its lines rendered as blocks', () => {
+    assert.strictEqual(html('> one\n> two'), '<blockquote><p>one two</p></blockquote>');
+    assert.strictEqual(html('> - a\n> - b'), '<blockquote><ul><li>a</li><li>b</li></ul></blockquote>');
+  });
+
+  test('a callout by marker or emoji, titled in the page language unless it names itself', () => {
+    const tip = html('> [!TIP]\n> Rates of change.');
+    assert.ok(/class="qjo-callout" data-kind="tip"/.test(tip) && /💡<\/span> (?:Key idea|مفتاح الفهم)</.test(tip) && /<p>Rates of change\.<\/p>/.test(tip), tip);
+    assert.ok(/data-kind="warning"/.test(html('> ⚠️ Units first.')));
+    assert.ok(/data-kind="practice"/.test(html('> [!CLINICAL] At the bedside.')));
+    assert.ok(/data-kind="summary"[\s\S]*<ul><li>a<\/li>/.test(html('> [!SUMMARY]\n> - a\n> - b')));
+    assert.ok(/💡<\/span> Why it works</.test(html('> 💡 **Why it works**\n> Because.')));
+  });
+
+  test('nothing in a quote or callout is markup', () => {
+    for (const t of ['> <img src=x onerror=alert(1)>', '> [!TIP] <script>alert(1)</script>', '> 💡 **<b>x</b>**\n> y']) {
+      const out = html(t);
+      assert.ok(!/<(?:img|script|b)\b/i.test(out), out);
+    }
+  });
+
+  test('italics and strikethrough, but not inside words, numbers or link addresses', () => {
+    assert.strictEqual(inline('an *italic* and _also_ and ~~gone~~'), 'an <em>italic</em> and <em>also</em> and <del>gone</del>');
+    assert.strictEqual(inline('2*3*4 and snake_case_name'), '2*3*4 and snake_case_name');
+    assert.strictEqual(inline('a*b* c and x_y_ z'), 'a*b* c and x_y_ z'); // a marker glued to a word opens nothing
+    assert.strictEqual(inline('و*نص مائل* عربي'), 'و<em>نص مائل</em> عربي');
+    assert.ok(/href="https:\/\/e\.com\/_a_\/b"/.test(inline('[x](https://e.com/_a_/b)')));
+    assert.strictEqual(inline('**bold *inner* bold** and ***both***'), '<strong>bold <em>inner</em> bold</strong> and <strong><em>both</em></strong>');
+  });
+
   console.log('\nHow an attached image is sent (imagePlan.js):');
   const { LIMITS, encodings, capPerImage } = require('../public/domain/imagePlan.js');
 

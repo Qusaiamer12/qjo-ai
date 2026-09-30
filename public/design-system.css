@@ -503,6 +503,29 @@ body.dark .brand-mark img {
   color: var(--ds-ink-2) !important;
 }
 
+.bubble blockquote { margin: 10px 0 !important; padding: 8px 14px !important; }
+.bubble blockquote > p:last-child { margin-bottom: 0; }
+.bubble del { opacity: .7; }
+
+/* Callouts: a quote that says what kind of note it is (markdown.js). */
+.bubble .qjo-callout {
+  --callout: var(--ds-accent);
+  margin: 12px 0; padding: 10px 14px; border-radius: var(--ds-r-sm, 10px);
+  border: 1px solid color-mix(in srgb, var(--callout) 28%, transparent);
+  border-inline-start: 4px solid var(--callout);
+  background: color-mix(in srgb, var(--callout) 8%, var(--ds-panel));
+}
+.bubble .qjo-callout[data-kind="tip"] { --callout: #d97706; }
+.bubble .qjo-callout[data-kind="warning"] { --callout: #dc2626; }
+.bubble .qjo-callout[data-kind="practice"] { --callout: #0d9488; }
+.bubble .qjo-callout[data-kind="summary"] { --callout: #4f46e5; }
+/* body:not(#_) outranks the phone rules that repaint everything in a bubble. */
+.bubble .qjo-callout-title { font-weight: 700; margin-bottom: 4px; }
+body:not(#_) .bubble .qjo-callout-title { color: var(--callout) !important; -webkit-text-fill-color: currentColor !important; }
+body.dark:not(#_) .bubble .qjo-callout-title { color: color-mix(in srgb, var(--callout) 70%, white) !important; }
+.bubble .qjo-callout-body > :first-child { margin-top: 0; }
+.bubble .qjo-callout-body > :last-child { margin-bottom: 0; }
+
 /* -------------------------------------------------------------- 8. Composer */
 
 .composer-shell {
