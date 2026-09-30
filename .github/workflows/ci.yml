@@ -139,7 +139,7 @@ jobs:
       # lived there and none of it is visible from an endpoint response.
       - name: PDF export suite
         run: npm run test:pdf
-      - name: Office files suite (Word and Excel, generated and read back)
+      - name: Office files suite (Word, Excel and slides, generated and read back)
         run: npm run test:export-files
 
       # Resolves every relative require() in server.js + src/ so a module that

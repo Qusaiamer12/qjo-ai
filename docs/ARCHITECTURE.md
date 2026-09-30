@@ -78,10 +78,11 @@ qjo-ai/
 │   │   ├── llmService.js        Providers, keys, rotation, cooldowns
 │   │   ├── providerResponse.js  Reading a 200 body: SSE or JSON, under a timer
 │   │   ├── searchService.js     Search providers, enrichment
-│   │   ├── exportService.js     Export routes: PDF, slides, ZIP; Word and Excel via export/
+│   │   ├── exportService.js     Export routes: PDF and ZIP; Word, Excel and slides via export/
 │   │   ├── export/markdownModel.js  One reading of an answer's Markdown for every file
 │   │   ├── export/docx.js       Word: headings, lists, tables, code, right to left
 │   │   ├── export/xlsx.js       Excel: typed cells, frozen filtered header, totals
+│   │   ├── export/pptx.js       Slides: a slide per section, tables and code paged, KPI and comparison layouts
 │   │   ├── exportService.js     PDF/DOCX/PPTX rendering
 │   │   └── textSanitizer.js
 │   ├── tools/                   Model-callable capabilities. Schema and

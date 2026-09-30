@@ -14,7 +14,8 @@ const ExcelJS = require('exceljs');
 const model = require('../src/services/export/markdownModel');
 const { buildDocx, directionRuns } = require('../src/services/export/docx');
 const { buildXlsx } = require('../src/services/export/xlsx');
-const { exportDocx, exportXlsx } = require('../src/services/exportService');
+const { buildPptx, kpiCards } = require('../src/services/export/pptx');
+const { exportDocx, exportXlsx, exportPptx } = require('../src/services/exportService');
 
 let pass = 0, fail = 0;
 async function test(name, fn) {
@@ -229,9 +230,87 @@ function call(handler, body) {
     assert.ok(values.includes('Head') && values.includes('A paragraph.') && values.some((v) => /• one\n• two/.test(String(v))), JSON.stringify(values));
   });
 
+  console.log('\nSlides:');
+  const slidesOf = async (buffer) => {
+    const zip = await JSZip.loadAsync(buffer);
+    const names = Object.keys(zip.files).filter((f) => /^ppt\/slides\/slide\d+\.xml$/.test(f)).sort((a, b) => Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0]));
+    const slides = [];
+    for (const name of names) {
+      const xml = await zip.file(name).async('string');
+      slides.push({ xml, texts: [...xml.matchAll(/<a:t>([^<]*)<\/a:t>/g)].map((m) => m[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')) });
+    }
+    return { slides, presentation: await zip.file('ppt/presentation.xml').async('string') };
+  };
+  const arabicDeck = await slidesOf(await buildPptx({ title: 'تقرير', content: ARABIC }));
+  const all = arabicDeck.slides.map((sl) => sl.texts.join(' ')).join(' | ');
+  await test('the cover takes the document\'s title and its opening line; no slide is empty', () => {
+    assert.ok(arabicDeck.slides[0].texts.join('').includes('تقرير المبيعات الربعي'), 'cover title');
+    assert.ok(arabicDeck.slides[0].texts.join('').includes('مقدمة فيها'), 'cover subtitle');
+    for (const [i, sl] of arabicDeck.slides.entries()) {
+      const body = sl.texts.filter((t) => t.trim() && !/^\d+$/.test(t.trim()));
+      assert.ok(body.length >= 2 || (i === 0 && body.length >= 1) || /<a:tbl>/.test(sl.xml), `slide ${i + 1} has no content: ${JSON.stringify(sl.texts)}`);
+    }
+  });
+  await test('no placeholders, no invented slides, no Markdown symbols on the slides', () => {
+    for (const bad of ['extracted separately', 'معادلات وملاحظات علمية', 'Equations & Scientific Notes', 'جدول البيانات المقارنة', '$$', '**', '> ', '| ---']) {
+      assert.ok(!all.includes(bad), `"${bad}" on a slide`);
+    }
+    assert.ok(!/(^|\s)\*[^\s*]/.test(all), 'a stray * on a slide');
+    assert.ok(all.includes('E = mc²'), 'the equation reads as math');
+  });
+  await test('an Arabic deck reads right to left: the presentation and its paragraphs', async () => {
+    assert.ok(/<p:presentation[^>]*rtl="1"/.test(arabicDeck.presentation), 'presentation');
+    // The body's own paragraphs, not the slide titles.
+    const paragraphWith = (slides, text) => slides.map((sl) => [...sl.xml.matchAll(/<a:p>[\s\S]*?<\/a:p>/g)].map((m) => m[0]).find((p) => p.includes(text))).find(Boolean);
+    const item = paragraphWith(arabicDeck.slides, 'بند أول');
+    assert.ok(item && /<a:pPr[^>]*rtl="1"/.test(item) && /<a:pPr[^>]*algn="r"/.test(item), `an Arabic list item: ${item && item.slice(0, 160)}`);
+    const english = await slidesOf(await buildPptx({ title: 'Report', content: ENGLISH + '\n\nA closing English paragraph.' }));
+    assert.ok(!/<p:presentation[^>]*rtl="1"/.test(english.presentation), 'the English deck stays left to right');
+    const closing = paragraphWith(english.slides, 'A closing English paragraph.');
+    assert.ok(closing && !/rtl="1"/.test(closing), 'and so do its paragraphs');
+  });
+  await test('the table is on its section\'s slide, starting at the right in Arabic, with every cell in place', () => {
+    const slide = arabicDeck.slides.find((sl) => /<a:tbl>/.test(sl.xml));
+    assert.ok(slide && slide.texts[0] === 'الجدول', `titled after its section: ${slide && slide.texts[0]}`);
+    const rows = [...slide.xml.matchAll(/<a:tr [^>]*>([\s\S]*?)<\/a:tr>/g)].map((m) => [...m[1].matchAll(/<a:tc[\s>][\s\S]*?<\/a:tc>/g)].map((c) => [...c[0].matchAll(/<a:t>([^<]*)<\/a:t>/g)].map((t) => t[1]).join('').trim()));
+    assert.deepStrictEqual(rows[0], ['ملاحظات', 'النسبة', 'السعر', 'الكمية', 'المنتج'], 'the first column is last in the XML, so it sits at the right');
+    assert.deepStrictEqual(rows.map((r) => r.length), [5, 5, 5, 5]);
+    assert.strictEqual(rows[2][1], '', 'the empty cell stays empty, in its column');
+  });
+  await test('lists keep bullets, numbers and nesting', () => {
+    const slide = arabicDeck.slides.find((sl) => sl.texts.includes('بند فرعي'));
+    assert.ok(/<a:buChar/.test(slide.xml) && /<a:buAutoNum/.test(slide.xml), 'bullets and numbers');
+    assert.ok(/<a:pPr[^>]*lvl="1"/.test(slide.xml), 'a nested item is one level in');
+  });
+  await test('code is on a slide of its own, left to right, comment and all', () => {
+    const slide = arabicDeck.slides.find((sl) => sl.texts.some((t) => t.includes('total = sum')));
+    assert.ok(slide.texts.join(' ').includes('# هذا تعليق وليس عنواناً') && /typeface="Consolas"/.test(slide.xml));
+    assert.ok(slide.texts[0].includes('كود') && slide.texts.join(' ').includes('python'), 'titled after its section, with the language');
+  });
+  const deck = `# Plan\n\n## Key figures\n\n- Revenue: $1.2M this year\n- Growth: 35%\n- Customers: 12,400\n\n## Two options\n\n### Option A\n- Expand\n\n### Option B\n- Deepen\n\n## Background\n\n${Array.from({ length: 9 }, (_, i) => `Paragraph ${i + 1} is a full sentence long enough to wrap onto a second line of the slide at body size, as real ones do.`).join('\n\n')}\n\n## Regions\n\n| Region | Orders |\n| --- | --- |\n${Array.from({ length: 12 }, (_, i) => `| R${i + 1} | ${i + 1} |`).join('\n')}\n\n## Script\n\n\`\`\`js\n${Array.from({ length: 30 }, (_, i) => `step(${i});`).join('\n')}\n\`\`\``;
+  const layouts = await slidesOf(await buildPptx({ title: 'Plan', content: deck }));
+  const titled = (t) => layouts.slides.filter((sl) => sl.texts[0] === t || (sl.texts[0] || '').startsWith(t + ' ') || (sl.texts[0] || '').startsWith(t + ' —'));
+  await test('figures become KPI cards; two options become a comparison', () => {
+    const kpi = titled('Key figures')[0];
+    for (const v of ['$1.2M', '35%', '12,400']) assert.ok(kpi.texts.includes(v), `${v} as a card of its own: ${kpi.texts}`);
+    assert.deepStrictEqual(kpiCards(model.parseMarkdown('- one: two words\n- three: four').blocks[0]), null, 'words are not figures');
+    const cmp = titled('Two options');
+    assert.strictEqual(cmp.length, 1, 'one slide for both options');
+    assert.ok(cmp[0].texts.includes('Option A') && cmp[0].texts.includes('Option B'));
+  });
+  await test('what does not fit goes on to the next slide: text, a long table with its header, long code', () => {
+    assert.strictEqual(titled('Background').length, 2, 'nine paragraphs, two slides');
+    const tables = layouts.slides.filter((sl) => /<a:tbl>/.test(sl.xml));
+    assert.strictEqual(tables.length, 2, 'twelve rows, two slides');
+    assert.ok(tables.every((sl) => sl.texts.includes('Region')), 'the header on both');
+    const code = layouts.slides.filter((sl) => sl.texts.some((t) => t.includes('step(')));
+    assert.strictEqual(code.length, 2, 'thirty lines, two slides');
+    assert.ok(code[0].texts.join('\n').includes('step(0);') && code[1].texts.join('\n').includes('step(29);'));
+  });
+
   console.log('\nThe routes:');
   await test('no content is the caller\'s fault: 400, not 500', async () => {
-    for (const handler of [exportDocx, exportXlsx]) {
+    for (const handler of [exportDocx, exportXlsx, exportPptx]) {
       const res = await call(handler, { title: 'x', content: '   ' });
       assert.strictEqual(res.code, 400, JSON.stringify(res.json));
     }

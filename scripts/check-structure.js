@@ -29,6 +29,7 @@ const WATCHED = [
   'src/services/export/markdownModel.js',
   'src/services/export/docx.js',
   'src/services/export/xlsx.js',
+  'src/services/export/pptx.js',
   'server.js',
   'src/agents/RoutingEngine.js',
   'src/agents/TaskRunner.js',

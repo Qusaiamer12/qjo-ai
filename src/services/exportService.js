@@ -1,11 +1,11 @@
 const fs = require('fs');
 const path = require('path');
 const PDFDocument = require('pdfkit');
-const pptxgen = require('pptxgenjs');
 const JSZip = require('jszip');
 const { isMostlyRtl } = require('./export/markdownModel');
 const { buildDocx } = require('./export/docx');
 const { buildXlsx } = require('./export/xlsx');
+const { buildPptx } = require('./export/pptx');
 
 function stripMarkdown(input) {
   return String(input || '')
@@ -96,126 +96,12 @@ function sectionToBullets(section, maxBullets = 6) {
     .map(b => b.length > 170 ? b.slice(0, 167) + '...' : b);
 }
 
-function extractCodeBlocks(content) {
-  const blocks = [];
-  String(content || '').replace(/```(\w+)?\n?([\s\S]*?)```/g, (_, lang, code) => {
-    blocks.push({ lang: lang || 'text', code: String(code || '').trim().slice(0, 3500) });
-    return '';
-  });
-  return blocks.slice(0, 8);
-}
-
-function extractMathLines(content) {
-  const lines = String(content || '').split(/\r?\n/);
-  return lines
-    .filter(line => /\\\(|\\\[|\$\$|\\frac|\\sum|\\int|\\sqrt|\^|_/.test(line))
-    .map(line => stripMarkdown(line).trim())
-    .filter(Boolean)
-    .slice(0, 10);
-}
-
-function extractMarkdownTables(content) {
-  const lines = String(content || '').split(/\r?\n/);
-  const tables = [];
-  let i = 0;
-  while (i < lines.length) {
-    const line = lines[i].trim();
-    if (line.includes('|') && lines[i + 1]?.includes('|') && /^\s*\|?\s*:?-{3,}:?/.test(lines[i + 1])) {
-      const tableRows = [];
-      const headers = line.split('|').map(x => x.trim()).filter(Boolean);
-      let j = i + 2;
-      while (j < lines.length && lines[j].includes('|') && lines[j].trim()) {
-        const cells = lines[j].split('|').map(x => x.trim()).filter(Boolean);
-        tableRows.push(cells);
-        j++;
-      }
-      if (tableRows.length) {
-        tables.push({ headers, rows: tableRows });
-      }
-      i = j;
-    } else {
-      i++;
-    }
-  }
-  return tables.slice(0, 5);
-}
-
-function removeMarkdownTables(content) {
-  const lines = String(content || '').split(/\r?\n/);
-  const cleanLines = [];
-  let i = 0;
-  while (i < lines.length) {
-    const line = lines[i].trim();
-    if (line.includes('|') && lines[i + 1]?.includes('|') && /^\s*\|?\s*:?-{3,}:?/.test(lines[i + 1])) {
-      let j = i + 2;
-      while (j < lines.length && lines[j].includes('|') && lines[j].trim()) {
-        j++;
-      }
-      cleanLines.push('\n[Data table extracted separately]\n');
-      i = j;
-    } else {
-      cleanLines.push(lines[i]);
-      i++;
-    }
-  }
-  return cleanLines.join('\n');
-}
-
 function removeCodeBlocks(content) {
   return String(content || '').replace(/```[\s\S]*?```/g, '\n[Code block extracted separately]\n');
 }
 
 function _mixedDirectionNote(rtl) {
   return rtl ? 'Arabic / English mixed content' : 'English / mixed content';
-}
-
-function markdownToBlocks(content, fallbackTitle = 'Qjo') {
-  const lines = String(content || '').split(/\r?\n/);
-  const blocks = [];
-  let current = { type: 'section', title: fallbackTitle, body: [] };
-
-  const pushCurrent = () => {
-    const text = current.body.join('\n').trim();
-    if (current.title || text) blocks.push({ ...current, body: text });
-  };
-
-  for (const line of lines) {
-    const _codeStart = line.match(/^```(\w+)?/);
-    const heading = line.match(/^#{1,4}\s+(.+)/);
-    if (heading) {
-      pushCurrent();
-      current = { type: 'section', title: stripMarkdown(heading[1]), body: [] };
-    } else {
-      current.body.push(line);
-    }
-  }
-  pushCurrent();
-  return blocks.filter(b => (b.title || b.body));
-}
-
-function chunkText(text, max = 950) {
-  const clean = String(text || '').replace(/\n{3,}/g, '\n\n').trim();
-  if (clean.length <= max) return [clean];
-  const parts = [];
-  let rest = clean;
-  while (rest.length > max) {
-    let cut = rest.lastIndexOf('\n', max);
-    if (cut < max * 0.55) cut = rest.lastIndexOf('. ', max);
-    if (cut < max * 0.55) cut = max;
-    parts.push(rest.slice(0, cut).trim());
-    rest = rest.slice(cut).trim();
-  }
-  if (rest) parts.push(rest);
-  return parts;
-}
-
-function blockToSlideText(block) {
-  const body = stripMarkdown(block.body || '');
-  const bullets = sectionToBullets({ lines: String(block.body || '').split(/\r?\n/) }, 8);
-  if (bullets.length >= 2 && bullets.join(' ').length > body.length * 0.45) {
-    return { kind: 'bullets', chunks: [bullets] };
-  }
-  return { kind: 'text', chunks: chunkText(body, 900) };
 }
 
 function _splitSlidesFromMarkdown(title, content) {
@@ -249,7 +135,6 @@ function drawPdfFooter(doc, pageNumber) {
   doc.fontSize(8).fillColor('#64748B').text(`Qjo • Page ${pageNumber}`, 54, 802, { align: 'center', width: 486 });
   doc.fillColor('#0F172A');
 }
-
 
 function escapeHtmlExport(value) {
   return String(value || '')
@@ -795,7 +680,6 @@ async function exportPdf(req, res) {
 
 }
 
-
 function sanitizeZipPath(input, index = 0) {
   let value = String(input || '').replace(/\\/g, '/').replace(/^\/+/, '').trim();
   value = value.replace(/\.\.+/g, '').replace(/[<>:"|?*\x00-\x1F]/g, '-');
@@ -842,113 +726,14 @@ async function exportCodeZip(req, res) {
 async function exportPptx(req, res) {
   try {
     const { title, content, rtl } = safeExportPayload(req);
-    // pptxgenjs publishes ESM-shaped types while require() returns the
-    // constructor, so the checker sees a namespace being newed.
-    // @ts-ignore -- upstream CJS/ESM type mismatch in pptxgenjs
-    const pptx = new pptxgen();
-    pptx.layout = 'LAYOUT_WIDE';
-    pptx.author = 'Qjo AI';
-    pptx.subject = title;
-    pptx.title = title;
-    pptx.company = 'Qjo';
-    pptx.lang = rtl ? 'ar-SA' : 'en-US';
-    pptx.theme = { headFontFace: rtl ? 'Noto Sans Arabic' : 'Aptos Display', bodyFontFace: rtl ? 'Noto Sans Arabic' : 'Aptos', lang: rtl ? 'ar-SA' : 'en-US' };
-    pptx.defineLayout({ name: 'QJO_WIDE', width: 13.333, height: 7.5 });
-    pptx.layout = 'QJO_WIDE';
-
-    const brand = {
-      navy: '07101F',
-      blue: '123B7A',
-      cyan: '38C7DD',
-      violet: '7B3FE4',
-      text: '0F172A',
-      muted: '64748B',
-      bg: 'F8FAFC',
-      white: 'FFFFFF'
-    };
-
-    const addBrandBar = (slide) => {
-      slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 13.333, h: 0.12, fill: { color: brand.blue }, line: { color: brand.blue } });
-      slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0.12, w: 13.333, h: 0.035, fill: { color: brand.cyan }, line: { color: brand.cyan } });
-    };
-
-    const cover = pptx.addSlide();
-    cover.background = { color: brand.navy };
-    cover.addShape(pptx.ShapeType.arc, { x: 9.6, y: -0.8, w: 4.2, h: 4.2, line: { color: brand.cyan, transparency: 45, width: 3 } });
-    cover.addShape(pptx.ShapeType.arc, { x: 9.95, y: -0.45, w: 3.5, h: 3.5, line: { color: brand.violet, transparency: 35, width: 3 } });
-    cover.addText(title, { x: 0.75, y: 2.45, w: 11.8, h: 0.85, fontSize: 34, bold: true, color: brand.white, fontFace: rtl ? 'Noto Sans Arabic' : 'Aptos Display', align: rtl ? 'right' : 'left', rtlMode: rtl, isTextBoxRtl: rtl, fit: 'shrink' });
-    cover.addText('Generated by Qjo AI', { x: 0.75, y: 3.35, w: 11.8, h: 0.35, fontSize: 14, color: 'BFEFFF', fontFace: rtl ? 'Noto Sans Arabic' : 'Aptos', align: rtl ? 'right' : 'left', rtlMode: rtl, isTextBoxRtl: rtl });
-
-    const blocks = markdownToBlocks(removeMarkdownTables(removeCodeBlocks(content)), title);
-    let slideNumber = 1;
-    blocks.forEach((block) => {
-      const slideData = blockToSlideText(block);
-      slideData.chunks.forEach((chunk, chunkIndex) => {
-        const slide = pptx.addSlide();
-        slide.background = { color: brand.bg };
-        addBrandBar(slide);
-        const slideTitle = chunkIndex === 0 ? (block.title || title) : `${block.title || title} (${chunkIndex + 1})`;
-        slide.addText(slideTitle, { x: 0.65, y: 0.45, w: 12.05, h: 0.5, fontSize: 23, bold: true, color: brand.blue, fontFace: rtl ? 'Noto Sans Arabic' : 'Aptos Display', align: rtl ? 'right' : 'left', rtlMode: rtl, isTextBoxRtl: rtl, fit: 'shrink' });
-
-        if (slideData.kind === 'bullets') {
-          const bulletText = chunk.map(b => ({ text: b, options: { bullet: { type: 'ul' }, breakLine: true } }));
-          slide.addText(bulletText, { x: 0.85, y: 1.25, w: 11.6, h: 5.35, fontSize: 16, color: brand.text, fontFace: rtl ? 'Noto Sans Arabic' : 'Aptos', valign: 'top', fit: 'shrink', rtlMode: rtl, isTextBoxRtl: rtl, align: rtl ? 'right' : 'left', paraSpaceAfterPt: 9, breakLine: false });
-        } else {
-          slide.addText(chunk, { x: 0.85, y: 1.25, w: 11.6, h: 5.35, fontSize: 15, color: brand.text, fontFace: rtl ? 'Noto Sans Arabic' : 'Aptos', valign: 'top', fit: 'shrink', rtlMode: rtl, isTextBoxRtl: rtl, align: rtl ? 'right' : 'left', breakLine: false, paraSpaceAfterPt: 7 });
-        }
-
-        slide.addText(`Qjo • ${slideNumber}`, { x: 0.45, y: 6.95, w: 12.4, h: 0.25, fontSize: 9, color: brand.muted, align: 'center' });
-        slideNumber++;
-      });
-    });
-
-    const tables = extractMarkdownTables(content);
-    tables.forEach((table, index) => {
-      const slide = pptx.addSlide();
-      slide.background = { color: brand.bg };
-      addBrandBar(slide);
-      const tableTitle = rtl ? `جدول البيانات المقارنة ${index + 1}` : `Data Comparison Table ${index + 1}`;
-      slide.addText(tableTitle, { x: 0.65, y: 0.45, w: 12.05, h: 0.5, fontSize: 23, bold: true, color: brand.blue, fontFace: rtl ? 'Noto Sans Arabic' : 'Aptos Display', align: rtl ? 'right' : 'left', rtlMode: rtl, isTextBoxRtl: rtl });
-      
-      const tableData = [
-        table.headers.map(h => ({ text: h, options: { bold: true, color: 'FFFFFF', fill: { color: brand.blue }, align: rtl ? 'right' : 'left' } })),
-        ...table.rows.map(row => row.map(cell => ({ text: cell, options: { color: brand.text, fill: { color: 'F1F5F9' }, align: rtl ? 'right' : 'left' } })))
-      ];
-      
-      slide.addTable(tableData, { x: 0.85, y: 1.4, w: 11.6, colW: Array(table.headers.length).fill(11.6 / table.headers.length), border: { type: 'line', size: 1, color: 'CBD5E1' } });
-      slide.addText(`Qjo • ${slideNumber}`, { x: 0.45, y: 6.95, w: 12.4, h: 0.25, fontSize: 9, color: brand.muted, align: 'center' });
-      slideNumber++;
-    });
-
-    const mathLines = extractMathLines(content);
-    if (mathLines.length) {
-      const slide = pptx.addSlide();
-      slide.background = { color: brand.bg };
-      addBrandBar(slide);
-      slide.addText(rtl ? 'معادلات وملاحظات علمية' : 'Equations & Scientific Notes', { x: 0.65, y: 0.45, w: 12.05, h: 0.5, fontSize: 23, bold: true, color: brand.violet, fontFace: rtl ? 'Noto Sans Arabic' : 'Aptos Display', align: rtl ? 'right' : 'left', rtlMode: rtl, isTextBoxRtl: rtl });
-      slide.addText(mathLines.map(x => '• ' + x).join('\n'), { x: 0.85, y: 1.25, w: 11.6, h: 5.35, fontSize: 15, color: brand.text, fontFace: rtl ? 'Noto Sans Arabic' : 'Aptos', valign: 'top', fit: 'shrink', rtlMode: rtl, isTextBoxRtl: rtl, align: rtl ? 'right' : 'left', breakLine: false });
-      slide.addText(`Qjo • ${slideNumber}`, { x: 0.45, y: 6.95, w: 12.4, h: 0.25, fontSize: 9, color: brand.muted, align: 'center' });
-      slideNumber++;
-    }
-
-    const codeBlocks = extractCodeBlocks(content);
-    codeBlocks.slice(0, 5).forEach((block, index) => {
-      const slide = pptx.addSlide();
-      slide.background = { color: '0B1220' };
-      slide.addText(`${rtl ? 'كود' : 'Code'} ${index + 1}: ${block.lang}`, { x: 0.6, y: 0.4, w: 12, h: 0.4, fontSize: 20, bold: true, color: '7DD3FC', fontFace: rtl ? 'Noto Sans Arabic' : 'Aptos Display', align: rtl ? 'right' : 'left', rtlMode: rtl, isTextBoxRtl: rtl });
-      slide.addText(block.code, { x: 0.65, y: 1.0, w: 12.0, h: 5.9, fontFace: 'Consolas', fontSize: 11, color: 'E5E7EB', fit: 'shrink', breakLine: false, align: 'left' });
-    });
-
-    const buffer = await pptx.write({ outputType: 'nodebuffer' });
+    const buffer = await buildPptx({ title, content, rtl });
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(title)}.pptx"; filename*=UTF-8''${encodeURIComponent(title)}.pptx`);
     res.send(buffer);
   } catch (error) {
-    res.status(error.statusCode || 500).json({ error: error.message || 'PPTX export failed.' });
+    sendExportError(res, error, 'PPTX export failed.');
   }
-
 }
-
 
 async function exportDocx(req, res) {
   try {

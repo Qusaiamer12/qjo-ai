@@ -114,7 +114,7 @@ npm run test:resilience   # key cooldowns, context recovery, trim budgets
 npm run test:stream       # streaming integrity
 npm run test:routing      # request classification
 npm run test:pdf          # export rendering
-npm run test:export-files # Word and Excel files, generated and read back
+npm run test:export-files # Word, Excel and slide files, generated and read back
 npm run typecheck         # JSDoc checked by tsc, no build output
 npm run lint              # complexity/depth/params ratchet + correctness
 npm run structure         # per-file line budgets: shrink, never grow
