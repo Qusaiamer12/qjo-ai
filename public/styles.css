@@ -6493,3 +6493,7 @@ html[dir="rtl"] .qjo-app-soon-badge {
   .qjo-task-card { padding: 14px; border-radius: 14px; }
   .qjo-task-title { flex-basis: 100%; }
 }
+
+/* An equation reads left to right inside Arabic text, as one unit: without
+   isolation the paragraph's direction could reorder what surrounds it. */
+mjx-container { direction: ltr; unicode-bidi: isolate; }

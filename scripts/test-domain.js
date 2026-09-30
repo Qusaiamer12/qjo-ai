@@ -645,6 +645,34 @@ const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n
     assert.strictEqual(worthExporting('| x | y |\n| - | - |\n| 1 | 2 |'), true);
   });
 
+  console.log('\nMath in the renderer (markdown.js):');
+  const inline = (t) => markdown.lightMarkdown(t).replace(/<\/?p>/g, '');
+
+  test('"$…$" becomes "\\(…\\)" for MathJax, in English and in Arabic', () => {
+    assert.strictEqual(inline('so $x^2 + 1$ here'), 'so \\(x^2 + 1\\) here');
+    assert.strictEqual(inline('السرعة $v = u + at$ تساوي'), 'السرعة \\(v = u + at\\) تساوي');
+    assert.strictEqual(inline('$a$ and $b$'), '\\(a\\) and \\(b\\)');
+  });
+
+  test('prices stay prices: "$5 and $10", "$20,000 and $30,000", "\\$5"', () => {
+    assert.strictEqual(inline('Price $5 and $10 each.'), 'Price $5 and $10 each.');
+    assert.strictEqual(inline('$20,000 and $30,000'), '$20,000 and $30,000');
+    assert.strictEqual(inline('between $5-$10 a unit'), 'between $5-$10 a unit');
+    assert.strictEqual(inline('a fee of \\$5'), 'a fee of $5');
+  });
+
+  test('math is left whole: no bold, link or code reaches into it, and code keeps its dollars', () => {
+    assert.strictEqual(inline('**area $a*b*c$ here**'), '<strong>area \\(a*b*c\\) here</strong>');
+    assert.strictEqual(inline('\\(a**b**c\\)'), '\\(a**b**c\\)');
+    assert.strictEqual(inline('`$y$`'), '<code>$y$</code>');
+    assert.strictEqual(inline('$$E = mc^2$$'), '$$E = mc^2$$');
+  });
+
+  test('math cannot carry markup: it is escaped like everything else', () => {
+    const out = inline('$<img src=x onerror=alert(1)>$');
+    assert.ok(!/<img/.test(out) && /&lt;img/.test(out), out);
+  });
+
   console.log('\nHow an attached image is sent (imagePlan.js):');
   const { LIMITS, encodings, capPerImage } = require('../public/domain/imagePlan.js');
 

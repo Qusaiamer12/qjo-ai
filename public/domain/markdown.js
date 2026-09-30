@@ -55,12 +55,24 @@
   // `[1](https://…)` written as code is an example of the syntax, and it used
   // to come out as a live link inside the code.
   const CODE_MARK = /\uE000(\d+)\uE001/g;
+  // Math is set aside the same way, so no bold or link reaches into it, and
+  // put back as text for MathJax. "$…$" becomes "\(…\)" by Pandoc's rule —
+  // the opening $ followed by a non-space, the closing one preceded by a
+  // non-space and not followed by a digit — so "$5 and $10" stays prices.
+  // MathJax never looked for "$…$" at all: its settings were set after it
+  // had loaded, so "$x^2$" reached the page as dollar signs.
+  const MATH = /\\\((?:[^\\]|\\(?!\)))+?\\\)|\\\[[^\n]+?\\\]|\$\$[^$\n]+?\$\$|(^|[^\\$\w])\$(?=[^\s$])([^$\n]*?[^\s\\$])\$(?![\d$])/g;
+  const MATH_MARK = /\uE002(\d+)\uE003/g;
 
   function parseInlineMarkdown(text) {
     const spans = [];
+    const math = [];
     let value = String(text)
-      .replace(/[\uE000\uE001]/g, '')
-      .replace(/`([^`]+)`/g, (_, code) => `\uE000${spans.push(code) - 1}\uE001`);
+      .replace(/[\uE000-\uE003]/g, '')
+      .replace(/`([^`]+)`/g, (_, code) => `\uE000${spans.push(code) - 1}\uE001`)
+      .replace(MATH, (whole, before, dollar) => (dollar === undefined
+        ? `\uE002${math.push(whole) - 1}\uE003`
+        : `${before}\uE002${math.push(`\\(${dollar}\\)`) - 1}\uE003`));
 
     // Markdown links: [label](https://example.com)
     value = value.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_, label, url) => {
@@ -75,7 +87,9 @@
 
     return value
       .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-      .replace(CODE_MARK, (_, i) => `<code>${spans[Number(i)]}</code>`);
+      .replace(/\\\$/g, '$') // "\$5": a price written with an escape
+      .replace(CODE_MARK, (_, i) => `<code>${spans[Number(i)]}</code>`)
+      .replace(MATH_MARK, (_, i) => math[Number(i)]);
   }
 
   function isTableSeparator(line) {

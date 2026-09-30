@@ -5,6 +5,7 @@ const {
 } = require('../search/searchCore');
 const { validateSearchQueries } = require('../tools/searchTool');
 const { createSearchProviders, searchWasUnavailable } = require('../search/providers');
+const { createScholarlyProviders } = require('../search/scholarly');
 
 function requireDeps(deps) {
   const required = ['stableCacheKey', 'cacheGet', 'cacheSet', 'memoryCaches'];
@@ -29,6 +30,10 @@ function createSearchService(deps) {
     fetchImpl: deps.fetchImpl
   });
 
+  // Papers and books for academic and medical questions and for books, from
+  // the catalogues that hold them (src/search/scholarly.js), beside the web.
+  const scholarly = createScholarlyProviders({ endpoints: deps.scholarlyEndpoints, fetchImpl: deps.fetchImpl, health: providers.health });
+
   /** One query through every provider; results only (kept for callers). */
   async function searchProvider(query, maxResults = 5, depth = 'basic', mode = 'general', deadlineMs = 0) {
     const { results } = await providers.search(query, { maxResults, depth, mode, deadlineMs });
@@ -43,10 +48,13 @@ function createSearchService(deps) {
    * all). The model is told which, because "nothing found" and "search is
    * down" call for different answers.
    */
-  async function runQueries(queries, plan, deadline) {
-    const outcomes = await Promise.all(queries.map((q) => providers.search(q, {
-      maxResults: plan.maxResultsPerQuery, depth: plan.depth, mode: plan.mode, deadlineMs: deadline
-    })));
+  async function runQueries(queries, plan, deadline, question = '') {
+    // The catalogues index English: the query set's English one when it has it.
+    const english = queries.find((q) => !/[\u0600-\u06FF]/.test(q)) || queries[0] || '';
+    const outcomes = await Promise.all([
+      ...queries.map((q) => providers.search(q, { maxResults: plan.maxResultsPerQuery, depth: plan.depth, mode: plan.mode, deadlineMs: deadline })),
+      scholarly.search(english, { mode: plan.mode, question, deadlineMs: deadline })
+    ]);
     const merged = outcomes.flatMap((o) => o.results);
     const attempts = outcomes.flatMap((o) => o.attempts);
     const status = merged.length ? 'ok' : (searchWasUnavailable(attempts) ? 'unavailable' : 'empty');
@@ -187,7 +195,7 @@ function createSearchService(deps) {
     const plan = buildSearchBeastPlan(query, false);
     const queries = validateSearchQueriesRefined(await buildQuerySet(original, query, plan, 3, queryFromModel));
     // The query set runs in parallel; per-query mode steers topic/freshness.
-    const { merged, status, failures } = await runQueries(queries, plan, deadline);
+    const { merged, status, failures } = await runQueries(queries, plan, deadline, original || query);
     let results = rankSearchBeastResults(merged, plan.mode, original || query).slice(0, plan.keepResults);
     // Reading pages makes the sources much stronger, but only if there is time
     // left. Snippets now beat perfect extraction the caller never receives.
@@ -212,7 +220,7 @@ function createSearchService(deps) {
     if (cached) return { ...cached, cached: true };
     const planned = buildSearchBeastPlan(question, true);
     const queries = validateSearchQueriesRefined(await buildQuerySet(original, question, planned, 6));
-    const { merged, status, failures } = await runQueries(queries, planned, deadline);
+    const { merged, status, failures } = await runQueries(queries, planned, deadline, original || question);
     let results = rankSearchBeastResults(merged, planned.mode, original || question).slice(0, planned.keepResults);
     if (Date.now() < deadline - 5000) {
       results = await enrichResultsWithFirecrawl(results, planned.enrichPages, deadline);

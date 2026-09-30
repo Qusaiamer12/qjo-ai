@@ -186,8 +186,17 @@ const SAMPLES = {
   subtext: ['what does she mean by "ok."?', 'شو قصده لما بعتلي "تمام."؟'],
   excuses: ['give me an excuse for missing class', 'بدي عذر مقنع عشان غبت'],
   human: ['make this sound human for GPTZero', 'خلي النص بشري وما يبين انه ذكاء'],
-  medical: ['I have a headache and fever', 'عندي صداع وحرارة']
+  medical: ['I have a headache and fever', 'عندي صداع وحرارة'],
+  problem: ['A car accelerates at 3.2 m/s² for 12 s. Find its speed.', 'سيارة تتسارع بتسارع 3.2 م/ث² لمدة 12 ثانية، احسب سرعتها',
+    'Dose is 15 mg/kg for an 18 kg child: how many mL of 120 mg/5 mL syrup?', 'احسب مولارية محلول فيه 0.5 مول في 250 مل']
 };
+
+test('the worked-problem playbook needs a figure or an ask, not just a subject word', () => {
+  for (const text of ['قوة الشخصية مهمة في القيادة', 'we need more energy in the team', 'شو رأيك بسرعة الانترنت عندكم', 'السرعة عندكم ممتازة']) {
+    const chosen = detectNeeds([user(text)]).playbooks;
+    assert.ok(!chosen.includes('problem'), `"${text}" brought the worked-problem playbook: [${chosen}]`);
+  }
+});
 
 test('each playbook is chosen by the words that call for it, in English and in Arabic', () => {
   for (const [key, samples] of Object.entries(SAMPLES)) {

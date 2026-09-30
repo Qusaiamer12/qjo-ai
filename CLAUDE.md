@@ -108,6 +108,7 @@ npm run test:code-studio  # which blocks make one preview, and the document it r
 npm run test:search       # search decision, results, budget
 npm run test:sources      # who published a source: ranking, what the model and page get
 npm run test:vision       # an exercise in a picture: read by one model, solved by another
+npm run test:scholarly    # papers and books from keyless catalogues, faked over HTTP
 npm run test:search-e2e   # hangs: fake provider over real HTTP, per-case watchdog
 npm run test:long-requests  # long requests: Groq's per-minute size, slow first byte
 npm run test:search-providers  # every search provider failing in every way

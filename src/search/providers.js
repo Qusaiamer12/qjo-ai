@@ -393,4 +393,4 @@ function searchWasUnavailable(attempts) {
   return tried.length === 0 || tried.every((a) => a.ok === false);
 }
 
-module.exports = { createSearchProviders, createProviderHealth, classifyFailure, searchWasUnavailable, ProviderError, DEFAULT_ENDPOINTS };
+module.exports = { createSearchProviders, createProviderHealth, classifyFailure, searchWasUnavailable, ProviderError, DEFAULT_ENDPOINTS, request, stripHtml, decodeEntities };

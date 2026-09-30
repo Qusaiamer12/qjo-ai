@@ -17,6 +17,13 @@
 
 const { ARABIC_PLAYBOOK_NOTES } = require('./arabicPrompt');
 
+// The quantities a worked problem is about. Arabic words are whole words, with
+// or without "ال"/"بال"/"لل": "بطاقة" is a card and "بسرعة" is "quickly".
+const AR_WORD = (words) => new RegExp(`(?<![\\u0600-\\u06FF])(?:و?(?:ال|بال|لل))?(?:${words})(?![\\u0600-\\u06FF])`);
+const PROBLEM_SUBJECT_EN = /\b(?:velocity|speed|acceleration|force|momentum|energy|power|voltage|current|resistance|circuit|pressure|stress|strain|torque|beam|moles?|molarity|concentration|titration|enthalpy|half-life|ph|dose|dosage|mg\/kg|infusion|drip rate|clearance|bmi|interest rate|elasticity)\b/i;
+const PROBLEM_SUBJECT_AR = AR_WORD('سرعة|سرعتها|سرعته|تسارع|قوة|زخم|طاقة|قدرة|جهد|تيار|مقاومة|دارة|ضغط|إجهاد|اجهاد|عزم|مولارية|تركيز|معايرة|عمر النصف|جرعة|جرعه|تسريب|معدل التنقيط|كتلة الجسم');
+const PROBLEM_ASK = /\b(?:find|calculate|compute|solve|determine|how (?:much|many|long|fast))\b|(?<![\u0600-\u06FF])(?:احسب|أوجد|اوجد)|(?<![\u0600-\u06FF])(?:جد|حل|كم)(?![\u0600-\u06FF])/i;
+
 const PLAYBOOKS = {
   writing: {
     match: /\b(write|rewrite|redraft|polish|proofread|essay|article|blog|story|poem|poetry|verse|speech|draft|notes)\b|اكتب|أكتب|صيغ|صياغة|نسق|نسّق|دقق|تدقيق|مقال|قصة|قصيدة|شعر|أبيات|ابيات|خطاب|تعبير|منشور|بوست|مسودة|ملاحظات|رسالة/i,
@@ -172,6 +179,23 @@ LITERARY CRAFTSMANSHIP, GRAMMAR & TEXT RESTRUCTURING
   • Burstiness Control: Intentionally vary sentence lengths dramatically. Interleave short punchy statements (3-5 words) with rich, multi-clause thoughts.
   • Perplexity Control: Use fresh, nuanced, natural vocabulary; avoid robotic statistical predictability.
   • Embrace natural, conversational pacing over rigid algorithmic symmetry.`
+  },
+  problem: {
+    // A worked problem in a science, engineering, medicine or pharmacy: a
+    // quantity the subject names, and a number or an ask to find it. The
+    // subject words alone are everyday language ("قوة الشخصية", "power
+    // through"), so they count only with a figure or a verb that asks.
+    match: {
+      test: (t) => (PROBLEM_SUBJECT_EN.test(t) || PROBLEM_SUBJECT_AR.test(t)) && (/\d/.test(t) || PROBLEM_ASK.test(t))
+    },
+    en: `
+- WORKED PROBLEMS (physics, chemistry, engineering, medicine and pharmacy, economics):
+  1. The principle or law, written as an equation.
+  2. What is given and what is sought, each with its unit, converted to SI first (say so).
+  3. Substitute step by step, keeping units on every line; every calculation through the calculate tool.
+  4. The result in bold with its unit and sensible significant figures, then a one-line check (units, order of magnitude or a limiting case).
+  5. What it means in one or two sentences: physically, for the design, or clinically. A dose is a calculation to confirm with a pharmacist or doctor, never an instruction.
+- Notation: inline \\( … \\), display $$ … $$, chemistry \\ce{2H2 + O2 -> 2H2O}, units upright (\\mathrm{m\\,s^{-2}}).`
   },
   medical: {
     match: /symptom|\bpain|doctor|medicin|headache|fever|\bsick\b|dizz|pregnan|\bpills?\b|\bdose|blood pressure|وجع|ألم|دكتور|طبيب|مرض|مريض|أعراض|اعراض|دواء|صداع|حرارة|سخونة|دوخة|حامل|جرعة|كحة|رشح|ضغط الدم|سكري/i,

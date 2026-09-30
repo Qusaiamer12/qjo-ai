@@ -6,15 +6,6 @@ if (window.__qjoBootOk === false) {
   throw new Error('Qjo: a required module did not load; app.js is not starting. See boot.js.');
 }
 
-window.MathJax = window.MathJax || {
-  tex: {
-    inlineMath: [['\\(', '\\)'], ['$', '$']],
-    displayMath: [['\\[', '\\]'], ['$$', '$$']],
-    processEscapes: true
-  },
-  options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] }
-};
-
 if (window.pdfjsLib) {
   pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 }

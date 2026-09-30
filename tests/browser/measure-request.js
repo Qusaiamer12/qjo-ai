@@ -40,7 +40,9 @@ const MESSAGES = [
   ['long request (ar)', 'اكتبلي خطة مشروع تفصيلية كاملة لتطبيق توصيل طلبات في عمّان، مع كل المراحل والميزانية والمخاطر وخطة التسويق'],
   ['question (en)', 'Explain recursion with a short example'],
   ['interface (ar)', 'صمملي موقع شخصي لمصمم جرافيك'],
-  ['interface (en)', 'Build me a landing page for my cafe in React']
+  ['interface (en)', 'Build me a landing page for my cafe in React'],
+  ['physics problem (ar)', 'سيارة تتسارع من السكون بتسارع 3.2 م/ث² لمدة 12 ثانية، احسب سرعتها النهائية والمسافة'],
+  ['dose calculation (en)', 'A child weighs 18 kg and the dose is 15 mg/kg every 6 hours. How many mL of a 120 mg/5 mL syrup per dose?']
 ];
 
 function describe(label, body) {

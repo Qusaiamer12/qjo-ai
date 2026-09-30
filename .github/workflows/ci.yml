@@ -79,6 +79,13 @@ jobs:
       - name: Study images suite
         run: npm run test:vision
 
+      # Papers and books for academic and medical questions: OpenAlex,
+      # Semantic Scholar, PubMed, arXiv, Open Library and Google Books, each
+      # faked over real HTTP — what each answer becomes, a catalogue down,
+      # stalled or sending garbage, and the papers reaching the model.
+      - name: Scholarly sources suite
+        run: npm run test:scholarly
+
       # "It lost the ability to search." Real search service against fake
       # Tavily, Serper, Google News, Wikipedia and DuckDuckGo over real HTTP:
       # a rejected request, spent credits, a blocked fallback, a stalled body.
