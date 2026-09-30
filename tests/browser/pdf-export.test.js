@@ -62,10 +62,22 @@ if (process.argv[2] === 'render') {
 // Asynchronously: the "internal" server below lives in this process, and a
 // parent blocked on its child could not answer it — an unguarded fetch would
 // hang instead of showing up as a request.
+// Chromium sees only DejaVu, a font a server might well have: anything drawn
+// in it was not covered by the fonts the PDF carries. With the machine's own
+// fonts in view the check depended on the machine — the footer's text passed
+// here and failed on GitHub.
+function serverLikeFonts() {
+  const dejavu = '/usr/share/fonts/truetype/dejavu';
+  if (!fs.existsSync(dejavu)) return {};
+  const conf = path.join(require('os').tmpdir(), 'qjo-fonts-dejavu-only.conf');
+  fs.writeFileSync(conf, `<?xml version="1.0"?><!DOCTYPE fontconfig SYSTEM "fonts.dtd"><fontconfig><dir>${dejavu}</dir><cachedir>${require('os').tmpdir()}/qjo-fc-cache</cachedir></fontconfig>`);
+  return { FONTCONFIG_FILE: conf };
+}
+
 async function render(executablePath, jobs) {
   const { execFile } = require('child_process');
   const stdout = await new Promise((resolve, reject) => execFile(process.execPath, [__filename, 'render'], {
-    env: { ...process.env, PUPPETEER_EXECUTABLE_PATH: executablePath, QJO_PDF_JOBS: JSON.stringify(jobs) },
+    env: { ...process.env, ...serverLikeFonts(), PUPPETEER_EXECUTABLE_PATH: executablePath, QJO_PDF_JOBS: JSON.stringify(jobs) },
     maxBuffer: 64 * 1024 * 1024, timeout: 120000
   }, (error, out) => (error ? reject(error) : resolve(out))));
   return JSON.parse(stdout.toString()).map((r) => ({ ...r, body: r.pdf ? Buffer.from(r.pdf, 'base64') : null }));

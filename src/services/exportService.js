@@ -6,7 +6,7 @@ const { isMostlyRtl } = require('./export/markdownModel');
 const { buildDocx } = require('./export/docx');
 const { buildXlsx } = require('./export/xlsx');
 const { buildPptx } = require('./export/pptx');
-const { fontFaceCss } = require('./export/fonts');
+const { fontFaceCss, footerFontCss } = require('./export/fonts');
 const { buildPdfFallback } = require('./export/pdfFallback');
 const { assertUrlIsFetchable } = require('../tools/fetchPageTool');
 
@@ -630,7 +630,7 @@ async function renderHtmlPdfWithPuppeteer(payload) {
     /* eslint-enable no-undef */
     await page.emulateMediaType('screen');
     const rtl = Boolean(payload.rtl);
-    const footer = `<div style="width:100%;font-size:8px;color:#94a3b8;padding:0 16mm;display:flex;justify-content:space-between;font-family:sans-serif;direction:${rtl ? 'rtl' : 'ltr'}">`
+    const footer = `<style>${footerFontCss()}</style><div style="width:100%;font-size:8px;color:#94a3b8;padding:0 16mm;display:flex;justify-content:space-between;font-family:'Noto Sans',sans-serif;direction:${rtl ? 'rtl' : 'ltr'}">`
       + `<span>Qjo AI</span><span><span class="pageNumber"></span> / <span class="totalPages"></span></span></div>`;
     return await page.pdf({
       format: 'A4',

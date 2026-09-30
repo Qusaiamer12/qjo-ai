@@ -49,4 +49,19 @@ function fontFaceCss() {
   return cssCache;
 }
 
-module.exports = { FACES, fontPath, fontFaceCss };
+let footerCache = null;
+/**
+ * The page footer is printed from a template of its own, which does not see
+ * the page's @font-face: it drew "Qjo AI" and the page numbers in whatever
+ * sans-serif the server had. It carries its one Latin face with it.
+ */
+function footerFontCss() {
+  if (footerCache === null) {
+    const face = FACES.find((f) => f.family === 'Noto Sans' && f.weight === 400 && f.range === LATIN_RANGE);
+    const data = fs.readFileSync(fontPath(face.file)).toString('base64');
+    footerCache = `@font-face{font-family:'Noto Sans';font-weight:400;src:url(data:font/woff;base64,${data}) format('woff');}`;
+  }
+  return footerCache;
+}
+
+module.exports = { FACES, fontPath, fontFaceCss, footerFontCss };
