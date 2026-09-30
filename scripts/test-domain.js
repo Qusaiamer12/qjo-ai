@@ -727,6 +727,27 @@ const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n
     assert.strictEqual(inline('**bold *inner* bold** and ***both***'), '<strong>bold <em>inner</em> bold</strong> and <strong><em>both</em></strong>');
   });
 
+  console.log('\nWhich earlier messages a request carries (historyWindow.js):');
+  const { historyStart } = require('../public/domain/historyWindow.js');
+
+  test('up to eleven earlier messages; past that, the start moves six at a time and lands on the person', () => {
+    const carried = (length) => length - 1 - historyStart(length);
+    for (const length of [1, 2, 7, 12]) assert.strictEqual(historyStart(length), 0, `${length} messages: all of it`);
+    for (let length = 1; length <= 60; length++) {
+      assert.ok(carried(length) <= 11 && (length <= 12 || carried(length) >= 6), `${length}: carries ${carried(length)}`);
+      assert.strictEqual(historyStart(length) % 2, 0, `${length}: starts on an answer`);
+    }
+  });
+
+  test('the start stays put for three turns running, so the history opens alike', () => {
+    // A turn adds two messages: the person's and the answer.
+    const starts = [];
+    for (let length = 13; length <= 49; length += 2) starts.push(historyStart(length));
+    const moves = starts.filter((s, i) => i && s !== starts[i - 1]).length;
+    assert.ok(moves <= Math.ceil(starts.length / 3), `${moves} moves in ${starts.length} turns: ${starts}`);
+    assert.ok(moves >= 3, `control: a long conversation moves it (${moves})`);
+  });
+
   console.log('\nWhere a streaming answer is finished (streamBlocks.js):');
   const { splitStable, closeOpenFence } = require('../public/domain/streamBlocks.js');
 

@@ -42,8 +42,10 @@ function createSafeCalculate(math, evaluateFn) {
   };
 }
 
+const CALCULATOR_HINT = 'Calculator tool available: for any non-trivial arithmetic, exact numeric computation, percentages, statistics, roots, powers, logs, matrix operations, or calculations where precision matters, call calculate instead of estimating mentally. Explain the final result clearly after receiving the tool result.';
+
 function addCalculatorSystemHint(messages) {
-  const hint = 'Calculator tool available: for any non-trivial arithmetic, exact numeric computation, percentages, statistics, roots, powers, logs, matrix operations, or calculations where precision matters, call calculate instead of estimating mentally. Explain the final result clearly after receiving the tool result.';
+  const hint = CALCULATOR_HINT;
   if (messages?.[0]?.role === 'system') {
     return [{ ...messages[0], content: String(messages[0].content || '') + '\n\n' + hint }, ...messages.slice(1)];
   }
@@ -53,5 +55,6 @@ function addCalculatorSystemHint(messages) {
 module.exports = {
   CALCULATOR_TOOL,
   createSafeCalculate,
-  addCalculatorSystemHint
+  addCalculatorSystemHint,
+  CALCULATOR_HINT
 };

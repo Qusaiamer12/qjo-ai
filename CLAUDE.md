@@ -95,6 +95,13 @@ Each of these produced a green result that meant nothing.
   URL ends in `/favicon.ico` before any route sees it, so a test can neither
   serve nor observe one — a site's own icon could never load in a suite. The
   source strip takes icons from one service at a path that can be routed.
+- **A feature wired everywhere but the composition root.** The request layout
+  that lets Groq reuse a conversation was built, every suite stayed green —
+  none of them looked — and the real page still sent the old layout:
+  `server.js` passed the route only the single-text prompt builder, and the
+  route quietly took its fallback. The measurement found it (57% of each
+  request new instead of 37%). A change to what a request carries is done
+  when `measure-request.js` says so, and a suite that fails without it exists.
 - **Verification that lives outside the repo.** 264 browser assertions spent
   weeks in a scratch directory that is deleted with the container. A check
   that is not committed and not in CI does not exist.
@@ -109,6 +116,7 @@ npm run test:search       # search decision, results, budget
 npm run test:sources      # who published a source: ranking, what the model and page get
 npm run test:vision       # an exercise in a picture: read by one model, solved by another
 npm run test:scholarly    # papers and books from keyless catalogues, faked over HTTP
+npm run test:prompt-cache # what a request opens with, per message context, reasoning effort, cached tokens
 npm run test:search-e2e   # hangs: fake provider over real HTTP, per-case watchdog
 npm run test:long-requests  # long requests: Groq's per-minute size, slow first byte
 npm run test:search-providers  # every search provider failing in every way

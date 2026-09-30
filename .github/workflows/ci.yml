@@ -86,6 +86,14 @@ jobs:
       - name: Scholarly sources suite
         run: npm run test:scholarly
 
+      # What a chat request opens with. Groq caches the opening a request
+      # shares with an earlier one and does not count it toward its limits.
+      # Real route, engine and llmService against a fake Groq over HTTP: two
+      # turns open alike up to the newest exchange, what a message needs
+      # travels with it, reasoning effort by the work, and what Groq counted.
+      - name: Prompt cache suite
+        run: npm run test:prompt-cache
+
       # "It lost the ability to search." Real search service against fake
       # Tavily, Serper, Google News, Wikipedia and DuckDuckGo over real HTTP:
       # a rejected request, spent credits, a blocked fallback, a stalled body.

@@ -3168,7 +3168,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
             messages: [
               ...(systemPersonalization ? [{ role: 'system', content: systemPersonalization }] : []),
               ...(continuityHint ? [{ role: 'system', content: continuityHint }] : []),
-              ...history.slice(-12, -1), // lean payloads; older context lives in Firestore
+              ...history.slice(QjoDomain.historyWindow.historyStart(history.length), -1), // opens alike for three turns (historyWindow.js); older context lives in Firestore
               { role: 'user', content: apiUserContent }
             ],
             temperature: generationConfig.temperature,

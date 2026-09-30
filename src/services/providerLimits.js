@@ -69,6 +69,18 @@ function fitToAllowance(params, allowance) {
   return { ...params, max_tokens: room };
 }
 
+/**
+ * How much the model should think, where the provider takes the setting:
+ * Groq's gpt-oss models. Another provider may refuse a field it does not know.
+ * @param {string} provider
+ * @param {string} model
+ * @param {string} [effort]
+ * @returns {{reasoning_effort?: string}}
+ */
+function reasoningParams(provider, model, effort) {
+  return effort && provider === 'groq' && /gpt-oss/.test(String(model)) ? { reasoning_effort: effort } : {};
+}
+
 const IMAGE_TOKENS = 1000;
 
 // Characters per token, measured with the o200k tokenizer the gpt-oss models
@@ -172,6 +184,7 @@ module.exports = {
   tokenAllowance,
   fitToAllowance,
   prefitToAllowance,
+  reasoningParams,
   tokensNeeded,
   shrinkMessages,
   headerWaitMs,

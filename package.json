@@ -29,6 +29,7 @@
     "test:sources": "node scripts/test-sources.js",
     "test:vision": "node scripts/test-vision.js",
     "test:scholarly": "node scripts/test-scholarly.js",
+    "test:prompt-cache": "node scripts/test-prompt-cache.js",
     "structure": "node scripts/check-structure.js",
     "typecheck": "tsc --noEmit",
     "test:domain": "node scripts/test-domain.js",

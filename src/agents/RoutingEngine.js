@@ -6,6 +6,7 @@ const { createToolLoop } = require('./toolLoop');
 const { createVisionPipeline } = require('./visionPipeline');
 const { continuationPrompts } = require('./continuation');
 const { shrinkMessages, fitToAllowance, prefitToAllowance } = require('../services/providerLimits');
+const { withTurnContext, reasoningEffort } = require('../services/promptLayout');
 const { z } = require('zod');
 
 // ── Zod Schema ──
@@ -291,7 +292,7 @@ function createRoutingEngine(deps) {
     // Fitted to the model's per-minute allowance once the provider has named
     // it; refused anyway (its count beats our estimate), fitted again from
     // what was sent. Per call: a round after a search carries the results too.
-    const sent = prefitToAllowance(params, llmService.allowanceFor && llmService.allowanceFor(provider, model));
+    const sent = prefitToAllowance(withTurnContext(params), llmService.allowanceFor && llmService.allowanceFor(provider, model));
     const res = await llmService.dispatch(provider, { model, ...sent });
     const fitted = !res.ok && fitToAllowance(sent, res.tokenAllowance);
     if (!fitted) return res;
@@ -418,15 +419,15 @@ function createRoutingEngine(deps) {
   /**
    * Runs one model turn, including its tool loop and provider failover.
    *
-   * Router for the Qjo chat product. The Qcode/Q-Spark provider pipelines that
-   * used to live here moved out with those products (see
-   * docs/MIGRATION_QSPARK_QCODE.md); `agentType` is kept for call-site clarity
-   * and forward compatibility.
+   * Router for the Qjo chat product. The Qcode/Q-Spark pipelines that lived here
+   * moved out with those products (docs/MIGRATION_QSPARK_QCODE.md); `agentType`
+   * is kept for call-site clarity and forward compatibility.
    *
    * @param {object} [options]
    * @param {string} [options.agentType] Call-site label; does not affect routing.
    * @param {string} [options.mode] 'flash' | 'max' | 'advanced' | 'code'.
    * @param {Array<{role: string, content: any, [k: string]: any}>} [options.messages]
+   * @param {string} [options.turnContext] Chosen for this message; joins its newest user message when sent (promptLayout.js).
    * @param {number} [options.temperature]
    * @param {number} [options.max_tokens]
    * @param {number} [options.frequency_penalty]
@@ -448,7 +449,7 @@ function createRoutingEngine(deps) {
   async function callAgent({
     agentType = 'chat', mode, messages, temperature = 0.7, max_tokens = 4000,
     frequency_penalty, presence_penalty,
-    useTools, routingDecision, onChunk, onReasoning, onToolCall, onToolResult, model,
+    useTools, routingDecision, onChunk, onReasoning, onToolCall, onToolResult, model, turnContext,
     deadlineMs, budgetMs, signal
   } = {}) {
     const budgetFromCaller = Boolean(deadlineMs || budgetMs);
@@ -483,17 +484,16 @@ function createRoutingEngine(deps) {
       requestedTemp: temperature
     });
 
-    const base = { messages, temperature: effectiveTemperature, max_tokens, frequency_penalty, presence_penalty, onChunk, onReasoning, onToolCall, onToolResult, deadlineMs, signal };
+    const base = { messages, turnContext, temperature: effectiveTemperature, max_tokens, frequency_penalty, presence_penalty, onChunk, onReasoning, onToolCall, onToolResult, deadlineMs, signal, reasoning_effort: reasoningEffort({ mode: normMode, intent: route.intent, mathIntent: route.mathIntent }) };
 
-    // Tool attachment policy:
-    //  • calculator whenever math is plausible (never for images)
-    //  • web_search when the question might need freshness AND the client has
-    //    not already injected a source pack (avoids double searching)
-    //  • fetch_page alongside search, so the model can open what it found
-    //    instead of answering from two-line snippets
+    // Tool attachment policy (never for images):
+    //  • calculator on every turn with tools: the tool list opens the request,
+    //    and one that changed with the message made the rest of it new
+    //  • web_search unless the client already injected a source pack, and
+    //    fetch_page with it, so the model can open what it found
     const attach = [];
     if (useTools !== false && !hasImages) {
-      if (route.mathIntent) attach.push('calculate');
+      attach.push('calculate');
       // The model decides whether to search; a regex cannot. Measured on a
       // realistic corpus the old keyword gate was 72% accurate, and its misses
       // were the damaging kind — "who is the prime minister now", "tomorrow's
@@ -536,7 +536,7 @@ function createRoutingEngine(deps) {
 
     // 2) Lite fast track — single short greeting message.
     if (isLiteRequest(messages)) {
-      const res = await runChain(PIPELINES.lite, { ...base, messages, tools: undefined, maxPerProviderMs: 8000 });
+      const res = await runChain(PIPELINES.lite, { ...base, messages, tools: undefined, maxPerProviderMs: 8000, reasoning_effort: 'low' });
       if (res.ok) return res;
       // fall through to full routing
     }

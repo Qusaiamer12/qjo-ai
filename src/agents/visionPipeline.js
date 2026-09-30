@@ -154,7 +154,7 @@ function createVisionPipeline({ runChain, pipelines, buildTools }) {
     const notify = base.onToolCall || (() => {});
     notify({ tool: 'read_image', label: 'Reading the image', detail: '', status: 'running' });
     const read = await runChain(pipelines.vision, {
-      ...base, messages: readingMessages(messages), temperature: 0, max_tokens: 1500,
+      ...base, messages: readingMessages(messages), turnContext: undefined, temperature: 0, max_tokens: 1500,
       onChunk: undefined, onReasoning: undefined, onToolCall: undefined, tools: undefined,
       deadlineMs: Math.min(base.deadlineMs, Date.now() + READ_MS), maxPerProviderMs: 16000
     });

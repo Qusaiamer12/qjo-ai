@@ -64,6 +64,9 @@ async function consumeStream(response, onChunk, signal, onReasoning, onActivity)
   let fullText = '';
   let finishReason = '';
   let chunksDelivered = 0;
+  // What the provider counted, sent with the last chunk: OpenAI's "usage",
+  // Groq's "x_groq.usage". Only kept (keyPool.js), never shown.
+  let usage = null;
   const toolAcc = new Map();
 
   let contentBuffer = '';
@@ -159,6 +162,7 @@ async function consumeStream(response, onChunk, signal, onReasoning, onActivity)
     try { data = JSON.parse(cleanedLine.slice(6)); } catch (_) { return; }
     const choice = data?.choices?.[0] || {};
     const delta = choice.delta || {};
+    if (data?.usage || data?.x_groq?.usage) usage = data.usage || data.x_groq.usage;
 
     const reasoningChunk = delta.reasoning_content || delta.reasoning;
     if (reasoningChunk) progress++;
@@ -209,7 +213,7 @@ async function consumeStream(response, onChunk, signal, onReasoning, onActivity)
     // rather than failing the response or duplicating output.
     if (chunksDelivered > 0) {
       console.warn(`[llmService] stream reader interrupted after ${chunksDelivered} chunks. Gracefully preserving delivered answer.`);
-      return { fullText, toolCalls: [], finishReason: 'interrupted', chunksDelivered };
+      return { fullText, toolCalls: [], finishReason: 'interrupted', chunksDelivered, usage };
     }
     throw streamErr;
   }
@@ -217,7 +221,7 @@ async function consumeStream(response, onChunk, signal, onReasoning, onActivity)
   const toolCalls = [...toolAcc.values()]
     .filter(t => t.name)
     .map((t, i) => ({ id: t.id || `call_stream_${i}`, type: 'function', function: { name: t.name, arguments: t.arguments || '{}' } }));
-  return { fullText, toolCalls, finishReason: finishReason || 'stop', chunksDelivered };
+  return { fullText, toolCalls, finishReason: finishReason || 'stop', chunksDelivered, usage };
 }
 
 /**
@@ -289,7 +293,8 @@ async function readStreamedBody({ response, attempt, provider, model, onChunk, o
       provider,
       model,
       finish_reason: streamed.finishReason || 'stop',
-      streamed: true
+      streamed: true,
+      usage: streamed.usage
     }
   };
 }
@@ -325,7 +330,8 @@ async function readJsonBody({ response, attempt, provider, model, timeLeft }) {
       provider,
       model,
       finish_reason: normalizeProviderFinishReason(provider, data),
-      raw: data
+      raw: data,
+      usage: data?.usage || data?.x_groq?.usage || null
     }
   };
 }

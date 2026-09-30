@@ -123,10 +123,12 @@ function createKeyPool({ now = () => Date.now() } = {}) {
    * @param {string} key
    * @param {string} model
    * @param {{get?: (name: string) => string | null}} [headers] the response's, for its token budget
+   * @param {object | null} [usage] what the provider counted for this answer
    */
-  function success(provider, key, model, headers) {
+  function success(provider, key, model, headers, usage) {
     const budget = budgetFrom(headers);
     if (budget) record(modelId(provider, key, model)).budget = { ...budget, at: now() };
+    countTokens(provider, model, usage);
     for (const id of [keyId(provider, key), modelId(provider, key, model)]) {
       const r = record(id);
       r.failures = 0;
@@ -167,6 +169,31 @@ function createKeyPool({ now = () => Date.now() } = {}) {
     return restMs;
   }
 
+  // What each model was sent and wrote, as the provider counted it, and how
+  // much of what was sent came from its cache — which Groq does not count
+  // toward its limits. The one measure of whether prompts open alike.
+  const tokens = new Map();
+  function countTokens(provider, model, usage) {
+    const input = Number(usage?.prompt_tokens);
+    if (!(input >= 0)) return;
+    const id = `${provider}\u0000${model}`;
+    const t = tokens.get(id) || { answers: 0, input: 0, cached: 0, output: 0, reasoning: 0 };
+    t.answers++;
+    t.input += input;
+    t.cached += Number(usage.prompt_tokens_details?.cached_tokens) || 0;
+    t.output += Number(usage.completion_tokens) || 0;
+    t.reasoning += Number(usage.completion_tokens_details?.reasoning_tokens) || 0;
+    tokens.set(id, t);
+  }
+  function tokensOf(provider) {
+    const out = {};
+    for (const [id, t] of tokens) {
+      const [p, model] = id.split('\u0000');
+      if (p === provider) out[model] = { ...t, cachedShare: t.input ? Math.round((100 * t.cached) / t.input) + '%' : '0%' };
+    }
+    return out;
+  }
+
   /** For /api/status: per provider, per key position and model. No keys. */
   function snapshot(keysByProvider) {
     const out = {};
@@ -188,7 +215,7 @@ function createKeyPool({ now = () => Date.now() } = {}) {
           });
         }
       });
-      out[provider] = { keys: keys.length, detail: rows };
+      out[provider] = { keys: keys.length, detail: rows, tokens: tokensOf(provider) };
     }
     return out;
   }

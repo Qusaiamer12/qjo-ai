@@ -28,6 +28,7 @@
     ['stream protocol', () => window.QjoDomain && window.QjoDomain.createSseParser],
     ['streaming view', () => window.QjoUI && window.QjoUI.createStreamingView],
     ['streaming blocks', () => window.QjoDomain && window.QjoDomain.streamBlocks],
+    ['history window', () => window.QjoDomain && window.QjoDomain.historyWindow],
     ['code sandbox', () => window.QjoUI && window.QjoUI.sandbox],
     ['code previews', () => window.QjoDomain && window.QjoDomain.codeProject],
     ['code studio', () => window.QjoUI && window.QjoUI.createCodeStudio],

@@ -8,6 +8,14 @@
 // Not a test: a measurement, run before and after changing what the prompt
 // carries. Token counts use the o200k encoding when gpt-tokenizer is
 // installed, otherwise characters / 4.
+//
+// The messages are one conversation, answered at a realistic length
+// (QJO_REPLY_CHARS, default 2400), so each request also says how much of it
+// opens exactly as an earlier one did. Groq caches that repeated opening for
+// the gpt-oss models, and cached tokens do not count toward its rate limits:
+// "new" is what a request really spends. The rendering assumed is the
+// template's: the first system message and the tools, then every other
+// message in order.
 'use strict';
 
 const http = require('http');
@@ -20,6 +28,17 @@ try { ({ encode } = require(process.env.QJO_TOKENIZER || 'gpt-tokenizer/cjs/enco
 const tokens = (text) => (encode ? encode(String(text || '')).length : Math.ceil(String(text || '').length / 4));
 
 const captured = [];
+const REPLY_CHARS = Number(process.env.QJO_REPLY_CHARS) || 2400;
+const REPLY = {
+  ar: 'هذه إجابة تجريبية بطول واقعي تشرح الفكرة خطوة بخطوة مع أمثلة وتفاصيل. ',
+  en: 'This is a stand-in answer of realistic length, explaining the idea step by step with examples. '
+};
+const replyFor = (body) => {
+  const last = [...(body.messages || [])].reverse().find((m) => m.role === 'user');
+  const text = typeof last?.content === 'string' ? last.content : '';
+  const unit = /[\u0600-\u06FF]/.test(text) ? REPLY.ar : REPLY.en;
+  return unit.repeat(Math.ceil(REPLY_CHARS / unit.length)).slice(0, REPLY_CHARS);
+};
 const provider = http.createServer((req, res) => {
   let raw = '';
   req.on('data', (d) => { raw += d; });
@@ -27,7 +46,7 @@ const provider = http.createServer((req, res) => {
     const body = JSON.parse(raw || '{}');
     captured.push(body);
     res.writeHead(200, { 'content-type': 'text/event-stream' });
-    res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: 'OK — measured.' } }] })}\n\n`);
+    res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: replyFor(body) } }] })}\n\n`);
     res.write(`data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: 'stop' }] })}\n\n`);
     res.end('data: [DONE]\n\n');
   });
@@ -45,7 +64,15 @@ const MESSAGES = [
   ['dose calculation (en)', 'A child weighs 18 kg and the dose is 15 mg/kg every 6 hours. How many mL of a 120 mg/5 mL syrup per dose?']
 ];
 
-function describe(label, body) {
+// The request as the model's template lays it out.
+const render = (body) => (body.messages || []).map((m, i) => {
+  const text = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
+  return `<${m.role}>${text}${i === 0 && body.tools ? JSON.stringify(body.tools) : ''}`;
+}).join('');
+const sharedPrefix = (a, b) => { let i = 0; while (i < a.length && i < b.length && a[i] === b[i]) i++; return a.slice(0, i); };
+const totals = { input: 0, fresh: 0 };
+
+function describe(label, body, earlier) {
   const parts = {};
   const add = (k, v) => { parts[k] = (parts[k] || 0) + v; };
   (body.messages || []).forEach((m, i) => {
@@ -55,8 +82,14 @@ function describe(label, body) {
   });
   if (body.tools) add('tools', tokens(JSON.stringify(body.tools)));
   const input = Object.values(parts).reduce((a, b) => a + b, 0);
+  const seen = render(body);
+  const reused = earlier.reduce((best, e) => Math.max(best, tokens(sharedPrefix(seen, render(e)))), 0);
+  const fresh = Math.max(0, tokens(seen) - reused);
+  totals.input += tokens(seen);
+  totals.fresh += fresh;
   console.log(`\n${label}: ${input} tokens in, ${body.max_tokens} reserved for the answer → ${input + (body.max_tokens || 0)} against Groq's 8,000 a minute`);
   for (const [k, v] of Object.entries(parts)) console.log(`  ${String(v).padStart(6)}  ${k}`);
+  console.log(`  ${String(fresh).padStart(6)}  new — the rest opens as an earlier request did (cacheable)`);
 }
 
 (async () => {
@@ -87,8 +120,9 @@ function describe(label, body) {
     for (let i = 0; i < 60 && captured.length === before; i++) await page.waitForTimeout(250);
     await page.waitForTimeout(1500);
     if (captured.length === before) console.log(`\n${label}: nothing reached the provider`);
-    else describe(label, captured[before]);
+    else describe(label, captured[before], captured.slice(0, before));
   }
+  console.log(`\nWhole conversation: ${totals.input} tokens sent, ${totals.fresh} new (${Math.round(100 * totals.fresh / Math.max(1, totals.input))}%) — the rest could come from Groq's cache.`);
   await browser.close();
   server.kill('SIGKILL');
   provider.close();

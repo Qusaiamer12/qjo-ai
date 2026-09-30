@@ -190,40 +190,60 @@ function estimateTokens(text) {
  *        next to every part it belongs to.
  * @returns {string}
  */
-function buildChatSystemPrompt({ mode, needs = {}, runtimeLine = '', arabic = false } = {}) {
-  const parts = [CORE_PROMPT];
-  if (arabic) parts.push(ARABIC_CORE);
+function buildChatSystemPrompt(options = {}) {
+  const { system, turn } = buildChatPromptParts(options);
+  return turn ? `${system}\n${turn}` : system;
+}
+
+/**
+ * The same prompt in two parts: what does not depend on the message (the
+ * core, the language and the mode), and what was chosen for this message
+ * (overlays, playbooks, the time). The first opens every request the same
+ * way, so the provider can reuse it; the second travels with the message
+ * (promptLayout.js).
+ * @param {object} [options] As buildChatSystemPrompt.
+ * @param {string} [options.mode]
+ * @param {{code?: boolean, search?: boolean, files?: boolean, playbooks?: string[]}} [options.needs]
+ * @param {string} [options.runtimeLine]
+ * @param {boolean} [options.arabic]
+ * @returns {{ system: string, turn: string }}
+ */
+function buildChatPromptParts({ mode, needs = {}, runtimeLine = '', arabic = false } = {}) {
+  const system = [CORE_PROMPT];
+  const turn = [];
+  if (arabic) system.push(ARABIC_CORE);
   const normalized = normalizeMode(mode);
-  const withMode = (name) => {
+  const withMode = (name, parts) => {
     parts.push(MODE_OVERLAYS[name]);
     if (arabic) parts.push(ARABIC_MODE_NOTES[name]);
   };
-  withMode(MODE_OVERLAYS[normalized] ? normalized : 'flash');
+  withMode(MODE_OVERLAYS[normalized] ? normalized : 'flash', system);
   // The engineering overlay rides along on a code-shaped request in any mode.
   // Flash and Max shape the prose; this decides how code itself is written, so
   // it composes with either rather than replacing them. Skipped when the mode
   // overlay is already the code one, so nothing is stated twice.
-  if (needs.code && normalized !== 'code') withMode('code');
-  if (needs.search) parts.push(SEARCH_OVERLAY);
+  if (needs.code && normalized !== 'code') withMode('code', turn);
+  if (needs.search) turn.push(SEARCH_OVERLAY);
   if (needs.files) {
-    parts.push(FILES_OVERLAY);
-    if (arabic) parts.push(ARABIC_FILES_NOTE);
+    turn.push(FILES_OVERLAY);
+    if (arabic) turn.push(ARABIC_FILES_NOTE);
   }
   // Specialised playbooks (charts, cover letters, venting, …) only when the
   // message calls for them: see playbooks.js for why and how they are chosen.
   const playbooks = playbookText(needs.playbooks, { arabic });
-  if (playbooks) parts.push(playbooks);
-  if (runtimeLine) parts.push(`RUNTIME & TEMPORAL CONTEXT\n- Current exact date & time: ${runtimeLine}\n- Real-world calendar: The current year is 2026. Events before today's date are in the past.`);
-  return parts.join('\n');
+  if (playbooks) turn.push(playbooks);
+  if (runtimeLine) turn.push(`RUNTIME & TEMPORAL CONTEXT\n- Current exact date & time: ${runtimeLine}\n- Real-world calendar: The current year is 2026. Events before today's date are in the past.`);
+  return { system: system.join('\n'), turn: turn.join('\n') };
 }
 
 function createChatPromptBuilder() {
-  return { buildChatSystemPrompt, estimateTokens };
+  return { buildChatSystemPrompt, buildChatPromptParts, estimateTokens };
 }
 
 module.exports = {
   createChatPromptBuilder,
   buildChatSystemPrompt,
+  buildChatPromptParts,
   estimateTokens,
   CORE_PROMPT,
   MODE_OVERLAYS,

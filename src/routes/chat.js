@@ -1,7 +1,8 @@
 const crypto = require('crypto');
-const { addContextContinuitySystemHint } = require('../agents/contextContinuity');
-const { addRouterSystemHint, routeUserRequestDeterministic } = require('../agents/RoutingEngine');
-const { addCalculatorSystemHint } = require('../tools/calculatorTool');
+const { buildContextContinuityHint } = require('../agents/contextContinuity');
+const { buildRouterSystemHint, routeUserRequestDeterministic } = require('../agents/RoutingEngine');
+const { CALCULATOR_HINT } = require('../tools/calculatorTool');
+const { textOf, splitClientSystem, promptParts, layoutChatRequest } = require('../services/promptLayout');
 const { sanitizeMathNotation, createStreamSanitizer } = require('../services/textSanitizer');
 const { sseHeaders, sendCachedResponse, startHeartbeat } = require('./sse');
 const { arabicInPlay } = require('../../public/domain/language');
@@ -278,46 +279,29 @@ function registerChatRoutes(app, deps) {
       });
       const userMessages = trimForChat(cleanedMessages.filter(m => m.role !== 'system'));
       const needs = detectNeeds(userMessages);
-      const clientSystemMessages = cleanedMessages
-        .filter(m => m.role === 'system')
-        .slice(0, 2)
-        .map(m => {
-          if (typeof m.content === 'string') {
-            const c = stripClientBasePrompt(m.content);
-            return c ? { role: 'system', content: c } : null;
-          }
-          return m;
-        })
-        .filter(Boolean);
+      // The page's own system text: the person's settings open the request with
+      // the instructions; what it chose for this message goes with the message.
+      const client = splitClientSystem(cleanedMessages.filter(m => m.role === 'system').slice(0, 2)
+        .map(m => (typeof m.content === 'string' ? stripClientBasePrompt(m.content) : m.content)));
 
-      // Modular server-side system prompt (mode + need overlays, ~3k tokens
-      // instead of the full 12k monolith). Falls back to the legacy full
+      // The server-side prompt in two parts (systemPrompt.js, promptLayout.js):
+      // what opens every request alike, so the provider can reuse it, and what
+      // this message needs. The Arabic craft joins whenever Arabic is part of
+      // the conversation or the interface. Falls back to the legacy full
       // prompt if no builder was injected (evals/older wiring).
-      let systemPrompt;
-      if (typeof deps.buildChatSystemPrompt === 'function') {
-        // English is the primary language; the Arabic craft joins the prompt
-        // whenever Arabic is part of the conversation or the interface.
-        const arabic = arabicInPlay(cleanedMessages, { uiLanguage: req.body.language });
-        systemPrompt = deps.buildChatSystemPrompt({ mode, needs, runtimeLine, arabic });
-      } else if (deps.fullSystemPrompt) {
-        systemPrompt = String(deps.fullSystemPrompt)
-          .replace(/\{\{current_datetime\}\}/g, `${localTimeString} (الموقع الجغرافي: ${locationText}, المنطقة الزمنية: ${timeZone})`);
-      }
+      const arabic = arabicInPlay(cleanedMessages, { uiLanguage: req.body.language });
+      const prompt = promptParts(deps, { mode, needs, runtimeLine, arabic }, `${localTimeString} (الموقع الجغرافي: ${locationText}, المنطقة الزمنية: ${timeZone})`);
+      // The newest message's own words, a picture's caption included.
+      const lastUserText = textOf([...userMessages].reverse().find(m => m.role === 'user')?.content);
 
-      // Q-KB v1: attach curated Arabic task-craft & facts guidance when the last user
-      // message matches a knowledge entry. Best-effort and silent:
-      // any failure just leaves the prompt unchanged.
-      if (systemPrompt && typeof deps.knowledgeBaseService?.lookup === 'function') {
-        const lastUserText = [...userMessages].reverse().map(m => (typeof m.content === 'string' ? m.content : '')).find(Boolean) || '';
+      // Q-KB v1: curated Arabic task-craft & facts guidance when the last user
+      // message matches a knowledge entry. Best-effort and silent: any failure
+      // just leaves it out.
+      let knowledge = '';
+      if (prompt.system && typeof deps.knowledgeBaseService?.lookup === 'function') {
         const kbResult = await deps.knowledgeBaseService.lookup(lastUserText);
-        if (kbResult && kbResult.found && kbResult.block) {
-          systemPrompt = `${systemPrompt}\n\n${kbResult.block}`;
-        }
+        if (kbResult && kbResult.found && kbResult.block) knowledge = kbResult.block;
       }
-
-      const systemMessages = [];
-      if (systemPrompt) systemMessages.push({ role: 'system', content: systemPrompt });
-      systemMessages.push(...clientSystemMessages);
 
       try {
         routingDecision = routeUserRequestDeterministic(userMessages);
@@ -328,10 +312,13 @@ function registerChatRoutes(app, deps) {
         routingDecision = null;
       }
 
-      let builtMessages = [...systemMessages, ...userMessages];
-      builtMessages = addContextContinuitySystemHint(builtMessages);
-      if (needs.search === false) builtMessages = addCalculatorSystemHint(builtMessages);
-      if (routingDecision) builtMessages = addRouterSystemHint(builtMessages, routingDecision);
+      const { messages: builtMessages, turnContext } = layoutChatRequest({
+        system: prompt.system,
+        standing: client.standing,
+        turn: [prompt.turn, knowledge, client.turn, buildContextContinuityHint(lastUserText),
+          needs.search === false ? CALCULATOR_HINT : '', routingDecision ? buildRouterSystemHint(routingDecision) : ''],
+        conversation: userMessages
+      });
 
       // One instance for the whole response: the continuation pass below reuses
       // writeChunk, and the opening must only be judged once.
@@ -374,6 +361,7 @@ function registerChatRoutes(app, deps) {
         agentType: 'chat',
         model,
         messages: builtMessages,
+        turnContext,
         temperature,
         max_tokens: maxTokens,
         frequency_penalty: clampNumber(req.body.frequency_penalty, 0.25, 0, 2),
@@ -403,6 +391,7 @@ function registerChatRoutes(app, deps) {
         ai,
         model,
         messages: builtMessages,
+        turnContext,
         temperature,
         max_tokens: maxTokens,
         useTools,

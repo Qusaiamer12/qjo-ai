@@ -196,7 +196,9 @@ English is the primary language; Arabic is first-class.
 - What the page answers itself, and what it sends the model, follows the
   language of the person's message, not the interface.
 - The server prompt is English-first; the Arabic craft (`arabicPrompt.js`) is
-  added whenever Arabic is in play. `scripts/test-language.js` requires every
+  added whenever Arabic is in play. What does not depend on the message opens
+  the request; what does travels with the newest message, which also says
+  which language the person wrote in. `scripts/test-language.js` requires every
   Arabic phrase the prompt ever carried to still reach the model.
 - The older browser suites run in an Arabic browser, keeping the Arabic
   interface under test; `language.test.js` covers English as primary.
@@ -228,6 +230,7 @@ Each of these exists because it happened.
 | A request over a provider's per-minute size (Groq 413, "Limit 8000, Requested …") | Sent again, on every call including rounds after a search, with the answer room the provider named — if at least 1,024 tokens remain; otherwise straight to the next provider |
 | A provider slow to start on a long prompt | The wait for a first byte grows with the prompt (8 s + 2 s per 1K tokens, up to 30 s); a provider that stays silent is left after one wait — not each of its keys in turn, and not retried as a blip |
 | A message that needs a specialised playbook (charts, cover letter, venting…) | The playbook, and its Arabic side when Arabic is in play, is chosen from the last two messages; everything else stays out of the prompt |
+| A request that repeats most of the one before it | It opens exactly as that one did — the instructions, the person's settings, the tools, the conversation — and what was chosen for this message (playbooks, hints, the time) goes with the newest message, attached as it is sent (`promptLayout.js`); the page's window of earlier messages moves three turns at a time (`historyWindow.js`). Groq caches that shared opening and does not count it toward its limits; `/api/status` shows the share it counted as cached, per model |
 | One Groq model's minute or day spent | That key rests for that model only, for as long as Groq said; Groq's other model answers before any other provider |
 | Every key of a model resting for as long as the provider said | The call returns at once as rate-limited, without asking again |
 | Every other slot refused or timed out | Groq's long-context model (30K tokens a minute on the free tier) is the last resort for text |

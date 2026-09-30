@@ -45,7 +45,7 @@ const MODEL_MIGRATIONS = {
 };
 
 // Size refusals and how long to wait for a first byte: src/services/providerLimits.js.
-const { isContextLengthError, isRequestFault, tokenAllowance, headerWaitMs } = require('./providerLimits');
+const { isContextLengthError, isRequestFault, tokenAllowance, headerWaitMs, reasoningParams } = require('./providerLimits');
 const { createKeyPool } = require('./keyPool');
 
 function migratedModel(model) {
@@ -102,7 +102,7 @@ function createLlmService(config = {}) {
     };
   }
 
-  async function callOpenAICompatible({ provider, baseUrl, model, messages, temperature, max_tokens, frequency_penalty, presence_penalty, tools, extraHeaders = {}, onChunk, onReasoning, timeoutMs, signal, _migrated = false }) {
+  async function callOpenAICompatible({ provider, baseUrl, model, messages, temperature, max_tokens, frequency_penalty, presence_penalty, tools, extraHeaders = {}, onChunk, onReasoning, timeoutMs, signal, reasoning_effort, _migrated = false }) {
     const mig = migratedModel(model);
     if (mig) {
       model = mig;
@@ -144,7 +144,7 @@ function createLlmService(config = {}) {
         body.presence_penalty = typeof presence_penalty === 'number' ? presence_penalty : 0.15;
         body.frequency_penalty = typeof frequency_penalty === 'number' ? frequency_penalty : 0.25;
         if (tools) { body.tools = tools; body.tool_choice = 'auto'; }
-        if (onChunk) body.stream = true;
+        Object.assign(body, onChunk ? { stream: true } : {}, reasoningParams(provider, model, reasoning_effort));
 
         const response = await fetch(`${baseUrl.replace(/\/$/, '')}/chat/completions`, {
           method: 'POST',
@@ -160,7 +160,7 @@ function createLlmService(config = {}) {
         if (response.ok) {
           const outcome = await readAnswerBody({ response, attempt, provider, model, onChunk, onReasoning, signal, timeLeft });
           if (outcome.keyFailure) pool.failure(provider, key, model, outcome.keyFailure);
-          else pool.success(provider, key, model, response.headers);
+          else pool.success(provider, key, model, response.headers, outcome.result && outcome.result.usage);
           if (outcome.result) return outcome.result;
           lastError = outcome.error;
           console.warn(`[llmService] ${provider} key #${attemptIndex}/${keys.length}: ${outcome.error.error} Switching to next key instantly.`);
@@ -185,7 +185,7 @@ function createLlmService(config = {}) {
             return callOpenAICompatible({
               provider, baseUrl, model: mig, messages, temperature, max_tokens,
               frequency_penalty, presence_penalty, tools, extraHeaders,
-              onChunk, onReasoning, timeoutMs: Math.max(1000, timeLeft()), signal, _migrated: true
+              onChunk, onReasoning, timeoutMs: Math.max(1000, timeLeft()), signal, reasoning_effort, _migrated: true
             });
           }
         }

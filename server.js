@@ -698,7 +698,7 @@ registerChatRoutes(app, {
   containsImageContent: (messages) => (messages || []).some(m => Array.isArray(m.content) && m.content.some(p => p?.type === 'image_url')),
   routingEngine,
   fullSystemPrompt: QJO_FULL_TRAINING_PROMPT,
-  buildChatSystemPrompt: chatPromptBuilder.buildChatSystemPrompt,
+  ...chatPromptBuilder, // buildChatPromptParts: what opens every request alike, and what this message needs
   knowledgeBaseService,
   defaultMaxTokens: 2600,
   getClientIp,
