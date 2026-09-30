@@ -93,6 +93,9 @@ function describe(label, body, earlier) {
 }
 
 (async () => {
+  // A count that does not say what it counted is how an estimate gets quoted
+  // as a measurement.
+  console.log(encode ? 'Tokens counted with o200k, the gpt-oss tokenizer.' : 'Tokens ESTIMATED as characters / 4 — gpt-tokenizer is not installed (npm ci --prefix tests/browser); Arabic is under-counted by about a quarter.');
   await new Promise((r) => provider.listen(0, '127.0.0.1', r));
   const providerUrl = `http://127.0.0.1:${provider.address().port}/v1`;
   const port = 4100 + Math.floor(Math.random() * 500);

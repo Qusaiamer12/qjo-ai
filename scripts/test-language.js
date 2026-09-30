@@ -231,14 +231,21 @@ test('every Arabic playbook note reaches the model when an Arabic message calls 
   }
 });
 
-test('a greeting carries no specialised playbook', () => {
-  const needs = detectNeeds([user('كيفك')]);
-  assert.deepStrictEqual(needs.playbooks, ['banter'], 'only the Levantine idioms belong with casual talk');
-  const prompt = buildChatSystemPrompt({ mode: 'flash', needs, arabic: true });
-  for (const heading of ['SHORT VIDEO SCRIPTS', 'PRACTICAL COOKING', 'JOB APPLICATIONS', 'INTERACTIVE CHARTS', 'VENTING']) {
-    assert.ok(!prompt.includes(heading), `${heading} rode along with "كيفك"`);
+test('a greeting or a short question carries no playbook; the idioms come with the words they explain', () => {
+  // Every message of 80 characters or fewer used to bring the idioms: 409
+  // tokens on most of what people send, where no cache holds them.
+  for (const text of ['كيفك', 'hi', 'شكراً', 'مين هداف ريال مدريد الحالي؟', 'Explain recursion']) {
+    const chosen = detectNeeds([user(text)]).playbooks;
+    assert.ok(!chosen.includes('banter'), `"${text}" brought the idioms: [${chosen}]`);
   }
-  assert.ok(prompt.includes('فنان انت'), 'the idioms casual Arabic depends on were left out');
+  const plain = buildChatSystemPrompt({ mode: 'flash', needs: detectNeeds([user('كيفك')]), arabic: true });
+  for (const heading of ['SHORT VIDEO SCRIPTS', 'PRACTICAL COOKING', 'JOB APPLICATIONS', 'INTERACTIVE CHARTS', 'VENTING', 'فنان انت']) {
+    assert.ok(!plain.includes(heading), `${heading} rode along with "كيفك"`);
+  }
+  for (const text of ['فنان انت', 'كيف الهمة اليوم؟', 'مين أفضل فريق بالتاريخ؟', 'شو رأيك؟']) {
+    const prompt = buildChatSystemPrompt({ mode: 'flash', needs: detectNeeds([user(text)]), arabic: true });
+    assert.ok(prompt.includes('فنان انت'), `the idioms did not come with "${text}"`);
+  }
 });
 
 test('a location, a blood test or an investment is not a website to build', () => {

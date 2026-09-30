@@ -227,10 +227,11 @@ LITERARY CRAFTSMANSHIP, GRAMMAR & TEXT RESTRUCTURING
   }
 };
 
-// Arabic-only: the Levantine idioms and the opinion-question example. They
-// matter in casual talk, which is short, and when the words themselves appear.
+// Arabic-only: the Levantine idioms and the opinion-question example, sent
+// with the words they explain. Any message of 80 characters or fewer used to
+// bring them too ("hi", "شكراً"): 409 tokens on most of what people send, where
+// no cache holds them. A plain greeting's warmth is the core prompt's (TONE).
 const BANTER = /فنان|وحش|كفو|يسعد|بحبك|بنحبك|أحبك|احبك|الهمة|الأخبار|الاخبار|أفضل|افضل|أحسن|احسن|رأيك|رايك|بتتوقع|يفوز/;
-const SHORT_MESSAGE = 80;
 const SOCIAL = ['apology', 'subtext', 'excuses'];
 
 function textOf(content) {
@@ -251,8 +252,7 @@ function selectPlaybooks(recent, { code = false } = {}) {
     const { match } = PLAYBOOKS[key];
     return match ? match.test(text) : (key === 'code' && code);
   });
-  const latest = String(recent[recent.length - 1] || '');
-  if (latest.trim().length <= SHORT_MESSAGE || BANTER.test(text)) chosen.push('banter');
+  if (BANTER.test(text)) chosen.push('banter');
   return chosen;
 }
 
