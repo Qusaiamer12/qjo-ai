@@ -103,12 +103,14 @@ qjo-ai/
 │   │   ├── language.js          Which language a text is in; which one the page opens in
 │   │   ├── i18n.js              Every interface string, English and Arabic, same keys
 │   │   ├── codeProject.js       Which code blocks make one preview; the document it runs
+│   │   ├── fileRequest.js       Whether an answer has a table, and whether a file was asked for
 │   │   ├── markdown.js
 │   │   ├── requestFailure.js    Error in, message and retry decision out
 │   │   └── streamProtocol.js    SSE parsing, think-tag split, stall watchdog
 │   ├── ui/                      Rendering and DOM behaviour
 │   │   ├── sandbox.js           Runs generated JS/Python in an opaque-origin iframe's worker
-│   │   └── canvas.js            Code previews, inline and in the side studio
+│   │   ├── canvas.js            Code previews, inline and in the side studio
+│   │   └── answerExports.js     Export buttons (Excel with a table) and the file card
 │   └── net/                     API calls
 ├── scripts/                     Tests and checks, all runnable via npm
 └── docs/

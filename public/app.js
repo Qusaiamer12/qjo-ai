@@ -333,6 +333,8 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
 
     // Previews of an answer's code, and the side canvas: public/ui/canvas.js.
     const codeStudio = QjoUI.createCodeStudio({ t });
+    // Files from an answer — export buttons and the download card.
+    const answerExports = QjoUI.createAnswerExports({ downloadExport, t, toast: (m) => showMicroToast(m) });
 
     function sanitizeStoredMessageContent(content, role) {
       if (role !== 'user' || typeof content !== 'string') return content;
@@ -800,7 +802,8 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     const EXPORT_ENDPOINTS = {
       pdf: '/api/export/pdf',
       pptx: '/api/export/pptx',
-      docx: '/api/export/docx'
+      docx: '/api/export/docx',
+      xlsx: '/api/export/xlsx'
     };
 
     async function downloadExport(format, title, content) {
@@ -863,14 +866,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       note.textContent = parts.join('  •  ');
       messageWrap.appendChild(note);
     }
-
-    function shouldShowRichExports(content) {
-      const text = String(content || '');
-      if (text.length >= 420) return true;
-      if (/```|^#{1,4}\s|\n\s*[-*]\s|\n\|.+\|\n\|?\s*:?-{3,}/m.test(text)) return true;
-      return false;
-    }
-
 
     // ── Answer actions ───────────────────────────────────────────────────────
     // These back the toolbar under each assistant answer. They existed as
@@ -1824,33 +1819,8 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
           if (saved) b.classList.add('rated');
         }));
 
-        // ── Exports: only when the answer is substantial enough to warrant one ──
-        if (shouldShowRichExports(content)) {
-          const divider = document.createElement('span');
-          divider.className = 'msg-actions-divider';
-          divider.setAttribute('aria-hidden', 'true');
-          toolbar.appendChild(divider);
-
-          const exportTitle = () => {
-            const firstLine = String(content || '').split('\n').find(l => l.trim()) || 'Qjo';
-            return firstLine.replace(/^#{1,6}\s*/, '').replace(/[*_`>|]/g, '').trim().slice(0, 60) || 'Qjo';
-          };
-          const pdfSvg = `<svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><polyline points="9 15 12 18 15 15"></polyline></svg>`;
-          const slidesSvg = `<svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>`;
-          const docSvg = `<svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="14" y2="17"></line></svg>`;
-
-          const exportBtn = (fmt, svg, title) => iconBtn(title, svg, async (b) => {
-            b.disabled = true;
-            b.classList.add('exporting');
-            const ok = await downloadExport(fmt, exportTitle(), content);
-            b.disabled = false;
-            b.classList.remove('exporting');
-            if (!ok) showMicroToast(ar ? 'تعذّر إنشاء الملف' : 'Could not create the file');
-          });
-          toolbar.appendChild(exportBtn('pdf', pdfSvg, ar ? 'تصدير PDF' : 'Export PDF'));
-          toolbar.appendChild(exportBtn('pptx', slidesSvg, ar ? 'تصدير شرائح' : 'Export slides'));
-          toolbar.appendChild(exportBtn('docx', docSvg, ar ? 'تصدير Word' : 'Export Word'));
-        }
+        // ── Exports (Excel when the answer has a table): public/ui/answerExports.js ──
+        answerExports.appendExportButtons(toolbar, content, iconBtn);
 
         // ── Project ZIP: only when the answer carries file-path labelled code ──
         const projectFiles = extractProjectFiles(String(content || ''));
@@ -1881,6 +1851,8 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       const bubbleEl = messageWrap.querySelector('.bubble');
       if (!bubbleEl) return;
       buildAnswerToolbar(messageWrap, bubbleEl, finalContent);
+      // Asked for a file outright? It waits under the answer.
+      answerExports.appendDownloadCard(messageWrap, finalContent, sanitizeStoredMessageContent(latestUserTextForPrompt(), 'user'));
     }
 
     function addMessage(role, content, extraClass = '') {

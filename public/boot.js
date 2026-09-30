@@ -29,7 +29,9 @@
     ['streaming view', () => window.QjoUI && window.QjoUI.createStreamingView],
     ['code sandbox', () => window.QjoUI && window.QjoUI.sandbox],
     ['code previews', () => window.QjoDomain && window.QjoDomain.codeProject],
-    ['code studio', () => window.QjoUI && window.QjoUI.createCodeStudio]
+    ['code studio', () => window.QjoUI && window.QjoUI.createCodeStudio],
+    ['file requests', () => window.QjoDomain && window.QjoDomain.fileRequest],
+    ['answer exports', () => window.QjoUI && window.QjoUI.createAnswerExports]
   ];
 
   const RELOAD_FLAG = 'qjo_boot_reloaded';

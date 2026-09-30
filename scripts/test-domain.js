@@ -622,6 +622,29 @@ const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n
     assert.ok(/انقطع/.test(r.message), r.message);
   });
 
+  console.log('\nA file asked for, and only then:');
+  const { requestedFormat, hasTable, worthExporting } = require('../public/domain/fileRequest.js');
+  const asked = [
+    ['اعملي ملف اكسل فيه جدول المبيعات', 'xlsx'], ['حوّل الجدول لملف إكسل', 'xlsx'], ['بدي عرض تقديمي عن الطاقة الشمسية', 'pptx'],
+    ['صدرلي الشرح pdf', 'pdf'], ['اكتبلي تقرير وحطه بملف وورد', 'docx'], ['التقرير بصيغة pdf لو سمحت', 'pdf'],
+    ['make me a PowerPoint about solar energy', 'pptx'], ['export this as a PDF', 'pdf'], ['convert the table into an excel file', 'xlsx'],
+    ['Create a Word document with my CV', 'docx'], ['give me slides for my talk', 'pptx'], ['اعملي ملف وورد وبعدين pdf', 'docx'],
+    ['can you make me a PowerPoint about this?', 'pptx'], ['هل ممكن تعملي ملف وورد فيه الملخص؟', 'docx']
+  ];
+  for (const [text, format] of asked) test(`"${text}" asks for ${format}`, () => assert.strictEqual(requestedFormat(text), format));
+  const notAsked = [
+    'لخصلي هالملف pdf', 'what is a pdf file?', 'كيف احول وورد لـ pdf؟', 'how to give a good presentation', 'in a word, explain recursion',
+    'cheat sheet for git', 'شو يعني ملف اكسل', 'اشرحلي الطاقة الشمسية', 'ما هي الشرائح', 'اكتبلي مقال حول تاريخ صيغة pdf',
+    'محطة الطاقة في ملف pdf المرفق', 'summarize the chart in pdf', 'how do I export a table to Excel?', 'what does convert to pdf mean?'
+  ];
+  for (const text of notAsked) test(`"${text}" asks for no file`, () => assert.strictEqual(requestedFormat(text), null));
+  test('a table is what makes an Excel file; a pipe in a sentence is not one', () => {
+    assert.strictEqual(hasTable('a\n\n| x | y |\n| --- | --- |\n| 1 | 2 |'), true);
+    assert.strictEqual(hasTable('this | that'), false);
+    assert.strictEqual(worthExporting('ok.'), false);
+    assert.strictEqual(worthExporting('| x | y |\n| - | - |\n| 1 | 2 |'), true);
+  });
+
   console.log('\n========================================');
   console.log(`${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);

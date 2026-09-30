@@ -26,6 +26,8 @@ const WATCHED = [
   'public/ui/sandbox.js',
   'public/ui/canvas.js',
   'public/domain/codeProject.js',
+  'public/domain/fileRequest.js',
+  'public/ui/answerExports.js',
   'src/services/export/markdownModel.js',
   'src/services/export/docx.js',
   'src/services/export/xlsx.js',
