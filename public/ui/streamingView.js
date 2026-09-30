@@ -221,12 +221,35 @@
       bubble.appendChild(contentContainer);
     }
 
+    // What is finished is drawn once; only the tail is drawn again on each
+    // tick (public/domain/streamBlocks.js). The whole answer used to be
+    // rebuilt a dozen times a second, so a selection vanished under the
+    // reader and a code block showed as backticks until it closed.
+    let stableEl = null;
+    let tailEl = null;
+    let stableLength = 0;
     function renderStreamedContent() {
       if (!contentContainer) return;
       if (answer.length === lastRenderedLength) return;
       lastRenderedLength = answer.length;
       lastRenderAt = performance.now();
-      contentContainer.innerHTML = renderMarkdown(answer) + '<span class="qjo-typing-cursor"></span>';
+      const blocks = global.QjoDomain.streamBlocks;
+      // Built afresh after a final pass or a cleared failure: whatever the
+      // container holds is redrawn from the start.
+      if (!stableEl || stableEl.parentNode !== contentContainer) {
+        contentContainer.innerHTML = '';
+        stableLength = 0;
+        stableEl = document.createElement('div');
+        tailEl = document.createElement('div');
+        stableEl.style.display = tailEl.style.display = 'contents';
+        contentContainer.append(stableEl, tailEl);
+      }
+      const { stable, tail } = blocks.splitStable(answer);
+      if (stable.length > stableLength) {
+        stableEl.insertAdjacentHTML('beforeend', renderMarkdown(answer.slice(stableLength, stable.length)));
+        stableLength = stable.length;
+      }
+      tailEl.innerHTML = renderMarkdown(blocks.closeOpenFence(tail)) + '<span class="qjo-typing-cursor"></span>';
       requestSmoothScroll();
     }
 
@@ -256,6 +279,7 @@
 
     /** The finished answer: full markdown pass, typing cursor removed. */
     function renderFinalAnswer() {
+      stableEl = tailEl = null;
       if (contentContainer) contentContainer.innerHTML = renderMarkdown(answer);
       const cursor = bubble ? bubble.querySelector('.qjo-typing-cursor') : null;
       if (cursor) cursor.remove();

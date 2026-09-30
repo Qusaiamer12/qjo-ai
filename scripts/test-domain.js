@@ -646,7 +646,8 @@ const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n
   });
 
   console.log('\nMath in the renderer (markdown.js):');
-  const inline = (t) => markdown.lightMarkdown(t).replace(/<\/?p>/g, '');
+  // Direction has its own test; these are about the markup inside a block.
+  const inline = (t) => markdown.lightMarkdown(t).replace(/ dir="(?:ltr|rtl)"/g, '').replace(/<\/?p>/g, '');
 
   test('"$…$" becomes "\\(…\\)" for MathJax, in English and in Arabic', () => {
     assert.strictEqual(inline('so $x^2 + 1$ here'), 'so \\(x^2 + 1\\) here');
@@ -674,7 +675,27 @@ const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n
   });
 
   console.log('\nQuotes, callouts and emphasis (markdown.js):');
-  const html = (t) => markdown.lightMarkdown(t).replace(/\n/g, '');
+  const html = (t) => markdown.lightMarkdown(t).replace(/ dir="(?:ltr|rtl)"/g, '').replace(/\n/g, '');
+
+  test('a numbered list is numbered from its first item, as written', () => {
+    assert.strictEqual(html('1. a\n2. b'), '<ol><li>a</li><li>b</li></ol>');
+    // Apart by a blank line or an explanation, each part keeps its number.
+    assert.strictEqual(html('1. a\n\n2. b'), '<ol><li>a</li></ol><ol start="2"><li>b</li></ol>');
+    assert.ok(/<ol start="3"><li>c<\/li><\/ol>$/.test(html('1. a\nWhy it matters.\n\n3. c')));
+  });
+
+  test('each block reads in its own direction, by the share of its letters, not its first one', () => {
+    // The direction on the first tag the block opens with.
+    const dir = (t) => ((markdown.lightMarkdown(t).match(/^<[^>]*>/) || [''])[0].match(/ dir="(\w+)"/) || [])[1] || 'page';
+    assert.strictEqual(dir('JavaScript هي لغة برمجة تعمل في المتصفح.'), 'rtl', 'an Arabic sentence opening with an English word');
+    assert.strictEqual(dir('The word مرحبا means hello.'), 'ltr');
+    assert.strictEqual(dir('استخدم `useState` و `useEffect` مع https://react.dev/reference/react'), 'rtl', 'code and addresses are not words');
+    assert.strictEqual(dir('- **API**: واجهة برمجة التطبيقات\n- **SDK**: حزمة تطوير'), 'rtl', 'a list');
+    assert.strictEqual(dir('## Introduction'), 'ltr', 'a heading');
+    assert.strictEqual(dir('| الاسم | العمر |\n|---|---|\n| علي | 20 |'), 'rtl', 'a table, on the box that scrolls');
+    assert.strictEqual(dir('> [!TIP]\n> الفكرة الأساسية هنا'), 'rtl', 'a callout');
+    assert.strictEqual(dir('x = 5'), 'page', 'too few letters to tell');
+  });
 
   test('a quote is a quote, its lines rendered as blocks', () => {
     assert.strictEqual(html('> one\n> two'), '<blockquote><p>one two</p></blockquote>');
@@ -704,6 +725,29 @@ const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n
     assert.strictEqual(inline('و*نص مائل* عربي'), 'و<em>نص مائل</em> عربي');
     assert.ok(/href="https:\/\/e\.com\/_a_\/b"/.test(inline('[x](https://e.com/_a_/b)')));
     assert.strictEqual(inline('**bold *inner* bold** and ***both***'), '<strong>bold <em>inner</em> bold</strong> and <strong><em>both</em></strong>');
+  });
+
+  console.log('\nWhere a streaming answer is finished (streamBlocks.js):');
+  const { splitStable, closeOpenFence } = require('../public/domain/streamBlocks.js');
+
+  test('finished up to the last blank line; the rest is the tail; nothing lost', () => {
+    for (const text of ['one\n\ntwo', 'no break yet', 'a\n\nb\n\nc', 'ends\n\n', '']) {
+      const { stable, tail } = splitStable(text);
+      assert.strictEqual(stable + tail, text);
+    }
+    assert.deepStrictEqual(splitStable('one\n\ntwo'), { stable: 'one\n\n', tail: 'two' });
+  });
+
+  test('never inside a code block, even at a blank line in the code', () => {
+    const text = 'intro\n\n```js\nconst a = 1;\n\nconst b = 2;';
+    assert.deepStrictEqual(splitStable(text), { stable: 'intro\n\n', tail: '```js\nconst a = 1;\n\nconst b = 2;' });
+    assert.strictEqual(splitStable(text + '\n```\n\nafter').tail, 'after');
+  });
+
+  test('a code block still being typed is closed for drawing; a closed one is left alone', () => {
+    assert.strictEqual(closeOpenFence('```py\nprint(1)'), '```py\nprint(1)\n```');
+    assert.strictEqual(closeOpenFence('```py\nx\n```'), '```py\nx\n```');
+    assert.strictEqual(closeOpenFence('plain text'), 'plain text');
   });
 
   console.log('\nHow an attached image is sent (imagePlan.js):');

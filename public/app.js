@@ -309,7 +309,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     let requestTimer = null;
     let requestStartedAt = 0;
 
-
     // Markdown rendering lives in public/domain/markdown.js now — 363 lines of
     // escaping, inline formatting, tables and code blocks, with lightMarkdown
     // alone at 290 lines and complexity 53. Bound to the same local names so
@@ -1786,6 +1785,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
 
         // ── Exports (Excel when the answer has a table): public/ui/answerExports.js ──
         answerExports.appendExportButtons(toolbar, content, iconBtn);
+        codeStudio.appendPreviewButton(toolbar, bubbleEl, iconBtn);
 
         // ── Project ZIP: only when the answer carries file-path labelled code ──
         const projectFiles = extractProjectFiles(String(content || ''));

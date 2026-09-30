@@ -69,6 +69,53 @@ function fitToAllowance(params, allowance) {
   return { ...params, max_tokens: room };
 }
 
+const IMAGE_TOKENS = 1000;
+
+// Characters per token, measured with the o200k tokenizer the gpt-oss models
+// use: English prose 4.3–4.7, Arabic prose 3.1. A flat four would under-count
+// every Arabic request by a quarter.
+const CHARS_PER_TOKEN = 4.3;
+const ARABIC_CHARS_PER_TOKEN = 3;
+
+function textTokens(text) {
+  const value = String(text || '');
+  const arabic = (value.match(/[\u0600-\u06FF]/g) || []).length;
+  return arabic / ARABIC_CHARS_PER_TOKEN + (value.length - arabic) / CHARS_PER_TOKEN;
+}
+
+/**
+ * What a request will count against a per-minute allowance: its text, images
+ * at a flat cost, and the answer room it reserves.
+ * @param {{messages?: any[], tools?: any[], max_tokens?: number}} [request]
+ */
+function tokensNeeded({ messages, tools, max_tokens: maxTokens } = {}) {
+  let tokens = textTokens(JSON.stringify(tools || []));
+  for (const m of messages || []) {
+    if (typeof m?.content === 'string') tokens += textTokens(m.content);
+    else for (const part of Array.isArray(m?.content) ? m.content : []) tokens += part?.type === 'image_url' ? IMAGE_TOKENS : textTokens(part?.text);
+  }
+  return Math.ceil(tokens) + (Number(maxTokens) || 0);
+}
+
+/**
+ * The request with its answer room cut, before it is sent, to what a model's
+ * per-minute allowance can hold — once the provider has said what that
+ * allowance is. Sent as it is when it fits, and when too little room would
+ * be left: then the refusal names the limit and the next provider answers.
+ * @template {{max_tokens?: number, messages?: any[], tools?: any[]}} P
+ * @param {P} params
+ * @param {number | null | undefined} limit
+ * @returns {P}
+ */
+function prefitToAllowance(params, limit) {
+  if (!(Number(limit) > 0)) return params;
+  const asked = Number(params.max_tokens) || 0;
+  const need = tokensNeeded(params);
+  if (need + ALLOWANCE_MARGIN <= limit) return params;
+  const room = limit - (need - asked) - ALLOWANCE_MARGIN;
+  return room >= MIN_ANSWER_TOKENS && room < asked ? { ...params, max_tokens: room } : params;
+}
+
 // Halves the biggest message so an over-long prompt can be retried instead
 // of ending the request. The middle goes, not the tail: the question opens
 // the message and the retrieved evidence closes it, so both ends carry more
@@ -124,6 +171,8 @@ module.exports = {
   isRequestFault,
   tokenAllowance,
   fitToAllowance,
+  prefitToAllowance,
+  tokensNeeded,
   shrinkMessages,
   headerWaitMs,
   MIN_ANSWER_TOKENS,

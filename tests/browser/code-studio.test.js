@@ -191,7 +191,24 @@ const COMPONENT = "import { useState } from 'react';\nimport { Plus } from 'luci
     await ctx.close();
   }
 
-  for (const scenario of [stitchedPage, reactComponent, missingLibrary, unexportedComponent, studioOnWideScreen, studioOnPhone, hostileFileName]) {
+  // ── From the answer's toolbar, beside copy and the files ──
+  async function toolbarPreview() {
+    const { ctx, page } = await answerWith(STITCHED);
+    await page.waitForSelector('.msg.assistant:last-of-type .msg-actions-toolbar', { timeout: 5000 }).catch(() => {});
+    const button = await page.$('.msg.assistant:last-of-type .msg-actions-toolbar [data-preview="studio"]');
+    ok(Boolean(button), 'an answer with a page to run has a preview button in its toolbar');
+    if (button) await button.click();
+    const shown = await page.waitForSelector('.qjo-canvas:not([hidden])', { timeout: 3000 }).then(() => true, () => false);
+    const files = shown ? await page.$$eval('.qjo-canvas-files button', (els) => els.length) : 0;
+    ok(shown && files >= 2, `it opens the studio with the answer's files together (${files})`);
+    await ctx.close();
+    const plain = await answerWith(fence('python', 'print(1)'));
+    await plain.page.waitForSelector('.msg.assistant:last-of-type .msg-actions-toolbar', { timeout: 5000 }).catch(() => {});
+    ok(!(await plain.page.$('.msg.assistant:last-of-type [data-preview="studio"]')), 'control: an answer with nothing to preview has none');
+    await plain.ctx.close();
+  }
+
+  for (const scenario of [stitchedPage, reactComponent, missingLibrary, unexportedComponent, studioOnWideScreen, studioOnPhone, hostileFileName, toolbarPreview]) {
     await scenario();
   }
 

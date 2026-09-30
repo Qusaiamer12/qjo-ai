@@ -46,12 +46,16 @@ const inputTokens = (body) => Math.ceil((JSON.stringify(body.messages || []).len
 let calls = [];
 let llm7 = { headerDelayMs: 0, dead: false };
 let groqSearchesFirst = false;
+let groqReportsLimit = false;
+// Tokens Groq counts beyond what this fake's own count says: its tokenizer,
+// not our estimate, has the last word.
+let groqCountsMore = 0;
 let groqDown = false;
 let groqDailySpent = [];
 const open = new Set();
 
-function streamText(res, text) {
-  res.writeHead(200, { 'content-type': 'text/event-stream' });
+function streamText(res, text, headers = {}) {
+  res.writeHead(200, { 'content-type': 'text/event-stream', ...headers });
   for (const word of text.split(/(?<= )/)) res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: word } }] })}\n\n`);
   res.write(`data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: 'stop' }] })}\n\n`);
   res.end('data: [DONE]\n\n');
@@ -78,7 +82,7 @@ const server = http.createServer((req, res) => {
         return res.end(JSON.stringify({ error: { message: 'Service Unavailable' } }));
       }
       const limit = GROQ_TPM[body.model] || 8000;
-      const requested = call.input + (Number(body.max_tokens) || 0);
+      const requested = call.input + groqCountsMore + (Number(body.max_tokens) || 0);
       if (requested > limit) {
         res.writeHead(413, { 'content-type': 'application/json' });
         res.end(JSON.stringify({ error: {
@@ -93,7 +97,7 @@ const server = http.createServer((req, res) => {
         res.write(`data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: 'tool_calls' }] })}\n\n`);
         return res.end('data: [DONE]\n\n');
       }
-      return streamText(res, `groq answered (${body.model}). `);
+      return streamText(res, `groq answered (${body.model}). `, groqReportsLimit ? { 'x-ratelimit-limit-tokens': String(limit), 'x-ratelimit-remaining-tokens': String(limit) } : {});
     }
 
     if (llm7.dead) return; // accepts the connection, never answers
@@ -261,6 +265,40 @@ async function main() {
     ok(groqCalls().filter((c) => c.model === 'openai/gpt-oss-20b').length === spentCalls, 'the spent model is not asked again while it rests', groqCalls().map((c) => c.model));
     ok(second.ok, 'and the next message is answered too', second.error);
     ok(question.ok && /gpt-oss-120b/.test(question.answer || '') && llm7Calls().length === 0, 'an ordinary question, too, goes to Groq\'s other model before llm7', question.error || question.answer);
+  });
+
+  await scenario('Once Groq has named its allowance, a long request is fitted before it is sent', 30000, async (ok) => {
+    llm7 = { headerDelayMs: 0, dead: true };
+    groqReportsLimit = true;
+    const fresh = buildEngine(baseUrl);
+    await ask(fresh, { userChars: 40, maxTokens: 1200 }); // any answer carries the allowance
+    calls = [];
+    const { res } = await ask(fresh, { userChars: FITS_WHEN_RESIZED, maxTokens: 4000 });
+    groqReportsLimit = false;
+    const [first] = groqCalls();
+    ok(groqCalls().length === 1, `one Groq call, not a refusal and a resend (${groqCalls().length})`, groqCalls());
+    ok(first && first.input + first.maxTokens <= 8000 && first.maxTokens >= 1024, `already within the allowance (${first && first.input + first.maxTokens} of 8000, ${first && first.maxTokens} of answer room)`, first);
+    ok(res.ok && /groq answered/.test(res.answer || ''), 'and Groq answers', res.error || res.answer);
+  });
+
+  // The estimate is only an estimate. When Groq counts more, the fitted
+  // request is refused — and the fit made from that refusal has to start from
+  // what was sent: made from the request as first asked, it gave back the
+  // room the first fit took away, and was refused again.
+  await scenario('Groq counts more than the estimate: the fit made from its refusal fits what was sent', 30000, async (ok) => {
+    llm7 = { headerDelayMs: 0, dead: true };
+    groqReportsLimit = true;
+    const fresh = buildEngine(baseUrl);
+    await ask(fresh, { userChars: 40, maxTokens: 1200 });
+    calls = [];
+    groqCountsMore = 1500;
+    const { res } = await ask(fresh, { userChars: FITS_WHEN_RESIZED, maxTokens: 4000 });
+    groqCountsMore = 0;
+    groqReportsLimit = false;
+    const [first, second] = groqCalls();
+    ok(groqCalls().length === 2 && first.maxTokens < 4000, `fitted before sending, refused, fitted again: two Groq calls (${groqCalls().length})`, groqCalls());
+    ok(second && second.input + 1500 + second.maxTokens <= 8000, `the second within what Groq counts (${second && second.input + 1500 + second.maxTokens} of 8000)`, second);
+    ok(res.ok && /groq answered/.test(res.answer || ''), 'and Groq answers', res.error || res.answer);
   });
 
   await scenario('A short request is untouched', 20000, async (ok) => {

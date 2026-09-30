@@ -324,6 +324,48 @@ const MESSAGES = [{ role: 'user', content: 'مرحبا' }];
     assert.ok(secs <= 170, 'the server can now outlive the client timeout: ' + secs + 's');
   });
 
+  console.log('\nA key short of tokens for a request is not asked:');
+  const { createKeyPool, tokensNeeded, budgetFrom } = require('../src/services/keyPool');
+
+  await test('a request counts its text, its answer room, and each image at a flat cost — not its base64', () => {
+    const need = tokensNeeded({ messages: [{ role: 'user', content: [{ type: 'text', text: 'x'.repeat(4000) }, { type: 'image_url', image_url: { url: 'data:image/png;base64,' + 'A'.repeat(3000000) } }] }], max_tokens: 2000 });
+    assert.strictEqual(need, Math.ceil(4000 / 4.3 + 2 / 4.3) + 1000 + 2000); // text, "[]" for no tools; image; answer room
+    // Arabic packs more tokens into a character (3 against 4.3, measured with o200k).
+    assert.ok(tokensNeeded({ messages: [{ role: 'user', content: 'م'.repeat(3000) }] }) > tokensNeeded({ messages: [{ role: 'user', content: 'm'.repeat(3000) }] }) * 1.3);
+  });
+
+  await test('the budget is read from the headers Groq sends', () => {
+    const h = (o) => ({ get: (n) => (n in o ? o[n] : null) });
+    assert.deepStrictEqual(budgetFrom(h({ 'x-ratelimit-limit-tokens': '8000', 'x-ratelimit-remaining-tokens': '1500', 'x-ratelimit-reset-tokens': '1m2.5s' })), { limit: 8000, remaining: 1500, resetMs: 62500 });
+    assert.strictEqual(budgetFrom(h({})), null);
+  });
+
+  await test('through the service: once a key reports too little left, a larger request does not go out, and a small one still does', async () => {
+    let t = 1_000_000;
+    const pool = createKeyPool({ now: () => t });
+    const service = createLlmService({ groqKeys: ['only'], groqBaseUrl: 'https://example.invalid/v1', keyPool: pool });
+    const calls = stubFetch(() => ({
+      ...jsonResponse(200, { choices: [{ message: { role: 'assistant', content: 'ok' }, finish_reason: 'stop' }] }),
+      headers: { get: (n) => ({ 'x-ratelimit-limit-tokens': '8000', 'x-ratelimit-remaining-tokens': '1500' })[n] || null }
+    }));
+    const big = { model: 'm', messages: [{ role: 'user', content: 'x'.repeat(8000) }], max_tokens: 2000, timeoutMs: 3000 };
+    const small = { model: 'm', messages: [{ role: 'user', content: 'hi' }], max_tokens: 500, timeoutMs: 3000 };
+    assert.ok((await service.dispatch('groq', small)).ok);
+    const refused = await service.dispatch('groq', big);
+    assert.strictEqual(calls.length, 1, `the request that could not fit went out anyway (${calls.length} calls)`);
+    assert.ok(!refused.ok && refused.status === 429 && /next free in \d+s/.test(refused.error), refused.error);
+    assert.ok((await service.dispatch('groq', small)).ok && calls.length === 2, 'a request that fits was held back');
+    t += 25000;
+    assert.ok((await service.dispatch('groq', big)).ok && calls.length === 3, 'once enough has come back, the larger request goes');
+  });
+
+  await test('a request larger than the whole allowance still goes, to be made smaller when refused', () => {
+    const pool = createKeyPool({ now: () => 0 });
+    pool.success('groq', 'k', 'm', { get: (n) => ({ 'x-ratelimit-limit-tokens': '8000', 'x-ratelimit-remaining-tokens': '100' })[n] || null });
+    const order = pool.order('groq', ['k'], 'm', { messages: [{ role: 'user', content: 'x'.repeat(40000) }], max_tokens: 2000 });
+    assert.deepStrictEqual(order.keys, ['k']);
+  });
+
   console.log('\n========================================');
   console.log(`${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);

@@ -499,7 +499,8 @@ body.dark .brand-mark img {
 .bubble blockquote {
   border-inline-start: 2px solid var(--ds-accent) !important;
   background: var(--ds-accent-soft) !important;
-  border-radius: 0 var(--ds-r-sm) var(--ds-r-sm) 0 !important;
+  border-start-start-radius: 0 !important; border-end-start-radius: 0 !important;
+  border-start-end-radius: var(--ds-r-sm) !important; border-end-end-radius: var(--ds-r-sm) !important;
   color: var(--ds-ink-2) !important;
 }
 
@@ -525,6 +526,11 @@ body:not(#_) .bubble .qjo-callout-title { color: var(--callout) !important; -web
 body.dark:not(#_) .bubble .qjo-callout-title { color: color-mix(in srgb, var(--callout) 70%, white) !important; }
 .bubble .qjo-callout-body > :first-child { margin-top: 0; }
 .bubble .qjo-callout-body > :last-child { margin-bottom: 0; }
+
+/* A message in its own direction, line by line: Arabic typed on an English
+   page, or English on an Arabic one, was laid out in the page's. Answers get
+   theirs per block from markdown.js. */
+.msg.user .bubble { unicode-bidi: plaintext; text-align: start; }
 
 /* -------------------------------------------------------------- 8. Composer */
 

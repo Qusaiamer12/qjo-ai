@@ -24,6 +24,33 @@ const DEFAULT_REST_MS = 15000;
 const isAuthFailure = (status, msg) => status === 401 || status === 403 || /invalid api key|unauthorized|forbidden|deactivated|revoked/i.test(msg);
 const isLimit = (status, msg) => status === 429 || /rate limit|quota|tokens per (minute|day)|requests per (minute|day)|\btpm\b|\brpm\b|\btpd\b|\brpd\b/i.test(msg);
 
+// ── Per-minute token budgets ────────────────────────────────────────────────
+// Groq says, on every answer, how many of a key's tokens for a model are left
+// this minute. Nothing read it: a request larger than what was left went out
+// anyway and came back 429 — measured in a simulated session, 8 of 22 calls,
+// one message spending 9.6 s refused by both keys before another provider
+// answered. A key known to be short for this request now rests until it
+// would have enough, and the chain moves on without the round trip.
+
+const WINDOW_MS = 60000;
+const { tokensNeeded } = require('./providerLimits');
+
+/** "7.66s", "1m2.5s", "120ms" → milliseconds. */
+function durationMs(text) {
+  const m = String(text || '').match(/^(?:(\d+)m)?(?:([\d.]+)s)?(?:([\d.]+)ms)?$/);
+  if (!m || !String(text).trim()) return null;
+  return (Number(m[1] || 0) * 60 + Number(m[2] || 0)) * 1000 + Number(m[3] || 0);
+}
+
+/** The token budget a response reports, or null when it reports none. */
+function budgetFrom(headers) {
+  const get = (name) => (headers && typeof headers.get === 'function' ? headers.get(name) : null);
+  const limit = Number(get('x-ratelimit-limit-tokens'));
+  const remaining = Number(get('x-ratelimit-remaining-tokens'));
+  if (!(limit > 0) || !Number.isFinite(remaining)) return null;
+  return { limit, remaining: Math.max(0, remaining), resetMs: durationMs(get('x-ratelimit-reset-tokens')) };
+}
+
 /**
  * @param {{now?: () => number}} [options]
  */
@@ -38,11 +65,24 @@ function createKeyPool({ now = () => Date.now() } = {}) {
   const keyId = (provider, key) => `${provider}\u0000${key}`;
   const modelId = (provider, key, model) => `${provider}\u0000${key}\u0000${model}`;
 
-  function restOf(provider, key, model) {
+  // When the key will have `need` tokens for this model, from what it last
+  // reported: what was left, refilled in step with its window. 0 when now,
+  // or when nothing is known, or when the request is larger than the whole
+  // allowance (that is refused as too large, and made smaller, elsewhere).
+  function shortUntil(m, need) {
+    const b = m.budget;
+    if (!b || !need || need > b.limit) return 0;
+    const refill = b.resetMs && b.remaining < b.limit ? b.resetMs / (b.limit - b.remaining) : WINDOW_MS / b.limit;
+    const ready = b.at + Math.max(0, need - b.remaining) * refill;
+    return ready > now() ? ready : 0;
+  }
+
+  function restOf(provider, key, model, need) {
     const k = record(keyId(provider, key));
     const m = record(modelId(provider, key, model));
-    const until = Math.max(k.restUntil, m.restUntil);
-    const firm = (k.restUntil > now() && k.firm) || (m.restUntil > now() && m.firm);
+    const short = shortUntil(m, need);
+    const until = Math.max(k.restUntil, m.restUntil, short);
+    const firm = (k.restUntil > now() && k.firm) || (m.restUntil > now() && m.firm) || short > now();
     const rejected = k.restUntil > now() && k.auth;
     return { until, firm, rejected };
   }
@@ -51,17 +91,22 @@ function createKeyPool({ now = () => Date.now() } = {}) {
    * Keys in the order to try them: healthy ones round-robin, then ones on a
    * soft rest (soonest first) as fallbacks. Keys on a firm rest — named by
    * the provider, or rejected — are left out.
+   * @param {string} provider
+   * @param {string[]} keys
+   * @param {string} model
+   * @param {object} [request] the request about to be sent, to leave out keys short of tokens for it
    * @returns {{keys: string[], firmlyResting: number, nextInMs: number, allRejected: boolean}}
    */
-  function order(provider, keys, model) {
+  function order(provider, keys, model, request) {
     const t = now();
+    const need = request ? tokensNeeded(request) : 0;
     const healthy = [];
     const soft = [];
     let firmlyResting = 0;
     let rejected = 0;
     let nextInMs = Infinity;
     for (const key of keys) {
-      const rest = restOf(provider, key, model);
+      const rest = restOf(provider, key, model, need);
       if (rest.until <= t) healthy.push(key);
       else if (rest.firm) { firmlyResting++; rejected += rest.rejected ? 1 : 0; nextInMs = Math.min(nextInMs, rest.until - t); }
       else soft.push({ key, until: rest.until });
@@ -73,7 +118,15 @@ function createKeyPool({ now = () => Date.now() } = {}) {
     return { keys: [...rotated, ...soft.map((s) => s.key)], firmlyResting, nextInMs, allRejected: firmlyResting > 0 && rejected === firmlyResting };
   }
 
-  function success(provider, key, model) {
+  /**
+   * @param {string} provider
+   * @param {string} key
+   * @param {string} model
+   * @param {{get?: (name: string) => string | null}} [headers] the response's, for its token budget
+   */
+  function success(provider, key, model, headers) {
+    const budget = budgetFrom(headers);
+    if (budget) record(modelId(provider, key, model)).budget = { ...budget, at: now() };
     for (const id of [keyId(provider, key), modelId(provider, key, model)]) {
       const r = record(id);
       r.failures = 0;
@@ -140,7 +193,17 @@ function createKeyPool({ now = () => Date.now() } = {}) {
     return out;
   }
 
-  return { order, success, failure, snapshot };
+  /** The per-minute token allowance a key last reported for this model, if any has. */
+  function limitOf(provider, model) {
+    let limit = 0;
+    for (const [id, r] of records) {
+      const [p, , m] = id.split('\u0000');
+      if (p === provider && m === model && r.budget) limit = Math.max(limit, r.budget.limit);
+    }
+    return limit || null;
+  }
+
+  return { order, success, failure, snapshot, limitOf };
 }
 
-module.exports = { createKeyPool };
+module.exports = { createKeyPool, tokensNeeded, budgetFrom };

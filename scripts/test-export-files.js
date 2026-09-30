@@ -109,6 +109,13 @@ function call(handler, body) {
     const list = model.parseMarkdown('- a\n  - b\n    continued\n- c\n1. one').blocks[0];
     assert.deepStrictEqual(list.items.map((i) => `${i.level}${i.ordered ? '#' : '-'}${model.runsText(i.runs)}`), ['0-a', '1-b\ncontinued', '0-c', '0#one']);
   });
+  await test('items apart by blank lines are one list; a paragraph or another kind ends it', () => {
+    const shape = (t) => model.parseMarkdown(t).blocks.map((b) => (b.items ? b.items.map((i) => `${i.level}${i.ordered ? '#' : '-'}`).join('') : b.type)).join(' ');
+    assert.strictEqual(shape('1. a\n\n2. b\n\n3. c'), '0#0#0#');
+    assert.strictEqual(shape('1. a\n\n   - sub\n\n2. b'), '0#1-0#');
+    assert.strictEqual(shape('1. a\n\n- b'), '0# 0-');
+    assert.strictEqual(shape('1. a\n\nWhy:\n\n1. b'), '0# paragraph 0#');
+  });
   await test('inline marks: bold, italic, code, link, strike — and snake_case is not italic', () => {
     const runs = model.parseInline('**b** *i* `c` [l](https://x.io) ~~s~~ snake_case_name');
     const marks = runs.filter((r) => r.text.trim()).map((r) => Object.keys(r).filter((k) => k !== 'text').join('+') || 'plain');
@@ -183,6 +190,11 @@ function call(handler, body) {
     assert.ok(new Set(numIds.slice(3)).size === 2, `the two numbered lists are separate numberings: ${numIds}`);
     const numbering = await docxXml(await buildDocx({ title: 't', content: ARABIC }), 'word/numbering.xml');
     assert.ok(/w:numFmt w:val="bullet"/.test(numbering) && /w:numFmt w:val="decimal"/.test(numbering));
+  });
+  await test('a numbered list with blank lines between its items is numbered 1, 2, 3 in Word — one numbering', async () => {
+    const doc = await docxXml(await buildDocx({ title: 't', content: 'Steps:\n\n1. First\n\n2. Second\n\n3. Third' }));
+    const numIds = [...doc.matchAll(/<w:numId w:val="(\d+)"\/>/g)].map((m) => m[1]);
+    assert.ok(numIds.length === 3 && new Set(numIds).size === 1, `each part its own numbering restarts at 1: ${numIds}`);
   });
   await test('code keeps its comment, in a monospace box that stays left to right', () => {
     const para = /<w:p>((?:(?!<\/w:p>).)*?)# هذا تعليق وليس عنواناً((?:(?!<\/w:p>).)*?)<\/w:p>/s.exec(arabicDoc);

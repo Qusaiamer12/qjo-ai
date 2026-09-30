@@ -5,7 +5,7 @@ const { evidenceFromSearch, formatSearchResultsForTool, sourcesForPage } = requi
 const { createToolLoop } = require('./toolLoop');
 const { createVisionPipeline } = require('./visionPipeline');
 const { continuationPrompts } = require('./continuation');
-const { shrinkMessages, fitToAllowance } = require('../services/providerLimits');
+const { shrinkMessages, fitToAllowance, prefitToAllowance } = require('../services/providerLimits');
 const { z } = require('zod');
 
 // ── Zod Schema ──
@@ -288,14 +288,14 @@ function createRoutingEngine(deps) {
   async function tryProvider(provider, slot, params) {
     const model = slotModel(provider, slot);
     if (!model) return { ok: false, status: 501, error: `No ${slot} model for ${provider}.` };
-    const res = await llmService.dispatch(provider, { model, ...params });
-    // Refused as more than this model's per-minute allowance, which the
-    // provider named: ask again with the answer room it can give. Here rather
-    // than once per chain, because every call has its own size — a round
-    // after a search carries the results too, and outgrew a fit made before it.
-    const fitted = !res.ok && fitToAllowance(params, res.tokenAllowance);
+    // Fitted to the model's per-minute allowance once the provider has named
+    // it; refused anyway (its count beats our estimate), fitted again from
+    // what was sent. Per call: a round after a search carries the results too.
+    const sent = prefitToAllowance(params, llmService.allowanceFor && llmService.allowanceFor(provider, model));
+    const res = await llmService.dispatch(provider, { model, ...sent });
+    const fitted = !res.ok && fitToAllowance(sent, res.tokenAllowance);
     if (!fitted) return res;
-    console.warn(`[RoutingEngine] ${provider}/${slot} allowance is ${res.tokenAllowance.limit} tokens — asking again with ${fitted.max_tokens} of answer room (was ${params.max_tokens}).`);
+    console.warn(`[RoutingEngine] ${provider}/${slot} allowance is ${res.tokenAllowance.limit} tokens — asking again with ${fitted.max_tokens} of answer room (was ${sent.max_tokens}).`);
     return llmService.dispatch(provider, { model, ...fitted });
   }
 

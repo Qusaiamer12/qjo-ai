@@ -107,7 +107,7 @@ function createLlmService(config = {}) {
     if (mig) {
       model = mig;
     }
-    const { keys, firmlyResting, nextInMs, allRejected } = pool.order(provider, getKeys(provider), model);
+    const { keys, firmlyResting, nextInMs, allRejected } = pool.order(provider, getKeys(provider), model, { messages, tools, max_tokens });
     // Every key is resting for as long as the provider said to, or was
     // rejected: asking again now is a guaranteed refusal, so the chain moves on
     // without a round trip.
@@ -160,7 +160,7 @@ function createLlmService(config = {}) {
         if (response.ok) {
           const outcome = await readAnswerBody({ response, attempt, provider, model, onChunk, onReasoning, signal, timeLeft });
           if (outcome.keyFailure) pool.failure(provider, key, model, outcome.keyFailure);
-          else pool.success(provider, key, model);
+          else pool.success(provider, key, model, response.headers);
           if (outcome.result) return outcome.result;
           lastError = outcome.error;
           console.warn(`[llmService] ${provider} key #${attemptIndex}/${keys.length}: ${outcome.error.error} Switching to next key instantly.`);
@@ -261,7 +261,6 @@ function createLlmService(config = {}) {
     if (!fn) return { ok: false, status: 501, error: `Unknown provider: ${provider}` };
     return fn(opts);
   }
-
   return {
     callQwenChat,
     callGroqChat,
@@ -269,6 +268,7 @@ function createLlmService(config = {}) {
     callKimiChat,
     dispatch,
     hasKeys: (provider) => getKeys(provider).length > 0,
+    allowanceFor: (provider, model) => pool.limitOf(provider, model),
     /** Per provider, key position and model: rests and last errors. Never keys. */
     health: () => pool.snapshot({ groq: getKeys('groq'), llm7: getKeys('llm7'), qwen: getKeys('qwen'), kimi: getKeys('kimi') }),
     normalizeProviderFinishReason,

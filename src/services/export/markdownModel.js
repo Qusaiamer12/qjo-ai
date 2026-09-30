@@ -238,6 +238,15 @@ function readList(lines, start, defaultRtl) {
       i++;
       continue;
     }
+    // Blank lines between items keep one list — "1.", a blank line, "2." —
+    // when the next item is nested or of the same kind: each part was its own
+    // list, and Word numbered every one of them 1.
+    const after = lines.slice(i).findIndex((line) => line.trim());
+    const nextItem = after > 0 && LIST_ITEM.exec(lines[i + after]);
+    if (nextItem && (nextItem[1].replace(/\t/g, '    ').length > indents[0] || /\d/.test(nextItem[2]) === items[0].ordered)) {
+      i += after;
+      continue;
+    }
     break;
   }
   return { block: { type: 'list', items }, next: i };

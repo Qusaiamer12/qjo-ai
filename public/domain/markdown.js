@@ -139,7 +139,7 @@
 
     const thead = '<thead><tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr></thead>';
     const tbody = '<tbody>' + rows.map(row => '<tr>' + headers.map((_, i) => `<td>${row[i] !== undefined ? row[i] : ''}</td>`).join('') + '</tr>').join('') + '</tbody>';
-    return { html: `<div class="md-table-wrap" id="table-instance-${startIndex}"><table class="md-table">${thead}${tbody}</table></div>`, nextIndex: index };
+    return { html: `<div class="md-table-wrap" id="table-instance-${startIndex}"${dirOf(lines.slice(startIndex, index).join(' '))}><table class="md-table">${thead}${tbody}</table></div>`, nextIndex: index };
   }
 
   // Whether a block gets a Preview tab is decided by the same classifier that
@@ -389,14 +389,28 @@
   function renderQuote(inner) {
     const first = inner[0] || '';
     const found = CALLOUTS.find(([marker]) => marker.test(first));
-    if (!found) return `<blockquote>${renderLines(inner)}</blockquote>`;
+    if (!found) return `<blockquote${dirOf(inner.join(' '))}>${renderLines(inner)}</blockquote>`;
     const [marker, kind, icon] = found;
     const rest = first.replace(marker, '');
     // "> 💡 **Why it works**" on its own line is the note's own title.
     const ownTitle = rest.match(/^\*\*([^*]+)\*\*:?\s*$/);
     const title = ownTitle ? parseInlineMarkdown(ownTitle[1]) : escapeHtml(translate(CALLOUT_KEYS[kind]));
     const body = ownTitle ? inner.slice(1) : [rest, ...inner.slice(1)];
-    return `<div class="qjo-callout" data-kind="${kind}"><div class="qjo-callout-title"><span aria-hidden="true">${icon}</span> ${title}</div><div class="qjo-callout-body">${renderLines(body)}</div></div>`;
+    return `<div class="qjo-callout" data-kind="${kind}"${dirOf(body.join(' '))}><div class="qjo-callout-title"><span aria-hidden="true">${icon}</span> ${title}</div><div class="qjo-callout-body">${renderLines(body)}</div></div>`;
+  }
+
+  // Each block in its own direction. An Arabic answer on an English page, or
+  // an English one on an Arabic page, was laid out in the page's: list
+  // numbers on the wrong side, a full stop at the wrong end. Judged by the
+  // share of the block's letters, as a text's language is (language.js) —
+  // not by the browser's dir="auto", where the first letter decides, and
+  // "JavaScript هي لغة…" is an Arabic sentence. Code, math, addresses and
+  // markup are not words. Too few letters to tell: the page's direction.
+  const NOT_PROSE = /`[^`]*`|\\\(.*?\\\)|\\\[.*?\\\]|\$[^$\n]*\$|https?:\/\/\S+|\]\([^)]*\)|<[^>]*>|&#?\w+;|@@CODE_BLOCK_\d+@@/g;
+  function dirOf(text) {
+    const language = (global.QjoDomain && global.QjoDomain.language) || (typeof require === 'function' ? require('./language.js') : null);
+    const found = language ? language.documentLanguage(String(text).replace(NOT_PROSE, ' ')) : null;
+    return found === 'ar' ? ' dir="rtl"' : found === 'en' ? ' dir="ltr"' : '';
   }
 
   // Block by block: code placeholders, tables, headings, rules, lists, quotes
@@ -407,7 +421,7 @@
 
     const flushParagraph = () => {
       if (!paragraph.length) return;
-      out.push(`<p>${parseInlineMarkdown(paragraph.join(' '))}</p>`);
+      out.push(`<p${dirOf(paragraph.join(' '))}>${parseInlineMarkdown(paragraph.join(' '))}</p>`);
       paragraph.length = 0;
     };
 
@@ -440,7 +454,7 @@
       if (heading) {
         flushParagraph();
         const level = Math.min(4, Math.max(2, heading[1].length + 1));
-        out.push(`<h${level}>${parseInlineMarkdown(heading[2])}</h${level}>`);
+        out.push(`<h${level}${dirOf(heading[2])}>${parseInlineMarkdown(heading[2])}</h${level}>`);
         i++;
         continue;
       }
@@ -467,18 +481,22 @@
           items.push(lines[i].trim().replace(/^[-*]\s+/, ''));
           i++;
         }
-        out.push('<ul>' + items.map(item => `<li>${parseInlineMarkdown(item)}</li>`).join('') + '</ul>');
+        out.push(`<ul${dirOf(items.join(' '))}>` + items.map(item => `<li>${parseInlineMarkdown(item)}</li>`).join('') + '</ul>');
         continue;
       }
 
       if (/^\d+[.)]\s+/.test(trimmed)) {
         flushParagraph();
         const items = [];
+        // Numbered from the first item's number, as written: a blank line or
+        // an explanation between items ends a list here, and each part used
+        // to start again at 1.
+        const start = Number(trimmed.match(/^\d+/)[0]);
         while (i < lines.length && /^\d+[.)]\s+/.test(lines[i].trim())) {
           items.push(lines[i].trim().replace(/^\d+[.)]\s+/, ''));
           i++;
         }
-        out.push('<ol>' + items.map(item => `<li>${parseInlineMarkdown(item)}</li>`).join('') + '</ol>');
+        out.push(`<ol${dirOf(items.join(' '))}${start === 1 ? '' : ` start="${start}"`}>` + items.map(item => `<li>${parseInlineMarkdown(item)}</li>`).join('') + '</ol>');
         continue;
       }
 

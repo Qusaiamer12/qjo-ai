@@ -45,20 +45,20 @@ let browser;
 let pass = 0, fail = 0;
 const ok = (c, m, d) => { c ? pass++ : fail++; console.log(`${c ? '✅' : '❌'} ${m}`); if (!c && d !== undefined) console.log('   ', JSON.stringify(d).slice(0, 300)); };
 
-async function open({ lang = 'en', mobile = false } = {}) {
+async function open({ lang = 'en', mobile = false, answer = ANSWER, message = 'explain derivatives' } = {}) {
   const ctx = await browser.newContext(mobile ? { viewport: { width: 390, height: 780 }, isMobile: true, hasTouch: true } : { viewport: { width: 1200, height: 900 } });
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.route('**/api/chat', (route) => route.fulfill({ status: 200, contentType: 'text/event-stream',
-    body: `event: chunk\ndata: ${JSON.stringify({ text: ANSWER })}\n\nevent: done\ndata: {}\n\n` }));
+    body: `event: chunk\ndata: ${JSON.stringify({ text: answer })}\n\nevent: done\ndata: {}\n\n` }));
   await page.addInitScript(`try { localStorage.setItem('qjo_language', '${lang}'); } catch (_) {}`);
   await page.goto(BASE_URL + '/', { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(2000);
   await page.addStyleTag({ content: '#authOverlay{display:none !important;visibility:hidden !important;pointer-events:none !important;}' });
-  await page.fill('#input', 'explain derivatives');
+  await page.fill('#input', message);
   await page.click('#sendBtn');
-  await page.waitForFunction(() => document.querySelector('.msg.assistant:last-of-type .qjo-callout'), null, { timeout: 8000 }).catch(() => {});
+  await page.waitForFunction(() => document.querySelector('.msg.assistant:last-of-type .qjo-streamed-content p'), null, { timeout: 8000 }).catch(() => {});
   await page.waitForTimeout(600);
   return { ctx, page, errors };
 }
@@ -105,9 +105,58 @@ async function arabicOnAPhone() {
   await ctx.close();
 }
 
+// Where a word lands on screen, left edge and right edge, by the text it is
+// in. Refuses to guess: a missing element or word is reported, not skipped.
+const WHERE = `(selector, words) => {
+  const el = document.querySelector(selector);
+  if (!el) return { missing: selector };
+  const out = {};
+  for (const word of words) {
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    let node;
+    while ((node = walker.nextNode()) && !node.textContent.includes(word));
+    if (!node) return { missing: word };
+    const range = document.createRange();
+    const at = node.textContent.indexOf(word);
+    range.setStart(node, at); range.setEnd(node, at + word.length);
+    const r = range.getBoundingClientRect();
+    out[word] = { left: Math.round(r.left), right: Math.round(r.right) };
+  }
+  return out;
+}`;
+
+// An answer, or a message, in the other language from the page's: each is
+// laid out in its own direction. In a mixed line, which side a word lands on
+// says which direction the line was given — an Arabic line gone left to
+// right puts "JavaScript." after the Arabic, the first thing an Arabic
+// reader meets.
+async function directions() {
+  const arabicAnswer = 'JavaScript هي لغة برمجة تعمل في المتصفح.\n\n1. **المتغيرات** تحفظ القيم.\n2. **الدوال** تنفذ الأوامر.';
+  const { ctx, page, errors } = await open({ answer: arabicAnswer, message: 'اشرح لي JavaScript.' });
+  const where = (selector, words) => page.evaluate(`(${WHERE})(${JSON.stringify(selector)}, ${JSON.stringify(words)})`);
+  ok(await page.evaluate(() => getComputedStyle(document.body).direction) === 'ltr', 'control: the page is left to right');
+  const p = await where('.msg.assistant:last-of-type .qjo-streamed-content p', ['JavaScript', 'لغة']);
+  ok(p.JavaScript && p['لغة'] && p.JavaScript.left >= p['لغة'].right, 'an Arabic answer opening with "JavaScript" reads right to left: the word is on the right, where the sentence starts', p);
+  const list = await page.$eval('.msg.assistant:last-of-type .qjo-streamed-content ol', (ol) => getComputedStyle(ol).direction).catch(() => null);
+  ok(list === 'rtl', `its numbered list is right to left, numbers on the right (${list})`);
+  const mine = await where('.msg.user .bubble', ['اشرح', 'JavaScript']);
+  ok(mine.JavaScript && mine['اشرح'] && mine.JavaScript.right <= mine['اشرح'].left, 'the Arabic message typed on this page reads right to left too', mine);
+  ok(errors.length === 0, 'no JS errors', errors.slice(0, 2));
+  await ctx.close();
+
+  const english = await open({ lang: 'ar', answer: 'The word مرحبا means hello.', message: 'What does مرحبا mean?' });
+  const whereEn = (selector, words) => english.page.evaluate(`(${WHERE})(${JSON.stringify(selector)}, ${JSON.stringify(words)})`);
+  ok(await english.page.evaluate(() => getComputedStyle(document.body).direction) === 'rtl', 'control: the Arabic page is right to left');
+  const en = await whereEn('.msg.assistant:last-of-type .qjo-streamed-content p', ['The word', 'means']);
+  ok(en['The word'] && en.means && en['The word'].right <= en.means.left, 'an English answer on the Arabic page reads left to right', en);
+  const asked = await whereEn('.msg.user .bubble', ['What does', 'mean?']);
+  ok(asked['What does'] && asked['mean?'] && asked['What does'].right <= asked['mean?'].left, 'and so does the English message typed on it', asked);
+  await english.ctx.close();
+}
+
 (async () => {
   browser = await launchBrowser();
-  for (const scenario of [english, arabicOnAPhone]) await scenario();
+  for (const scenario of [english, arabicOnAPhone, directions]) await scenario();
   await browser.close();
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);

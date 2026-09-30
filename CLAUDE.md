@@ -117,7 +117,7 @@ npm run test:route        # chat route: keep-alives, error events, fallback cach
 npm run test:agent        # tool loop bounds
 npm run test:tasks        # long-task durability across restarts
 npm run test:fetch        # SSRF guards on fetch_page
-npm run test:resilience   # key cooldowns, context recovery, trim budgets
+npm run test:resilience   # key cooldowns, per-minute token budgets, context recovery
 npm run test:stream       # streaming integrity
 npm run test:routing      # request classification
 npm run test:pdf          # export rendering

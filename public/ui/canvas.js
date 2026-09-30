@@ -285,7 +285,25 @@
       if (canvas.trigger && canvas.trigger.isConnected) canvas.trigger.focus();
     }
 
-    return { initializePreviews, open, close, isOpen };
+    const PREVIEW_ICON = '<svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><polyline points="10 9 15 12 10 15"></polyline></svg>';
+
+    /**
+     * The answer's toolbar gets a way into the studio when the answer holds
+     * something to run — beside copy and the files, not only inside the
+     * code block's header.
+     * @param {HTMLElement} toolbar
+     * @param {HTMLElement} bubble
+     * @param {(title: string, svg: string, onClick: (b: HTMLButtonElement) => void) => HTMLButtonElement} iconButton
+     */
+    function appendPreviewButton(toolbar, bubble, iconButton) {
+      const wrapper = bubble && bubble.querySelector('.code-block-wrapper.has-live-preview');
+      if (!wrapper) return;
+      const button = iconButton(t('canvasOpen'), PREVIEW_ICON, (b) => open(projectOf(/** @type {HTMLElement} */ (wrapper)), b));
+      button.dataset.preview = 'studio';
+      toolbar.appendChild(button);
+    }
+
+    return { initializePreviews, open, close, isOpen, appendPreviewButton };
   }
 
   global.QjoUI = global.QjoUI || {};

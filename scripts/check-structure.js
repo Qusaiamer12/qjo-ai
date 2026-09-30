@@ -34,6 +34,7 @@ const WATCHED = [
   'public/ui/imagePrep.js',
   'src/agents/visionPipeline.js',
   'src/search/scholarly.js',
+  'public/domain/streamBlocks.js',
   'src/services/export/markdownModel.js',
   'src/services/export/docx.js',
   'src/services/export/xlsx.js',
