@@ -57,14 +57,14 @@ const PLAIN_ANSWER = ['## الشرح', '', 'شرح تفصيلي للموضوع �
     ok(false, 'the file downloads');
   }
 
-  const excelButton = await page.$(`${last} .msg-action-btn[data-export="xlsx"]`);
-  ok(Boolean(excelButton), 'an answer with a table offers Excel among its exports');
+  const excelButton = await page.$(`${last} .qjo-export-item[data-export="xlsx"]`);
+  ok(Boolean(excelButton), 'an answer with a table offers Excel among its files');
 
   // ── Nothing asked for ──
   await ask('اشرحلي الموضوع', PLAIN_ANSWER);
   ok(!(await page.$(`${last} .qjo-file-card`)), 'an ordinary question gets no file card');
-  const formats = await page.$$eval(`${last} .msg-action-btn[data-export]`, (els) => els.map((e) => e.dataset.export));
-  ok(formats.join(',') === 'pdf,pptx,docx', `control: without a table the exports are PDF, slides and Word, no Excel (${formats})`);
+  const formats = await page.$$eval(`${last} .qjo-export-item[data-export]`, (els) => els.map((e) => e.dataset.export));
+  ok(formats.join(',') === 'docx,pdf,pptx', `control: without a table the files are Word, PDF and slides, no Excel (${formats})`);
 
   await ask('لخصلي هالملف pdf', PLAIN_ANSWER);
   ok(!(await page.$(`${last} .qjo-file-card`)), '"summarise this PDF" is not a request for a PDF');

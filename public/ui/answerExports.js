@@ -4,8 +4,10 @@
  *
  * Excel was missing from the buttons although the server made workbooks, and
  * someone who wrote "اعملي ملف إكسل" had to know which of four icons meant
- * it. The decisions (is there a table, was a file asked for) are pure and live
- * in public/domain/fileRequest.js; this draws them.
+ * it. The files are now one labelled button, "Download as file", that opens
+ * a menu naming each format. The decisions (is there a table, was a file
+ * asked for) are pure and live in public/domain/fileRequest.js; this draws
+ * them.
  */
 (function (global) {
   'use strict';
@@ -17,6 +19,7 @@
     xlsx: '<svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="3" x2="9" y2="21"></line></svg>'
   };
   const LABELS = { pdf: 'PDF', pptx: 'PowerPoint', docx: 'Word', xlsx: 'Excel' };
+  const DOWNLOAD = '<svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>';
   const STYLE_ID = 'qjo-file-card-style';
   const STYLE = `
 .qjo-file-card { display: flex; align-items: center; gap: 12px; margin: 10px 0 4px; padding: 12px 14px; max-width: 520px;
@@ -28,6 +31,17 @@
 .qjo-file-card-btn { flex: none; border: 0; border-radius: 9px; padding: 8px 14px; font: 600 13px/1 var(--ds-sans, system-ui, sans-serif);
   background: var(--ds-accent, #1d4ed8); color: #fff; cursor: pointer; min-height: 36px; }
 .qjo-file-card-btn:disabled { opacity: .6; cursor: progress; }
+.qjo-export { position: relative; display: inline-flex; }
+.msg-actions-toolbar .msg-action-btn.qjo-export-toggle { width: auto !important; min-width: 0 !important; gap: 6px; padding: 0 12px !important;
+  border-radius: 999px !important; font: 600 12.5px/1 var(--ds-sans, system-ui, sans-serif); white-space: nowrap; }
+.qjo-export-menu { position: absolute; bottom: calc(100% + 6px); inset-inline-start: 0; z-index: 30; min-width: 210px; padding: 6px;
+  border: 1px solid var(--ds-line-2, #d7d9e0); border-radius: 12px; background: var(--ds-panel, #fff); box-shadow: var(--ds-shadow-2, 0 8px 28px rgba(0,0,0,.12)); }
+.qjo-export-menu[hidden] { display: none; }
+.qjo-export-item { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px; padding: 8px 10px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--ds-ink, #0b0b0d); font: 500 14px/1.2 var(--ds-sans, system-ui, sans-serif); text-align: start; cursor: pointer; }
+.qjo-export-item:hover, .qjo-export-item:focus-visible { background: var(--ds-panel-2, #f2f3f6); outline: none; }
+.qjo-export-item small { margin-inline-start: auto; color: var(--ds-ink-2, #3f4149); font-size: 12px; }
+.qjo-export-item:disabled { opacity: .6; cursor: progress; }
 `;
   const TITLE_KEYS = { pdf: 'exportPdf', pptx: 'exportSlides', docx: 'exportWord', xlsx: 'exportExcel' };
 
@@ -66,11 +80,12 @@
     /** The formats an answer offers: Excel only when it has a table. */
     function formatsFor(content) {
       if (!files().worthExporting(content)) return [];
-      return ['pdf', 'pptx', 'docx', ...(files().hasTable(content) ? ['xlsx'] : [])];
+      return ['docx', 'pdf', 'pptx', ...(files().hasTable(content) ? ['xlsx'] : [])];
     }
 
     /**
-     * Adds the export buttons to an answer's toolbar.
+     * Adds "Download as file" to an answer's toolbar: one labelled button and
+     * a menu that names each format.
      * @param {HTMLElement} toolbar
      * @param {string} content the answer's Markdown
      * @param {(title: string, svg: string, onClick: (b: HTMLButtonElement) => void) => HTMLButtonElement} iconButton
@@ -78,15 +93,58 @@
     function appendExportButtons(toolbar, content, iconButton) {
       const formats = formatsFor(content);
       if (!formats.length) return;
-      const divider = doc.createElement('span');
-      divider.className = 'msg-actions-divider';
-      divider.setAttribute('aria-hidden', 'true');
-      toolbar.appendChild(divider);
-      for (const format of formats) {
-        const button = iconButton(t(TITLE_KEYS[format]), ICONS[format], (b) => download(format, content, b));
-        button.dataset.export = format;
-        toolbar.appendChild(button);
+      styled();
+      const holder = doc.createElement('span');
+      holder.className = 'qjo-export';
+      const menu = doc.createElement('div');
+      menu.className = 'qjo-export-menu';
+      menu.setAttribute('role', 'menu');
+      menu.hidden = true;
+      const toggle = iconButton(t('exportMenu'), DOWNLOAD, () => open(menu.hidden));
+      toggle.classList.add('qjo-export-toggle');
+      toggle.append(t('exportMenu'));
+      toggle.setAttribute('aria-haspopup', 'menu');
+      toggle.setAttribute('aria-expanded', 'false');
+      const items = formats.map((format) => {
+        const item = doc.createElement('button');
+        item.type = 'button';
+        item.className = 'qjo-export-item';
+        item.setAttribute('role', 'menuitem');
+        item.dataset.export = format;
+        item.title = t(TITLE_KEYS[format]);
+        item.innerHTML = ICONS[format];
+        const ext = doc.createElement('small');
+        ext.textContent = `.${format}`;
+        ext.dir = 'ltr';
+        item.append(LABELS[format], ext);
+        item.addEventListener('click', async () => { await download(format, content, item); open(false); });
+        return item;
+      });
+      menu.append(...items);
+      // Closes on a click elsewhere or Escape; the arrows move between formats.
+      const outside = (event) => { if (!holder.contains(/** @type {Node} */ (event.target))) open(false); };
+      function open(on) {
+        menu.hidden = !on;
+        toggle.setAttribute('aria-expanded', String(on));
+        if (on) { fit(); doc.addEventListener('click', outside, true); items[0].focus(); } else doc.removeEventListener('click', outside, true);
       }
+      // Whole on the screen: a toggle near either edge of a phone pushed it off.
+      function fit() {
+        menu.style.transform = '';
+        const r = menu.getBoundingClientRect();
+        const room = (doc.documentElement.clientWidth || global.innerWidth) - 8;
+        const dx = r.left < 8 ? 8 - r.left : r.right > room ? room - r.right : 0;
+        if (dx) menu.style.transform = `translateX(${Math.round(dx)}px)`;
+      }
+      menu.addEventListener('keydown', (event) => {
+        const at = items.indexOf(/** @type {HTMLButtonElement} */ (doc.activeElement));
+        if (event.key === 'Escape') { open(false); toggle.focus(); } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+          event.preventDefault();
+          items[(at + (event.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length].focus();
+        }
+      });
+      holder.append(toggle, menu);
+      toolbar.appendChild(holder);
     }
 
     /**

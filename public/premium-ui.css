@@ -2939,7 +2939,8 @@ body.has-focused-code::after {
 }
 
 .msg:hover .msg-actions-toolbar,
-.msg:focus-within .msg-actions-toolbar {
+.msg:focus-within .msg-actions-toolbar,
+.msg.assistant:last-of-type .msg-actions-toolbar {
   opacity: 1;
   transform: none;
 }

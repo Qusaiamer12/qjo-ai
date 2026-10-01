@@ -20,6 +20,12 @@ const ANSWER = [
 // The file's direction follows the answer, not the interface. The page used to
 // send the interface language, so an English answer asked for in the Arabic
 // interface was exported right to left.
+// "Download as file", then the format, under the first answer in scope.
+async function exportAs(page, format, scope = '.msg.assistant') {
+  await page.click(`${scope} .qjo-export-toggle`);
+  await page.click(`${scope} .qjo-export-item[data-export="${format}"]`);
+}
+
 async function exportDirectionFollowsAnswer(page, sent, ask, ok) {
   const ENGLISH = ['## Result', '', 'A detailed explanation in English, long enough to be worth exporting to a file.', 'A second paragraph adds enough length for the export toolbar to appear reliably.'].join('\n');
   await page.route('**/api/chat', async (route) => {
@@ -27,7 +33,7 @@ async function exportDirectionFollowsAnswer(page, sent, ask, ok) {
   });
   await ask('explain it in English');
   sent.exports.length = 0;
-  await page.click('.msg.assistant:last-of-type .msg-action-btn[title*="Word"]');
+  await exportAs(page, 'docx', '.msg.assistant:last-of-type');
   await page.waitForTimeout(900);
   const body = sent.exports[0] ? sent.exports[0].body : null;
   const pageDir = await page.evaluate(() => document.documentElement.dir);
@@ -71,7 +77,8 @@ async function exportDirectionFollowsAnswer(page, sent, ask, ok) {
 
   await ask('اشرحلي الموضوع');
   const buttons = await page.$$eval('.msg.assistant .msg-actions-toolbar .msg-action-btn', els => els.map(e => e.getAttribute('title')));
-  ok(buttons.length >= 7, `toolbar renders its actions (${buttons.length}): ${buttons.join(' | ')}`);
+  // Copy, regenerate, two ratings, memory, and "Download as file".
+  ok(buttons.length >= 6, `toolbar renders its actions (${buttons.length}): ${buttons.join(' | ')}`);
 
   // ── No decorative buttons remain ──
   const fake = buttons.filter(t => /مفيدة|أعجبتني|Helpful|Love it/.test(t || ''));
@@ -94,18 +101,18 @@ async function exportDirectionFollowsAnswer(page, sent, ask, ok) {
 
   // ── Exports send auth and hit the right endpoint ──
   sent.exports.length = 0;
-  await page.click('.msg.assistant .msg-action-btn[title*="PDF"]');
+  await exportAs(page, 'pdf');
   await page.waitForTimeout(900);
   ok(sent.exports.some(e => e.endpoint === 'pdf'), 'PDF export calls /api/export/pdf', sent.exports);
   ok(Boolean(sent.exports[0]?.body?.content), 'the answer content is sent to the exporter');
 
   sent.exports.length = 0;
-  await page.click('.msg.assistant .msg-action-btn[title*="شرائح"], .msg.assistant .msg-action-btn[title*="slides"]');
+  await exportAs(page, 'pptx');
   await page.waitForTimeout(900);
   ok(sent.exports.some(e => e.endpoint === 'pptx'), 'slides export calls /api/export/pptx', sent.exports);
 
   sent.exports.length = 0;
-  await page.click('.msg.assistant .msg-action-btn[title*="Word"]');
+  await exportAs(page, 'docx');
   await page.waitForTimeout(900);
   ok(sent.exports.some(e => e.endpoint === 'docx'), 'Word export calls /api/export/docx', sent.exports);
   ok(sent.exports[0]?.body?.rtl === true, 'an Arabic answer is exported right to left', sent.exports[0]?.body?.rtl);
@@ -147,7 +154,7 @@ async function exportDirectionFollowsAnswer(page, sent, ask, ok) {
   });
   await ask('شكرا');
   const shortButtons = await page.$$eval('.msg.assistant:last-of-type .msg-actions-toolbar .msg-action-btn', els => els.map(e => e.getAttribute('title')));
-  ok(!shortButtons.some(t => /PDF|شرائح|Word/.test(t || '')), 'a one-line answer shows no export actions', shortButtons);
+  ok(!shortButtons.some(t => /PDF|شرائح|Word|تنزيل كملف|Download as file/.test(t || '')), 'a one-line answer shows no export actions', shortButtons);
 
   ok(errors.length === 0, 'no JS errors throughout', errors.slice(0, 2));
 

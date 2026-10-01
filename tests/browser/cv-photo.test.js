@@ -47,7 +47,8 @@ async function filesCarryThePhoto(page, exports, id, imagesIn) {
   ok(Boolean(sent) && sent.startsWith('data:image/'), 'the PDF request carries the photo under its id', pdf && Object.keys(pdf.sent.images || {}));
   const drawn = pdf ? await imagesIn(pdf.body) : 'no file';
   ok(drawn === 1, `the PDF has the photo in it (${drawn} image(s) drawn)`, pdf && { status: pdf.status, start: pdf.body.slice(0, 120).toString() });
-  await page.click('.msg.assistant:last-of-type button[title*="Word"], .msg.assistant:last-of-type button[aria-label*="Word"]').catch(() => {});
+  await page.click('.msg.assistant:last-of-type .qjo-export-toggle').catch(() => {});
+  await page.click('.msg.assistant:last-of-type .qjo-export-item[data-export="docx"]').catch(() => {});
   for (let i = 0; i < 40 && !fetched('docx'); i++) await page.waitForTimeout(250);
   const docx = fetched('docx');
   const media = docx ? Object.keys((await JSZip.loadAsync(docx.body)).files).filter((f) => /^word\/media\/.+\.\w+$/.test(f)) : [];
