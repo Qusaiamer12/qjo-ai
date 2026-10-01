@@ -47,7 +47,8 @@
     ['send and stop', () => window.QjoUI && window.QjoUI.createSendStop],
     ['voice input', () => window.QjoUI && window.QjoUI.createVoiceInput],
     ['speakable text', () => window.QjoDomain && window.QjoDomain.speech],
-    ['reading answers', () => window.QjoUI && window.QjoUI.createAnswerReading]
+    ['reading answers', () => window.QjoUI && window.QjoUI.createAnswerReading],
+    ['editing a message', () => window.QjoUI && window.QjoUI.createMessageEditor]
   ];
 
   const RELOAD_FLAG = 'qjo_boot_reloaded';

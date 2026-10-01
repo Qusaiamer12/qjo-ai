@@ -320,6 +320,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     const quiz = QjoUI.createQuiz({ t, parse: (raw) => safeParseRelaxedJson(raw) });
     const sendStop = QjoUI.createSendStop({ button: sendBtn, t });
     const answerReading = QjoUI.createAnswerReading({ t, copy: (text) => copyTextToClipboard(text) });
+    const messageEditor = QjoUI.createMessageEditor({ t, canEdit: () => !busy, rewind: () => rewindHistoryToLastQuestion(), composer: inputEl, composerChanged: () => { autoResize(); saveDraft(); } });
     QjoUI.createVoiceInput({ button: el('micBtn'), input: inputEl, language: () => qjoLanguage, t, toast: (m) => showMicroToast(m) });
     QjoUI.createComposerDrop({ input: inputEl, addFiles: (files) => addFiles(files), label: () => t('dropFiles') });
 
@@ -834,7 +835,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       if (typeof question !== 'string' || !question.trim()) return;
 
       // Everything from the question onward is replayed, so it must not remain.
-      history.splice(absoluteIndex);
+      forgetStored(history.splice(absoluteIndex));
       if (answerWrap && answerWrap.parentNode) answerWrap.remove();
 
       sendMessage(question, { isRegenerate: true });
@@ -2583,20 +2584,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       return candidates;
     }
 
-    function isContextualTransformRequest(text) {
-      const q = String(text || '').trim().toLowerCase();
-      if (!q) return false;
-      const hasContextPointer = /(السابق|السابقة|قبل|فوق|أعلاه|اعلاه|هذا|هاي|هاذ|هاذه|اللي كتبته|الرد|النص|نفسه|it|that|this|previous|above|last answer|last response)/i.test(q);
-      const hasTransformVerb = /(نسق|رتب|رتّب|اختصر|لخص|حوّل|حول|اعمل(?:ه|ها)?|خليه|خليها|صيغه|صياغة|جدول|نقاط|ترجم|اشرح أكثر|وضح|كمل|تابع|صحح|حسن|عدّل|عدل|format|reformat|summarize|make it|turn it|table|bullets|translate|continue|fix|rewrite|improve)/i.test(q);
-      const explicitFreshSearch = /(ابحث|بحث جديد|مصادر جديدة|آخر|اخر|اليوم|حالي|الآن|اونلاين|أونلاين|search|latest|current|today|online|new sources)/i.test(q);
-      return hasContextPointer && hasTransformVerb && !explicitFreshSearch && q.length <= 700;
-    }
-
-    function buildContextContinuityHint(text) {
-      if (!isContextualTransformRequest(text)) return '';
-      return `Context continuity lock: The user's latest message is a follow-up transformation/editing request, not a standalone new task. Use the immediately preceding assistant answer and relevant prior user message as the target. Preserve the prior meaning and facts. Apply the requested formatting/edit exactly. Do not invent a new topic. Do not run or rely on new web search unless the user explicitly asks for fresh/current sources in this same message.`;
-    }
-
     function needsWebSearch(text) {
       // A safety guard still wins over the toggle; a heuristic does not. When
       // the user explicitly switches Search on, that is a decision, not a hint.
@@ -2785,10 +2772,19 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     // Rewinds the conversation to just before the last question so a replay
     // does not stack a second copy of it — plus the failure notice — into the
     // history the model is shown, or draw the question twice on screen.
+    // What leaves the conversation leaves the saved chat: regenerating kept the
+    // old answer stored, and the chat opened again showed both.
+    function forgetStored(removed) {
+      const stored = removed.filter((m) => Number.isInteger(m.seq));
+      if (!stored.length || !firebaseReady || !currentUser || !currentChatId) return;
+      messageSeq = Math.min(...stored.map((m) => m.seq));
+      stored.forEach((m) => userChatsRef().doc(currentChatId).collection('messages').doc(String(m.seq).padStart(6, '0')).delete().catch((e) => console.warn('Could not forget a saved message:', e)));
+    }
+
     function rewindHistoryToLastQuestion() {
       for (let i = history.length - 1; i >= 0; i--) {
         if (history[i]?.role === 'user') {
-          history.splice(i);
+          forgetStored(history.splice(i));
           return true;
         }
       }
@@ -2949,7 +2945,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       const generationConfig = getGenerationConfig(hasAttachmentAnalysis, rawText);
 
       lastFailedRequest = { text: rawText, fallbackText: text };
-      if (!isRegenerate) addMessage('user', displayText + attachmentNames);
+      if (!isRegenerate) messageEditor.offer(addMessage('user', displayText + attachmentNames), attachmentNames ? '' : rawText);
       pendingAttachments = [];
       renderAttachments();
 
@@ -3006,7 +3002,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
           sourceStrip.add(view.wrap, lastSearchSources);
           appendReasoningStep(qjoLanguage === 'ar' ? 'تم اختيار وتلخيص أقوى المصادر' : 'Synthesizing verified sources', true);
         }
-        const continuityHint = buildContextContinuityHint(rawText);
         const savedUserContent = text + clarificationContext + attachmentContext + attachmentShelf.historyNote(attachmentsForRag, placing);
         await imagePrep.fitMessage(attachmentsForRag);
         const apiUserContent = hadImageAttachments
@@ -3018,10 +3013,9 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         // Built after the push: buildSkillCapsules() keys off the newest user
         // turn in history, so building earlier matched the previous message.
         const systemPersonalization = buildSystemPrompt();
-        // Persist in background without delaying AI streaming
-        // On a regenerate the question is already stored; persisting it again
-        // would duplicate the turn in the saved conversation.
-        (isRegenerate ? ensureChatDocument(text) : ensureChatDocument(text).then(() => safePersistMessage(userMessage)))
+        // Saved in the background. On a regenerate the stored question went with
+        // what was rewound (forgetStored), so it is stored again, in its place.
+        ensureChatDocument(text).then(() => safePersistMessage(userMessage))
           .catch(e => console.warn('Background message save error:', e));
         if (attachmentsForRag && attachmentsForRag.length) {
           persistAttachmentsToRagIndex(currentChatId, attachmentsForRag).catch(e => console.warn('Background RAG index error:', e));
@@ -3041,7 +3035,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
             model: apiModel,
             messages: [
               ...(systemPersonalization ? [{ role: 'system', content: systemPersonalization }] : []),
-              ...(continuityHint ? [{ role: 'system', content: continuityHint }] : []),
               ...history.slice(QjoDomain.historyWindow.historyStart(history.length), -1), // opens alike for three turns (historyWindow.js); older context lives in Firestore
               { role: 'user', content: apiUserContent }
             ],
@@ -4395,6 +4388,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     async function persistMessage(message) {
       if (!firebaseReady || !currentUser || !currentChatId || !message) return;
       const seq = messageSeq++;
+      message.seq = seq;
       const chatRef = userChatsRef().doc(currentChatId);
       const msgRef = chatRef.collection('messages').doc(String(seq).padStart(6, '0'));
       await msgRef.set({
@@ -4442,7 +4436,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
           messagesSnap.forEach(mdoc => {
             const m = mdoc.data() || {};
             if (m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string') {
-              history.push({ role: m.role, content: sanitizeStoredMessageContent(m.content, m.role) });
+              history.push({ role: m.role, content: sanitizeStoredMessageContent(m.content, m.role), seq: m.seq });
             }
           });
         } catch (messageReadError) {

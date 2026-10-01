@@ -117,6 +117,12 @@ Each of these produced a green result that meant nothing.
   the selector's specificity and painted the dark-mode tables white on white
   instead: an exclusion goes inside `:where()`. `readability.test.js`
   measures every piece of text in an answer, against a control that fails.
+- **A saved conversation nobody opened again.** Regenerating an answer kept
+  the old one in Firestore, and a chat opened again showed both under one
+  question — while every suite was green, because the only Firebase in them
+  answered every read with nothing and kept no write. `fakeFirebase.js`
+  keeps what it is given (and refuses what the real one refuses);
+  `saved-chat.test.js` opens the chat again and compares.
 - **Verification that lives outside the repo.** 264 browser assertions spent
   weeks in a scratch directory that is deleted with the container. A check
   that is not committed and not in CI does not exist.

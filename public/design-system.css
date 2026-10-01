@@ -569,6 +569,12 @@ body.dark:not(#_) .bubble .qjo-quiz :is(.quiz-explanation-note, .quiz-explanatio
   body:has(#quickSuggestionsPanel:not([hidden])) .mobile-tools-notch { display: none !important; }
 }
 
+/* Edit under the last message sent (public/ui/messageEditor.js). */
+.msg.user { flex-wrap: wrap; }
+.msg.user .qjo-edit-message { flex-basis: 100%; display: flex; justify-content: flex-end; align-items: center; gap: 5px; min-height: 32px; margin-top: 2px;
+  padding: 0 4px; border: 0; background: none; color: var(--ds-ink-2); font: 600 12.5px/1 var(--ds-sans); cursor: pointer; }
+.msg.user .qjo-edit-message:hover { color: var(--ds-ink); }
+
 /* Listening for a spoken message (public/ui/voiceInput.js). */
 body:not(#_) .mic-btn.is-listening { color: #dc2626 !important; border-color: #dc2626 !important; animation: qjo-listening 1.2s ease-in-out infinite; }
 @keyframes qjo-listening { 50% { box-shadow: 0 0 0 6px rgba(220, 38, 38, .18); } }
