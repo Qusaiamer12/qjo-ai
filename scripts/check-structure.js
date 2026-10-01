@@ -43,6 +43,7 @@ const WATCHED = [
   'public/ui/composerDrop.js',
   'public/ui/starters.js',
   'public/ui/sendStop.js',
+  'public/ui/voiceInput.js',
   'src/services/export/attachedImages.js',
   'src/services/promptLayout.js',
   'src/services/export/markdownModel.js',

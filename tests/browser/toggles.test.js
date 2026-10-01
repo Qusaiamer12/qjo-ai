@@ -32,7 +32,10 @@ const { launchBrowser, BASE_URL } = require('./harness');
 
   // ── Removed controls are gone from the DOM ──
   check(await page.$('#togglePolish') === null, 'literary-polish pill removed');
-  check(await page.$('#micBtn') === null, 'voice-record button removed');
+  // The old microphone was decorative and went; the one there now listens
+  // (voice.test.js speaks through it). It must be that one, not the old.
+  check(await page.$('#micBtn[data-i18n-title="voiceInput"]') === null && await page.$('#micBtn[data-i18n-aria-label="voiceStart"]') !== null,
+    'the decorative voice-record button is gone; the microphone is the working one');
   const pills = await page.$$eval('.func-toggle', els => els.map(e => e.id));
   check(JSON.stringify(pills) === JSON.stringify(['toggleSearch','toggleDeep','toggleTask']), `every pill still does a real job: ${pills.join(', ')}`);
 

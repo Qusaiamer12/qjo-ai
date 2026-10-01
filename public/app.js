@@ -319,6 +319,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     const attachmentShelf = QjoUI.createAttachmentShelf({ maxImages: QjoDomain.imagePlan.LIMITS.maxImages, replyLanguage: (text) => QjoDomain.language.replyLanguage(text, qjoLanguage), t });
     const quiz = QjoUI.createQuiz({ t, parse: (raw) => safeParseRelaxedJson(raw) });
     const sendStop = QjoUI.createSendStop({ button: sendBtn, t });
+    QjoUI.createVoiceInput({ button: el('micBtn'), input: inputEl, language: () => qjoLanguage, t, toast: (m) => showMicroToast(m) });
     QjoUI.createComposerDrop({ input: inputEl, addFiles: (files) => addFiles(files), label: () => t('dropFiles') });
 
     function sanitizeStoredMessageContent(content, role) {
