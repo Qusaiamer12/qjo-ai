@@ -108,6 +108,15 @@ Each of these produced a green result that meant nothing.
   JSON: every PDF Chromium printed downloaded as `{"0":37,"1":80,…}`, while
   every suite was green. Found by fetching the file from the real server.
   A response's body is checked where a person would get it.
+- **A rule that paints everything.** Four rules in mobile.css and styles.css
+  repaint every span, div or element inside an answer, dark on light or light
+  on dark. The code block keeps a dark header, so on a phone in light mode
+  every label in it was 1.03:1, and a quiz built with inline colours went
+  white on white in dark mode — while every suite was green, because none
+  measured what a word sits on. The first exclusion written for it raised
+  the selector's specificity and painted the dark-mode tables white on white
+  instead: an exclusion goes inside `:where()`. `readability.test.js`
+  measures every piece of text in an answer, against a control that fails.
 - **Verification that lives outside the repo.** 264 browser assertions spent
   weeks in a scratch directory that is deleted with the container. A check
   that is not committed and not in CI does not exist.

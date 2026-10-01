@@ -629,13 +629,15 @@ const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n
     ['صدرلي الشرح pdf', 'pdf'], ['اكتبلي تقرير وحطه بملف وورد', 'docx'], ['التقرير بصيغة pdf لو سمحت', 'pdf'],
     ['make me a PowerPoint about solar energy', 'pptx'], ['export this as a PDF', 'pdf'], ['convert the table into an excel file', 'xlsx'],
     ['Create a Word document with my CV', 'docx'], ['give me slides for my talk', 'pptx'], ['اعملي ملف وورد وبعدين pdf', 'docx'],
-    ['can you make me a PowerPoint about this?', 'pptx'], ['هل ممكن تعملي ملف وورد فيه الملخص؟', 'docx']
+    ['can you make me a PowerPoint about this?', 'pptx'], ['هل ممكن تعملي ملف وورد فيه الملخص؟', 'docx'],
+    ['شو هو السكري؟ واعملي ملف وورد', 'docx'], ['What is photosynthesis? Make me slides about it.', 'pptx']
   ];
   for (const [text, format] of asked) test(`"${text}" asks for ${format}`, () => assert.strictEqual(requestedFormat(text), format));
   const notAsked = [
     'لخصلي هالملف pdf', 'what is a pdf file?', 'كيف احول وورد لـ pdf؟', 'how to give a good presentation', 'in a word, explain recursion',
     'cheat sheet for git', 'شو يعني ملف اكسل', 'اشرحلي الطاقة الشمسية', 'ما هي الشرائح', 'اكتبلي مقال حول تاريخ صيغة pdf',
-    'محطة الطاقة في ملف pdf المرفق', 'summarize the chart in pdf', 'how do I export a table to Excel?', 'what does convert to pdf mean?'
+    'محطة الطاقة في ملف pdf المرفق', 'summarize the chart in pdf', 'how do I export a table to Excel?', 'what does convert to pdf mean?',
+    'شو هو الإكسل؟ وكيف بحول الجدول لملف اكسل؟', 'Explain recursion. And how do I save it as a PDF?'
   ];
   for (const text of notAsked) test(`"${text}" asks for no file`, () => assert.strictEqual(requestedFormat(text), null));
   test('a table is what makes an Excel file; a pipe in a sentence is not one', () => {
@@ -643,6 +645,34 @@ const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n
     assert.strictEqual(hasTable('this | that'), false);
     assert.strictEqual(worthExporting('ok.'), false);
     assert.strictEqual(worthExporting('| x | y |\n| - | - |\n| 1 | 2 |'), true);
+  });
+
+  console.log('\nA quiz as the model wrote it (quiz.js):');
+  const { readQuiz, correctOption } = require('../public/domain/quiz.js');
+  const OPTIONS = ['Area', 'Rate of change', 'Volume', 'Mass'];
+  for (const [answer, index] of [['Rate of change', 1], ['  rate of CHANGE ', 1], ['B', 1], ['(b)', 1], ['b)', 1], ['ب', 1], ['ا', 0], ['أ', 0], ['B) Rate of change', 1], [1, 1], ['1', 1], [0, 0], [4, 3], ['E', -1], ['Speed', -1], [9, -1], ['', -1], [null, -1]]) {
+    test(`answer ${JSON.stringify(answer)} names option ${index}`, () => assert.strictEqual(correctOption(OPTIONS, answer), index));
+  }
+  test('an option written with its letter matches the answer without it, and an option that is a number is read as text first', () => {
+    assert.strictEqual(correctOption(['A) Insulin', 'B) Glucagon'], 'Glucagon'), 1);
+    assert.strictEqual(correctOption(['أ) الأنسولين', 'ب) الجلوكاجون'], 'الأنسولين'), 0);
+    assert.strictEqual(correctOption(['0', '1', '2', '3'], 2), 2);
+    assert.strictEqual(correctOption(['3', '2', '1', '0'], '1'), 2);
+  });
+  test('a quiz block: other field names, nothing invalid kept, no answer is unknown', () => {
+    const quiz = readQuiz({ questions: [
+      { q: 'Q1', choices: ['x', 'y'], correct_answer: 'y', explanation: 'because' },
+      { question: 'no options' },
+      { question: 'one option', options: ['only'] },
+      { question: 'Q2', options: ['a', ' ', 'b'], answer: 'C' },
+      'not a question'
+    ] });
+    assert.deepStrictEqual(quiz, [
+      { question: 'Q1', options: ['x', 'y'], correct: 1, explanation: 'because' },
+      { question: 'Q2', options: ['a', 'b'], correct: -1, explanation: '' }
+    ]);
+    assert.deepStrictEqual(readQuiz(null), []);
+    assert.deepStrictEqual(readQuiz('[1,2]'), []);
   });
 
   console.log('\nMath in the renderer (markdown.js):');

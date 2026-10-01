@@ -100,8 +100,10 @@ async function arabicOnAPhone() {
   const { ctx, page } = await open({ lang: 'ar', mobile: true });
   const found = await callouts(page);
   ok(found[0] && found[0].title.includes('مفتاح الفهم') && found[1].title.includes('خطأ شائع') && found[4].title.includes('الخلاصة'), `in Arabic (${found.map((c) => c.title).join(' | ')})`);
-  // Phone rules repaint every span in a bubble; a callout keeps its colour.
-  ok(found[1] && found[1].titleColor === 'rgb(220, 38, 38)', `on a phone the title keeps its colour (${found[1] && found[1].titleColor})`);
+  // Phone rules repaint every span in a bubble; a callout keeps its colour —
+  // the warning's red, darkened to be read (readability.test.js).
+  const [r, g, b] = ((found[1] && found[1].titleColor) || '').match(/[\d.]+/g).map(Number).map((v, _, all) => (all.some((x) => x > 1) ? v : v * 255));
+  ok(r > 120 && r > 3 * g && r > 3 * b, `on a phone the title keeps its colour (${found[1] && found[1].titleColor})`);
   await ctx.close();
 }
 

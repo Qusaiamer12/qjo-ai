@@ -53,10 +53,11 @@ ${HI} a.qjo-source .qjo-source-num { color: var(--ds-accent, #1d4ed8) !important
 .qjo-tier { border-radius: 6px; padding: 1px 6px; background: var(--ds-panel-2, #f2f3f6); white-space: nowrap; }
 .qjo-tier[data-tier="official"], .qjo-tier[data-tier="medical"], .qjo-tier[data-tier="academic"] { background: rgba(22, 163, 74, .12); }
 .qjo-tier[data-tier="community"] { background: rgba(217, 119, 6, .12); }
-body:not(#_) .qjo-tier:is([data-tier="official"], [data-tier="medical"], [data-tier="academic"]) { color: #15803d !important; }
-body:not(#_) .qjo-tier[data-tier="community"] { color: #b45309 !important; }
-body.dark:not(#_) .qjo-tier:is([data-tier="official"], [data-tier="medical"], [data-tier="academic"]) { color: #4ade80 !important; }
-body.dark:not(#_) .qjo-tier[data-tier="community"] { color: #fbbf24 !important; }
+/* Under the card's own muted colour, which once outranked these: the badge was grey. */
+${HI} a.qjo-source .qjo-tier:is([data-tier="official"], [data-tier="medical"], [data-tier="academic"]) { color: #166534 !important; }
+${HI} a.qjo-source .qjo-tier[data-tier="community"] { color: #92400e !important; }
+body.dark:not(#_) .bubble a.qjo-source .qjo-tier:is([data-tier="official"], [data-tier="medical"], [data-tier="academic"]) { color: #4ade80 !important; }
+body.dark:not(#_) .bubble a.qjo-source .qjo-tier[data-tier="community"] { color: #fbbf24 !important; }
 ${HI} a.qjo-cite { display: inline-flex; align-items: center; gap: 3px; margin: 0 2px; padding: 0 6px; border-radius: 7px; vertical-align: baseline; border: 0 !important;
   font-size: .78em; font-weight: 600; line-height: 1.6; text-decoration: none; white-space: nowrap; unicode-bidi: isolate; background: var(--ds-accent-soft, rgba(29, 78, 216, .08)); }
 ${HI} a.qjo-cite, ${HI} a.qjo-cite * { color: var(--ds-accent, #1d4ed8) !important; -webkit-text-fill-color: currentColor !important; }

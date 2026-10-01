@@ -27,15 +27,16 @@
   // soon after it — or the format as a destination ("as a PDF", "بصيغة وورد").
   // Arabic words start where no Arabic letter precedes them (\\b only knows
   // ASCII): "هالملف" must not read as "لملف". Bare "حول" is left out — it is
-  // far more often "about" ("مقال حول الطاقة") than "convert".
-  const AR = '(?<![\\u0600-\\u06FF])';
+  // far more often "about" ("مقال حول الطاقة") than "convert". A joining "و"
+  // may lead: "…؟ واعملي ملف وورد".
+  const AR = '(?<![\\u0600-\\u06FF])و?';
   const VERB = `\\b(?:make|create|generate|export|convert|turn|save|prepare|build|download|give\\s+me|put)\\b|${AR}(?:اعمل|اعملي|تعمل|تعملي|تعمللي|سوي|سويلي|تسوي|تسويلي|حولي|حوّل|حوّلي|تحوّل|تحول|تحولي|صدر|صدّر|جهز|جهّز|أنشئ|انشئ|نزل|نزّل|حمل|حمّل|حط|حطه|حطها|ضعه|ضعها|خليه|خليها|بدي|أريد|اريد|اعطيني|عطيني)`;
   // "in" and "في ملف" are left out: "the chart in pdf", "في ملف pdf المرفق"
   // name where something is, not what to make.
   const DESTINATION = `\\b(?:as|into|to)\\s+(?:an?\\s+)?(?:file\\s+)?|${AR}(?:بصيغة|بصيغه|على\\s*شكل|كملف|ك\\s*ملف|الى\\s*ملف|إلى\\s*ملف|لملف|بملف)`;
   // A question about a format is not a request for one. "Can you…" and
   // "هل ممكن…" are polite requests, not questions about formats.
-  const ABOUT = /^\s*(?:how|what|why|which|where|is|are|does|do)\b|^\s*(?:كيف|شو\s+(?:هو|هي|يعني)|ما\s+(?:هو|هي)|ليش|لماذا)/i;
+  const ABOUT = /^\s*(?:and\s+)?(?:how|what|why|which|where|is|are|does|do)\b|^\s*و?(?:كيف|شو\s+(?:هو|هي|يعني)|ما\s+(?:هو|هي)|ليش|لماذا)/i;
 
   const PATTERNS = Object.entries(FORMATS).map(([format, words]) => ({
     format,
@@ -48,13 +49,17 @@
    * @returns {'docx'|'xlsx'|'pptx'|'pdf'|null}
    */
   function requestedFormat(text) {
-    const message = String(text || '');
-    if (!message.trim() || ABOUT.test(message)) return null;
     let best = null;
-    for (const { format, re } of PATTERNS) {
-      const m = re.exec(message);
-      // The first format asked for wins: "اعملي ملف وورد وبعدين pdf" is Word.
-      if (m && (!best || m.index < best.index)) best = { format, index: m.index };
+    let offset = 0;
+    // Sentence by sentence: "شو هو السكري؟ واعملي ملف وورد" asks a question,
+    // then for a file; only the question is about something.
+    for (const sentence of String(text || '').split(/(?<=[.?!؟\n])/)) {
+      for (const { format, re } of ABOUT.test(sentence) ? [] : PATTERNS) {
+        const m = re.exec(sentence);
+        // The first format asked for wins: "اعملي ملف وورد وبعدين pdf" is Word.
+        if (m && (!best || offset + m.index < best.index)) best = { format, index: offset + m.index };
+      }
+      offset += sentence.length;
     }
     return best ? /** @type {'docx'|'xlsx'|'pptx'|'pdf'} */ (best.format) : null;
   }

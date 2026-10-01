@@ -306,7 +306,6 @@ textarea#input::placeholder{ color:var(--qjo-muted-2) !important; -webkit-text-f
   transition: transform .25s, box-shadow .25s;
 }
 .send-btn:hover{ transform:translateY(-2px) rotate(-6deg) scale(1.06) !important; }
-[dir="rtl"] .send-btn svg{ transform: rotate(180deg); }
 
 /* Function toggles */
 .composer-function-toggles{ display:flex; gap:6px; flex-wrap:wrap; padding:4px 4px 10px; }
@@ -1783,7 +1782,7 @@ body:not(.dark) .qjo-reasoning-card {
   color: #94a3b8;
 }
 body:not(.dark) .qjo-reasoning-title {
-  color: #64748b;
+  color: #475569;
 }
 
 .qjo-reasoning-pulse {
@@ -1823,6 +1822,9 @@ body:not(.dark) .qjo-reasoning-timer {
   align-items: center;
   justify-content: center;
   transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+body:not(.dark) .qjo-reasoning-toggle {
+  color: #64748b;
 }
 .qjo-reasoning-card.collapsed .qjo-reasoning-toggle {
   transform: rotate(180deg);
@@ -1913,6 +1915,10 @@ body:not(.dark) .qjo-reasoning-step {
   color: #10b981;
   font-weight: 700;
   font-size: 14px;
+}
+body:not(.dark) .qjo-reasoning-step.tool-step:not(.is-running),
+body:not(.dark) .qjo-reasoning-step.tool-step .tool-check {
+  color: #047857;
 }
 .qjo-reasoning-step.tool-step.is-running {
   color: var(--qjo-text-2, #a5a3c2);

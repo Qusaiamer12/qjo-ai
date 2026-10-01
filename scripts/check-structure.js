@@ -38,6 +38,8 @@ const WATCHED = [
   'public/domain/historyWindow.js',
   'public/domain/attachmentRefs.js',
   'public/ui/attachmentShelf.js',
+  'public/domain/quiz.js',
+  'public/ui/quiz.js',
   'src/services/export/attachedImages.js',
   'src/services/promptLayout.js',
   'src/services/export/markdownModel.js',

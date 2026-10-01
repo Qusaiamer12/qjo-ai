@@ -207,10 +207,12 @@
     box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06) !important;
   }
 
+  /* The code block keeps its own dark palette: painted here, every label in
+     its header was dark on dark (1.03:1). */
   body:not(.dark) .assistant .bubble p,
   body:not(.dark) .assistant .bubble li,
-  body:not(.dark) .assistant .bubble span:not(.qjo-typing-cursor):not(.tool-check),
-  body:not(.dark) .assistant .bubble div:not(.qjo-reasoning-pulse) {
+  body:not(.dark) .assistant .bubble span:not(.qjo-typing-cursor):not(.tool-check):where(:not(.code-block-wrapper *)),
+  body:not(.dark) .assistant .bubble div:not(.qjo-reasoning-pulse):where(:not(.code-block-wrapper, .code-block-wrapper *)) {
     color: #0f172a !important;
     -webkit-text-fill-color: #0f172a !important;
   }
@@ -256,8 +258,8 @@
 
   body.dark .assistant .bubble p,
   body.dark .assistant .bubble li,
-  body.dark .assistant .bubble span:not(.qjo-typing-cursor):not(.tool-check),
-  body.dark .assistant .bubble div:not(.qjo-reasoning-pulse) {
+  body.dark .assistant .bubble span:not(.qjo-typing-cursor):not(.tool-check):where(:not(.code-block-wrapper *)),
+  body.dark .assistant .bubble div:not(.qjo-reasoning-pulse):where(:not(.code-block-wrapper, .code-block-wrapper *)) {
     color: #f8fafc !important;
     -webkit-text-fill-color: #f8fafc !important;
   }
@@ -1098,13 +1100,6 @@
   }
 
   /* -------------------------------------------------------------------------
-     11. Send Button Arrow Fix (Cancel upside-down flip in RTL)
-     ------------------------------------------------------------------------- */
-  [dir="rtl"] .send-btn svg {
-    transform: none !important;
-  }
-
-  /* -------------------------------------------------------------------------
      12. High Contrast Markdown Table Rendering
      ------------------------------------------------------------------------- */
   body.dark .assistant .bubble .md-table-wrap,
@@ -1258,6 +1253,24 @@
   .code-block-header {
     padding: 6px 10px !important;
     gap: 6px !important;
+  }
+
+  /* One row on a phone: the language, the tabs and the buttons squeezed
+     "Copy" to 39px and broke it over four lines. Copy is its icon here (the
+     button keeps its name for screen readers), the tabs their words, line
+     numbers are left to wider screens, and every control is a target a
+     thumb can hit. */
+  .code-block-header .copy-code-btn span,
+  .code-block-header .code-tab-btn svg,
+  .code-block-header .toggle-linenums-btn {
+    display: none !important;
+  }
+
+  .code-block-header .code-tab-btn,
+  .code-block-header .code-block-actions button {
+    min-height: 28px !important;
+    min-width: 28px !important;
+    justify-content: center !important;
   }
 
   .run-python-btn {

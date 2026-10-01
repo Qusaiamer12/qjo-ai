@@ -522,10 +522,38 @@ body.dark .brand-mark img {
 .bubble .qjo-callout[data-kind="summary"] { --callout: #4f46e5; }
 /* body:not(#_) outranks the phone rules that repaint everything in a bubble. */
 .bubble .qjo-callout-title { font-weight: 700; margin-bottom: 4px; }
-body:not(#_) .bubble .qjo-callout-title { color: var(--callout) !important; -webkit-text-fill-color: currentColor !important; }
+body:not(#_) .bubble .qjo-callout-title { color: color-mix(in srgb, var(--callout) 70%, black) !important; -webkit-text-fill-color: currentColor !important; }
 body.dark:not(#_) .bubble .qjo-callout-title { color: color-mix(in srgb, var(--callout) 70%, white) !important; }
 .bubble .qjo-callout-body > :first-child { margin-top: 0; }
 .bubble .qjo-callout-body > :last-child { margin-bottom: 0; }
+
+/* The quiz card (public/ui/quiz.js) in each theme's own colours: its options
+   once took the page's text colour on a white card, white on white in dark. */
+.bubble .qjo-quiz { margin: 14px 0; padding: 16px; border-radius: var(--ds-r-md); border: 1px solid var(--ds-line-2); background: var(--ds-panel-2); }
+.bubble .qjo-quiz [hidden] { display: none !important; }
+.bubble .qjo-quiz .quiz-progress { font-size: 12px; font-weight: 700; margin-bottom: 6px; }
+.bubble .qjo-quiz .quiz-question-title { font-size: 15px; font-weight: 700; margin-bottom: 10px; }
+.bubble .qjo-quiz .quiz-option-btn {
+  display: block; width: 100%; min-height: 44px; margin: 6px 0; padding: 10px 12px; text-align: start;
+  border: 1px solid var(--ds-line-2); border-radius: var(--ds-r-sm); background: var(--ds-panel);
+  font: inherit; font-size: 14px; cursor: pointer; transition: border-color .15s var(--ds-ease);
+}
+.bubble .qjo-quiz .quiz-option-btn:not(:disabled):hover { border-color: var(--ds-accent); }
+.bubble .qjo-quiz .quiz-option-btn:disabled { cursor: default; }
+.bubble .qjo-quiz .quiz-option-btn[data-state="correct"] { border-color: #16a34a; background: color-mix(in srgb, #16a34a 14%, var(--ds-panel)); }
+.bubble .qjo-quiz .quiz-option-btn[data-state="wrong"] { border-color: #dc2626; background: color-mix(in srgb, #dc2626 12%, var(--ds-panel)); }
+.bubble .qjo-quiz .quiz-option-btn[data-state="picked"] { border-color: var(--ds-accent); }
+.bubble .qjo-quiz .quiz-explanation-note { margin-top: 10px; padding: 10px 12px; border-radius: var(--ds-r-sm); font-size: 13.5px; background: var(--ds-mint-soft); border: 1px solid color-mix(in srgb, var(--ds-mint) 35%, transparent); }
+.bubble .qjo-quiz .quiz-next-btn { margin-top: 10px; padding: 8px 14px; min-height: 36px; border: 0; border-radius: var(--ds-r-sm); background: var(--ds-accent); font: inherit; font-weight: 600; cursor: pointer; }
+/* body:not(#_) outranks the phone rules that repaint everything in a bubble. */
+body:not(#_) .bubble .qjo-quiz :is(.quiz-progress, .quiz-option-btn[data-state="other"]) { color: var(--ds-ink-2) !important; -webkit-text-fill-color: currentColor !important; }
+body:not(#_) .bubble .qjo-quiz .quiz-option-btn[data-state="correct"] { color: #14532d !important; }
+body:not(#_) .bubble .qjo-quiz .quiz-option-btn[data-state="wrong"] { color: #7f1d1d !important; }
+body:not(#_) .bubble .qjo-quiz :is(.quiz-explanation-note, .quiz-explanation-note *) { color: #065f46 !important; -webkit-text-fill-color: currentColor !important; }
+body:not(#_) .bubble .qjo-quiz .quiz-next-btn { color: var(--ds-panel) !important; -webkit-text-fill-color: currentColor !important; }
+body.dark:not(#_) .bubble .qjo-quiz .quiz-option-btn[data-state="correct"] { color: #bbf7d0 !important; }
+body.dark:not(#_) .bubble .qjo-quiz .quiz-option-btn[data-state="wrong"] { color: #fecaca !important; }
+body.dark:not(#_) .bubble .qjo-quiz :is(.quiz-explanation-note, .quiz-explanation-note *) { color: #a7f3d0 !important; }
 
 /* A message in its own direction, line by line: Arabic typed on an English
    page, or English on an Arabic one, was laid out in the page's. Answers get

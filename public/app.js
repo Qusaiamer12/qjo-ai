@@ -328,6 +328,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     const sourceStrip = QjoUI.createSourceStrip({ t, getLanguage: () => qjoLanguage });
     const imagePrep = QjoUI.createImagePrep();
     const attachmentShelf = QjoUI.createAttachmentShelf({ maxImages: QjoDomain.imagePlan.LIMITS.maxImages, replyLanguage: (text) => QjoDomain.language.replyLanguage(text, qjoLanguage), t });
+    const quiz = QjoUI.createQuiz({ t, parse: (raw) => safeParseRelaxedJson(raw) });
 
     function sanitizeStoredMessageContent(content, role) {
       if (role !== 'user' || typeof content !== 'string') return content;
@@ -354,7 +355,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         ['math', () => typesetMath(bubble)],
         ['charts', () => initializeChartsInElement(bubble)],
         ['code blocks', () => initializeCodeBlockCopyButtons(bubble)],
-        ['quizzes', () => initializeQuizzesInElement(bubble)],
+        ['quizzes', () => quiz.initialize(bubble)],
         ['citations', () => sourceStrip.decorate(bubble)],
         ['diagrams', () => {
           if (typeof mermaid !== 'undefined') mermaid.init(undefined, bubble.querySelectorAll('.mermaid'));
@@ -1591,87 +1592,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
             if (runLabel) runLabel.textContent = qjoLanguage === 'ar' ? 'إعادة تشغيل' : 'Rerun';
           }
         });
-      });
-    }
-
-    function initializeQuizzesInElement(element) {
-      const containers = element.querySelectorAll('.interactive-quiz-container');
-      containers.forEach(container => {
-        try {
-          const configRaw = decodeURIComponent(container.dataset.quizConfig || '[]');
-          const questions = safeParseRelaxedJson(configRaw);
-          if (!Array.isArray(questions) || !questions.length) return;
-          
-          let html = '<div class="quiz-card-wrapper" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; margin: 14px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">';
-          
-          questions.forEach((q, qIdx) => {
-            const optionsHtml = (q.options || []).map((opt, oIdx) => {
-              return `<button class="quiz-option-btn" data-correct="${opt === q.answer}" data-explanation="${escapeHtml(q.explanation || '')}" style="display: block; width: 100%; text-align: right; background: white; border: 1px solid #CBD5E1; padding: 8px 12px; margin: 6px 0; border-radius: 6px; font-size: 12px; cursor: pointer; transition: all 0.2s;">${escapeHtml(String(opt))}</button>`;
-            }).join('');
-            
-            html += `<div class="quiz-question-block" id="q-block-${container.id}-${qIdx}" style="display: ${qIdx === 0 ? 'block' : 'none'};">
-              <div class="quiz-progress" style="font-size: 10px; color: #64748B; font-weight: 700; margin-bottom: 6px;">${escapeHtml(t('quizProgress', { n: qIdx + 1, total: questions.length }))}</div>
-              <div class="quiz-question-title" style="font-size: 14px; font-weight: 700; color: #0F172A; margin-bottom: 12px;">${escapeHtml(String(q.question ?? ''))}</div>
-              <div class="quiz-options-list">${optionsHtml}</div>
-              <div class="quiz-explanation-note text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-3 mt-3 text-xs hidden"></div>
-              ${qIdx < questions.length - 1 ? `<button class="quiz-next-btn" style="background: #123B7A; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; margin-top: 12px; display: none;">${escapeHtml(t('quizNext'))}</button>` : ''}
-            </div>`;
-          });
-          
-          html += '</div>';
-          container.innerHTML = html;
-          
-          const questionBlocks = container.querySelectorAll('.quiz-question-block');
-          questionBlocks.forEach((block, qIdx) => {
-            const options = block.querySelectorAll('.quiz-option-btn');
-            const explanationNote = block.querySelector('.quiz-explanation-note');
-            const nextBtn = block.querySelector('.quiz-next-btn');
-            
-            options.forEach(opt => {
-              opt.addEventListener('click', (e) => {
-                e.preventDefault();
-                const isCorrect = opt.dataset.correct === 'true';
-                options.forEach(o => {
-                  o.disabled = true;
-                  if (o.dataset.correct === 'true') {
-                    o.style.background = '#DEF7EC';
-                    o.style.borderColor = '#31C48D';
-                    o.style.color = '#03543F';
-                  } else {
-                    o.style.background = '#F8FAFC';
-                    o.style.color = '#9CA3AF';
-                  }
-                });
-                
-                if (!isCorrect) {
-                  opt.style.background = '#FDE8E8';
-                  opt.style.borderColor = '#F05252';
-                  opt.style.color = '#9B1C1C';
-                }
-                
-                if (explanationNote) {
-                  explanationNote.innerHTML = `<strong>${escapeHtml(isCorrect ? t('quizCorrect') : t('quizWrong'))}</strong> ${escapeHtml(opt.dataset.explanation || '')}`;
-                  explanationNote.classList.remove('hidden');
-                }
-                
-                if (nextBtn) {
-                  nextBtn.style.display = 'inline-block';
-                }
-              });
-            });
-            
-            if (nextBtn) {
-              nextBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                block.style.display = 'none';
-                questionBlocks[qIdx + 1].style.display = 'block';
-              });
-            }
-          });
-          
-        } catch (error) {
-          console.error('Failed to parse or build interactive quiz cards:', error);
-        }
       });
     }
 
