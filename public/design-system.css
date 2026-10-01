@@ -555,6 +555,12 @@ body.dark:not(#_) .bubble .qjo-quiz .quiz-option-btn[data-state="correct"] { col
 body.dark:not(#_) .bubble .qjo-quiz .quiz-option-btn[data-state="wrong"] { color: #fecaca !important; }
 body.dark:not(#_) .bubble .qjo-quiz :is(.quiz-explanation-note, .quiz-explanation-note *) { color: #a7f3d0 !important; }
 
+/* Dragging a file over the page (public/ui/composerDrop.js). */
+.qjo-drop-veil { position: fixed; inset: 0; z-index: 2000; display: grid; place-items: center; pointer-events: none;
+  background: color-mix(in srgb, var(--ds-accent) 12%, transparent); border: 3px dashed var(--ds-accent); }
+.qjo-drop-veil[hidden] { display: none; }
+.qjo-drop-veil-text { padding: 14px 22px; border-radius: var(--ds-r-md); background: var(--ds-panel); color: var(--ds-ink); font-weight: 700; box-shadow: var(--ds-shadow-3); }
+
 /* A message in its own direction, line by line: Arabic typed on an English
    page, or English on an Arabic one, was laid out in the page's. Answers get
    theirs per block from markdown.js. */

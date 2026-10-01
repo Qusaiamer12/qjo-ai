@@ -329,6 +329,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     const imagePrep = QjoUI.createImagePrep();
     const attachmentShelf = QjoUI.createAttachmentShelf({ maxImages: QjoDomain.imagePlan.LIMITS.maxImages, replyLanguage: (text) => QjoDomain.language.replyLanguage(text, qjoLanguage), t });
     const quiz = QjoUI.createQuiz({ t, parse: (raw) => safeParseRelaxedJson(raw) });
+    QjoUI.createComposerDrop({ input: inputEl, addFiles: (files) => addFiles(files), label: () => t('dropFiles') });
 
     function sanitizeStoredMessageContent(content, role) {
       if (role !== 'user' || typeof content !== 'string') return content;
@@ -340,11 +341,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       }
       return content;
     }
-
-
-
-
-
 
     // Runs the optional enhancements over a finished assistant bubble. Each is
     // isolated: a malformed chart config or a KaTeX hiccup costs that one

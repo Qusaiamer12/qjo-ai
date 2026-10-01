@@ -82,6 +82,12 @@ const BROWSER_GLOBALS = {
   loadPyodide: 'readonly',
   // Web Worker sandbox used to run user JavaScript off the main thread.
   Worker: 'readonly',
+  // Files and the clipboard: pasting and dropping into the composer.
+  DataTransfer: 'readonly',
+  DragEvent: 'readonly',
+  ClipboardItem: 'readonly',
+  File: 'readonly',
+  DOMMatrix: 'readonly',
   // Namespaces published by the extracted front-end modules, loaded by their
   // own script tags before app.js.
   QjoUI: 'readonly',

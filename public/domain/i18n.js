@@ -215,7 +215,8 @@
     avatarGoogle: 'Your Google picture will be used.',
     avatarReset: 'Picture reset to your initial.',
     showPassword: 'Show password',
-    hidePassword: 'Hide password'
+    hidePassword: 'Hide password',
+    dropFiles: 'Drop files to attach'
   });
   Object.assign(CATALOG.ar, {
     menuLabel: "القائمة",
@@ -372,7 +373,8 @@
     avatarGoogle: 'سيتم استخدام صورة جوجل.',
     avatarReset: 'تمت إعادة الصورة للحرف الأول.',
     showPassword: 'إظهار كلمة المرور',
-    hidePassword: 'إخفاء كلمة المرور'
+    hidePassword: 'إخفاء كلمة المرور',
+    dropFiles: 'أفلت الملفات هنا لإرفاقها'
   });
 
   /**

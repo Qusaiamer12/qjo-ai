@@ -41,7 +41,8 @@
     ['attachment references', () => window.QjoDomain && window.QjoDomain.attachmentRefs],
     ['attachment shelf', () => window.QjoUI && window.QjoUI.createAttachmentShelf],
     ['quiz reading', () => window.QjoDomain && window.QjoDomain.quiz],
-    ['quiz cards', () => window.QjoUI && window.QjoUI.createQuiz]
+    ['quiz cards', () => window.QjoUI && window.QjoUI.createQuiz],
+    ['pasting and dropping files', () => window.QjoUI && window.QjoUI.createComposerDrop]
   ];
 
   const RELOAD_FLAG = 'qjo_boot_reloaded';

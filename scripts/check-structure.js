@@ -40,6 +40,7 @@ const WATCHED = [
   'public/ui/attachmentShelf.js',
   'public/domain/quiz.js',
   'public/ui/quiz.js',
+  'public/ui/composerDrop.js',
   'src/services/export/attachedImages.js',
   'src/services/promptLayout.js',
   'src/services/export/markdownModel.js',
