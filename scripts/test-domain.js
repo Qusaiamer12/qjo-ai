@@ -647,6 +647,34 @@ const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n
     assert.strictEqual(worthExporting('| x | y |\n| - | - |\n| 1 | 2 |'), true);
   });
 
+  console.log('\nStarters on the welcome screen (i18n.js, read by fileRequest.js):');
+  {
+    const { CATALOG } = require('../public/domain/i18n.js');
+    const GROUPS = ['files', 'study', 'research', 'code', 'images', 'charts', 'write', 'plan'];
+    const key = (prefix, group) => prefix + group[0].toUpperCase() + group.slice(1);
+    for (const group of GROUPS) {
+      test(`"${group}": five starters and a name in each language, the same ones needing a file`, () => {
+        const [ar, en] = ['ar', 'en'].map((lang) => CATALOG[lang][key('starters', group)].split('\n'));
+        assert.strictEqual(ar.length, 5);
+        assert.strictEqual(en.length, 5);
+        assert.deepStrictEqual(ar.map((s) => s.startsWith('📎')), en.map((s) => s.startsWith('📎')));
+        assert.ok(CATALOG.ar[key('cat', group)] && CATALOG.en[key('cat', group)]);
+      });
+    }
+    // A starter is read like anything the person types: the file starters
+    // and the one Excel table get their file card, and nothing else does.
+    test('the file starters ask for a file, and no other starter does', () => {
+      for (const lang of ['ar', 'en']) {
+        for (const group of GROUPS) {
+          for (const starter of CATALOG[lang][key('starters', group)].split('\n')) {
+            const asks = Boolean(requestedFormat(starter.replace(/^📎\s*/u, '')));
+            assert.strictEqual(asks, group === 'files' || /إكسل|Excel/.test(starter), `${lang} ${group}: ${starter}`);
+          }
+        }
+      }
+    });
+  }
+
   console.log('\nA quiz as the model wrote it (quiz.js):');
   const { readQuiz, correctOption } = require('../public/domain/quiz.js');
   const OPTIONS = ['Area', 'Rate of change', 'Volume', 'Mass'];

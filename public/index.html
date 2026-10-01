@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <!-- Language and direction before first paint: English unless chosen or the browser prefers Arabic. -->
-  <script src="/domain/language.js?v=qjo-v61-readable"></script>
-  <script src="/lang-boot.js?v=qjo-v61-readable"></script>
+  <script src="/domain/language.js?v=qjo-v62-starters"></script>
+  <script src="/lang-boot.js?v=qjo-v62-starters"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
   <title>Qjo</title>
   <link rel="icon" href="/favicon.ico" sizes="any" />
@@ -12,19 +12,19 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <meta name="theme-color" content="#0a0818" />
-  <link rel="stylesheet" href="/styles.css?v=qjo-v61-readable" />
+  <link rel="stylesheet" href="/styles.css?v=qjo-v62-starters" />
   <!-- Design system layer. Must load AFTER styles.css so it wins the cascade. -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" />
-  <link rel="stylesheet" href="/design-system.css?v=qjo-ds-2026-10-01-readable" />
-  <link rel="stylesheet" href="/premium-ui.css?v=qjo-v61-readable" />
+  <link rel="stylesheet" href="/design-system.css?v=qjo-ds-2026-10-01-starters" />
+  <link rel="stylesheet" href="/premium-ui.css?v=qjo-v62-starters" />
   <!-- Mobile polish layer. Loaded last so it can safely correct any cascade conflict. -->
-  <link rel="stylesheet" href="/mobile.css?v=qjo-v61-readable" />
+  <link rel="stylesheet" href="/mobile.css?v=qjo-v62-starters" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.8/dist/mermaid.min.js" defer></script>
-  <script src="/mathjax-config.js?v=qjo-v61-readable" defer></script>
+  <script src="/mathjax-config.js?v=qjo-v62-starters" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js" defer></script>
@@ -169,6 +169,7 @@
           <section class="welcome" id="welcome">
             <h1 id="welcomeTitle">How can I <em>help you</em> today?</h1>
             <p id="welcomeText">Ask, write, plan, learn, or build something new. Qjo is designed to give clear, practical answers without unnecessary complexity.</p>
+            <div class="welcome-starters" id="welcomeStarters" role="group" aria-label="Suggestions" data-i18n-aria-label="qsHeader"></div>
           </section>
         </div>
       </section>
@@ -233,37 +234,37 @@
           </div>
           </div>
           <div class="quick-command-cats" id="quickCommandCats">
+            <button class="quick-cat-btn" data-cat="files" type="button">
+              <svg class="cat-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>
+              <span data-i18n="catFiles">Word &amp; PDF files</span>
+            </button>
+            <button class="quick-cat-btn" data-cat="study" type="button">
+              <svg class="cat-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h6a4 4 0 0 1 4 4v12a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v12a3 3 0 0 1 3-3h7z"/></svg>
+              <span data-i18n="catStudy">Study</span>
+            </button>
+            <button class="quick-cat-btn" data-cat="research" type="button">
+              <svg class="cat-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              <span data-i18n="catResearch">Research with sources</span>
+            </button>
             <button class="quick-cat-btn" data-cat="code" type="button">
-              <svg class="cat-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="m8 8-5 4 5 4M16 8l5 4-5 4M14 4l-4 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              <span data-i18n="catCode">Code Gen</span>
-            </button>
-            <button class="quick-cat-btn" data-cat="launch" type="button">
-              <svg class="cat-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 19V9a2 2 0 0 1 2-2h6l-2-2M14 3h7v7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="m10 14 11-11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-              <span data-i18n="catLaunch">Launch App</span>
-            </button>
-            <button class="quick-cat-btn" data-cat="ui" type="button">
-              <svg class="cat-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-              <span data-i18n="catUi">UI Components</span>
-            </button>
-            <button class="quick-cat-btn" data-cat="theme" type="button">
-              <svg class="cat-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c1 0 1-.8 1-1.5 0-.4-.2-.8-.4-1.1-.3-.4-.4-.8-.4-1.2 0-.7.5-1.2 1.2-1.2H16c3.3 0 6-2.7 6-6 0-5-4.5-9-10-9Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
-              <span data-i18n="catTheme">Themes</span>
-            </button>
-            <button class="quick-cat-btn" data-cat="dashboard" type="button">
-              <svg class="cat-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-              <span data-i18n="catDashboard">Dashboard</span>
-            </button>
-            <button class="quick-cat-btn" data-cat="landing" type="button">
-              <svg class="cat-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="2" y="4" width="20" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M2 9h20M7 13h6M7 16h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-              <span data-i18n="catLanding">Landing Page</span>
-            </button>
-            <button class="quick-cat-btn" data-cat="docs" type="button">
-              <svg class="cat-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M14 3v5h5M9 13h6M9 17h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-              <span data-i18n="catDocs">Upload Docs</span>
+              <svg class="cat-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 8-5 4 5 4M16 8l5 4-5 4M14 4l-4 16"/></svg>
+              <span data-i18n="catCode">Code &amp; preview</span>
             </button>
             <button class="quick-cat-btn" data-cat="images" type="button">
-              <svg class="cat-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="9" r="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="m21 15-5-5L5 21" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
-              <span data-i18n="catAssets">Assets</span>
+              <svg class="cat-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>
+              <span data-i18n="catImages">Ask about a photo</span>
+            </button>
+            <button class="quick-cat-btn" data-cat="charts" type="button">
+              <svg class="cat-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M8 17v-6M13 17V7M18 17v-4"/></svg>
+              <span data-i18n="catCharts">Tables &amp; charts</span>
+            </button>
+            <button class="quick-cat-btn" data-cat="write" type="button">
+              <svg class="cat-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+              <span data-i18n="catWrite">Writing</span>
+            </button>
+            <button class="quick-cat-btn" data-cat="plan" type="button">
+              <svg class="cat-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+              <span data-i18n="catPlan">Plan</span>
             </button>
           </div>
           <div class="quick-suggestions-panel" id="quickSuggestionsPanel" hidden>
@@ -702,28 +703,29 @@ In advanced mode it gives steps and examples." data-i18n-placeholder="trainingPl
     </div>
   </div>
 
-  <script src="/domain/i18n.js?v=qjo-v61-readable" defer></script>
-  <script src="/domain/codeProject.js?v=qjo-v61-readable" defer></script>
-  <script src="/domain/fileRequest.js?v=qjo-v61-readable" defer></script>
-  <script src="/domain/markdown.js?v=qjo-v61-readable" defer></script>
-  <script src="/domain/requestFailure.js?v=qjo-v61-readable" defer></script>
-  <script src="/domain/streamProtocol.js?v=qjo-v61-readable" defer></script>
-  <script src="/domain/streamBlocks.js?v=qjo-v61-readable" defer></script>
-  <script src="/domain/historyWindow.js?v=qjo-v61-readable" defer></script>
-  <script src="/ui/streamingView.js?v=qjo-v61-readable" defer></script>
-  <script src="/ui/sandbox.js?v=qjo-v61-readable" defer></script>
-  <script src="/ui/canvas.js?v=qjo-v61-readable" defer></script>
-  <script src="/ui/answerExports.js?v=qjo-v61-readable" defer></script>
-  <script src="/domain/sourceTier.js?v=qjo-v61-readable" defer></script>
-  <script src="/ui/sourceStrip.js?v=qjo-v61-readable" defer></script>
-  <script src="/domain/imagePlan.js?v=qjo-v61-readable" defer></script>
-  <script src="/ui/imagePrep.js?v=qjo-v61-readable" defer></script>
-  <script src="/domain/attachmentRefs.js?v=qjo-v61-readable" defer></script>
-  <script src="/ui/attachmentShelf.js?v=qjo-v61-readable" defer></script>
-  <script src="/domain/quiz.js?v=qjo-v61-readable" defer></script>
-  <script src="/ui/quiz.js?v=qjo-v61-readable" defer></script>
-  <script src="/ui/composerDrop.js?v=qjo-v61-readable" defer></script>
-  <script src="/boot.js?v=qjo-v61-readable" defer></script>
-  <script src="/app.js?v=qjo-v61-readable" defer></script>
+  <script src="/domain/i18n.js?v=qjo-v62-starters" defer></script>
+  <script src="/domain/codeProject.js?v=qjo-v62-starters" defer></script>
+  <script src="/domain/fileRequest.js?v=qjo-v62-starters" defer></script>
+  <script src="/domain/markdown.js?v=qjo-v62-starters" defer></script>
+  <script src="/domain/requestFailure.js?v=qjo-v62-starters" defer></script>
+  <script src="/domain/streamProtocol.js?v=qjo-v62-starters" defer></script>
+  <script src="/domain/streamBlocks.js?v=qjo-v62-starters" defer></script>
+  <script src="/domain/historyWindow.js?v=qjo-v62-starters" defer></script>
+  <script src="/ui/streamingView.js?v=qjo-v62-starters" defer></script>
+  <script src="/ui/sandbox.js?v=qjo-v62-starters" defer></script>
+  <script src="/ui/canvas.js?v=qjo-v62-starters" defer></script>
+  <script src="/ui/answerExports.js?v=qjo-v62-starters" defer></script>
+  <script src="/domain/sourceTier.js?v=qjo-v62-starters" defer></script>
+  <script src="/ui/sourceStrip.js?v=qjo-v62-starters" defer></script>
+  <script src="/domain/imagePlan.js?v=qjo-v62-starters" defer></script>
+  <script src="/ui/imagePrep.js?v=qjo-v62-starters" defer></script>
+  <script src="/domain/attachmentRefs.js?v=qjo-v62-starters" defer></script>
+  <script src="/ui/attachmentShelf.js?v=qjo-v62-starters" defer></script>
+  <script src="/domain/quiz.js?v=qjo-v62-starters" defer></script>
+  <script src="/ui/quiz.js?v=qjo-v62-starters" defer></script>
+  <script src="/ui/composerDrop.js?v=qjo-v62-starters" defer></script>
+  <script src="/ui/starters.js?v=qjo-v62-starters" defer></script>
+  <script src="/boot.js?v=qjo-v62-starters" defer></script>
+  <script src="/app.js?v=qjo-v62-starters" defer></script>
 </body>
 </html>
