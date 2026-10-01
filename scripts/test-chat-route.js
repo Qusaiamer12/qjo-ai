@@ -146,6 +146,33 @@ async function ask(port, question = 'سؤال', extraBody = {}) {
     } finally { server.close(); }
   });
 
+  // The engine hands back what had arrived when the person stops: served from
+  // the cache, that part would be the whole answer for the next one who asks.
+  await test('an answer the person stopped is not cached', async () => {
+    let returned = false;
+    const { server, port, cacheWrites } = await startApp(async ({ onChunk, signal }) => {
+      onChunk('الجزء الأول.');
+      while (!signal.aborted) await sleep(20);
+      returned = true;
+      return { ok: true, answer: 'الجزء الأول.', provider: 'p', model: 'm' };
+    });
+    try {
+      const stop = new AbortController();
+      const res = await fetch(`http://127.0.0.1:${port}/api/chat`, {
+        method: 'POST', signal: stop.signal, headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ model: 'test-model', stream: true, messages: [{ role: 'user', content: 'اكتب قصة' }] })
+      });
+      const reader = res.body.getReader();
+      let seen = '';
+      while (!seen.includes('الجزء')) seen += new TextDecoder().decode((await reader.read()).value);
+      stop.abort();
+      for (let i = 0; i < 50 && !returned; i++) await sleep(20);
+      await sleep(50);
+      assert.ok(returned, 'the engine never saw the stop — the check below proves nothing');
+      assert.strictEqual(cacheWrites.length, 0, 'the stopped answer was cached');
+    } finally { server.close(); }
+  });
+
   console.log('\nEnglish first, Arabic whenever it is in play:');
 
   // Records what the route asked the prompt builder for, per request.

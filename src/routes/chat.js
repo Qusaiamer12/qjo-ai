@@ -201,13 +201,13 @@ function stripClientBasePrompt(content) {
   return anchorIndex === undefined ? '' : text.slice(anchorIndex).trim();
 }
 
-// Caches a finished answer for identical follow-up requests.
-//
-// A sources-only reply exists because every model failed; caching it would
-// serve that fallback for the next quarter hour to everyone who asks the same
-// thing, long after the providers have recovered.
-function rememberAnswer(deps, cacheKey, ai, answer) {
-  if (!cacheKey || !deps.cacheSet || !answer || ai.degraded) return;
+// Caches a finished answer for identical follow-up requests. A sources-only
+// reply exists because every model failed; caching it would serve that
+// fallback for the next quarter hour to everyone who asks the same thing, long
+// after the providers have recovered. Nor is an answer the person stopped:
+// what had arrived would be served whole to the next one who asks.
+function rememberAnswer(deps, cacheKey, ai, answer, stopped) {
+  if (!cacheKey || !deps.cacheSet || !answer || ai.degraded || stopped) return;
   deps.cacheSet(deps.memoryCaches.completions, cacheKey, {
     answer,
     provider: ai.provider,
@@ -402,7 +402,7 @@ function registerChatRoutes(app, deps) {
       });
       const cleanAnswer = sanitizeMathNotation(String(finalAi.answer || ''));
 
-      rememberAnswer(deps, cacheKey, finalAi, cleanAnswer);
+      rememberAnswer(deps, cacheKey, finalAi, cleanAnswer, clientAbort.signal.aborted);
 
       if (useStreaming) flushChunks();
       responseFinished = true;

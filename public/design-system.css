@@ -569,6 +569,13 @@ body.dark:not(#_) .bubble .qjo-quiz :is(.quiz-explanation-note, .quiz-explanatio
   body:has(#quickSuggestionsPanel:not([hidden])) .mobile-tools-notch { display: none !important; }
 }
 
+/* Send turns into Stop while an answer is written (public/ui/sendStop.js). */
+body:not(#_) .send-btn.is-stop { background: var(--ds-ink) !important; color: var(--ds-panel) !important; box-shadow: none !important; }
+.bubble .qjo-stopped { margin: 10px 0 0; font-size: 13px; font-style: italic; }
+body:not(#_) .bubble .qjo-stopped { color: var(--ds-ink-2) !important; -webkit-text-fill-color: currentColor !important; }
+/* The phone's floating tools button would sit on the status line. */
+body:has(#requestStatus.show) .mobile-tools-notch { display: none !important; }
+
 /* Dragging a file over the page (public/ui/composerDrop.js). */
 .qjo-drop-veil { position: fixed; inset: 0; z-index: 2000; display: grid; place-items: center; pointer-events: none;
   background: color-mix(in srgb, var(--ds-accent) 12%, transparent); border: 3px dashed var(--ds-accent); }

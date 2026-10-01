@@ -55,18 +55,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       });
     }
     // Suggestion click "pop" feedback
-    function installSuggestionPop(){
-      document.querySelectorAll('.suggestion').forEach(btn=>{
-        btn.addEventListener('click', () => {
-          btn.animate([
-            { transform:'translateY(-4px) scale(1)' },
-            { transform:'translateY(-4px) scale(.96)' },
-            { transform:'translateY(-4px) scale(1.02)' }
-          ],{ duration:280, easing:'cubic-bezier(.3,1.4,.4,1)' });
-        });
-      });
-    }
-
     const messagesEl = el('messages');
     const messagesInner = el('messagesInner');
     const scrollBottomBtn = el('scrollBottomBtn');
@@ -301,6 +289,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     let messageSeq = 0;
     let didAutoLoadChat = false;
     let activeRequestController = null;
+    let stopRequested = false;
     let fileProcessing = false;
     let lastFailedRequest = null;
     // Set when a request fails in a way worth replaying once on the user's
@@ -329,6 +318,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     const imagePrep = QjoUI.createImagePrep();
     const attachmentShelf = QjoUI.createAttachmentShelf({ maxImages: QjoDomain.imagePlan.LIMITS.maxImages, replyLanguage: (text) => QjoDomain.language.replyLanguage(text, qjoLanguage), t });
     const quiz = QjoUI.createQuiz({ t, parse: (raw) => safeParseRelaxedJson(raw) });
+    const sendStop = QjoUI.createSendStop({ button: sendBtn, t });
     QjoUI.createComposerDrop({ input: inputEl, addFiles: (files) => addFiles(files), label: () => t('dropFiles') });
 
     function sanitizeStoredMessageContent(content, role) {
@@ -371,7 +361,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       if (!window.MathJax || !window.MathJax.typesetPromise || !node) return;
       window.MathJax.typesetPromise([node]).catch(() => {});
     }
-
 
     function latestUserTextForPrompt() {
       for (let i = history.length - 1; i >= 0; i--) {
@@ -465,8 +454,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       writeStored(THEME_KEY, qjoTheme);
       applyTheme();
     }
-
-
 
     // The catalog lives in public/domain/i18n.js, where both languages can be
     // checked against each other without a browser.
@@ -570,7 +557,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       document.body.dataset.qjoMode = qjoMode;
     }
 
-
     // Q-Spark and Qcode moved to their own repos and ship after the Qjo launch.
     // Their sidebar entries stay visible with a "Soon" badge, so a click must be
     // an explicit no-op rather than a navigation to a page that no longer exists.
@@ -594,7 +580,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       setActivationStatus('active', t('statusSecure'));
     }
 
-
     function updateTrainingStatus() {
       const count = qjoTraining.trim().length;
       trainingStatus.textContent = count ? t('trainingSaved', { count }) : t('trainingNone');
@@ -617,7 +602,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       trainingModal.classList.remove('show');
       trainingModal.setAttribute('aria-hidden', 'true');
     }
-
 
     function isUnsafeLearningNote(note) {
       const text = String(note || '').toLowerCase();
@@ -1204,7 +1188,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       return Babel.transform(code, { presets: ['typescript'], filename: 'snippet.ts' }).code;
     }
 
-
     // ── Auto-fix: hand a failing snippet + its error straight to Qjo ──────
     // Without this the user has to copy the traceback out of the terminal and
     // retype it. The button composes both sides of the report itself.
@@ -1762,7 +1745,8 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       if (role === 'assistant') decorateAssistantBubble(bubble, wrap);
       wrap.appendChild(bubble);
 
-      if (role === 'assistant' && !String(extraClass || '').includes('error')) {
+      // A streamed answer starts empty: its actions come when it is written.
+      if (role === 'assistant' && content && !String(extraClass || '').includes('error')) {
         buildAnswerToolbar(wrap, bubble, content);
       }
       messagesInner.appendChild(wrap);
@@ -1812,8 +1796,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         updateScrollBottomButton(near);
       });
     }
-
-
 
     function formatBytes(bytes) {
       if (!Number.isFinite(bytes)) return '';
@@ -2125,7 +2107,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       };
     }
 
-
     function cloudRagRecordsRef(chatId) {
       if (!db || !currentUser || !chatId) return null;
       return userChatsRef().doc(chatId).collection('ragIndexes');
@@ -2315,7 +2296,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       return score;
     }
 
-
     function hashTokenToIndex(token, dims = 192) {
       let hash = 2166136261;
       const value = String(token || '');
@@ -2352,7 +2332,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       for (let i = 0; i < a.length; i++) sum += a[i] * b[i];
       return sum;
     }
-
 
     async function getServerEmbeddingsForRetrieval(texts) {
       const input = (Array.isArray(texts) ? texts : []).map(t => String(t || '').slice(0, 8000));
@@ -2543,7 +2522,8 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
 
     function setComposerBusy(isBusy) {
       busy = isBusy;
-      sendBtn.disabled = isBusy || fileProcessing || !navigator.onLine;
+      sendBtn.disabled = !isBusy && (fileProcessing || !navigator.onLine);
+      sendStop.setBusy(isBusy);
       inputEl.disabled = isBusy;
       attachBtn.disabled = isBusy || fileProcessing;
       if (normalModeBtn) normalModeBtn.disabled = isBusy;
@@ -2576,6 +2556,11 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       }
     }
 
+    // A stop the person asked for keeps what was written (sendMessage's catch).
+    function stopAnswer() {
+      stopRequested = true;
+      cancelActiveRequest();
+    }
 
     function normalizeUserQueryForSearch(text) {
       let q = String(text || '').trim();
@@ -2602,7 +2587,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       if (/كأس\s+العلم|كاس\s+العلم/.test(q)) candidates.push('كأس العالم');
       return candidates;
     }
-
 
     function isContextualTransformRequest(text) {
       const q = String(text || '').trim().toLowerCase();
@@ -2759,7 +2743,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         return '\n\nWeb search note: The pre-search failed. If this question needs current information, call web_search yourself rather than guessing.';
       }
     }
-
 
     function isUnsafeSecurityBypassRequest(text) {
       const q = String(text || '').toLowerCase();
@@ -3049,6 +3032,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
           persistAttachmentsToRagIndex(currentChatId, attachmentsForRag).catch(e => console.warn('Background RAG index error:', e));
         }
 
+        stopRequested = false;
         activeRequestController = new AbortController();
         const timeoutId = setTimeout(() => activeRequestController.abort(), 180000);
         const response = await fetch('/api/chat', {
@@ -3175,6 +3159,19 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         await safePersistMessage(assistantMessage);
       } catch (error) {
         view.dispose();
+        // Stopped by the person: what was written stays, as the answer.
+        if (stopRequested) {
+          if (String(view.answer || '').trim()) {
+            if (view.reasoningActive) view.finishReasoning();
+            view.renderFinalAnswer();
+            decorateAssistantBubble(view.bubble, view.wrap, { extras: [['actions', () => refreshAnswerToolbar(view.wrap, view.answer)]] });
+            view.bubble.insertAdjacentHTML('beforeend', `<p class="qjo-stopped">${escapeHtml(t('answerStopped'))}</p>`);
+            const kept = { role: 'assistant', content: view.answer };
+            history.push(kept);
+            await safePersistMessage(kept);
+          } else if (view.wrap) view.wrap.remove();
+          return;
+        }
         console.error('[Qjo Chat Error]', error);
         // Twelve branches of error-to-message mapping used to live here. They
         // are pure logic — an error in, a decision out — so they moved to
@@ -3609,8 +3606,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       }
     }
 
-
-
     function parseFirebaseConfig(raw) {
       if (!raw) return null;
       let text = raw.trim();
@@ -3693,7 +3688,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         window.QJO_REMOTE_SUGGESTIONS = config.suggestions.slice(0, 6);
       }
     }
-
 
     async function loadClientContext(force = false) {
       if (clientContext && !force) return clientContext;
@@ -3880,11 +3874,9 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
             setAuthMessage('');
             showAuthOverlay(false);
             // Reset composer state so input/buttons are never stuck disabled
-            busy = false;
             fileProcessing = false;
-            if (inputEl) { inputEl.disabled = false; inputEl.value = ''; }
-            if (sendBtn) sendBtn.disabled = !navigator.onLine;
-            if (attachBtn) attachBtn.disabled = false;
+            setComposerBusy(false);
+            inputEl.value = '';
             updateUserUI(user);
             await loadUserPreferences();
             didAutoLoadChat = true;
@@ -4046,7 +4038,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         el.textContent = opts.letter || 'Q';
       }
     }
-
 
     async function applyAuthPersistence(forceLocal = false) {
       if (!auth || !firebaseReady) return;
@@ -4516,7 +4507,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       }
     }
 
-
     async function logoutUser() {
       userSettingsModal.classList.remove('show');
       currentChatId = null;
@@ -4525,13 +4515,13 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       renderAttachments();
       messageSeq = 0;
       cancelActiveRequest();
-      busy = false;
       fileProcessing = false;
+      setComposerBusy(false);
       history.length = 0;
       showWelcomeHero();
-      if (inputEl) { inputEl.value = ''; inputEl.disabled = false; autoResize(); clearDraft(); }
-      if (sendBtn) sendBtn.disabled = false;
-      if (attachBtn) attachBtn.disabled = false;
+      inputEl.value = '';
+      autoResize();
+      clearDraft();
       clearAuthGrace();
       clearRecentUser();
       hasAuthenticatedThisSession = false;
@@ -4609,7 +4599,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       btn.style.cursor='pointer';
     });
 
-
     document.addEventListener('click', (event) => {
       const appBtn = event.target.closest('[data-qjo-app]');
       if (!appBtn) return;
@@ -4621,18 +4610,14 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       }
     });
 
-    document.querySelectorAll('[data-prompt]').forEach(btn => {
-      btn.addEventListener('click', () => sendMessage(btn.dataset.prompt));
-    });
-
     attachBtn.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', () => {
       addFiles(fileInput.files);
       fileInput.value = '';
     });
 
-    cancelRequestBtn.addEventListener('click', cancelActiveRequest);
-    sendBtn.addEventListener('click', () => sendMessage());
+    cancelRequestBtn.addEventListener('click', stopAnswer);
+    sendBtn.addEventListener('click', () => (busy ? stopAnswer() : sendMessage()));
     inputEl.addEventListener('input', () => {
       autoResize();
       saveDraft();
@@ -4643,8 +4628,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         sendMessage();
       }
     });
-
-
 
     closeModal.addEventListener('click', closeSettings);
     settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal) closeSettings(); });
@@ -4734,7 +4717,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       protocol: location.protocol,
       storageAvailable: (() => { try { writeStored('__qjo_test','1'); dropStored('__qjo_test'); return true; } catch { return false; } })()
     });
-
 
     function isMobileViewport() {
       return window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
@@ -4846,11 +4828,8 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     safeFocusComposer();
     sprinkleWelcomeConfetti();
     installTypingSparkle();
-    installSuggestionPop();
     installFunctionToggles();
     QjoUI.createStarters({ t, input: inputEl, pickFile: () => fileInput.click() });
-    // Re-wire suggestion pop if suggestions re-render (they don't, but safe)
-    setTimeout(installSuggestionPop, 400);
 
     // --- Function toggles (Search / Deep / Reason) ---
     // ── Composer function toggles ────────────────────────────────────────

@@ -39,17 +39,22 @@ function fakeGroq() {
 
 // The PDF the page offers under the answer, then the Word file.
 async function filesCarryThePhoto(page, exports, id, imagesIn) {
+  // The request is seen at once; the file takes as long as Chromium takes to
+  // print it, twice (the page's request and this suite's), longer under load.
+  const asked = (kind) => exports.find((e) => e.url.endsWith(`/${kind}`));
   const fetched = (kind) => exports.find((e) => e.url.endsWith(`/${kind}`) && e.body);
   await page.click('.msg.assistant:last-of-type button:has-text("تحميل")');
-  for (let i = 0; i < 40 && !fetched('pdf'); i++) await page.waitForTimeout(250);
+  for (let i = 0; i < 40 && !asked('pdf'); i++) await page.waitForTimeout(250);
+  const request = asked('pdf');
+  const sent = request && request.sent.images && request.sent.images[id];
+  ok(Boolean(sent) && sent.startsWith('data:image/'), 'the PDF request carries the photo under its id', request ? Object.keys(request.sent.images || {}) : 'no PDF requested');
+  for (let i = 0; i < 120 && !fetched('pdf'); i++) await page.waitForTimeout(250);
   const pdf = fetched('pdf');
-  const sent = pdf && pdf.sent.images && pdf.sent.images[id];
-  ok(Boolean(sent) && sent.startsWith('data:image/'), 'the PDF request carries the photo under its id', pdf && Object.keys(pdf.sent.images || {}));
-  const drawn = pdf ? await imagesIn(pdf.body) : 'no file';
+  const drawn = pdf ? await imagesIn(pdf.body) : 'no file within 30 s';
   ok(drawn === 1, `the PDF has the photo in it (${drawn} image(s) drawn)`, pdf && { status: pdf.status, start: pdf.body.slice(0, 120).toString() });
   await page.click('.msg.assistant:last-of-type .qjo-export-toggle').catch(() => {});
   await page.click('.msg.assistant:last-of-type .qjo-export-item[data-export="docx"]').catch(() => {});
-  for (let i = 0; i < 40 && !fetched('docx'); i++) await page.waitForTimeout(250);
+  for (let i = 0; i < 120 && !fetched('docx'); i++) await page.waitForTimeout(250);
   const docx = fetched('docx');
   const media = docx ? Object.keys((await JSZip.loadAsync(docx.body)).files).filter((f) => /^word\/media\/.+\.\w+$/.test(f)) : [];
   ok(media.length === 1, `the Word file has the photo in it (${media.join(', ') || 'none'})`);
