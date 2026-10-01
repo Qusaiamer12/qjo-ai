@@ -9,6 +9,7 @@ const { buildPptx } = require('./export/pptx');
 const { fontFaceCss, footerFontCss } = require('./export/fonts');
 const { buildPdfFallback } = require('./export/pdfFallback');
 const { assertUrlIsFetchable } = require('../tools/fetchPageTool');
+const { acceptImages, placeImages, IMAGE_DATA_URL } = require('./export/attachedImages');
 
 function stripMarkdown(input) {
   return String(input || '')
@@ -32,7 +33,8 @@ function safeExportPayload(req) {
   // The page knows which way the conversation reads; without it, the text's
   // own letters decide (more Arabic than Latin), not any one Arabic letter.
   const rtl = typeof req.body.rtl === 'boolean' ? req.body.rtl : isMostlyRtl(title + ' ' + content);
-  return { title, content, rtl };
+  // The person's own images, where the answer refers to them (attachedImages.js).
+  return { title, content: placeImages(content, acceptImages(req.body.images)), rtl };
 }
 
 // A request without content is the caller's fault: 400, never 500.
@@ -344,11 +346,15 @@ function markdownToExportHtml(markdown) {
 
     // A lone image on its own line becomes a figure so it can be centred and
     // captioned — this is the CV-photo case.
+    // Its address is the answer's text, put inside an attribute: only real
+    // image data or a plain https address, and escaped — a quote in it used
+    // to close the attribute and open an onerror handler in the server's
+    // Chromium.
     const loneImage = trimmed.match(/^!\[([^\]]*)\]\((data:image\/[a-z0-9+.\-]+;base64,[^)\s]+|https?:\/\/[^)\s]+)\)$/i);
-    if (loneImage) {
+    if (loneImage && (IMAGE_DATA_URL.test(loneImage[2]) || /^https:\/\/[^"'<>\s]+$/i.test(loneImage[2]))) {
       flush();
       const caption = loneImage[1] ? `<figcaption dir="auto">${escapeHtmlExport(loneImage[1])}</figcaption>` : '';
-      out.push(`<figure><img src="${loneImage[2]}" alt="${escapeHtmlExport(loneImage[1])}" />${caption}</figure>`);
+      out.push(`<figure><img src="${escapeHtmlExport(loneImage[2])}" alt="${escapeHtmlExport(loneImage[1])}" />${caption}</figure>`);
       i++; continue;
     }
 
@@ -602,6 +608,8 @@ async function renderHtmlPdfWithPuppeteer(payload) {
   const browser = await puppeteer.launch({ executablePath, headless: true, args: ['--no-sandbox','--disable-setuid-sandbox','--font-render-hinting=medium'] });
   try {
     const page = await browser.newPage();
+    // The document has no script of its own; nothing in an answer may run.
+    await page.setJavaScriptEnabled(false);
     // The document is the model's answer, and Chromium runs on the server: an
     // image in it at http://169.254.169.254/ or http://localhost:... would be
     // fetched from inside the network. Only inline data and images at public
@@ -667,7 +675,10 @@ async function exportPdf(req, res) {
     Object.assign(lastPdf, { engine, at: new Date().toISOString(), fallbackReason: pdf && engine === 'fallback' ? String(reason || 'puppeteer not installed').slice(0, 300) : null });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(payload.title)}.pdf"; filename*=UTF-8''${encodeURIComponent(payload.title)}.pdf`);
-    res.send(pdf);
+    // Puppeteer returns a Uint8Array, and Express sends anything that is not
+    // a Buffer as JSON: every PDF Chromium printed downloaded as
+    // {"0":37,"1":80,…}. The plain renderer's Buffer hid it.
+    res.send(Buffer.from(pdf));
   } catch (error) {
     sendExportError(res, error, 'PDF export failed.');
   }
@@ -779,4 +790,4 @@ async function exportImageToPdf(req, res) {
   }
 }
 
-module.exports = { exportPdf, exportCodeZip, exportPptx, exportDocx, exportXlsx, exportImageToPdf, pdfEngineStatus };
+module.exports = { exportPdf, exportCodeZip, exportPptx, exportDocx, exportXlsx, exportImageToPdf, pdfEngineStatus, buildExportHtmlDocument };

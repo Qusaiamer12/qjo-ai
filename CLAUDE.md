@@ -102,6 +102,12 @@ Each of these produced a green result that meant nothing.
   route quietly took its fallback. The measurement found it (57% of each
   request new instead of 37%). A change to what a request carries is done
   when `measure-request.js` says so, and a suite that fails without it exists.
+- **A stand-in that accepts what the real thing refuses.** The PDF suite called
+  the export handler with a fake `res.send` that took anything. Puppeteer
+  returns a `Uint8Array`, and Express sends anything that is not a `Buffer` as
+  JSON: every PDF Chromium printed downloaded as `{"0":37,"1":80,…}`, while
+  every suite was green. Found by fetching the file from the real server.
+  A response's body is checked where a person would get it.
 - **Verification that lives outside the repo.** 264 browser assertions spent
   weeks in a scratch directory that is deleted with the container. A check
   that is not committed and not in CI does not exist.

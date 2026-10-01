@@ -727,6 +727,41 @@ const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n
     assert.strictEqual(inline('**bold *inner* bold** and ***both***'), '<strong>bold <em>inner</em> bold</strong> and <strong><em>both</em></strong>');
   });
 
+  console.log('\nImages referred to by id, sent only to be looked at (attachmentRefs.js):');
+  const refs = require('../public/domain/attachmentRefs.js');
+
+  test('placing an image is told apart from asking about it, in both languages', () => {
+    for (const text of ['حطلي هالصورة بالسيفي تبعي واعملي ملف pdf', 'ضيف صورتي على السيرة الذاتية', 'put this photo in my CV', 'add my picture to the resume and make a PDF', 'use this image as the header of my website', 'حطها بملف وورد']) {
+      assert.ok(refs.placesAttachment(text), `"${text}" only places the image`);
+    }
+    for (const text of ['شو في بالصورة؟', 'حل السؤال اللي بالصورة', 'describe this photo and put it in a report', 'اقرأ النص وحطه بملف وورد', "what's in this image?", 'اعملي سيفي من هالصورة', 'حلو كتير', 'حلل الصورة']) {
+      assert.ok(!refs.placesAttachment(text), `"${text}" needs someone to look`);
+    }
+  });
+
+  test('the model is told the id and how to place it; the ids an answer uses are found', () => {
+    const note = refs.referenceNote([{ id: 'k7f2q9', name: 'me".jpg]' }]);
+    assert.ok(note.includes('![a short description](attachment:k7f2q9)') && /not shown to you/.test(note) && note.includes('"me.jpg" (id k7f2q9)'), note);
+    assert.strictEqual(refs.referenceNote([{ id: 'bad id', name: 'x' }]), '', 'an id that is not one');
+    assert.deepStrictEqual(refs.referencedIds('![a](attachment:K7F2Q9) and ![b](attachment:zz9911)'), ['k7f2q9', 'zz9911']);
+    assert.ok(refs.isImageDataUrl('data:image/png;base64,iVBORw0KGgo=') && !refs.isImageDataUrl('data:image/svg+xml;base64,PHN2Zz4=') && !refs.isImageDataUrl('javascript:alert(1)'));
+  });
+
+  test('the page shows the image it holds, a placeholder for one it does not, and nothing else', () => {
+    const PX = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==';
+    markdown.setAttachmentSource((id) => ({ abcd12: PX, evil01: 'javascript:alert(1)', svg001: 'data:image/svg+xml;base64,PHN2Zz4=' }[id] || null));
+    const out = (t) => markdown.lightMarkdown(t);
+    assert.ok(out('![صورتي](attachment:ABCD12)').includes(`<img class="qjo-attachment" src="${PX}" alt="صورتي">`));
+    for (const id of ['evil01', 'svg001', 'zzzz99']) {
+      const html = out(`![x](attachment:${id})`);
+      assert.ok(!/<img/.test(html) && /qjo-attachment-missing/.test(html), `${id}: ${html}`);
+    }
+    const hostile = out('![<img src=x onerror=alert(1)>](attachment:abcd12)');
+    assert.ok((hostile.match(/<img/g) || []).length === 1 && !/onerror=alert/.test(hostile.replace(/alt="[^"]*"/, '')), hostile);
+    assert.ok(out('`![x](attachment:abcd12)`').includes('<code>![x](attachment:abcd12)</code>'), 'code stays code');
+    markdown.setAttachmentSource(() => null);
+  });
+
   console.log('\nWhich earlier messages a request carries (historyWindow.js):');
   const { historyStart } = require('../public/domain/historyWindow.js');
 

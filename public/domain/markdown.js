@@ -42,6 +42,14 @@
     if (typeof getter === 'function') getLanguage = getter;
   }
 
+  // The person's own images, kept by the page and referred to by id
+  // (attachmentRefs.js): ![a description](attachment:k7f2q9).
+  let attachmentSource = (_id) => null;
+  /** @param {(id: string) => string | null} getter */
+  function setAttachmentSource(getter) {
+    if (typeof getter === 'function') attachmentSource = getter;
+  }
+
   function escapeHtml(text) {
     return String(text)
       .replaceAll('&', '&amp;')
@@ -78,9 +86,18 @@
   function parseInlineMarkdown(text) {
     const spans = [];
     const math = [];
+    const images = [];
     let value = String(text)
-      .replace(/[\uE000-\uE003]/g, '')
+      .replace(/[\uE000-\uE005]/g, '')
       .replace(/`([^`]+)`/g, (_, code) => `\uE000${spans.push(code) - 1}\uE001`)
+      // Only an image the page holds, as image data; otherwise its
+      // description, marked as missing. Set aside like code.
+      .replace(/!\[([^\]\n]{0,200})\]\(attachment:([a-z0-9]{4,16})\)/gi, (_, alt, id) => {
+        const src = attachmentSource(id.toLowerCase());
+        return `\uE004${images.push(/^data:image\/(png|jpe?g|gif|webp);base64,[A-Za-z0-9+/]+={0,2}$/i.test(String(src))
+          ? `<img class="qjo-attachment" src="${src}" alt="${alt}">`
+          : `<span class="qjo-attachment-missing">🖼️ ${alt || translate('attachmentMissing')}</span>`) - 1}\uE005`;
+      })
       .replace(MATH, (whole, before, dollar) => (dollar === undefined
         ? `\uE002${math.push(whole) - 1}\uE003`
         : `${before}\uE002${math.push(`\\(${dollar}\\)`) - 1}\uE003`));
@@ -102,7 +119,8 @@
       .split(/(<[^>]*>)/).map((part, i) => (i % 2 ? part : emphasis(part))).join('')
       .replace(/\\\$/g, '$') // "\$5": a price written with an escape
       .replace(CODE_MARK, (_, i) => `<code>${spans[Number(i)]}</code>`)
-      .replace(MATH_MARK, (_, i) => math[Number(i)]);
+      .replace(MATH_MARK, (_, i) => math[Number(i)])
+      .replace(/\uE004(\d+)\uE005/g, (_, i) => images[Number(i)]);
   }
 
   function isTableSeparator(line) {
@@ -515,7 +533,8 @@
     isPreviewableHtml,
     lightMarkdown,
     setRelaxedJsonParser,
-    setLanguageSource
+    setLanguageSource,
+    setAttachmentSource
   };
 
   global.QjoDomain = global.QjoDomain || {};

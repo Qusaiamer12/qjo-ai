@@ -106,7 +106,7 @@ async function ask(eng, text, { mode = 'flash' } = {}) {
   });
   await test('the instruction the page adds to every image is not the person asking to solve', () => {
     // Read from the page itself, so a change to its wording is tested here.
-    const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'public', 'app.js'), 'utf8');
+    const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'public', 'ui', 'attachmentShelf.js'), 'utf8');
     const pageText = (start) => src.match(new RegExp(`'\\\\n\\\\n${start}[^']*'`))[0].slice(1, -1).replace(/\\n/g, '\n');
     const en = pageText('Analyze the attached image');
     const ar = pageText('حلّل الصورة');
@@ -115,6 +115,10 @@ async function ask(eng, text, { mode = 'flash' } = {}) {
     assert.strictEqual(isExercise(`حلّل المرفقات المرفقة قدر الإمكان.${ar}`), false);
     assert.strictEqual(isExercise(`solve this${en}`), true, 'control: asking to solve still counts');
     assert.strictEqual(isExercise(`حل السؤال${ar}`), true);
+    // The line naming the image's id follows the instruction.
+    const note = `\n\n${require('../public/domain/attachmentRefs.js').referenceNote([{ id: 'k7f2q9', name: 'page.jpg' }], { shown: true })}`;
+    assert.strictEqual(isExercise(`Analyze the attached files as fully as you can.${en}${note}`), false, 'the id line made an image an exercise');
+    assert.strictEqual(isExercise(`solve this${en}${note}`), true);
   });
 
   await test('what the vision model read becomes text for the solver; nothing read is nothing', () => {

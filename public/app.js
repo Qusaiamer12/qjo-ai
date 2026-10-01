@@ -327,6 +327,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     const answerExports = QjoUI.createAnswerExports({ downloadExport, t, toast: (m) => showMicroToast(m) });
     const sourceStrip = QjoUI.createSourceStrip({ t, getLanguage: () => qjoLanguage });
     const imagePrep = QjoUI.createImagePrep();
+    const attachmentShelf = QjoUI.createAttachmentShelf({ maxImages: QjoDomain.imagePlan.LIMITS.maxImages, replyLanguage: (text) => QjoDomain.language.replyLanguage(text, qjoLanguage), t });
 
     function sanitizeStoredMessageContent(content, role) {
       if (role !== 'user' || typeof content !== 'string') return content;
@@ -803,7 +804,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       const endpoint = EXPORT_ENDPOINTS[format];
       if (!endpoint) return false;
       const safeName = String(title || 'qjo-export').replace(/[\\/:*?"<>|]+/g, '-').slice(0, 60) || 'qjo-export';
-      return postForDownload(endpoint, { title, content, rtl: QjoDomain.language.documentLanguage(content) === 'ar' }, `${safeName}.${format}`);
+      return postForDownload(endpoint, { title, content, rtl: QjoDomain.language.documentLanguage(content) === 'ar', images: attachmentShelf.imagesFor(content) }, `${safeName}.${format}`);
     }
 
     // Shows a small "the model itself searched/calculated" note whenever
@@ -881,6 +882,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     // a second copy of it.
     QjoDomain.markdown.setRelaxedJsonParser((raw) => safeParseRelaxedJson(raw));
     QjoDomain.markdown.setLanguageSource(() => qjoLanguage);
+    QjoDomain.markdown.setAttachmentSource(attachmentShelf.get);
 
     function safeParseRelaxedJson(rawStr) {
       if (!rawStr || typeof rawStr !== 'string') return null;
@@ -2536,31 +2538,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     // Takes the message's attachments as they were when it was sent: the tray
     // is emptied as soon as the question appears, and reading it here meant no
     // image had ever reached the model — only the OCR text gathered earlier.
-    function buildCurrentUserApiContent(text, attachmentContext, attachments) {
-      const imageAttachments = attachments.filter(item => item.type.startsWith('image/') && item.dataUrl).slice(0, QjoDomain.imagePlan.LIMITS.maxImages);
-      const combinedText = text + attachmentContext;
-
-      if (!imageAttachments.length) return combinedText;
-
-      const content = [
-        {
-          type: 'text',
-          text: combinedText + (QjoDomain.language.replyLanguage(combinedText, qjoLanguage) === 'ar'
-            ? '\n\nحلّل الصورة/الصور المرفقة مباشرة وبالعربية. المطلوب: تحليل سريع ودقيق جدًا بمستوى منتج AI عالمي. ابدأ بالخلاصة فورًا، ثم اذكر التفاصيل المهمة فقط. لا تستخدم قالبًا طويلًا ولا حشوًا. استخرج النص المقروء بدقة. فرّق بين ما تراه فعليًا وبين الاستنتاج. إذا كانت الصورة تصميمًا/واجهة/شعارًا، قيّم التركيب، الألوان، الوضوح، التسلسل البصري، الاحترافية، والمشاكل العملية. أعطِ تحسينات محددة وقابلة للتنفيذ. لا ترد بالإنجليزية إلا إذا طلب المستخدم ذلك.'
-            : '\n\nAnalyze the attached image(s) directly in the user language. Be fast, highly precise, and high-signal like a top-tier AI product. Start with the answer, then provide only the most important details. Avoid boilerplate and filler. Extract readable text accurately. Separate visible facts from interpretation. For design/UI/logo images, evaluate composition, colors, clarity, visual hierarchy, polish, and practical issues. Give specific actionable improvements.')
-        }
-      ];
-
-      imageAttachments.forEach(item => {
-        content.push({
-          type: 'image_url',
-          image_url: { url: item.dataUrl }
-        });
-      });
-
-      return content;
-    }
-
     function hasImageAttachments() {
       return pendingAttachments.some(item => item.type.startsWith('image/') && item.dataUrl);
     }
@@ -3070,7 +3047,9 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       const attachmentNames = pendingAttachments.length ? '\n\n' + t('attachmentsLabel') + pendingAttachments.map(a => a.name).join(', ') : '';
       const hasAttachmentAnalysis = hasReadableAttachments();
       const hadImageAttachments = hasImageAttachments();
-      const apiModel = hadImageAttachments
+      // Placing an image needs no one to look at it (attachmentRefs.js).
+      const placing = hadImageAttachments && QjoDomain.attachmentRefs.placesAttachment(rawText);
+      const apiModel = hadImageAttachments && !placing
         ? GROQ_VISION_MODEL
         : (qjoMode === 'normal' ? GROQ_FLASH_MODEL : GROQ_MODEL);
       const generationConfig = getGenerationConfig(hasAttachmentAnalysis, rawText);
@@ -3134,10 +3113,10 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
           appendReasoningStep(qjoLanguage === 'ar' ? 'تم اختيار وتلخيص أقوى المصادر' : 'Synthesizing verified sources', true);
         }
         const continuityHint = buildContextContinuityHint(rawText);
-        const savedUserContent = text + clarificationContext + attachmentContext + (hadImageAttachments ? '\n\n' + t('imagesAnalyzedNote') : '');
+        const savedUserContent = text + clarificationContext + attachmentContext + attachmentShelf.historyNote(attachmentsForRag, placing);
         await imagePrep.fitMessage(attachmentsForRag);
         const apiUserContent = hadImageAttachments
-          ? buildCurrentUserApiContent(text + clarificationContext + webSearchContext, attachmentContext, attachmentsForRag)
+          ? attachmentShelf.requestContent(text + clarificationContext + webSearchContext, attachmentContext, attachmentsForRag, placing)
           : text + clarificationContext + attachmentContext + webSearchContext;
 
         const userMessage = { role: 'user', content: savedUserContent };

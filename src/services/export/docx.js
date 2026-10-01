@@ -10,10 +10,11 @@
 
 const {
   Document, Packer, Paragraph, TextRun, ExternalHyperlink, Table, TableRow, TableCell,
-  WidthType, HeadingLevel, AlignmentType, BorderStyle, ShadingType, LevelFormat
+  WidthType, HeadingLevel, AlignmentType, BorderStyle, ShadingType, LevelFormat, ImageRun
 } = require('docx');
 const JSZip = require('jszip');
 const { parseMarkdown, mathToText } = require('./markdownModel');
+const { decodeImage } = require('./attachedImages');
 
 const COLOR = { ink: '0F172A', accent: '123B7A', muted: '64748B', link: '1D4ED8', codeBg: 'F1F5F9', line: 'CBD5E1', zebra: 'F8FAFC', white: 'FFFFFF' };
 // Arial carries Arabic on every system Word runs on; Calibri is Word's own.
@@ -121,9 +122,24 @@ function codeBlock(block) {
   return out;
 }
 
+// The person's own image, centred, within a box a CV photo fits (pixels at
+// 96 per inch: about 7 x 8.5 cm); its description when it cannot be drawn.
+function imageBlock(block) {
+  const image = decodeImage(block.src);
+  if (!image) return block.alt ? [textParagraph([{ text: block.alt }], false)] : [];
+  const scale = Math.min(1, 260 / image.width, 320 / image.height);
+  return [new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 160 }, children: [new ImageRun({
+    type: image.type, data: image.data,
+    transformation: { width: Math.round(image.width * scale), height: Math.round(image.height * scale) },
+    altText: { name: block.alt || 'image', title: block.alt, description: block.alt }
+  })] })];
+}
+
 /** @param {import('./markdownModel').Block} block */
 function blockToWord(block, lists) {
   switch (block.type) {
+    case 'image':
+      return imageBlock(block);
     case 'heading':
       return [textParagraph(block.runs, block.rtl, { heading: HEADINGS[Math.min(block.level, 6) - 1], keepNext: true })];
     case 'paragraph':

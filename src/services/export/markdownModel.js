@@ -16,6 +16,7 @@
 
 const { documentLanguage } = require('../../../public/domain/language');
 const { createTranslator } = require('../../../public/domain/i18n');
+const { IMAGE_DATA_URL } = require('./attachedImages');
 
 const ARABIC_LETTER = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
 const LATIN_LETTER = /[A-Za-z\u00C0-\u024F]/;
@@ -29,6 +30,7 @@ const LATIN_LETTER = /[A-Za-z\u00C0-\u024F]/;
  *   | {type: 'table', header: Run[][], rows: Run[][][], align: Array<'left'|'center'|'right'|null>, rtl: boolean}
  *   | {type: 'code', lang: string, text: string}
  *   | {type: 'math', tex: string}
+ *   | {type: 'image', alt: string, src: string}
  *   | {type: 'rule'}} Block
  */
 
@@ -92,6 +94,11 @@ function parseInline(text, marks = {}) {
     }
     if ((m = INLINE_MATH.exec(rest))) {
       flush(); runs.push({ text: m[1].trim(), ...marks, math: true }); i += m[0].length; continue;
+    }
+    // An image within a line is its description here: its data must never
+    // reach the text (a lone image is a block of its own).
+    if ((m = /^!\[([^\]\n]*)\]\([^)\s]+\)/.exec(rest))) {
+      plain += m[1]; i += m[0].length; continue;
     }
     if ((m = /^\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/.exec(rest))) {
       flush(); runs.push(...parseInline(m[1], { ...marks, link: m[2] })); i += m[0].length; continue;
@@ -215,6 +222,24 @@ function readTable(lines, start, defaultRtl) {
   return { block: { type: 'table', header: header.map((c) => parseInline(c)), rows, align: header.map((_, k) => align[k] || null), rtl }, next: i };
 }
 
+/**
+ * Display math opening at this line — $$ … $$ or \\[ … \\], on one line or
+ * several — or null. "$$5 and $$10" is not math.
+ * @returns {{block: Block, next: number} | null}
+ */
+function readDisplayMath(lines, start) {
+  const trimmed = lines[start].trim();
+  const m = /^(\$\$|\\\[)\s*(.*)$/.exec(trimmed);
+  if (!m || /^\$\$[^$]+\$\$\S/.test(trimmed) || (m[1] === '$$' && /\$\$\s*\S/.test(m[2]))) return null;
+  const close = m[1] === '$$' ? '$$' : '\\]';
+  if (m[2].endsWith(close)) return { block: { type: 'math', tex: m[2].slice(0, -close.length).trim() }, next: start + 1 };
+  const parts = [m[2]];
+  let i = start + 1;
+  while (i < lines.length && !lines[i].trim().endsWith(close)) parts.push(lines[i++]);
+  if (i < lines.length) parts.push(lines[i++].trim().slice(0, -close.length));
+  return { block: { type: 'math', tex: parts.join(' ').trim() }, next: i };
+}
+
 /** @returns {{block: Block, next: number}} */
 function readList(lines, start, defaultRtl) {
   const items = [];
@@ -290,20 +315,15 @@ function parseMarkdown(markdown, options = {}) {
     }
     const trimmed = line.trim();
     if (!trimmed) { flushParagraph(); i++; continue; }
-
-    let m;
-    if ((m = /^(\$\$|\\\[)\s*(.*)$/.exec(trimmed)) && !/^\$\$[^$]+\$\$\S/.test(trimmed) && !(m[1] === '$$' && /\$\$\s*\S/.test(m[2]))) {
-      flushParagraph();
-      const close = m[1] === '$$' ? '$$' : '\\]';
-      const body = m[2];
-      if (body.endsWith(close)) { blocks.push({ type: 'math', tex: body.slice(0, -close.length).trim() }); i++; continue; }
-      const parts = [body];
-      i++;
-      while (i < lines.length && !lines[i].trim().endsWith(close)) parts.push(lines[i++]);
-      if (i < lines.length) parts.push(lines[i++].trim().slice(0, -close.length));
-      blocks.push({ type: 'math', tex: parts.join(' ').trim() });
-      continue;
+    // An image on its own line — the person's own, placed by the page.
+    const image = /^!\[([^\]\n]*)\]\((data:image\/[^)\s]+)\)$/.exec(trimmed);
+    if (image && IMAGE_DATA_URL.test(image[2])) {
+      flushParagraph(); blocks.push({ type: 'image', alt: image[1], src: image[2] }); i++; continue;
     }
+
+    const math = readDisplayMath(lines, i);
+    if (math) { flushParagraph(); blocks.push(math.block); i = math.next; continue; }
+    let m;
     if ((m = /^(#{1,6})\s+(.*?)\s*#*\s*$/.exec(trimmed))) {
       flushParagraph();
       blocks.push({ type: 'heading', level: m[1].length, runs: parseInline(m[2]), rtl: firstStrongRtl(m[2]) ?? rtl });

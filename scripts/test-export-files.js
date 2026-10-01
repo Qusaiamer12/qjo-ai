@@ -102,6 +102,12 @@ function call(handler, body) {
     const table = model.parseMarkdown('| a | b | c |\n| - | - | - |\n| 1 |  | 3 |\n| 4 |').blocks[0];
     assert.deepStrictEqual(table.rows.map((r) => r.map(model.runsText)), [['1', '', '3'], ['4', '', '']]);
   });
+  await test('display math, on one line or several, is a math block; prices are not', () => {
+    const blocks = (t) => model.parseMarkdown(t).blocks.map((b) => (b.type === 'math' ? `math:${b.tex}` : b.type));
+    assert.deepStrictEqual(blocks('$$x^2 + 1$$'), ['math:x^2 + 1']);
+    assert.deepStrictEqual(blocks('\\[\n\\frac{a}{b}\n\\]\n\nafter'), ['math:\\frac{a}{b}', 'paragraph']);
+    assert.deepStrictEqual(blocks('$$5 and $$10 today'), ['paragraph']);
+  });
   await test('a pipe inside inline code is not a column', () => {
     assert.deepStrictEqual(model.splitRow('| `a | b` | c |'), ['`a | b`', 'c']);
   });
@@ -373,6 +379,48 @@ function call(handler, body) {
     assert.ok(/<w:sectPr[^>]*>\s*<w:bidi\/>/.test(await docxXml(rtlEnglish.body)), 'rtl: true');
     const ltrArabic = await call(exportDocx, { title: 'تقرير', content: 'نص عربي فقط.', rtl: false });
     assert.ok(!/<w:sectPr[^>]*>\s*<w:bidi\/>/.test(await docxXml(ltrArabic.body)), 'rtl: false');
+  });
+
+  console.log('\nThe person\'s own images, placed where the answer refers to them:');
+  const { buildExportHtmlDocument } = require('../src/services/exportService');
+  const { acceptImages } = require('../src/services/export/attachedImages');
+  const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==';
+  const CV = '# السيرة الذاتية\n\n![صورتي](attachment:k7f2q9)\n\n**الاسم:** أحمد';
+  await test('a CV that refers to the attached photo is a Word file with the photo in it', async () => {
+    const res = await call(exportDocx, { title: 'cv', content: CV, images: { k7f2q9: PNG } });
+    const zip = await JSZip.loadAsync(res.body);
+    assert.ok(Object.keys(zip.files).some((f) => /^word\/media\/.+\.png$/.test(f)), 'no image in the file');
+    assert.ok(/<pic:pic/.test(await zip.file('word/document.xml').async('string')), 'the image is not drawn');
+  });
+  await test('without the image, or with one that is not an image, the description stands in — never the data', async () => {
+    for (const images of [undefined, { k7f2q9: 'data:image/svg+xml;base64,PHN2Zz4=' }, { k7f2q9: 'javascript:alert(1)' }, { k7f2q9: 'data:image/png;base64,not base64!' }]) {
+      const res = await call(exportDocx, { title: 'cv', content: CV, images });
+      const zip = await JSZip.loadAsync(res.body);
+      const xml = await zip.file('word/document.xml').async('string');
+      assert.ok(!Object.keys(zip.files).some((f) => f.startsWith('word/media/') && !f.endsWith('/')) && xml.includes('صورتي') && !/attachment:|base64/.test(xml), JSON.stringify(images));
+    }
+  });
+  await test('an image within a line is its description in Word: its data never reaches the text', async () => {
+    const res = await call(exportDocx, { title: 'cv', content: 'Name ![photo](attachment:k7f2q9) here', images: { k7f2q9: PNG } });
+    const xml = await (await JSZip.loadAsync(res.body)).file('word/document.xml').async('string');
+    assert.ok(/Name photo here/.test(xml.replace(/<[^>]+>/g, '')) && !/base64|iVBOR/.test(xml));
+  });
+  await test('the plain PDF renderer draws the photo too', async () => {
+    const pdf = (await fallback.buildPdfFallback({ title: 'cv', content: `# CV\n\n![me](${PNG})\n\nAhmed` })).toString('latin1');
+    const none = (await fallback.buildPdfFallback({ title: 'cv', content: '# CV\n\nAhmed' })).toString('latin1');
+    assert.ok(/\/Subtype \/Image/.test(pdf) && !/\/Subtype \/Image/.test(none));
+  });
+  await test('at most five images, each an image as base64 data of bounded size, under a plain id', () => {
+    const many = Object.fromEntries(Array.from({ length: 8 }, (_, i) => [`img00${i}`, PNG]));
+    assert.strictEqual(acceptImages(many).size, 5);
+    assert.strictEqual(acceptImages({ '../x': PNG, 'ok1234': 'data:image/png;base64,' + 'A'.repeat(6_000_004) }).size, 0);
+    assert.strictEqual(acceptImages({ ok1234: 'data:image/svg+xml;base64,PHN2Zz4=', ok5678: 'data:text/html;base64,PGI+' }).size, 0, 'only raster images');
+  });
+  await test('an image line in the PDF\'s HTML cannot open an attribute: a quote in it stays text', () => {
+    const html = buildExportHtmlDocument({ title: 'cv', rtl: false, content: '# CV\n\n![x](data:image/png;base64,iVBORw0KGgo"onerror="alert`1`)\n\nAhmed' });
+    assert.ok(!/<img\b[^>]*["'\s]onerror\s*=/i.test(html), (html.match(/<img[^>]*>/) || [''])[0]);
+    const good = buildExportHtmlDocument({ title: 'cv', rtl: false, content: `![me](${PNG})` });
+    assert.ok(good.includes(`<figure><img src="${PNG}"`), 'control: a real image is still drawn');
   });
 
   console.log(`\n${pass} passed, ${fail} failed`);

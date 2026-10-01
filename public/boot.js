@@ -37,7 +37,9 @@
     ['source tiers', () => window.QjoDomain && window.QjoDomain.sourceTier],
     ['source strip', () => window.QjoUI && window.QjoUI.createSourceStrip],
     ['image sizing', () => window.QjoDomain && window.QjoDomain.imagePlan],
-    ['image preparation', () => window.QjoUI && window.QjoUI.createImagePrep]
+    ['image preparation', () => window.QjoUI && window.QjoUI.createImagePrep],
+    ['attachment references', () => window.QjoDomain && window.QjoDomain.attachmentRefs],
+    ['attachment shelf', () => window.QjoUI && window.QjoUI.createAttachmentShelf]
   ];
 
   const RELOAD_FLAG = 'qjo_boot_reloaded';

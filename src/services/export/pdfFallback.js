@@ -17,6 +17,7 @@ const fontkit = require('fontkit');
 const fs = require('fs');
 const { parseMarkdown, mathToText, runsText } = require('./markdownModel');
 const { fontPath } = require('./fonts');
+const { decodeImage } = require('./attachedImages');
 
 const PAGE = { width: 595.28, height: 841.89, margin: 56, top: 70, bottom: 62 };
 const WIDTH = PAGE.width - PAGE.margin * 2;
@@ -324,8 +325,27 @@ function drawTable(w, block) {
   w.y += 12;
 }
 
+// The person's own image, centred, within a box a CV photo fits; its
+// description when it cannot be drawn.
+function drawImage(w, block) {
+  const image = decodeImage(block.src);
+  if (!image) {
+    if (block.alt) w.text([{ text: block.alt }], { align: 'center' });
+    w.y += 7;
+    return undefined;
+  }
+  const scale = Math.min(1, 200 / image.width, 240 / image.height);
+  const width = image.width * scale;
+  const height = image.height * scale;
+  w.ensure(height + 14);
+  w.doc.image(image.data, PAGE.margin + (WIDTH - width) / 2, w.y, { width, height });
+  w.y += height + 14;
+  return undefined;
+}
+
 function drawBlock(w, block) {
   switch (block.type) {
+    case 'image': return drawImage(w, block);
     case 'heading': return drawHeading(w, block);
     case 'paragraph': w.text(block.runs, { rtl: block.rtl }); w.y += 7; return undefined;
     case 'list': return drawList(w, block);
