@@ -319,6 +319,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     const attachmentShelf = QjoUI.createAttachmentShelf({ maxImages: QjoDomain.imagePlan.LIMITS.maxImages, replyLanguage: (text) => QjoDomain.language.replyLanguage(text, qjoLanguage), t });
     const quiz = QjoUI.createQuiz({ t, parse: (raw) => safeParseRelaxedJson(raw) });
     const sendStop = QjoUI.createSendStop({ button: sendBtn, t });
+    const answerReading = QjoUI.createAnswerReading({ t, copy: (text) => copyTextToClipboard(text) });
     QjoUI.createVoiceInput({ button: el('micBtn'), input: inputEl, language: () => qjoLanguage, t, toast: (m) => showMicroToast(m) });
     QjoUI.createComposerDrop({ input: inputEl, addFiles: (files) => addFiles(files), label: () => t('dropFiles') });
 
@@ -1640,15 +1641,8 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         const ar = qjoLanguage === 'ar';
         const answerText = () => (bubbleEl.querySelector('.qjo-streamed-content')?.innerText || bubbleEl.innerText || content || '').trim();
 
-        // ── Copy ──
-        const copySvg = `<svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
-        const checkSvg = `<svg viewBox="0 0 24 24" width="15" height="15" stroke="#10B981" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
-        toolbar.appendChild(iconBtn(ar ? 'نسخ الإجابة' : 'Copy answer', copySvg, async (b) => {
-          if (await copyTextToClipboard(answerText())) {
-            b.innerHTML = checkSvg;
-            setTimeout(() => { b.innerHTML = copySvg; }, 1300);
-          }
-        }));
+        // ── Copy, and Listen: public/ui/answerReading.js ──
+        answerReading.appendButtons(toolbar, answerText, content, iconBtn);
 
         // ── Regenerate: actually re-runs the last question ──
         const regenSvg = `<svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>`;

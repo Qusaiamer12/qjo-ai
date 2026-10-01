@@ -44,6 +44,8 @@ const WATCHED = [
   'public/ui/starters.js',
   'public/ui/sendStop.js',
   'public/ui/voiceInput.js',
+  'public/domain/speech.js',
+  'public/ui/answerReading.js',
   'src/services/export/attachedImages.js',
   'src/services/promptLayout.js',
   'src/services/export/markdownModel.js',

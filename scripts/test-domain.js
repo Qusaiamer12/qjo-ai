@@ -675,6 +675,32 @@ const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n
     });
   }
 
+  console.log('\nAn answer read aloud (speech.js):');
+  const { speakable, chunks } = require('../public/domain/speech.js');
+  test('the words are read, not the Markdown', () => {
+    const md = [
+      '## السكري', '', 'مرض **مزمن** يصيب *كثيرين* [1](https://who.int/x) حسب [منظمة الصحة](https://who.int).',
+      '', '> [!TIP]', '> امشِ كل يوم.', '', '- أول', '1. ثاني', '', '| النوع | السبب |', '|---|---|', '| الأول | مناعي |',
+      '', '```python', 'print(1)', '```', '', 'انظر https://example.com للمزيد.', '', '$$x^2$$', '', '![صورتي](attachment:abc123)'
+    ].join('\n');
+    const heard = speakable(md);
+    assert.strictEqual(heard, ['السكري', 'مرض مزمن يصيب كثيرين حسب منظمة الصحة.', 'امشِ كل يوم.', 'أول', 'ثاني', 'النوع، السبب', 'الأول، مناعي', 'انظر للمزيد.', 'صورتي'].join('\n'));
+  });
+  test('snake_case and a lone asterisk in a sum survive; an unclosed code block is still code', () => {
+    assert.strictEqual(speakable('use my_var now, 2 * 3 = 6'), 'use my_var now, 2 * 3 = 6');
+    assert.strictEqual(speakable('قبل\n```js\nlet a = 1'), 'قبل');
+  });
+  test('long text in pieces of at most 220 characters, broken after sentences, nothing lost', () => {
+    const sentence = 'هذه جملة متوسطة الطول تشرح فكرة واحدة بوضوح. ';
+    const long = sentence.repeat(12) + 'كلمة '.repeat(80);
+    const parts = chunks(long);
+    assert.ok(parts.length > 3 && parts.every((p) => p.length <= 220), parts.map((p) => p.length).join(','));
+    assert.ok(parts[0].endsWith('.'), parts[0]);
+    assert.strictEqual(parts.join(' ').replace(/\s+/g, ' ').trim(), long.replace(/\s+/g, ' ').trim());
+    assert.deepStrictEqual(chunks('Short.'), ['Short.']);
+    assert.deepStrictEqual(chunks(''), []);
+  });
+
   console.log('\nA quiz as the model wrote it (quiz.js):');
   const { readQuiz, correctOption } = require('../public/domain/quiz.js');
   const OPTIONS = ['Area', 'Rate of change', 'Volume', 'Mass'];
