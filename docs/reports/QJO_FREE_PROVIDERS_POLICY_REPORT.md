@@ -12,7 +12,7 @@ effect until re-enabled in `RoutingEngine`).
 
 | # | Provider | Role | Models (defaults) | Auth |
 |---|---|---|---|---|
-| 1 | **Groq** | Primary, fastest | `openai/gpt-oss-20b` (flash) · `openai/gpt-oss-120b` (text/code) · `meta-llama/llama-4-scout-17b-16e-instruct` (vision) | `GROQ_API_KEY(S)` |
+| 1 | **Groq** | Primary, fastest | `openai/gpt-oss-20b` (flash) · `openai/gpt-oss-120b` (text/code) · `qwen/qwen3.8-27b` (vision; Llama 4 Scout was retired 2026-07-17) | `GROQ_API_KEY(S)` |
 | 2 | **LLM7.io** | Free aggregator | `llama-3.3-70b-instruct` (flash) · `deepseek-chat` (text) | `LLM7_API_KEY(S)` — **works keyless** (`Bearer unused`, ~30 RPM; free token from token.llm7.io raises limits) |
 | 3 | **Kimi (Moonshot)** | Free slot | `moonshot-v1-8k` on `https://api.moonshot.ai/v1` | `KIMI_API_KEY(S)` |
 | 4 | **Qwen** | Arabic/code/vision fallback | `qwen-plus` · `qwen-vl-plus` (vision) | `QWEN_API_KEY(S)` |

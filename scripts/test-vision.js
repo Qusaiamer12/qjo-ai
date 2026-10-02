@@ -121,6 +121,20 @@ async function ask(eng, text, { mode = 'flash' } = {}) {
     assert.strictEqual(isExercise(`solve this${en}${note}`), true);
   });
 
+  await test('the note the page puts before a file\'s text is not the person asking either', () => {
+    // It says "answer from the retrieved sections", and read as the person's
+    // words it made every photo with readable text an exercise: a CV was
+    // "transcribed" and then "solved". Read from the page itself.
+    const app = require('fs').readFileSync(require('path').join(__dirname, '..', 'public', 'app.js'), 'utf8');
+    const lead = app.match(/`\\n\\n(User attached or previously indexed files[^\\`]*)\\n\$\{parts/);
+    assert.ok(lead && /answer from the retrieved sections/.test(lead[1]), 'the page\'s note on attached files was not found');
+    const message = (own, ocr) => `${own}\n\n${lead[1]}\nAttachment Index 1: a.jpg\nOrigin: pending\nOCR text extracted from image (a.jpg):\n${ocr}`;
+    assert.strictEqual(isExercise(message('استخرج معلوماتي', 'CURRICULUM VITAE\nSKILLS\nJavaScript, React')), false, 'a CV became an exercise');
+    assert.strictEqual(isExercise(message('describe this', 'Invoice total 240')), false);
+    assert.strictEqual(isExercise(message('حل السؤال', 'CURRICULUM VITAE')), true, 'control: asking to solve still counts');
+    assert.strictEqual(isExercise(message('describe this', 'Q3. A car accelerates from rest')), true, 'control: an exercise on the page still counts');
+  });
+
   await test('what the vision model read becomes text for the solver; nothing read is nothing', () => {
     const t = transcriptFrom(READ);
     assert.ok(/Question: Find the speed/.test(t) && /Given values: a 3\.2 m\/s² \| t 12 s/.test(t) && /Choices: A\) 38\.4/.test(t), t);

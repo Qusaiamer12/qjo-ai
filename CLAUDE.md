@@ -123,6 +123,19 @@ Each of these produced a green result that meant nothing.
   answered every read with nothing and kept no write. `fakeFirebase.js`
   keeps what it is given (and refuses what the real one refuses);
   `saved-chat.test.js` opens the chat again and compares.
+- **A model that no longer exists, named by a setting.** Groq shut Llama 4
+  Scout down on 2026-07-17; the default and `.env.example` still named it, and
+  every picture came back "does not exist" for eleven weeks. The suites
+  were green: their fake served whatever model they were told to. A fake
+  provider serves the models the real one serves today (`image-chat.test.js`),
+  and a retired ID gets its successor (`src/services/retiredModels.js`).
+- **The page's own words read as the person's.** The page writes a note before
+  a file's text ("answer from the retrieved sections"), and an image check read
+  it as the person asking for an answer: every photo with readable text was
+  "transcribed" and then "solved". The same reading let a CV's skills choose
+  code, interfaces, lessons — a request over Groq's minute for one photo. What
+  a message asks for is judged on `ownWords()` only, and a test reads the
+  page's real wording.
 - **Verification that lives outside the repo.** 264 browser assertions spent
   weeks in a scratch directory that is deleted with the container. A check
   that is not committed and not in CI does not exist.

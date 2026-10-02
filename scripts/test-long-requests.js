@@ -38,9 +38,10 @@ const scopedOk = (id) => (cond, name, detail) => { if (id === activeScenario) ok
 // ── Fake providers ───────────────────────────────────────────────────────────
 
 // Per-minute token allowances of Groq's free tier for the models production
-// uses. The fake's token count is a character estimate; the code under test
-// only ever uses the numbers the provider reports, as it must with the real one.
-const GROQ_TPM = { 'openai/gpt-oss-20b': 8000, 'openai/gpt-oss-120b': 8000, 'meta-llama/llama-4-scout-17b-16e-instruct': 30000 };
+// uses (2026-09-21: three models, 8,000 each — Llama 4 Scout, with 30,000, was
+// retired on 2026-07-17). The fake's token count is a character estimate; the
+// code under test only uses the numbers the provider reports, as it must.
+const GROQ_TPM = { 'openai/gpt-oss-20b': 8000, 'openai/gpt-oss-120b': 8000, 'qwen/qwen3.8-27b': 8000 };
 const inputTokens = (body) => Math.ceil((JSON.stringify(body.messages || []).length + JSON.stringify(body.tools || []).length) / 4);
 
 let calls = [];
@@ -67,7 +68,8 @@ const server = http.createServer((req, res) => {
   req.on('end', () => {
     const body = JSON.parse(raw || '{}');
     const provider = req.url.startsWith('/groq') ? 'groq' : 'llm7';
-    const call = { provider, model: body.model, maxTokens: body.max_tokens, input: inputTokens(body), key: String(req.headers.authorization || '').replace('Bearer ', ''), at: Date.now() };
+    const call = { provider, model: body.model, maxTokens: body.max_tokens, input: inputTokens(body), key: String(req.headers.authorization || '').replace('Bearer ', ''), at: Date.now(),
+      cutNoted: (body.messages || []).some((m) => /part of this content was removed/.test(String(m.content))), systemWhole: (body.messages || []).some((m) => m.role === 'system' && /\n- /.test(m.content) && !/part of this content was removed/.test(m.content)) };
     calls.push(call);
     open.add(res);
     res.on('close', () => open.delete(res));
@@ -122,7 +124,7 @@ function buildEngine(baseUrl) {
     keys: { groq: 2, llm7: 3, qwen: 0, kimi: 0 },
     models: {
       groqFlash: 'openai/gpt-oss-20b', groqText: 'openai/gpt-oss-120b', groqCode: 'openai/gpt-oss-120b',
-      groqVision: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      groqVision: 'qwen/qwen3.8-27b',
       llm7Flash: 'minimax-m2.7', llm7Text: 'minimax-m2.7', llm7Code: 'minimax-m2.7'
     }
   });
@@ -210,12 +212,21 @@ async function main() {
     ok(llm7Calls().length === 1, `on its first key: a slow start is not a dead key (${llm7Calls().length} llm7 calls)`);
   });
 
-  await scenario('llm7 never answers: one bounded wait, then a model with room answers', 90000, async (ok) => {
+  // Too large for every Groq model, and llm7 silent: the last resort used to
+  // be Llama 4 Scout's 30,000 tokens a minute. Its successor has 8,000, so
+  // the request is cut in the middle to fit rather than not answered.
+  await scenario('llm7 never answers: one bounded wait, then the last model answers a cut request', 90000, async (ok) => {
     llm7 = { headerDelayMs: 0, dead: true };
     const { res, ms } = await ask(engine, { userChars: TOO_LARGE_FOR_8K, maxTokens: 4000 });
     ok(llm7Calls().length === 1, `llm7 is waited on once — not once per key, and not again as a "blip" (${llm7Calls().length} calls)`, llm7Calls().map((c) => c.key));
-    ok(res.ok && /llama-4-scout/.test(res.answer || ''), `the long-context Groq model answers instead of nothing (${Math.round(ms / 1000)}s)`, res.error || res.answer);
+    const last = groqCalls().filter((c) => c.model === 'qwen/qwen3.8-27b');
+    const cut = last[last.length - 1];
+    ok(cut && cut.input + cut.maxTokens <= 8000 && cut.maxTokens >= 1024, `cut to fit its 8,000 with a useful answer (${cut && cut.input + cut.maxTokens}, ${cut && cut.maxTokens} of answer room)`, last);
+    ok(cut && cut.cutNoted && cut.systemWhole, 'the model is told a part was cut, and the system prompt is whole', cut);
+    ok(res.ok && /qwen3\.8/.test(res.answer || ''), `and it answers instead of nothing (${Math.round(ms / 1000)}s)`, res.error || res.answer);
     ok(ms < 60000, `inside the request's budget (${Math.round(ms / 1000)}s)`);
+    const others = groqCalls().filter((c) => c.model !== 'qwen/qwen3.8-27b');
+    ok(others.length > 0 && others.every((c) => !c.cutNoted), 'only the last model cuts: the others are asked with the whole request', others.map((c) => [c.model, c.cutNoted]));
   });
 
   await scenario('A resized request that searches stays resized for the next round', 60000, async (ok) => {
@@ -299,6 +310,21 @@ async function main() {
     ok(groqCalls().length === 2 && first.maxTokens < 4000, `fitted before sending, refused, fitted again: two Groq calls (${groqCalls().length})`, groqCalls());
     ok(second && second.input + 1500 + second.maxTokens <= 8000, `the second within what Groq counts (${second && second.input + 1500 + second.maxTokens} of 8000)`, second);
     ok(res.ok && /groq answered/.test(res.answer || ''), 'and Groq answers', res.error || res.answer);
+  });
+
+  // The system prompt is often the longest message; the cut never takes it,
+  // whatever its length: it holds the rules every answer keeps.
+  await scenario('Cutting to fit takes from the conversation, never the system prompt', 5000, async (ok) => {
+    const { cutToFit, tokensNeeded } = require('../src/services/providerLimits');
+    const system = 'Rules every answer keeps. '.repeat(700);
+    const history = 'سؤال سابق مع جواب طويل وتفاصيل كثيرة. '.repeat(400);
+    const params = { max_tokens: 4000, messages: [{ role: 'system', content: system }, { role: 'user', content: history }, { role: 'assistant', content: 'ok' }, { role: 'user', content: 'والآن؟' }] };
+    ok(system.length > history.length, `control: the system prompt is the longest message (${system.length} against ${history.length})`);
+    const cut = cutToFit(params, { limit: 8000, requested: tokensNeeded(params) });
+    ok(cut && tokensNeeded(cut) <= 8000, `and the cut request fits (${cut && tokensNeeded(cut)} of 8000)`);
+    ok(cut && cut.messages[0].content === system, 'the system prompt, longer than anything else, is whole', cut && cut.messages[0].content.length);
+    ok(cut && cut.messages[1].content.length < history.length && /part of this content was removed/.test(cut.messages[1].content), `the long history message is cut instead (${cut && cut.messages[1].content.length} of ${history.length})`);
+    ok(cut && cut.messages[3].content === 'والآن؟', 'and the newest question is untouched');
   });
 
   await scenario('A short request is untouched', 20000, async (ok) => {

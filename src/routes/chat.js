@@ -7,7 +7,7 @@ const { sanitizeMathNotation, createStreamSanitizer } = require('../services/tex
 const { sseHeaders, sendCachedResponse, startHeartbeat } = require('./sse');
 const { arabicInPlay } = require('../../public/domain/language');
 const { describeRuntime, lastUserLanguage } = require('./runtimeContext');
-const { detectNeeds } = require('../services/playbooks');
+const { detectNeeds, ownWords } = require('../services/playbooks');
 
 function requireDeps(deps) {
   const required = [
@@ -291,8 +291,8 @@ function registerChatRoutes(app, deps) {
       // prompt if no builder was injected (evals/older wiring).
       const arabic = arabicInPlay(cleanedMessages, { uiLanguage: req.body.language });
       const prompt = promptParts(deps, { mode, needs, runtimeLine, arabic }, `${localTimeString} (الموقع الجغرافي: ${locationText}, المنطقة الزمنية: ${timeZone})`);
-      // The newest message's own words, a picture's caption included.
-      const lastUserText = textOf([...userMessages].reverse().find(m => m.role === 'user')?.content);
+      // The newest message's own words, a picture's caption included — not the files the page attached to it.
+      const lastUserText = ownWords(textOf([...userMessages].reverse().find(m => m.role === 'user')?.content));
 
       // Q-KB v1: curated Arabic task-craft & facts guidance when the last user
       // message matches a knowledge entry. Best-effort and silent: any failure
@@ -304,7 +304,7 @@ function registerChatRoutes(app, deps) {
       }
 
       try {
-        routingDecision = routeUserRequestDeterministic(userMessages);
+        routingDecision = routeUserRequestDeterministic(userMessages.map(m => ({ ...m, content: ownWords(textOf(m.content)) })));
       } catch (error) {
         // Routing is an enhancement, never a gate: a classifier failure must not
         // cost the user their answer.

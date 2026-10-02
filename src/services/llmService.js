@@ -19,38 +19,13 @@
 const { readAnswerBody, clientAbortError, normalizeProviderFinishReason } = require('./providerResponse');
 
 
-// ── Model migration map ──
-// Groq deprecates model IDs over time (llama-3.1-8b-instant and
-// llama-3.3-70b-versatile shut down 2026-08-16 per console.groq.com/docs/
-// deprecations). If a provider answers "model decommissioned", we swap to the
-// recommended replacement ONCE and retry instead of failing the whole chain —
-// this keeps old env values (e.g. GROQ_FLASH_MODEL pinned long ago) working.
-const MODEL_MIGRATIONS = {
-  'llama-3.1-8b-instant': 'openai/gpt-oss-20b',
-  'llama-3.3-70b-versatile': 'openai/gpt-oss-120b',
-  'llama3-70b-8192': 'openai/gpt-oss-120b',
-  'llama3-8b-8192': 'openai/gpt-oss-20b',
-  'gemma2-9b-it': 'openai/gpt-oss-20b',
-  'mixtral-8x7b-32768': 'openai/gpt-oss-120b',
-  'gemini-1.5-flash': 'gemini-3.8-flash',
-  'gemini-1.5-flash-8b': 'gemini-3.8-flash',
-  'gemini-2.0-flash': 'gemini-3.8-flash',
-  'gemini-2.0-flash-lite': 'gemini-3.8-flash',
-  'kimi-k2-0711-preview': 'kimi-k2.6',
-  'kimi-k2-0905-preview': 'kimi-k2.6',
-  'kimi-k2-turbo-preview': 'kimi-k2.6',
-  'kimi-k2-thinking': 'kimi-k2.6',
-  'meta/llama-3.1-70b-instruct': 'meta/llama-3.3-70b-instruct',
-  'gpt-oss': 'minimax-m2.7'
-};
+// A retired model ID is replaced before it is sent, and again if a provider
+// answers that it is gone: src/services/retiredModels.js.
+const { migratedModel } = require('./retiredModels');
 
 // Size refusals and how long to wait for a first byte: src/services/providerLimits.js.
 const { isContextLengthError, isRequestFault, tokenAllowance, headerWaitMs, reasoningParams } = require('./providerLimits');
 const { createKeyPool } = require('./keyPool');
-
-function migratedModel(model) {
-  return MODEL_MIGRATIONS[model] || null;
-}
 
 function createLlmService(config = {}) {
   // Which key to try next and which to leave resting: src/services/keyPool.js.

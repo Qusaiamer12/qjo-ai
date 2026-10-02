@@ -56,17 +56,68 @@ const ALLOWANCE_MARGIN = 64;
  * or null when that is too little to be worth sending. The provider counted
  * the request as prompt plus max_tokens, so the prompt is what it reported
  * less the room that was asked for.
- * @template {{max_tokens?: number}} P
+ *
+ * With `cut`, a prompt too long for any useful answer room is cut instead
+ * (cutToFit). Only for the last model a chain tries: until July 2026 that was
+ * Llama 4 Scout, with 30,000 tokens a minute, and a request the other models
+ * refused for its size went through there whole. Its successor has 8,000 like
+ * the rest, so a long request had nowhere left to go.
+ * @template {{max_tokens?: number, messages?: any[]}} P
  * @param {P} params
  * @param {{limit: number, requested: number} | null} allowance
+ * @param {{cut?: boolean}} [options]
  * @returns {P | null}
  */
-function fitToAllowance(params, allowance) {
+function fitToAllowance(params, allowance, { cut = false } = {}) {
   if (!allowance) return null;
   const asked = Number(params.max_tokens) || 0;
   const room = allowance.limit - (allowance.requested - asked) - ALLOWANCE_MARGIN;
-  if (room < MIN_ANSWER_TOKENS || room >= asked) return null;
+  if (room < MIN_ANSWER_TOKENS) return cut ? cutToFit(params, allowance) : null;
+  if (room >= asked) return null;
   return { ...params, max_tokens: room };
+}
+
+// Answer room kept when a prompt is cut to fit: enough for a full answer.
+const ROOM_WHEN_CUT = 2048;
+// What is left of a message, at least, once it has been cut.
+const KEEP_AT_LEAST_CHARS = 800;
+
+/**
+ * The request with the middle of its longest messages cut — never the system
+ * prompt — so that it and a useful answer fit the named allowance; null when
+ * no message is long enough to give up that much.
+ *
+ * Measured in the provider's tokens, which only it can count: a character
+ * there is worth what the whole prompt averages or what this message's script
+ * averages (Arabic packs more tokens into a character than English does),
+ * whichever cuts more. Cutting by our own estimate alone left a request still
+ * over the allowance whenever the provider counted the cut text more lightly.
+ * @template {{max_tokens?: number, messages?: any[], tools?: any[]}} P
+ * @param {P} params
+ * @param {{limit: number, requested: number}} allowance
+ * @returns {P | null}
+ */
+function cutToFit(params, allowance) {
+  const asked = Number(params.max_tokens) || 0;
+  const room = Math.min(asked || ROOM_WHEN_CUT, ROOM_WHEN_CUT);
+  const theirs = allowance.requested - asked;
+  const average = (promptChars(params.messages) + JSON.stringify(params.tools || []).length) / Math.max(1, theirs);
+  let owed = (theirs - (allowance.limit - ALLOWANCE_MARGIN - room)) * 1.1;
+  const messages = [...(params.messages || [])];
+  const order = messages.map((m, i) => i).filter((i) => messages[i].role !== 'system' && typeof messages[i].content === 'string')
+    .sort((a, b) => messages[b].content.length - messages[a].content.length);
+  for (const i of order) {
+    if (owed <= 0) break;
+    const text = messages[i].content;
+    const perToken = Math.max(average, text.length / Math.max(1, textTokens(text)));
+    const cut = Math.min(Math.ceil(owed * perToken) + SHRINK_NOTE.length, text.length - KEEP_AT_LEAST_CHARS);
+    if (cut <= SHRINK_NOTE.length) continue;
+    const keep = text.length - cut;
+    const head = Math.floor(keep * 0.6);
+    messages[i] = { ...messages[i], content: text.slice(0, head) + SHRINK_NOTE + text.slice(text.length - (keep - head)) };
+    owed -= (cut - SHRINK_NOTE.length) / perToken;
+  }
+  return owed > 0 ? null : { ...params, messages, max_tokens: room };
 }
 
 /**
@@ -183,6 +234,7 @@ module.exports = {
   isRequestFault,
   tokenAllowance,
   fitToAllowance,
+  cutToFit,
   prefitToAllowance,
   reasoningParams,
   tokensNeeded,

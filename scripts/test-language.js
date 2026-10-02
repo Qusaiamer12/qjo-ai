@@ -206,6 +206,28 @@ test('"explain this error" is a code question, not a lesson', () => {
   }
 });
 
+// A CV photographed is a page of skills. Judged on everything the message
+// carried, its OCR text chose code, interfaces, cover letters, worked problems
+// and lessons, and one picture was over Groq's 8,000 tokens a minute.
+const CV_OCR = 'OCR text extracted from image (cv.jpg):\nSKILLS\nJavaScript, TypeScript, React, Node.js, REST APIs, Docker, SQL, testing\nEXPERIENCE\nBuilt the online store front end; integrated payment APIs; code review; debug and refactor.\nCourses: physics, energy, speed of delivery';
+const pageMessage = (own, attached) => `${own}\n\nUser attached or previously indexed files with retrieved evidence. Use them.\nAttachment Index 1: ${attached.name}\nOrigin: pending\nType: ${attached.type}\n${attached.text}\n\n[Image(s) attached and analyzed when this was sent] [🖼️ cv.jpg · attachment:abcd12]`;
+
+test('what is asked is judged on the person\'s words, not on the files the page attached', () => {
+  const needs = detectNeeds([user(pageMessage('استخرج معلوماتي', { name: 'cv.jpg', type: 'image/jpeg', text: CV_OCR }))]);
+  assert.ok(!needs.code && needs.playbooks.length === 0, `a CV's skills chose: code ${needs.code}, [${needs.playbooks}]`);
+  assert.ok(needs.files, 'it is still known that a file is attached');
+  // Control: the same words typed by the person choose them.
+  const typed = detectNeeds([user('build me a React page in JavaScript')]);
+  assert.ok(typed.code && typed.playbooks.includes('ui'), `typed: code ${typed.code}, [${typed.playbooks}]`);
+});
+
+test('a file of code still makes the request about code', () => {
+  const needs = detectNeeds([user(pageMessage('شو الغلط هون؟', { name: 'server.js', type: 'text/javascript', text: 'const x = 1' }))]);
+  assert.ok(needs.code, 'an attached server.js did not count as code');
+  const notCode = detectNeeds([user(pageMessage('شو الغلط هون؟', { name: 'report.pdf', type: 'application/pdf', text: 'const x = 1' }))]);
+  assert.ok(!notCode.code, 'a PDF counted as code');
+});
+
 test('the worked-problem playbook needs a figure or an ask, not just a subject word', () => {
   for (const text of ['قوة الشخصية مهمة في القيادة', 'we need more energy in the team', 'شو رأيك بسرعة الانترنت عندكم', 'السرعة عندكم ممتازة']) {
     const chosen = detectNeeds([user(text)]).playbooks;

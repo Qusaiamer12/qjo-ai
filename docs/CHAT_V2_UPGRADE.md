@@ -70,7 +70,7 @@ Users reported slow, weak, inaccurate chat despite strong API keys. Root causes 
 # Quality depends on these defaults — refresh stale names for your plan:
 GROQ_FLASH_MODEL=llama-3.1-8b-instant        # check current Groq flash name
 GROQ_TEXT_MODEL=llama-3.3-70b-versatile
-GROQ_VISION_MODEL=meta-llama/llama-4-scout-17b-16e-instruct
+GROQ_VISION_MODEL=qwen/qwen3.8-27b
 GEMINI_FLASH_MODEL=gemini-2.0-flash
 GEMINI_TEXT_MODEL=gemini-2.0-flash
 QWEN_TEXT_MODEL=qwen-plus

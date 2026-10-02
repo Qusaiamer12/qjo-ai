@@ -166,7 +166,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
 
     const GROQ_FLASH_MODEL = 'openai/gpt-oss-20b'; // Groq's replacement for llama-3.1-8b-instant (deprecated, shuts 2026-08-16)
     const GROQ_MODEL = 'openai/gpt-oss-120b'; // Groq's replacement for llama-3.3-70b-versatile (deprecated, shuts 2026-08-16)
-    const GROQ_VISION_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
+    const GROQ_VISION_MODEL = 'qwen/qwen3.8-27b';
     const TEXT_MAX_TOKENS = 2600;
     const VISION_MAX_TOKENS = 1000;
     const FILE_MAX_TOKENS = 3000;
@@ -367,7 +367,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
 
     function latestUserTextForPrompt() {
       for (let i = history.length - 1; i >= 0; i--) {
-        if (history[i]?.role === 'user') return String(history[i].content || '');
+        if (history[i]?.role === 'user') return QjoDomain.ownWords(String(history[i].content || '')); // not the files attached to it
       }
       return '';
     }
@@ -2211,7 +2211,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       const chunks = chunkTextForRetrieval(sourceText, 2200, 260).slice(0, 140).map(c => ({ index: c.index, start: c.start, end: c.end, text: c.text }));
       if (!chunks.length) return null;
       return {
-        id: `${chatId}_${item.id || Date.now()}_${Math.random().toString(36).slice(2)}`,
+        id: item.id ? `${chatId}_${item.id}` : `${chatId}_${Date.now()}_${Math.random().toString(36).slice(2)}`, // a retry sending it again replaces its record
         chatId,
         attachmentId: item.id || '',
         name: item.name || 'attachment',
@@ -2357,7 +2357,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       const queryVector = vectorizeText(userQuery);
       if (chunks.length <= 3 || (!queryTerms.length && !String(userQuery || '').trim())) {
         const mid = chunks[Math.floor(chunks.length / 2)] || null;
-        return [chunks[0], mid, chunks[chunks.length - 1]].filter(Boolean).map(c => ({ ...c, lexicalScore: 0, vectorScore: 0, serverVectorScore: null, hybridScore: 0, embeddingMode: 'balanced' }));
+        return [...new Set([chunks[0], mid, chunks[chunks.length - 1]].filter(Boolean))].map(c => ({ ...c, lexicalScore: 0, vectorScore: 0, serverVectorScore: null, hybridScore: 0, embeddingMode: 'balanced' })); // a one-chunk file went three times
       }
 
       const localScored = chunks.map(chunk => {
@@ -2396,11 +2396,11 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         }
       });
 
-      if (currentChatId && !activeRagIndexes.length) {
-        await loadActiveRagIndexes(currentChatId);
-      }
+      if (currentChatId && !activeRagIndexes.length) await loadActiveRagIndexes(currentChatId);
+      // A file is offered again only once the message that carried it has left the history sent, and never beside itself on a retry.
+      const carried = [...history.slice(QjoDomain.historyWindow.historyStart(history.length + 1)).map(m => String(m.content || '')), userQuery].join('\n'); // a regenerated question carries its old file text
       activeRagIndexes
-        .filter(record => record && record.chatId === currentChatId && Array.isArray(record.chunks) && record.chunks.length)
+        .filter(record => record && record.chatId === currentChatId && Array.isArray(record.chunks) && record.chunks.length && !pendingAttachments.some(item => item.id === record.attachmentId) && !carried.includes(`: ${record.name}\nOrigin: `))
         .slice(-12)
         .forEach(record => sources.push({ origin: 'persistent-index', name: record.name, type: record.type, size: record.size, chunks: record.chunks, record }));
 
@@ -2413,18 +2413,15 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         }
 
         const chunks = source.chunks || chunkTextForRetrieval(source.sourceText);
-        const overview = source.sourceText ? source.sourceText.slice(0, 1200) : (chunks[0]?.text || '').slice(0, 1200);
         const selected = await retrieveHybridChunksFromChunks(chunks, userQuery);
         const chunkText = selected.map(c => `[Chunk ${c.index}/${chunks.length} | chars ${c.start}-${c.end} | lexical ${Number(c.lexicalScore || 0).toFixed(2)} | vector ${Number(c.vectorScore || 0).toFixed(3)} | hybrid ${Number(c.hybridScore || 0).toFixed(2)} | mode ${c.embeddingMode || 'local'}${c.serverVectorScore !== null && c.serverVectorScore !== undefined ? ` | realEmbedding ${Number(c.serverVectorScore).toFixed(3)}` : ''}]\n${c.text}`).join('\n\n');
-        parts.push(`Attachment Index ${index + 1}: ${source.name}\nOrigin: ${source.origin}\nType: ${source.type}\nSize: ${formatBytes(source.size)}\nRetrieval mode: Persistent Real Embeddings RAG v1 (${chunks.length} chunks, ${selected.length} selected, server embeddings when configured + local vector fallback)\nDocument overview/start:\n${overview}\n\nMost relevant retrieved sections for the user question:\n${chunkText}`);
+        parts.push(`Attachment Index ${index + 1}: ${source.name}\nOrigin: ${source.origin}\nType: ${source.type}\nSize: ${formatBytes(source.size)}\nRetrieval mode: Persistent Real Embeddings RAG v1 (${chunks.length} chunks, ${selected.length} selected, server embeddings when configured + local vector fallback)\nSections — the start of the file, then those most relevant to the question:\n${chunkText}`);
       }
 
       return parts.length ? `\n\nUser attached or previously indexed files with retrieved evidence. Use Persistent Real Embeddings RAG v1 sections below: answer from the retrieved sections first, cite attachment/chunk labels when making claims, and state limits if the relevant section may be missing. Persistent indexes can come from local IndexedDB or cloud Firestore ragIndexes for files previously uploaded in this chat.\n${parts.join('\n\n---\n\n')}` : '';
     }
 
-    async function buildAttachmentContext(userQuery = '') {
-      return await buildRetrievedAttachmentContext(userQuery);
-    }
+    async function buildAttachmentContext(userQuery = '') { return buildRetrievedAttachmentContext(userQuery); }
 
     // Takes the message's attachments as they were when it was sent: the tray
     // is emptied as soon as the question appears, and reading it here meant no
@@ -2839,6 +2836,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         const failedBubble = messagesInner.querySelector('.msg.assistant.error:last-of-type');
         if (failedBubble) failedBubble.remove();
         rewindHistoryToLastQuestion();
+        pendingAttachments = lastFailedRequest.attachments || [];
         sendMessage(retryText, { isRegenerate: true });
       });
       bubble.appendChild(btn);
@@ -2944,7 +2942,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         : (qjoMode === 'normal' ? GROQ_FLASH_MODEL : GROQ_MODEL);
       const generationConfig = getGenerationConfig(hasAttachmentAnalysis, rawText);
 
-      lastFailedRequest = { text: rawText, fallbackText: text };
+      lastFailedRequest = { text: rawText, fallbackText: text, attachments: attachmentsForRag }; // a retry sends the files again
       if (!isRegenerate) messageEditor.offer(addMessage('user', displayText + attachmentNames), attachmentNames ? '' : rawText);
       pendingAttachments = [];
       renderAttachments();
@@ -3181,9 +3179,9 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         if (looksTransient && nothingDelivered && !options.autoRetried) {
           if (view.bubble) {
             view.clearForFailure();
-            view.bubble.innerHTML = escapeHtml(t('wakingServer'));
+            view.bubble.innerHTML = escapeHtml(t('retryingQuietly')); // not "the server is waking up": it is the one reporting the failure
           }
-          pendingAutoRetry = { text: rawText || text, wrap: view.wrap };
+          pendingAutoRetry = { text: rawText || text, wrap: view.wrap, attachments: attachmentsForRag };
           return;
         }
 
@@ -3213,6 +3211,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
           setTimeout(() => {
             if (retry.wrap && retry.wrap.parentNode) retry.wrap.remove();
             rewindHistoryToLastQuestion();
+            pendingAttachments = retry.attachments; // asked again with its pictures, not from their OCR text alone
             sendMessage(retry.text, { isRegenerate: true, autoRetried: true });
           }, 1800);
         }

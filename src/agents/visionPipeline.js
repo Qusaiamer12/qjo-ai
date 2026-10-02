@@ -2,7 +2,7 @@
 // it with the model that reasons.
 //
 // Every image went to the vision model alone, which had to read the page and
-// solve the problem in one pass. That model (Llama 4 Scout on Groq) reads well
+// solve the problem in one pass. That model (then Llama 4 Scout on Groq) reads well
 // and reasons less well than the text models, and it was never offered the
 // calculator, so an exercise photographed from a textbook was read correctly
 // and then got wrong on the arithmetic. Now, when the message is an exercise,
@@ -16,6 +16,7 @@
 'use strict';
 
 const { languageOfText } = require('../../public/domain/language');
+const { ownWords } = require('../../public/domain/ownWords');
 
 // Asking for a solution, in either language: solve, find, calculate, prove,
 // choose; or naming the page as an exercise, homework or an exam. Not
@@ -32,11 +33,16 @@ const OCR_MARKER = 'OCR text extracted from image';
 // the answer …"); it is not the person asking for anything.
 const PAGE_INSTRUCTION = /\n\n(?:Analyze the attached image\(s\) directly|حلّل الصورة\/الصور المرفقة)/;
 
-/** The message cut into the person's own words and the OCR text the page added. */
+/**
+ * The message cut into the person's own words and the OCR text the page added.
+ * Own words end where anything the page added begins (ownWords.js): its note
+ * on attached files says "answer from the retrieved sections", and read as the
+ * person's it made every photo with readable text an exercise to solve.
+ */
 function partsOf(text) {
   const all = String(text || '').split(PAGE_INSTRUCTION)[0];
   const at = all.indexOf(OCR_MARKER);
-  return { own: at >= 0 ? all.slice(0, at) : all, ocr: at >= 0 ? all.slice(at) : '' };
+  return { own: ownWords(all), ocr: at >= 0 ? all.slice(at) : '' };
 }
 
 /**
@@ -178,4 +184,4 @@ function createVisionPipeline({ runChain, pipelines, buildTools }) {
   return { answer };
 }
 
-module.exports = { createVisionPipeline, isExercise, transcriptFrom, solvingMessages, readingMessages };
+module.exports = { createVisionPipeline, isExercise, transcriptFrom, solvingMessages, readingMessages, withoutImages };

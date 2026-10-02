@@ -98,12 +98,12 @@ const HUGGINGFACE_EMBEDDING_MODEL = process.env.HUGGINGFACE_EMBEDDING_MODEL || '
 const HUGGINGFACE_EMBEDDING_URL = String(process.env.HUGGINGFACE_EMBEDDING_URL || '').replace(/\/$/, '');
 
 const IP_RATE_LIMIT_PER_MINUTE = Number(process.env.IP_RATE_LIMIT_PER_MINUTE || 0); // 0 = disabled
-// Groq's official replacements for the llama-3.1/3.3 line (shutting down
-// 2026-08-16 — see console.groq.com/docs/deprecations). llmService also
-// auto-migrates any stale values coming from old envs.
-const GROQ_FLASH_MODEL = process.env.GROQ_FLASH_MODEL || 'openai/gpt-oss-20b';
-const GROQ_TEXT_MODEL = process.env.GROQ_TEXT_MODEL || 'openai/gpt-oss-120b';
-const GROQ_VISION_MODEL = process.env.GROQ_VISION_MODEL || 'meta-llama/llama-4-scout-17b-16e-instruct';
+// Groq's free tier: three models (console.groq.com/docs/deprecations). An old
+// env naming a retired one gets its replacement (src/services/retiredModels.js).
+const { currentModel } = require('./src/services/retiredModels');
+const GROQ_FLASH_MODEL = currentModel(process.env.GROQ_FLASH_MODEL || 'openai/gpt-oss-20b');
+const GROQ_TEXT_MODEL = currentModel(process.env.GROQ_TEXT_MODEL || 'openai/gpt-oss-120b');
+const GROQ_VISION_MODEL = currentModel(process.env.GROQ_VISION_MODEL || 'qwen/qwen3.8-27b');
 const QWEN_FLASH_MODEL = process.env.QWEN_FLASH_MODEL || 'qwen-plus';
 const QWEN_TEXT_MODEL = process.env.QWEN_TEXT_MODEL || 'qwen-plus';
 const QWEN_CODE_MODEL = process.env.QWEN_CODE_MODEL || QWEN_TEXT_MODEL;
@@ -186,7 +186,7 @@ const ALLOWED_MODELS = new Set([
   GROQ_VISION_MODEL,
   'openai/gpt-oss-20b',
   'openai/gpt-oss-120b',
-  'meta-llama/llama-4-scout-17b-16e-instruct',
+  'qwen/qwen3.8-27b', 'meta-llama/llama-4-scout-17b-16e-instruct', // the second from pages opened before it was retired
   // LLM7 models
   LLM7_FLASH_MODEL,
   LLM7_TEXT_MODEL,

@@ -16,6 +16,7 @@
 'use strict';
 
 const { ARABIC_PLAYBOOK_NOTES } = require('./arabicPrompt');
+const { ownWords } = require('../../public/domain/ownWords');
 
 // The quantities a worked problem is about. Arabic words are whole words, with
 // or without "ال"/"بال"/"لل": "بطاقة" is a card and "بسرعة" is "quickly".
@@ -233,6 +234,9 @@ LITERARY CRAFTSMANSHIP, GRAMMAR & TEXT RESTRUCTURING
 // no cache holds them. A plain greeting's warmth is the core prompt's (TONE).
 const BANTER = /فنان|وحش|كفو|يسعد|بحبك|بنحبك|أحبك|احبك|الهمة|الأخبار|الاخبار|أفضل|افضل|أحسن|احسن|رأيك|رايك|بتتوقع|يفوز/;
 const SOCIAL = ['apology', 'subtext', 'excuses'];
+const CODE_WORDS = /```|\bfunction\b|\bconst\b|\bclass\b|\bimport\b|stack trace|traceback|compile|debug|refactor|npm |yarn |pip |docker|regex|api\b|sdk\b|react|node\.js|typescript|javascript|python|java\b|sql\b|كود|برمج|برمجة|دالة|كلاس|مكتبة|خطأ برمجي|صحح الكود|اكتب لي برنامج|تطبيق ويب/i;
+// An attached file the page names (app.js's attachment context) that is code.
+const CODE_FILE = /^Attachment Index \d+: .+\.(?:[cm]?jsx?|tsx?|py|ipynb|java|kt|swift|c|cc|cpp|h|hpp|cs|go|rb|php|rs|dart|sql|sh|ps1|html?|css|scss|vue|svelte)$/im;
 
 function textOf(content) {
   if (typeof content === 'string') return content;
@@ -264,7 +268,11 @@ function selectPlaybooks(recent, { code = false } = {}) {
 function detectNeeds(userMessages) {
   const texts = (userMessages || []).filter((m) => m && m.role === 'user').map((m) => textOf(m.content));
   const t = texts.join('\n');
-  const code = /```|\bfunction\b|\bconst\b|\bclass\b|\bimport\b|stack trace|traceback|compile|debug|refactor|npm |yarn |pip |docker|regex|api\b|sdk\b|react|node\.js|typescript|javascript|python|java\b|sql\b|كود|برمج|برمجة|دالة|كلاس|مكتبة|خطأ برمجي|صحح الكود|اكتب لي برنامج|تطبيق ويب/i.test(t);
+  // What is asked for is judged on the person's own words, not on what the page
+  // attached to them (ownWords.js): a CV's skills list is not a request for code.
+  // A file of code still makes the request about code.
+  const own = texts.map(ownWords);
+  const code = CODE_WORDS.test(own.join('\n')) || CODE_FILE.test(t);
   return {
     search: /source pack|connected search|connected deep search|web search note|search query used/i.test(t),
     files: /user attached files|pdf pages processed|ocr text extracted|extraction method|attachment index|المرفقات/i.test(t),
@@ -273,7 +281,7 @@ function detectNeeds(userMessages) {
     // error-handling rules) is attached whenever the request is code-shaped
     // instead of waiting for a mode that can never be chosen.
     code,
-    playbooks: selectPlaybooks(texts.slice(-2), { code })
+    playbooks: selectPlaybooks(own.slice(-2), { code })
   };
 }
 
@@ -298,4 +306,4 @@ function playbookText(keys, { arabic = false } = {}) {
 
 const ALL_PLAYBOOKS = [...Object.keys(PLAYBOOKS), 'banter'];
 
-module.exports = { PLAYBOOKS, ALL_PLAYBOOKS, selectPlaybooks, detectNeeds, playbookText };
+module.exports = { PLAYBOOKS, ALL_PLAYBOOKS, selectPlaybooks, detectNeeds, playbookText, ownWords };

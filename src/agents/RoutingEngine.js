@@ -3,7 +3,7 @@ const { WEB_SEARCH_TOOL } = require('../tools/searchTool');
 const { createToolRegistry } = require('../tools/toolRegistry');
 const { evidenceFromSearch, formatSearchResultsForTool, sourcesForPage } = require('./toolAnswer');
 const { createToolLoop } = require('./toolLoop');
-const { createVisionPipeline } = require('./visionPipeline');
+const { createVisionPipeline, withoutImages } = require('./visionPipeline');
 const { continuationPrompts } = require('./continuation');
 const { shrinkMessages, fitToAllowance, prefitToAllowance } = require('../services/providerLimits');
 const { withTurnContext, reasoningEffort } = require('../services/promptLayout');
@@ -207,9 +207,9 @@ const PIPELINES = {
 };
 
 // The last resort for a text request: Groq's vision model reads text as well,
-// and its per-minute allowance is several times the text models' (30K tokens
-// against 8K on the free tier), so a long request every other slot refused or
-// timed out on still gets an answer. Tried only when everything else failed.
+// and Groq counts each model's minute on its own, so a request both text
+// models were too busy for can still be answered. (Llama 4 Scout once gave it
+// 30K tokens a minute; Qwen 3.8, its successor, has the text models' 8K.)
 for (const name of ['flash', 'maxAr', 'maxEn', 'code']) PIPELINES[name].push(['groq', 'vision']);
 
 function normalizeMode(mode) {
@@ -290,13 +290,13 @@ function createRoutingEngine(deps) {
     const model = slotModel(provider, slot);
     if (!model) return { ok: false, status: 501, error: `No ${slot} model for ${provider}.` };
     // Fitted to the model's per-minute allowance once the provider has named
-    // it; refused anyway (its count beats our estimate), fitted again from
-    // what was sent. Per call: a round after a search carries the results too.
+    // it; refused anyway, fitted again from what was sent — by the last resort,
+    // the vision slot, cutting the prompt if it must. Per call (a search round).
     const sent = prefitToAllowance(withTurnContext(params), llmService.allowanceFor && llmService.allowanceFor(provider, model));
     const res = await llmService.dispatch(provider, { model, ...sent });
-    const fitted = !res.ok && fitToAllowance(sent, res.tokenAllowance);
+    const fitted = !res.ok && fitToAllowance(sent, res.tokenAllowance, { cut: slot === 'vision' });
     if (!fitted) return res;
-    console.warn(`[RoutingEngine] ${provider}/${slot} allowance is ${res.tokenAllowance.limit} tokens — asking again with ${fitted.max_tokens} of answer room (was ${sent.max_tokens}).`);
+    console.warn(`[RoutingEngine] ${provider}/${slot} allowance is ${res.tokenAllowance.limit} tokens — asking again with ${fitted.max_tokens} of answer room (was ${sent.max_tokens})${fitted.messages !== sent.messages ? ', its longest messages cut in the middle' : ''}.`);
     return llmService.dispatch(provider, { model, ...fitted });
   }
 
@@ -551,7 +551,7 @@ function createRoutingEngine(deps) {
       : pipeline;
 
     return runChain(chain, {
-      ...base,
+      ...base, messages: hasImages ? withoutImages(messages) : messages, // a model that cannot see refuses pictures
       tools: hasImages ? undefined : tools,
       maxPerProviderMs: normMode === 'flash' ? 18000 : 25000
     }, { withTools: Boolean(tools), originalQuestion });

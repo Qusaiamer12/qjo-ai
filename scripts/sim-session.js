@@ -40,7 +40,7 @@ let detectNeeds = () => ({});
 try { ({ detectNeeds } = require(path.join(root, 'src/services/playbooks'))); } catch (_) { /* older versions: no playbooks */ }
 
 // ── Fake providers ──────────────────────────────────────────────────────────
-const TPM = { 'openai/gpt-oss-20b': 8000, 'openai/gpt-oss-120b': 8000, 'meta-llama/llama-4-scout-17b-16e-instruct': 30000 };
+const TPM = { 'openai/gpt-oss-20b': 8000, 'openai/gpt-oss-120b': 8000, 'qwen/qwen3.8-27b': 8000 }; // Groq's free tier since 2026-09 (Llama 4 Scout, 30K, retired)
 const WINDOW_MS = 60000 * cfg.scale;
 const tokensOf = (body) => Math.ceil((JSON.stringify(body.messages || []).length + JSON.stringify(body.tools || []).length) / 4);
 const windows = new Map();
@@ -198,7 +198,7 @@ async function main() {
     keys: { groq: cfg.groqKeys, llm7: cfg.llm7Keys, qwen: 0, kimi: 0 },
     models: {
       groqFlash: 'openai/gpt-oss-20b', groqText: 'openai/gpt-oss-120b', groqCode: 'openai/gpt-oss-120b',
-      groqVision: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      groqVision: 'qwen/qwen3.8-27b',
       llm7Flash: 'minimax-m2.7', llm7Text: 'minimax-m2.7', llm7Code: 'minimax-m2.7'
     }
   });
@@ -219,7 +219,7 @@ async function main() {
     const ms = Date.now() - started;
     const calls = log.slice(before);
     const answeredBy = res.ok ? String(res.answer || '').split(' ')[0] : '';
-    results.push({ i: i + 1, ok: Boolean(res.ok), ms, by: answeredBy, calls: calls.map((c) => `${c.provider}${c.provider === 'groq' ? (c.model.includes('scout') ? 'S' : '') : ''}:${c.status || '…'}`).join(' '), error: res.ok ? '' : String(res.error || '').replace(/Request too large[^\]]*?(?=\s\[|$)/, 'TOO LARGE…').slice(0, 140) });
+    results.push({ i: i + 1, ok: Boolean(res.ok), ms, by: answeredBy, calls: calls.map((c) => `${c.provider}${c.provider === 'groq' ? (c.model.includes('qwen') ? 'Q' : '') : ''}:${c.status || '…'}`).join(' '), error: res.ok ? '' : String(res.error || '').replace(/Request too large[^\]]*?(?=\s\[|$)/, 'TOO LARGE…').slice(0, 140) });
     history.push({ role: 'user', content: turn.text }, { role: 'assistant', content: res.ok ? String(res.answer || '').slice(0, 1500) : '...' });
     await new Promise((r) => setTimeout(r, cfg.thinkMs));
   }

@@ -916,6 +916,40 @@ const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n
     assert.ok(capPerImage(5) * 5 <= LIMITS.maxMessageChars && LIMITS.maxMessageChars < 8 * 1024 * 1024);
   });
 
+  console.log('\nThe person\'s own words in what the page sent (ownWords.js):');
+  const { ownWords, ADDED } = require('../public/domain/ownWords.js');
+  const i18nSource = require('../public/domain/i18n.js');
+  const pageSource = ['../public/app.js', '../public/ui/attachmentShelf.js', '../public/domain/attachmentRefs.js', '../public/domain/i18n.js']
+    .map((f) => require('fs').readFileSync(require('path').join(__dirname, f), 'utf8')).join('\n');
+
+  test('what the person typed is kept whole, line breaks and all', () => {
+    assert.strictEqual(ownWords('سؤال أول\n\nوسؤال ثاني'), 'سؤال أول\n\nوسؤال ثاني');
+    assert.strictEqual(ownWords(''), '');
+  });
+
+  test('everything the page adds after it is not theirs', () => {
+    const own = 'استخرج معلوماتي';
+    for (const added of ['\n\nUser attached or previously indexed files with retrieved evidence. Use …\nAttachment Index 1: cv.jpg',
+      '\n\nPossible user typo/intent correction: The user wrote …', '\n\nWeb search note: The pre-search failed.',
+      '\n\nConnected search executed. Search query used: x', '\n\nحلّل الصورة/الصور المرفقة مباشرة وبالعربية.',
+      '\n\nAnalyze the attached image(s) directly in the user language.', '\n\n[The attached image is "cv.jpg" (id abcd12).]',
+      '\n\n[Attached by the person and kept by the page — not shown to you: "cv.jpg" (id abcd12).]', '\n\n[🖼️ cv.jpg · attachment:abcd12]']) {
+      assert.strictEqual(ownWords(own + added + '\nJavaScript, React'), own, JSON.stringify(added));
+    }
+  });
+
+  test('the note a sent picture leaves, in both languages, is the page\'s', () => {
+    for (const lang of ['en', 'ar']) {
+      const note = i18nSource.CATALOG[lang].imagesAnalyzedNote;
+      assert.ok(note, `no imagesAnalyzedNote in ${lang}`);
+      assert.strictEqual(ownWords(`hello\n\n${note} [🖼️ a.png · attachment:abcd12]`), 'hello', lang);
+    }
+  });
+
+  test('every part it knows is one the page really writes', () => {
+    for (const marker of ADDED) assert.ok(pageSource.includes(marker.slice(2)), `the page no longer writes "${marker.slice(2)}"`);
+  });
+
   console.log('\n========================================');
   console.log(`${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
