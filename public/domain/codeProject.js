@@ -29,8 +29,71 @@
   const DEFAULT_STRINGS = {
     libsFailed: 'The preview libraries could not be loaded. Check the connection and reload.',
     moduleMissing: '"{name}" is not available in the preview. It supports react, react-dom and lucide-react.',
-    noComponent: 'No component to show: export one (export default function App) or name it App.'
+    noComponent: 'No component to show: export one (export default function App) or name it App.',
+    formHeld: 'The form works — in a preview nothing is sent.',
+    pageMissing: '"{name}" is not part of this answer.'
   };
+
+  // Runs first in every preview, before the page's own code.
+  //
+  // A preview is an about:srcdoc document, and its links resolve against the
+  // app's address: a site's "#about" pointed at the app, and one click turned
+  // the preview into Qjo's own sign-in page. A form's submit did the same.
+  // Now a link to a section scrolls to it in the page — not by setting
+  // location.hash, which in a srcdoc document is itself a navigation to the
+  // app's address (measured in Chromium); a link to
+  // another file of the answer asks the app to show it; a link out opens in a
+  // new tab; a form shows that it works, and sends nothing.
+  const LINK_GUARD = `(function () {
+  var S = __STRINGS__;
+  function note(text) {
+    var box = document.getElementById('qjo-preview-note');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'qjo-preview-note';
+      box.setAttribute('role', 'status');
+      box.style.cssText = 'position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:2147483647;max-width:90%;padding:10px 14px;border-radius:10px;background:#0f172a;color:#fff;font:14px/1.4 system-ui,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.25)';
+      (document.body || document.documentElement).appendChild(box);
+    }
+    box.textContent = text;
+    clearTimeout(note.timer);
+    note.timer = setTimeout(function () { if (box.parentNode) box.parentNode.removeChild(box); }, 3200);
+  }
+  function section(id) {
+    if (!id) return null;
+    try { id = decodeURIComponent(id); } catch (_) {}
+    return document.getElementById(id) || document.getElementsByName(id)[0] || null;
+  }
+  window.addEventListener('message', function (e) {
+    if (e.source === window.parent && e.data && e.data.qjoPreview === 'missing') note(S.pageMissing.replace('{name}', e.data.name));
+  });
+  document.addEventListener('click', function (e) {
+    var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+    if (!a || e.defaultPrevented) return;
+    var href = a.getAttribute('href').trim();
+    if (/^javascript:/i.test(href)) return;
+    e.preventDefault();
+    if (href.charAt(0) === '#') {
+      var id = href.slice(1);
+      if (!id) return; // href="#" is a button's: its own handler acts
+      if (id === 'top') { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+      var el = section(id);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    if (/^(?:[a-z][a-z0-9+.-]*:|[\\/]{2})/i.test(href)) { window.open(a.href, '_blank', 'noopener'); return; }
+    var name = href.split(/[?#]/)[0].split('/').pop();
+    if (name) window.parent.postMessage({ qjoPreview: 'open', name: name }, '*');
+  }, true);
+  // After the page's own handlers, so a form it handles itself shows its own
+  // message; one it left alone is held here. The check is put on the form as
+  // the event starts, so it runs last there, even when the page's handler
+  // stops the event from going further. form.submit() fires no event.
+  function held(e) { if (!e.defaultPrevented) { e.preventDefault(); note(S.formHeld); } }
+  window.addEventListener('submit', function (e) { if (e.target && e.target.addEventListener) e.target.addEventListener('submit', held, { once: true }); }, true);
+  HTMLFormElement.prototype.submit = function () { note(S.formHeld); };
+})();`;
+  const guardScript = (strings) => `<script>${LINK_GUARD.replace('__STRINGS__', () => jsonForScript({ ...DEFAULT_STRINGS, ...(strings || {}) }))}</script>\n`;
 
   const ARABIC = /[\u0600-\u06FF]/;
   // Server code: a page must not run it, and it is not the page's script.
@@ -148,9 +211,10 @@
   const scriptTag = (js) => `<script${/^\s*(?:import\s[^(]|export\s)/m.test(js) ? ' type="module"' : ''}>\n${js.replace(/<\/script/gi, '<\\/script')}\n</script>\n`;
   const jsonForScript = (value) => JSON.stringify(value).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
 
-  function head(rtl, extra) {
+  function head(rtl, extra, strings) {
     const font = rtl ? "'Cairo', 'Inter'" : "'Inter', 'Cairo'";
     return `<meta charset="utf-8">
+  ${guardScript(strings)}
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="${FONTS}" rel="stylesheet">
   <script src="${LIBS.tailwind}"></script>
@@ -165,12 +229,28 @@
     return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:24px;background:#f8fafc;}svg{max-width:100%;max-height:85vh;}</style></head><body>${code}</body></html>`;
   }
 
-  function htmlDocument(files) {
+  // The preview loads scripts only from the CDNs the app allows (its CSP is
+  // the preview's too): jsdelivr, cdnjs and Tailwind's. A page that took its
+  // libraries from unpkg — most do — stopped with nothing on screen. The same
+  // npm files from jsdelivr, which mirrors them under the same paths.
+  /** @type {Array<[RegExp, string]>} */
+  const CDN_REWRITES = [
+    [/https?:\/\/unpkg\.com\/([^\s"'`)?]+)\?module\b/g, 'https://cdn.jsdelivr.net/npm/$1/+esm'],
+    [/https?:\/\/unpkg\.com\//g, 'https://cdn.jsdelivr.net/npm/'],
+    [/https?:\/\/(?:cdn\.)?skypack\.dev\/([^\s"'`)?]+)/g, 'https://cdn.jsdelivr.net/npm/$1/+esm'],
+    [/https?:\/\/esm\.sh\/([^\s"'`)?]+)/g, 'https://cdn.jsdelivr.net/npm/$1/+esm'],
+    [/https?:\/\/code\.jquery\.com\/jquery-(\d[\d.]*)((?:\.slim)?(?:\.min)?)\.js/g, 'https://cdn.jsdelivr.net/npm/jquery@$1/dist/jquery$2.js']
+  ];
+  function onAllowedCdns(code) {
+    return CDN_REWRITES.reduce((text, [pattern, to]) => text.replace(pattern, to), String(code));
+  }
+
+  function htmlDocument(files, strings) {
     const main = files.find((f) => f.role === 'main');
-    let doc = String(main.code).trim();
+    let doc = onAllowedCdns(String(main.code).trim());
     for (const ref of localReferences(doc)) doc = doc.replace(ref.tag, () => '');
-    const styles = files.filter((f) => f.role === 'style').map((f) => styleTag(f.code)).join('');
-    const scripts = files.filter((f) => f.role === 'script').map((f) => scriptTag(f.code)).join('');
+    const styles = files.filter((f) => f.role === 'style').map((f) => styleTag(onAllowedCdns(f.code))).join('');
+    const scripts = files.filter((f) => f.role === 'script').map((f) => scriptTag(onAllowedCdns(f.code))).join('');
 
     if (/<!doctype\s+html/i.test(doc) || /<html\b/i.test(doc)) {
       const tailwind = /tailwind/i.test(doc) ? '' : `<script src="${LIBS.tailwind}"></script>\n`;
@@ -180,13 +260,17 @@
         const open = /<html\b[^>]*>/i.exec(d) || /<!doctype[^>]*>/i.exec(d);
         return open ? open.index + open[0].length : 0;
       }, 'first');
+      // The guard before anything of the page's own: straight after <head>,
+      // else after <html>, else after the doctype.
+      const at = /<head\b[^>]*>/i.exec(doc) || /<html\b[^>]*>/i.exec(doc) || /<!doctype[^>]*>/i.exec(doc);
+      doc = at ? doc.slice(0, at.index + at[0].length) + guardScript(strings) + doc.slice(at.index + at[0].length) : guardScript(strings) + doc;
       return insertBefore(doc, /<\/body\s*>/gi, scripts, (d) => d.length);
     }
     const rtl = ARABIC.test(doc);
     return `<!DOCTYPE html>
 <html lang="${rtl ? 'ar' : 'en'}" dir="${rtl ? 'rtl' : 'ltr'}">
 <head>
-  ${head(rtl, styles ? '\n' + styles : '')}
+  ${head(rtl, styles ? '\n' + styles : '', strings)}
 </head>
 <body>
 ${doc}
@@ -275,7 +359,7 @@ ${scripts}</body>
     return `<!DOCTYPE html>
 <html lang="${rtl ? 'ar' : 'en'}" dir="${rtl ? 'rtl' : 'ltr'}">
 <head>
-  ${head(rtl, styles ? '\n' + styles : '')}
+  ${head(rtl, styles ? '\n' + styles : '', strings)}
   <script src="${LIBS.react}" crossorigin="anonymous"></script>
   <script src="${LIBS.reactDom}" crossorigin="anonymous"></script>
   <script src="${LIBS.babel}" crossorigin="anonymous"></script>
@@ -290,6 +374,21 @@ ${containers.map((id) => `<div id="${id}"></div>`).join('\n')}
   }
 
   /**
+   * Which block of the answer a link inside its preview names: the HTML
+   * block with that file name; "index.html", when no block is called that,
+   * is the answer's first page. -1 when the answer has no such page.
+   * @param {Array<{lang?: string, code?: string, path?: string}>} blocks
+   * @param {string} name
+   */
+  function pageNamed(blocks, name) {
+    const wanted = basename(name);
+    const pages = (blocks || []).map((b, i) => (kindOf({ lang: String(b.lang || ''), code: String(b.code || ''), path: String(b.path || '') }) === 'html' ? i : -1)).filter((i) => i >= 0);
+    const named = pages.find((i) => basename(blocks[i].path) === wanted);
+    if (named !== undefined) return named;
+    return wanted === 'index.html' && pages.length ? pages[0] : -1;
+  }
+
+  /**
    * The document for a preview iframe's srcdoc.
    * @param {{kind: string, files: Array<{name: string, lang: string, role: string, code: string}>} | null} project
    * @param {Partial<typeof DEFAULT_STRINGS>} [strings] messages shown inside the preview, in the page's language
@@ -299,10 +398,10 @@ ${containers.map((id) => `<div id="${id}"></div>`).join('\n')}
     if (!project || !project.files || !project.files.length) return '';
     if (project.kind === 'svg') return svgDocument(project.files[0].code);
     if (project.kind === 'react') return reactDocument(project.files, strings);
-    return htmlDocument(project.files);
+    return htmlDocument(project.files, strings);
   }
 
-  const api = { LIBS, kindOf, isReactSource, projectFor, buildDocument };
+  const api = { LIBS, kindOf, isReactSource, projectFor, buildDocument, pageNamed, onAllowedCdns };
   global.QjoDomain = global.QjoDomain || {};
   global.QjoDomain.codeProject = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

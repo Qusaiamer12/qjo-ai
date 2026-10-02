@@ -890,6 +890,20 @@ const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n
     assert.strictEqual(closeOpenFence('plain text'), 'plain text');
   });
 
+  test('inside a block, "```html" is code; only a line of backticks alone closes it — as the renderer reads it', () => {
+    const { openFence } = require('../public/domain/streamBlocks.js');
+    const { lightMarkdown } = require('../public/domain/markdown.js');
+    const reopened = 'x\n\n```html\n<ul>\n```html\n<li>two</li>';
+    assert.deepStrictEqual(openFence(reopened), { ticks: '```', info: 'html' });
+    assert.strictEqual(openFence(reopened + '\n```'), null);
+    assert.deepStrictEqual(openFence('```js\nconst s = "```";\n'), { ticks: '```', info: 'js' }, 'backticks inside a line do not close');
+    assert.strictEqual(splitStable(reopened + '\n\nmore').stable, 'x\n\n', 'not cut inside the block');
+    const html = lightMarkdown(reopened + '\n```\n\nafter');
+    assert.strictEqual((html.match(/<div class="code-block-wrapper\b/g) || []).length, 1);
+    assert.ok(/&lt;li&gt;two/.test(html) && /<p[^>]*>after<\/p>/.test(html), html.slice(-200));
+    assert.strictEqual((lightMarkdown('```\n```').match(/<div class="code-block-wrapper\b/g) || []).length, 1, 'an empty block is still a block');
+  });
+
   console.log('\nHow an attached image is sent (imagePlan.js):');
   const { LIMITS, encodings, capPerImage } = require('../public/domain/imagePlan.js');
 

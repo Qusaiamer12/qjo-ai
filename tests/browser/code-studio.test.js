@@ -73,7 +73,9 @@ const COMPONENT = "import { useState } from 'react';\nimport { Plus } from 'luci
     if (present) { await frame.click('#b'); await frame.click('#b'); }
     ok(present && await frame.$eval('#b', (el) => el.textContent) === '2', 'the answer\'s JavaScript block makes it work');
     const attr = await page.$eval('.has-live-preview .live-preview-iframe', (el) => el.getAttribute('sandbox'));
-    ok(attr === 'allow-scripts allow-modals', `the preview is sandboxed without same-origin (${attr})`);
+    // Scripts, forms and tabs for links out (preview-links.test.js) — never same-origin.
+    const tokens = String(attr).split(/\s+/);
+    ok(tokens.includes('allow-scripts') && !tokens.includes('allow-same-origin') && !tokens.includes('allow-top-navigation'), `the preview is sandboxed without same-origin (${attr})`);
     const reach = present && await frame.evaluate(() => {
       let parentDoc = 'blocked'; try { parentDoc = window.parent.document ? 'READ' : 'none'; } catch (_) { /* expected */ }
       let storage = 'blocked'; try { storage = typeof window.localStorage.length; } catch (_) { /* expected */ }
@@ -138,7 +140,7 @@ const COMPONENT = "import { useState } from 'react';\nimport { Plus } from 'luci
     ok(inside && await colorOf(frame, '#b') === 'rgb(255, 0, 0)', 'it previews the whole answer');
     const studioSandbox = await page.$eval('.qjo-canvas-frame', (el) => el.getAttribute('sandbox'));
     const studioOrigin = inside && await frame.evaluate(() => window.origin);
-    ok(studioSandbox === 'allow-scripts allow-modals' && studioOrigin === 'null', `the studio's preview has no origin of its own either (${studioSandbox}; ${studioOrigin})`);
+    ok(!String(studioSandbox).split(/\s+/).includes('allow-same-origin') && studioOrigin === 'null', `the studio's preview has no origin of its own either (${studioSandbox}; ${studioOrigin})`);
 
     await page.click('.qjo-canvas-tab[data-view="code"]');
     const files = await page.$$eval('.qjo-canvas-files button', (els) => els.map((el) => el.textContent));

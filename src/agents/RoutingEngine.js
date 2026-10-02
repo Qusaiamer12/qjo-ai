@@ -4,7 +4,7 @@ const { createToolRegistry } = require('../tools/toolRegistry');
 const { evidenceFromSearch, formatSearchResultsForTool, sourcesForPage } = require('./toolAnswer');
 const { createToolLoop } = require('./toolLoop');
 const { createVisionPipeline, withoutImages } = require('./visionPipeline');
-const { continuationPrompts } = require('./continuation');
+const { completeIfTruncated: continueAnswer } = require('./continuation');
 const { shrinkMessages, fitToAllowance, prefitToAllowance } = require('../services/providerLimits');
 const { withTurnContext, reasoningEffort } = require('../services/promptLayout');
 const { z } = require('zod');
@@ -557,26 +557,8 @@ function createRoutingEngine(deps) {
     }, { withTools: Boolean(tools), originalQuestion });
   }
 
-  async function completeIfTruncated(params) {
-    const { ai, messages, temperature, max_tokens } = params;
-    const maxPasses = Math.max(1, Math.min(Number(params.maxPasses ?? 1), 2));
-    if (!isTruncatedProviderResponse(ai)) return ai;
-    let combined = ai.answer || '';
-    const prompts = continuationPrompts(combined);
-    let workingMessages = [
-      ...messages,
-      { role: 'assistant', content: combined },
-      { role: 'user', content: prompts.first }
-    ];
-    for (let i = 0; i < maxPasses; i++) {
-      const next = await callAgent({ ...params, messages: workingMessages, temperature: Math.min(temperature, 0.3), max_tokens: Math.min(max_tokens, 1800) });
-      if (!next.ok || !next.answer) break;
-      combined += (combined.endsWith('\n') ? '' : '\n') + next.answer;
-      if (!isTruncatedProviderResponse(next)) return { ...next, answer: combined, continued: true, toolsUsed: [...(ai.toolsUsed || []), ...(next.toolsUsed || [])] };
-      workingMessages = [...workingMessages, { role: 'assistant', content: next.answer }, { role: 'user', content: prompts.again }];
-    }
-    return { ...ai, answer: combined, continued: true, finish_reason: 'continued_but_may_be_truncated' };
-  }
+  // Carrying a cut-off answer on, and joining the rest to it: continuation.js.
+  const completeIfTruncated = (params) => continueAnswer({ callAgent, isTruncated: isTruncatedProviderResponse }, params);
 
   // Allow dynamic attachment of searchService after initialization
   const engine = { callAgent, completeIfTruncated, classifyQjoRequest, isLiteRequest };

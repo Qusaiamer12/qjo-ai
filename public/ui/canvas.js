@@ -64,10 +64,11 @@
     const t = deps.t;
     const doc = deps.document || global.document;
     const codeProject = () => global.QjoDomain.codeProject;
-    const previewStrings = () => ({ libsFailed: t('previewLibsFailed'), moduleMissing: t('previewModuleMissing'), noComponent: t('previewNoComponent') });
+    const previewStrings = () => ({ libsFailed: t('previewLibsFailed'), moduleMissing: t('previewModuleMissing'), noComponent: t('previewNoComponent'),
+      formHeld: t('previewFormHeld'), pageMissing: t('previewPageMissing') });
 
     // The answer's code blocks, in order, read back from the rendered answer.
-    function projectOf(wrapper) {
+    function blocksOf(wrapper) {
       const scope = wrapper.closest('.bubble') || wrapper.parentElement || doc.body;
       const wrappers = [...scope.querySelectorAll('.code-block-wrapper')];
       const read = (w, selector) => ((w.querySelector(selector) || {}).textContent || '').trim();
@@ -76,8 +77,35 @@
         path: read(w, '.code-block-filepath'),
         code: decode((/** @type {HTMLElement} */ (w.querySelector('.copy-code-btn')) || { dataset: {} }).dataset.code)
       }));
+      return { wrappers, blocks };
+    }
+
+    function projectOf(wrapper) {
+      const { wrappers, blocks } = blocksOf(wrapper);
       return codeProject().projectFor(blocks, wrappers.indexOf(wrapper));
     }
+
+    // A link in a preview to another page of the answer ("about.html") asks
+    // for it here (the guard in codeProject.js); the preview shows that page,
+    // or says the answer has no such file.
+    function openPage(event) {
+      const data = event.data;
+      if (!data || data.qjoPreview !== 'open' || typeof data.name !== 'string') return;
+      const inCanvas = canvas && canvas.frame.contentWindow === event.source;
+      const frame = inCanvas ? canvas.frame : [...doc.querySelectorAll('.live-preview-iframe')].find((f) => f.contentWindow === event.source);
+      const wrapper = inCanvas ? canvas.wrapper : frame && frame.closest('.code-block-wrapper');
+      if (!frame || !wrapper || !wrapper.isConnected) return;
+      const { blocks } = blocksOf(wrapper);
+      const index = codeProject().pageNamed(blocks, data.name);
+      const project = index >= 0 ? codeProject().projectFor(blocks, index) : null;
+      if (!project) { event.source.postMessage({ qjoPreview: 'missing', name: data.name.slice(0, 80) }, '*'); return; }
+      if (inCanvas) {
+        canvas.project = { kind: project.kind, files: project.files.map((f) => ({ ...f })) };
+        selectFile(0);
+        refresh();
+      } else frame.srcdoc = documentFor(project);
+    }
+    global.addEventListener('message', openPage);
 
     const documentFor = (project) => codeProject().buildDocument(project, previewStrings());
 
@@ -124,12 +152,12 @@
         button.title = t('canvasOpen');
         button.setAttribute('aria-label', t('canvasOpen'));
       });
-      onClick('.preview-expand-btn', element, (button, wrapper) => open(projectOf(wrapper), button));
+      onClick('.preview-expand-btn', element, (button, wrapper) => open(projectOf(wrapper), button, wrapper));
     }
 
     // ── The side canvas ──────────────────────────────────────────────────
     /** @type {null | {root: HTMLElement, frame: HTMLIFrameElement, editor: HTMLTextAreaElement, files: HTMLElement,
-     *   viewport: HTMLElement, project: any, active: number, trigger: HTMLElement | null, timer: any}} */
+     *   viewport: HTMLElement, project: any, active: number, trigger: HTMLElement | null, timer: any, wrapper?: HTMLElement | null}} */
     let canvas = null;
 
     function button(className, data) {
@@ -169,7 +197,7 @@
       viewport.className = 'qjo-canvas-viewport';
       const frame = doc.createElement('iframe');
       frame.className = 'qjo-canvas-frame';
-      frame.setAttribute('sandbox', 'allow-scripts allow-modals');
+      frame.setAttribute('sandbox', 'allow-scripts allow-modals allow-forms allow-popups allow-popups-to-escape-sandbox');
       viewport.append(frame);
       preview.append(viewport);
 
@@ -188,7 +216,7 @@
 
       root.append(bar, preview, code);
       doc.body.appendChild(root);
-      canvas = { root, frame, editor, files, viewport, project: null, active: 0, trigger: null, timer: null };
+      canvas = { root, frame, editor, files, viewport, project: null, active: 0, trigger: null, timer: null, wrapper: null };
 
       tabs.addEventListener('click', (e) => { const b = /** @type {HTMLElement} */ (e.target).closest('button'); if (b) showView(b.dataset.view); });
       tools.addEventListener('click', (e) => {
@@ -261,10 +289,11 @@
 
     function isOpen() { return Boolean(canvas && !canvas.root.hidden); }
 
-    function open(project, trigger) {
+    function open(project, trigger, wrapper) {
       if (!project) return;
       if (!canvas) build();
       clearTimeout(canvas.timer);
+      canvas.wrapper = wrapper || null;
       canvas.project = { kind: project.kind, files: project.files.map((f) => ({ ...f })) };
       canvas.trigger = trigger || null;
       label();
@@ -298,7 +327,7 @@
     function appendPreviewButton(toolbar, bubble, iconButton) {
       const wrapper = bubble && bubble.querySelector('.code-block-wrapper.has-live-preview');
       if (!wrapper) return;
-      const button = iconButton(t('canvasOpen'), PREVIEW_ICON, (b) => open(projectOf(/** @type {HTMLElement} */ (wrapper)), b));
+      const button = iconButton(t('canvasOpen'), PREVIEW_ICON, (b) => open(projectOf(/** @type {HTMLElement} */ (wrapper)), b, /** @type {HTMLElement} */ (wrapper)));
       button.dataset.preview = 'studio';
       toolbar.appendChild(button);
     }

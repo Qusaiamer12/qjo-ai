@@ -164,8 +164,10 @@ test('a component with its stylesheet', () => {
 test('the script that mounts the component parses', () => {
   const doc = buildDocument(projectFor([{ lang: 'jsx', code: component }], 0));
   const scripts = [...doc.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
-  assert.strictEqual(scripts.length, 1, 'one inline runner');
-  new Function(scripts[0]); // a syntax check: it is never called
+  // The link guard, then the runner: both inline, both must parse.
+  assert.strictEqual(scripts.length, 2, 'the guard and one inline runner');
+  assert.ok(/qjo-preview-note/.test(scripts[0]) && /Babel\.transform/.test(scripts[1]), 'in that order');
+  scripts.forEach((code) => new Function(code)); // a syntax check: never called
 });
 
 test('the component\'s source travels as data, and "</script>" in it cannot end the element', () => {
@@ -210,6 +212,50 @@ test('each library is the version the browser suite tests', () => {
   assert.ok(LIBS.reactDom.includes(`/react-dom@${dev['react-dom']}/`), `react-dom ${dev['react-dom']}`);
   assert.ok(LIBS.babel.includes(`/@babel/standalone@${dev['@babel/standalone']}/`), `babel ${dev['@babel/standalone']}`);
   assert.ok(LIBS.lucideReact.includes(`/lucide-react@${dev['lucide-react']}/`), `lucide-react ${dev['lucide-react']}`);
+});
+
+// Links and forms inside a preview (the guard in codeProject.js): it must run
+// before anything of the page's own, in every kind of preview — and parse: a
+// regex that lost a backslash inside the template once kept it from running
+// at all, and the preview still escaped to the app.
+const { pageNamed, onAllowedCdns } = require('../public/domain/codeProject.js');
+const guardOf = (doc) => (doc.match(/<script>(\(function \(\) \{\n {2}var S = [\s\S]*?)<\/script>/) || [])[1];
+test('every preview runs the link guard first, and the guard parses', () => {
+  const full = buildDocument({ kind: 'html', files: [{ name: 'index.html', role: 'main', code: '<!DOCTYPE html><html><head><script>window.mine = 1</script></head><body><a href="#x">x</a></body></html>' }] });
+  const fragment = buildDocument({ kind: 'html', files: [{ name: 'index.html', role: 'main', code: '<a href="#x">x</a>' }] });
+  const react = buildDocument({ kind: 'react', files: [{ name: 'App.jsx', role: 'main', code: 'export default function App() { return <a href="#x">x</a>; }' }] });
+  for (const [name, doc] of Object.entries({ full, fragment, react })) {
+    const guard = guardOf(doc);
+    assert.ok(guard, `${name}: no guard`);
+    assert.doesNotThrow(() => new Function(guard), `${name}: the guard does not parse`);
+    const at = doc.indexOf(guard);
+    const theirs = [doc.indexOf('window.mine'), doc.indexOf('<a '), doc.indexOf('<script src=')].filter((i) => i >= 0);
+    assert.ok(theirs.every((i) => at < i), `${name}: the guard is not first (${at} against ${theirs})`);
+  }
+  assert.ok(/'qjo-preview-note'/.test(guardOf(full)) && /HTMLFormElement\.prototype\.submit/.test(guardOf(full)));
+});
+
+test('the guard\'s notes come in the page\'s language', () => {
+  const doc = buildDocument({ kind: 'html', files: [{ name: 'index.html', role: 'main', code: '<p>x</p>' }] }, { formHeld: 'الفورم شغّال', pageMissing: 'الصفحة {name}' });
+  assert.ok(/الفورم شغّال/.test(doc) && /الصفحة \{name\}/.test(doc));
+});
+
+test('a link names a page of the answer by its file name; index.html is the first page', () => {
+  const blocks = [{ lang: 'html', path: '', code: '<!DOCTYPE html><html></html>' }, { lang: 'css', path: 'style.css', code: 'a{}' }, { lang: 'html', path: 'pages/About.html', code: '<h1>a</h1>' }];
+  assert.strictEqual(pageNamed(blocks, 'about.html'), 2);
+  assert.strictEqual(pageNamed(blocks, './About.html?x=1'), 2);
+  assert.strictEqual(pageNamed(blocks, 'index.html'), 0);
+  assert.strictEqual(pageNamed(blocks, 'style.css'), -1, 'a stylesheet is not a page');
+  assert.strictEqual(pageNamed(blocks, 'team.html'), -1);
+});
+
+test('libraries from CDNs the preview cannot load come from jsdelivr', () => {
+  assert.strictEqual(onAllowedCdns('<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>'), '<script src="https://cdn.jsdelivr.net/npm/aos@2.3.1/dist/aos.js"></script>');
+  assert.strictEqual(onAllowedCdns("import x from 'https://esm.sh/canvas-confetti@1.9.3'"), "import x from 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/+esm'");
+  assert.strictEqual(onAllowedCdns('https://code.jquery.com/jquery-3.7.1.min.js'), 'https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js');
+  assert.strictEqual(onAllowedCdns('https://cdn.jsdelivr.net/npm/aos@2'), 'https://cdn.jsdelivr.net/npm/aos@2', 'an allowed CDN is left alone');
+  const doc = buildDocument({ kind: 'html', files: [{ name: 'index.html', role: 'main', code: '<script src="https://unpkg.com/x@1/x.js"></script>' }, { name: 'app.js', role: 'script', code: "import y from 'https://unpkg.com/y@2?module'" }] });
+  assert.ok(!/unpkg/.test(doc) && /npm\/x@1\/x\.js/.test(doc) && /npm\/y@2\/\+esm/.test(doc), doc.slice(-300));
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);

@@ -173,7 +173,9 @@
 
   function lightMarkdown(text) {
     const codeBlocks = [];
-    let safe = String(text || '').replace(/```([^\n\r`]*)\n?([\s\S]*?)```/g, (_, rawLangHeader, code) => {
+    // A block closes only at a line of backticks alone (streamBlocks.js reads
+    // fences the same way): "```html" inside a block is code, not its end.
+    let safe = String(text || '').replace(/```([^\n\r`]*)\n?([\s\S]*?)(?<=\n|^)[ \t]*```(?=[ \t]*(?:\r?\n|$))/g, (_, rawLangHeader, code) => {
       const id = codeBlocks.length;
       const rawLang = String(rawLangHeader || '').trim();
       let normalizedLang = rawLang.toLowerCase();
@@ -344,7 +346,7 @@
                 <button type="button" class="preview-reload-btn" data-id="${id}" title="${getLanguage() === 'ar' ? 'إعادة تحميل' : 'Reload'}">🔄</button>
               </div>
               <div class="preview-viewport desktop-view" id="preview-viewport-${id}">
-                <iframe class="live-preview-iframe" id="preview-iframe-${id}" sandbox="allow-scripts allow-modals" loading="lazy"></iframe>
+                <iframe class="live-preview-iframe" id="preview-iframe-${id}" sandbox="allow-scripts allow-modals allow-forms allow-popups allow-popups-to-escape-sandbox" loading="lazy"></iframe>
               </div>
             </div>
           `;

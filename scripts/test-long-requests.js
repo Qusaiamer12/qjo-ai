@@ -55,12 +55,19 @@ let groqDown = false;
 let groqDailySpent = [];
 const open = new Set();
 
-function streamText(res, text, headers = {}) {
+function streamText(res, text, headers = {}, finish = 'stop') {
   res.writeHead(200, { 'content-type': 'text/event-stream', ...headers });
   for (const word of text.split(/(?<= )/)) res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: word } }] })}\n\n`);
-  res.write(`data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: 'stop' }] })}\n\n`);
+  res.write(`data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: finish }] })}\n\n`);
   res.end('data: [DONE]\n\n');
 }
+
+// A web page longer than one answer: cut off inside its code, and carried on
+// by a model that opens its code block again and repeats the line it was cut
+// in — what the owner's preview showed as half a page above raw HTML.
+const PAGE_START = 'Here is your cafe site:\n\n```html\n<!DOCTYPE html>\n<html>\n<body>\n' + '<section class="menu"><h3>Mint tea</h3><p>Fresh mint and green tea.</p></section>\n'.repeat(90) + '<ul>\n<li>one</li>\n<li>tw';
+const PAGE_REST = '```html\n<li>two</li>\n</ul>\n</body>\n</html>\n```\n\nOpen it in the preview.';
+let groqCutsPage = false;
 
 const server = http.createServer((req, res) => {
   let raw = '';
@@ -69,6 +76,7 @@ const server = http.createServer((req, res) => {
     const body = JSON.parse(raw || '{}');
     const provider = req.url.startsWith('/groq') ? 'groq' : 'llm7';
     const call = { provider, model: body.model, maxTokens: body.max_tokens, input: inputTokens(body), key: String(req.headers.authorization || '').replace('Bearer ', ''), at: Date.now(),
+      continuation: /^Continue the code/.test(String(((body.messages || [])[(body.messages || []).length - 1] || {}).content)),
       cutNoted: (body.messages || []).some((m) => /part of this content was removed/.test(String(m.content))), systemWhole: (body.messages || []).some((m) => m.role === 'system' && /\n- /.test(m.content) && !/part of this content was removed/.test(m.content)) };
     calls.push(call);
     open.add(res);
@@ -92,6 +100,12 @@ const server = http.createServer((req, res) => {
           type: 'tokens', code: 'rate_limit_exceeded'
         } }));
         return;
+      }
+      if (groqCutsPage) {
+        const last = (body.messages || [])[body.messages.length - 1] || {};
+        const continuing = /^Continue the code/.test(String(last.content));
+        if (continuing && groqCutsPage === 'twice' && !/PART TWO/.test(JSON.stringify(body.messages))) return streamText(res, '<li>tw</li>\n<!-- PART TWO -->\n<li>three', {}, 'length');
+        return continuing ? streamText(res, PAGE_REST) : streamText(res, PAGE_START, {}, 'length');
       }
       if (groqSearchesFirst && body.tools && !(body.messages || []).some((m) => m.role === 'tool')) {
         res.writeHead(200, { 'content-type': 'text/event-stream' });
@@ -325,6 +339,45 @@ async function main() {
     ok(cut && cut.messages[0].content === system, 'the system prompt, longer than anything else, is whole', cut && cut.messages[0].content.length);
     ok(cut && cut.messages[1].content.length < history.length && /part of this content was removed/.test(cut.messages[1].content), `the long history message is cut instead (${cut && cut.messages[1].content.length} of ${history.length})`);
     ok(cut && cut.messages[3].content === 'والآن؟', 'and the newest question is untouched');
+  });
+
+  await scenario('A page cut off inside its code is carried on as one block, each request within 8,000', 60000, async (ok) => {
+    const { lightMarkdown } = require('../public/domain/markdown.js');
+    groqCutsPage = true;
+    llm7 = { headerDelayMs: 0, dead: true };
+    // A conversation already under way: long earlier turns, as on a real chat.
+    const earlier = [];
+    for (let i = 0; i < 4; i++) earlier.push({ role: 'user', content: 'Earlier question about the menu and prices. '.repeat(40) }, { role: 'assistant', content: 'Earlier answer with the full menu. '.repeat(60) });
+    const messages = [{ role: 'system', content: buildChatSystemPrompt({ mode: 'flash', arabic: false, runtimeLine: 'today' }) }, ...earlier, { role: 'user', content: 'Build the full cafe website in one HTML file.' }];
+    const shown = [];
+    const engine2 = buildEngine(baseUrl);
+    // This message's playbooks, as the route sends them: they shape the start,
+    // and a request for the rest of the code goes without them.
+    const turnContext = 'INTERFACES — build a complete page with sections, Tailwind and real content. '.repeat(60);
+    const ai = await engine2.callAgent({ mode: 'flash', messages, turnContext, max_tokens: 2000, useTools: false, onChunk: (t) => shown.push(t) });
+    const done = await engine2.completeIfTruncated({ ai, messages, turnContext, temperature: 0.2, max_tokens: 2000, useTools: false, onChunk: (t) => shown.push(t) });
+    groqCutsPage = false;
+    const asks = groqCalls().filter((c) => c.continuation);
+    ok(ai.ok && /length/.test(ai.finish_reason || ''), 'control: the first answer was cut off', ai.finish_reason);
+    ok(asks.length >= 1 && asks.every((c) => c.input + c.maxTokens <= 8000), `the request for the rest fits Groq's 8,000 (${asks.map((c) => c.input + c.maxTokens).join(', ')})`, asks);
+    ok(done.continued && /Open it in the preview/.test(done.answer || ''), 'and it is answered', done.error || done.answer);
+    const blocks = (lightMarkdown(done.answer).match(/<div class="code-block-wrapper\b/g) || []).length;
+    ok(blocks === 1 && !/```html[\s\S]*```html/.test(done.answer) && done.answer.includes('<li>one</li>\n<li>two</li>\n</ul>'), `one block of code, the cut line written once (${blocks} block(s))`, done.answer.slice(-200));
+    ok(shown.join('') === done.answer, 'the page is sent exactly the stored answer', { shown: shown.join('').slice(-120), stored: done.answer.slice(-120) });
+  });
+
+  await scenario('A page that needs two more answers gets them, still one block', 60000, async (ok) => {
+    const { lightMarkdown } = require('../public/domain/markdown.js');
+    groqCutsPage = 'twice';
+    llm7 = { headerDelayMs: 0, dead: true };
+    const messages = [{ role: 'system', content: buildChatSystemPrompt({ mode: 'flash', arabic: false, runtimeLine: 'today' }) }, { role: 'user', content: 'Build the full cafe website in one HTML file.' }];
+    const engine3 = buildEngine(baseUrl);
+    const ai = await engine3.callAgent({ mode: 'flash', messages, max_tokens: 2000, useTools: false, onChunk: () => {} });
+    const done = await engine3.completeIfTruncated({ ai, messages, temperature: 0.2, max_tokens: 2000, useTools: false, maxPasses: 1, onChunk: () => {} });
+    groqCutsPage = false;
+    const asks = groqCalls().filter((c) => c.continuation);
+    ok(asks.length === 2, `two requests for the rest, though the route allows one for prose (${asks.length})`);
+    ok(/PART TWO/.test(done.answer || '') && /Open it in the preview/.test(done.answer || '') && (lightMarkdown(done.answer).match(/<div class="code-block-wrapper\b/g) || []).length === 1, 'the whole page, in one block', (done.answer || '').slice(-160));
   });
 
   await scenario('A short request is untouched', 20000, async (ok) => {

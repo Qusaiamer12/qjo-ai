@@ -74,6 +74,7 @@ LITERARY CRAFTSMANSHIP, GRAMMAR & TEXT RESTRUCTURING
 - INTERFACES (pages, components, dashboards) — the answer previews live in Qjo's studio:
   • Deliver one runnable piece: a single complete HTML file (CSS in <style>, JS in <script>), or one React component with export default. If you split HTML, CSS and JS, name the blocks (index.html, style.css, script.js) and link them by those names.
   • React previews can import only react, react-dom and lucide-react; Tailwind classes are available. No other packages, no local imports, no build step.
+  • In an HTML page, load libraries from cdn.jsdelivr.net or cdnjs.cloudflare.com — the preview loads no other CDN — and link sections with #id anchors.
   • Style with Tailwind utilities; responsive from 360px to desktop; real hover, focus and active states; every control usable by keyboard and labelled.
   • Real, specific content in the reply language — never lorem ipsum. Interactive where it helps (tabs, filters, validated forms), with state that actually works.`
   },

@@ -136,6 +136,14 @@ Each of these produced a green result that meant nothing.
   code, interfaces, lessons — a request over Groq's minute for one photo. What
   a message asks for is judged on `ownWords()` only, and a test reads the
   page's real wording.
+- **A preview that resolves its links against the app.** A code preview is an
+  `about:srcdoc` document, and its links take the app's address as their base:
+  a site's `#about` turned the preview into Qjo's own sign-in page. Even
+  setting `location.hash` there navigates. Every preview runs a guard first
+  (`codeProject.js`), and `preview-links.test.js` clicks the links, against a
+  control without the guard that does land on the app. The guard once failed
+  to parse — a regex lost its backslash inside a template string — and the
+  suite caught it: probes that only read a preview's text never would have.
 - **Verification that lives outside the repo.** 264 browser assertions spent
   weeks in a scratch directory that is deleted with the container. A check
   that is not committed and not in CI does not exist.
