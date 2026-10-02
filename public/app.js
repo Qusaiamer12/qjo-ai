@@ -72,8 +72,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     const newChatBtn = el('newChatBtn');
     const themeToggleBtn = el('themeToggleBtn');
     const exportChatBtn = el('exportChatBtn');
-    const normalModeBtn = el('normalModeBtn');
-    const advancedModeBtn = el('advancedModeBtn');
     const mobileMenuBtn = el('mobileMenuBtn');
     const drawerBackdrop = el('drawerBackdrop');
     const qjoLogo = el('qjoLogo');
@@ -249,6 +247,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     ];
 
     let qjoFunctions = { search: false, deep: false, task: false };
+    let composerControls = null; // the mode and tools buttons, once the page is wired
     let qjoTheme = readStored(THEME_KEY) || 'light';
     // English unless the person chose Arabic, or their browser prefers it.
     let qjoLanguage = QjoDomain.language.resolveInitialLanguage({
@@ -547,16 +546,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     }
 
     function updateModeUI() {
-      const isMax = qjoMode === 'advanced';
-      if (normalModeBtn) {
-        normalModeBtn.classList.toggle('active', !isMax);
-        normalModeBtn.setAttribute('aria-checked', !isMax ? 'true' : 'false');
-      }
-      if (advancedModeBtn) {
-        advancedModeBtn.classList.toggle('active', isMax);
-        advancedModeBtn.setAttribute('aria-checked', isMax ? 'true' : 'false');
-      }
-      // Lets CSS react to the active mode without another class hook.
+      // The mode button (public/ui/composerControls.js) follows this attribute.
       document.body.dataset.qjoMode = qjoMode;
     }
 
@@ -2519,8 +2509,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       sendStop.setBusy(isBusy);
       inputEl.disabled = isBusy;
       attachBtn.disabled = isBusy || fileProcessing;
-      if (normalModeBtn) normalModeBtn.disabled = isBusy;
-      if (advancedModeBtn) advancedModeBtn.disabled = isBusy;
+      if (composerControls) composerControls.setBusy(isBusy);
       inputEl.placeholder = isBusy ? (qjoLanguage === 'ar' ? 'جاري توليد الرد...' : 'Generating response...') : t('placeholder');
     }
 
@@ -4576,8 +4565,8 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     });
     clearBtn.addEventListener('click', clearChat);
     newChatBtn.addEventListener('click', clearChat);
-    if (normalModeBtn) normalModeBtn.addEventListener('click', () => setMode('normal'));
-    if (advancedModeBtn) advancedModeBtn.addEventListener('click', () => setMode('advanced'));
+    composerControls = QjoUI.createComposerControls({ container: el('composerToggles'), t, getMode: () => qjoMode, setMode,
+      getFunctions: () => qjoFunctions, setFunction: (key, on) => setFunctionToggle(key, on), toast: showMicroToast });
 
     // Swallow clicks on the coming-soon entries so nothing navigates and no
     // other delegated handler treats them as an app switch.
@@ -5095,93 +5084,22 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     initCloudMascot();
     setTimeout(initCloudMascot, 300);
 
-    // --- Mobile Side Notch & Tools Drawer (ChatGPT / Gemini style) ---
+    // --- The phone's sheet of starters (the "+" in the composer) ---
+    // The mode and the tools used to live here too, two taps away; they are
+    // one tap away now (public/ui/composerControls.js).
     function installMobileToolsNotch() {
-      const notch = document.getElementById('mobileToolsNotch');
       const sheet = document.getElementById('mobileToolsSheet');
       const backdrop = document.getElementById('mobileToolsBackdrop');
       const closeBtn = document.getElementById('closeToolsSheetBtn');
-      const togglesGrid = document.getElementById('mobileSheetToggles');
-      const modeRow = document.getElementById('mobileSheetMode');
       const catsGrid = document.getElementById('mobileSheetCats');
-      const indicator = document.getElementById('notchIndicator');
-
-      if (!notch || !sheet || !backdrop) return;
-
-      const toggleDefs = [
-        { id: 'toggleSearch', icon: '🔍', titleKey: 'searchTitle', descKey: 'searchDesc' },
-        { id: 'toggleDeep', icon: '🎯', titleKey: 'deepSearchTitle', descKey: 'deepSearchDesc' },
-        { id: 'toggleTask', icon: '🎯', titleKey: 'taskModeTitle', descKey: 'taskModeDesc' }
-      ];
-
-      function updateIndicator() {
-        const anyActive = toggleDefs.some(t => document.getElementById(t.id)?.classList.contains('active'));
-        if (indicator) indicator.classList.toggle('active', anyActive);
-      }
-
-      function renderSheetMode() {
-        if (!modeRow) return;
-        const options = [
-          { mode: 'normal', icon: '⚡', labelKey: 'normal', descKey: 'flashModeTitle' },
-          { mode: 'advanced', icon: '◆', labelKey: 'advanced', descKey: 'maxModeTitle' }
-        ];
-        modeRow.innerHTML = '';
-        options.forEach(opt => {
-          const active = (opt.mode === 'advanced') === (qjoMode === 'advanced');
-          const card = document.createElement('button');
-          card.type = 'button';
-          card.className = 'sheet-mode-card' + (active ? ' active' : '');
-          card.setAttribute('role', 'radio');
-          card.setAttribute('aria-checked', active ? 'true' : 'false');
-          card.innerHTML = `
-            <span class="sheet-mode-icon">${opt.icon}</span>
-            <span class="sheet-mode-name">${t(opt.labelKey)}</span>
-            <span class="sheet-mode-desc">${t(opt.descKey)}</span>
-          `;
-          card.addEventListener('click', () => {
-            setMode(opt.mode);
-            renderSheetMode();
-          });
-          modeRow.appendChild(card);
-        });
-      }
-
-      function renderSheetToggles() {
-        if (!togglesGrid) return;
-        togglesGrid.innerHTML = '';
-        toggleDefs.forEach(def => {
-          const origBtn = document.getElementById(def.id);
-          const isActive = Boolean(origBtn?.classList.contains('active'));
-          const item = document.createElement('button');
-          item.type = 'button';
-          item.className = 'sheet-toggle-card' + (isActive ? ' active' : '');
-          item.innerHTML = `
-            <div class="sheet-toggle-icon">${def.icon}</div>
-            <div class="sheet-toggle-info">
-              <span class="sheet-toggle-name">${t(def.titleKey)}</span>
-              <span class="sheet-toggle-desc">${t(def.descKey)}</span>
-            </div>
-            <div class="sheet-toggle-switch">
-              <span class="sheet-toggle-knob"></span>
-            </div>
-          `;
-          item.addEventListener('click', () => {
-            if (origBtn) origBtn.click();
-            const nowActive = Boolean(origBtn?.classList.contains('active'));
-            item.classList.toggle('active', nowActive);
-            updateIndicator();
-          });
-          togglesGrid.appendChild(item);
-        });
-        updateIndicator();
-      }
+      if (!sheet || !backdrop || sheet.dataset.wired) return;
+      sheet.dataset.wired = 'true';
 
       function renderSheetCats() {
         if (!catsGrid) return;
         catsGrid.innerHTML = '';
         const origCats = document.querySelectorAll('.quick-command-cats .quick-cat-btn');
         origCats.forEach(catBtn => {
-          const cat = catBtn.dataset.cat;
           const label = catBtn.querySelector('span')?.textContent || '';
           const iconSvg = catBtn.querySelector('svg')?.outerHTML || '⚡';
           const item = document.createElement('button');
@@ -5201,8 +5119,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       }
 
       function openSheet() {
-        renderSheetMode();
-        renderSheetToggles();
         renderSheetCats();
         sheet.classList.add('show');
         backdrop.classList.add('show');
@@ -5217,19 +5133,8 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
 
       const triggerBtn = document.getElementById('mobileToolsTriggerBtn');
       if (triggerBtn) triggerBtn.addEventListener('click', openSheet);
-      notch.addEventListener('click', openSheet);
       if (closeBtn) closeBtn.addEventListener('click', closeSheet);
       backdrop.addEventListener('click', closeSheet);
-
-      // Listen for toggle changes from any source
-      toggleDefs.forEach(def => {
-        const origBtn = document.getElementById(def.id);
-        if (origBtn) {
-          const obs = new MutationObserver(() => updateIndicator());
-          obs.observe(origBtn, { attributes: true, attributeFilter: ['class'] });
-        }
-      });
-      updateIndicator();
     }
     installMobileToolsNotch();
     setTimeout(installMobileToolsNotch, 400);

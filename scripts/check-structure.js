@@ -49,6 +49,7 @@ const WATCHED = [
   'public/ui/messageEditor.js',
   'public/domain/ownWords.js',
   'src/services/retiredModels.js',
+  'public/ui/composerControls.js',
   'src/services/export/attachedImages.js',
   'src/services/promptLayout.js',
   'src/services/export/markdownModel.js',

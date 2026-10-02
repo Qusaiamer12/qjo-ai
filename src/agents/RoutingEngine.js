@@ -6,7 +6,7 @@ const { createToolLoop } = require('./toolLoop');
 const { createVisionPipeline, withoutImages } = require('./visionPipeline');
 const { completeIfTruncated: continueAnswer } = require('./continuation');
 const { shrinkMessages, fitToAllowance, prefitToAllowance } = require('../services/providerLimits');
-const { withTurnContext, reasoningEffort } = require('../services/promptLayout');
+const { withTurnContext, reasoningEffort, thinkingNeed } = require('../services/promptLayout');
 const { z } = require('zod');
 
 // ── Zod Schema ──
@@ -484,7 +484,7 @@ function createRoutingEngine(deps) {
       requestedTemp: temperature
     });
 
-    const base = { messages, turnContext, temperature: effectiveTemperature, max_tokens, frequency_penalty, presence_penalty, onChunk, onReasoning, onToolCall, onToolResult, deadlineMs, signal, reasoning_effort: reasoningEffort({ mode: normMode, intent: route.intent, mathIntent: route.mathIntent }) };
+    const base = { messages, turnContext, temperature: effectiveTemperature, max_tokens, frequency_penalty, presence_penalty, onChunk, onReasoning, onToolCall, onToolResult, deadlineMs, signal, reasoning_effort: reasoningEffort({ mode: normMode, intent: route.intent, mathIntent: route.mathIntent, thought: thinkingNeed(messages) }) };
 
     // Tool attachment policy (never for images):
     //  • calculator on every turn with tools: the tool list opens the request,
@@ -524,7 +524,7 @@ function createRoutingEngine(deps) {
     const wantCode = route.intent === 'code' || normMode === 'code';
     const pipeline = wantCode
       ? PIPELINES.code
-      : (normMode === 'max' ? (arabicHeavy ? PIPELINES.maxAr : PIPELINES.maxEn) : PIPELINES.flash);
+      : (normMode === 'max' || thinkingNeed(messages).hard ? (arabicHeavy ? PIPELINES.maxAr : PIPELINES.maxEn) : PIPELINES.flash); // a hard question: the larger model first
 
     // 1) Images: read by a vision-capable slot; an exercise is then solved by
     //    a text model from what was read (visionPipeline.js). On failure the
@@ -545,7 +545,7 @@ function createRoutingEngine(deps) {
     //    the 70B they asked for), then the pipeline takes over on failure.
     //    Note: filter only the EXACT [provider,slot] pair — dropping the whole
     //    provider here used to leave single-key users with zero fallbacks.
-    const explicit = locateExplicitModel(model);
+    const explicit = thinkingNeed(messages).hard ? null : locateExplicitModel(model); // not the fast model for a hard question
     const chain = explicit && !hasImages
       ? [explicit, ...pipeline.filter(([p, s]) => !(p === explicit[0] && s === explicit[1]))]
       : pipeline;

@@ -63,7 +63,7 @@ const ENV_NOISE = /ERR_TUNNEL|ERR_CERT|ERR_NAME_NOT_RESOLVED|ERR_CONNECTION|net:
 
     // Core controls must exist and be reachable.
     const controls = await page.evaluate(() => {
-      const ids = ['input', 'sendBtn', 'attachBtn', 'newChatBtn', 'toggleSearch', 'toggleDeep', 'normalModeBtn', 'advancedModeBtn', 'sidebarToggle'];
+      const ids = ['input', 'sendBtn', 'attachBtn', 'newChatBtn', 'modeToggle', 'toolsMenuBtn', 'sidebarToggle'];
       const out = {};
       for (const id of ids) {
         const el = document.getElementById(id);

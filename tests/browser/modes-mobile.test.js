@@ -1,3 +1,5 @@
+// The answer mode on a phone: one button above the composer, one tap to
+// switch — it used to be a card in a sheet, two taps away.
 const { launchBrowser, devices, BASE_URL } = require('./harness');
 (async () => {
   const b = await launchBrowser();
@@ -8,18 +10,17 @@ const { launchBrowser, devices, BASE_URL } = require('./harness');
   await p.goto(BASE_URL + '/', { waitUntil: 'domcontentloaded' });
   await p.waitForTimeout(2200);
   await p.evaluate(() => { const o=document.getElementById('authOverlay'); if(o){o.classList.remove('show');o.style.display='none';} });
-  await p.click('#mobileToolsTriggerBtn');
-  await p.waitForTimeout(600);
-  const cards = await p.$$eval('.sheet-mode-card', els => els.map(e => ({ text: e.querySelector('.sheet-mode-name')?.textContent, active: e.classList.contains('active'), h: Math.round(e.getBoundingClientRect().height) })));
-  ok(cards.length === 2, `mode switcher is in the mobile sheet (${cards.length} cards)`, cards);
-  ok(cards.every(c => c.h >= 44), `cards are comfortably tappable (${cards.map(c=>c.h).join(',')}px)`);
-  ok(cards[0]?.active === true, 'Flash shown as the current mode', cards);
-  await p.click('.sheet-mode-card:nth-child(2)');
+  const box = await p.$eval('#modeToggle', (e) => { const r = e.getBoundingClientRect(); const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return { w: r.width, h: r.height, top: r.top, visible: getComputedStyle(e).display !== 'none' && r.width > 0, reachable: Boolean(hit && (hit === e || e.contains(hit))), text: e.innerText.trim() }; });
+  const input = await p.$eval('#input', (e) => e.getBoundingClientRect().top);
+  ok(box.visible && box.reachable, `the mode button is on screen and nothing covers it (${box.text})`, box);
+  ok(box.h >= 36 && box.w >= 44, `big enough to tap (${Math.round(box.w)}x${Math.round(box.h)})`, box);
+  ok(box.top < input, 'above the composer, where the thumb is', { button: box.top, input });
+  ok(/Flash/.test(box.text), 'Flash shown as the current mode', box);
+  await p.tap('#modeToggle');
   await p.waitForTimeout(400);
-  const after = await p.evaluate(() => ({ mode: document.body.dataset.qjoMode, stored: localStorage.getItem('qjo_response_mode') }));
-  ok(after.mode === 'advanced' && after.stored === 'advanced', `tapping Max switches the mode (${after.mode})`, after);
-  const cards2 = await p.$$eval('.sheet-mode-card', els => els.map(e => e.classList.contains('active')));
-  ok(cards2[1] === true && cards2[0] === false, 'selection state updates in place', cards2);
+  const after = await p.evaluate(() => ({ mode: document.body.dataset.qjoMode, stored: localStorage.getItem('qjo_response_mode'), text: document.getElementById('modeToggle').innerText.trim() }));
+  ok(after.mode === 'advanced' && after.stored === 'advanced', `one tap switches to Max (${after.mode})`, after);
+  ok(/Max/.test(after.text), `and the button says so (${after.text})`, after);
   await b.close();
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail?1:0);

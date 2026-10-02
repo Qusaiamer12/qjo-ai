@@ -230,7 +230,7 @@ async function searchToggle() {
     query: 'diabetes', generatedAt: new Date().toISOString(),
     results: [{ id: 1, title: 'Diabetes fact sheet', url: WHO, content: 'About 830 million people have diabetes.', publishedDate: '2024-11-14T00:00:00Z', sourceKind: 'medical' }]
   }) }));
-  await page.click('#toggleSearch');
+  await page.click('#toolsMenuBtn'); await page.click('#toolsMenu [data-tool="search"]');
   await ask(page, 'How many people have diabetes?');
   await page.waitForTimeout(2500);
   const cards = await strip(page);

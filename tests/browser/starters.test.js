@@ -64,8 +64,8 @@ async function check(browser, lang, phone) {
   ok(seen && !seen.pageScrollsSideways && (phone || seen.subtitle), `${where}: the page does not scroll sideways${phone ? '' : ', and the welcome text shows'}`, seen);
 
   if (phone) {
-    // The tools sheet offers the same groups.
-    await page.click('#mobileToolsNotch');
+    // The sheet behind the composer's "+" offers the same groups.
+    await page.click('#mobileToolsTriggerBtn');
     await page.waitForTimeout(400);
     const sheet = await page.$$eval('#mobileToolsSheet .sheet-cat-label', (els) => els.map((e) => e.textContent.trim()));
     ok(sheet.join('|') === LABELS[lang].join('|'), `${where}: the tools sheet offers the same groups (${sheet.join(' | ')})`);

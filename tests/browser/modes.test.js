@@ -20,31 +20,28 @@ const { launchBrowser, BASE_URL } = require('./harness');
 
   check(errs.length === 0, `no page errors on load${errs.length?': '+errs[0]:''}`);
 
-  // ── Controls present / absent ──
-  check(await p.$('#modeSegmented') !== null, 'mode switcher is in the DOM');
-  check(await p.$('#normalModeBtn') !== null && await p.$('#advancedModeBtn') !== null, 'Flash and Max buttons exist');
+  // ── One button for the mode (public/ui/composerControls.js) ──
+  check(await p.$('#modeToggle') !== null, 'the mode button is in the composer');
+  check(await p.$('#normalModeBtn') === null && await p.$('#advancedModeBtn') === null && await p.$('#modeSegmented') === null, 'the two separate mode buttons are gone');
   check(await p.$('#codeModeBtn') === null, 'Code mode is not offered');
   check(await p.$('#toggleReason') === null, 'reasoning pill removed (Max covers it)');
-  const pills = await p.$$eval('.func-toggle', e => e.map(x => x.id));
-  check(JSON.stringify(pills) === JSON.stringify(['toggleSearch','toggleDeep','toggleTask']), `every pill still does a real job: ${pills.join(', ')}`);
+  const pills = await p.$$eval('#composerToggles > button, #composerToggles .qjo-tools-wrap > button', e => e.map(x => x.id));
+  check(JSON.stringify(pills) === JSON.stringify(['modeToggle', 'toolsMenuBtn']), `two buttons beside the composer: ${pills.join(', ')}`);
 
-  // ── Default + switching ──
-  const active = () => p.evaluate(() => ({
-    flash: document.getElementById('normalModeBtn').classList.contains('active'),
-    max: document.getElementById('advancedModeBtn').classList.contains('active'),
-    body: document.body.dataset.qjoMode,
-    ariaFlash: document.getElementById('normalModeBtn').getAttribute('aria-checked'),
-    ariaMax: document.getElementById('advancedModeBtn').getAttribute('aria-checked')
-  }));
+  // ── Default + switching with one tap ──
+  const active = () => p.evaluate(() => {
+    const b = document.getElementById('modeToggle');
+    return { shows: b.dataset.mode, text: b.innerText.trim(), body: document.body.dataset.qjoMode, label: b.getAttribute('aria-label') };
+  });
   let a = await active();
-  check(a.flash && !a.max, 'Flash is the default');
-  check(a.ariaFlash === 'true' && a.ariaMax === 'false', 'aria-checked tracks selection');
+  check(a.shows === 'normal' && /Flash/.test(a.text) && a.body === 'normal', `Flash is the default, and the button says so (${a.text})`);
+  check(/Flash/.test(a.label) && /Max/.test(a.label), `its label names the mode and the one a tap switches to (${a.label})`);
 
-  await p.click('#advancedModeBtn');
+  await p.click('#modeToggle');
   a = await active();
-  check(a.max && !a.flash, 'clicking Max selects it and deselects Flash');
+  check(a.shows === 'advanced' && /Max/.test(a.text), `one tap switches to Max (${a.text})`);
   check(a.body === 'advanced', `body[data-qjo-mode] follows (${a.body})`);
-  check(a.ariaMax === 'true' && a.ariaFlash === 'false', 'aria-checked flips');
+  check(/Max[^]*Flash/.test(a.label), `the label follows: Max now, Flash a tap away (${a.label})`);
 
   // ── The mode actually reaches the server ──
   const ask = async (t) => { await dismiss(); await p.fill('#input', t); await p.click('#sendBtn'); await p.waitForTimeout(1200); };
@@ -53,7 +50,7 @@ const { launchBrowser, BASE_URL } = require('./harness');
   check(sent[0]?.mode === 'advanced', `Max sends mode=advanced (${sent[0]?.mode})`);
   const maxTok = sent[0]?.max_tokens, maxTemp = sent[0]?.temperature;
 
-  await p.click('#normalModeBtn');
+  await p.click('#modeToggle');
   sent = [];
   await ask('اشرحلي نظرية النسبية');
   check(sent[0]?.mode === 'normal', `Flash sends mode=normal (${sent[0]?.mode})`);
@@ -65,18 +62,32 @@ const { launchBrowser, BASE_URL } = require('./harness');
   await ask('اكتبلي دالة جافاسكريبت للترتيب');
   check(sent[0]?.max_tokens >= 4200, `code question gets a code-sized budget (${sent[0]?.max_tokens})`);
 
+  // ── Not while an answer is being written: the request went with the old ones ──
+  let release;
+  await p.route('**/api/chat', async (r) => { await new Promise((res) => { release = res; }); await r.fulfill({ status: 200, contentType: 'text/event-stream', body: 'event: chunk\ndata: {"text":"ok"}\n\nevent: done\ndata: {}\n\n' }); });
+  await dismiss(); await p.fill('#input', 'سؤال طويل'); await p.click('#sendBtn');
+  await p.waitForTimeout(500);
+  const busy = await p.evaluate(() => ({ mode: document.getElementById('modeToggle').disabled, tools: document.getElementById('toolsMenuBtn').disabled }));
+  check(busy.mode && busy.tools, `while an answer is written, the mode and the tools cannot change (${JSON.stringify(busy)})`);
+  if (release) release();
+  await p.waitForTimeout(1200);
+  const free = await p.evaluate(() => !document.getElementById('modeToggle').disabled && !document.getElementById('toolsMenuBtn').disabled);
+  check(free, 'and they come back when it is done');
+  await p.unroute('**/api/chat');
+  await p.route('**/api/chat', async (r) => { sent.push(JSON.parse(r.request().postData() || '{}')); await r.fulfill({ status: 200, contentType: 'text/event-stream', body: 'event: chunk\ndata: {"text":"ok"}\n\nevent: done\ndata: {}\n\n' }); });
+
   // ── Persistence ──
-  await p.click('#advancedModeBtn');
+  await p.click('#modeToggle');
   await p.reload({ waitUntil: 'domcontentloaded' });
   await p.waitForTimeout(2500); await dismiss();
-  check((await active()).max, 'mode survives a reload');
+  check((await active()).shows === 'advanced', 'mode survives a reload');
 
   // ── Legacy 'code' value normalises ──
   await p.evaluate(() => localStorage.setItem('qjo_response_mode', 'code'));
   await p.reload({ waitUntil: 'domcontentloaded' });
   await p.waitForTimeout(2500); await dismiss();
   a = await active();
-  check(a.flash && !a.max, `a persisted 'code' mode falls back to Flash (${a.body})`);
+  check(a.shows === 'normal' && a.body === 'normal', `a persisted 'code' mode falls back to Flash (${a.body})`);
 
   await b.close();
   console.log(`\n${pass} passed, ${fail} failed`);

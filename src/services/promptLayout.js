@@ -23,6 +23,7 @@
 // template renders, and an instruction a template drops fails silently.
 
 const { languageOfText } = require('../../public/domain/language');
+const { ownWords } = require('../../public/domain/ownWords');
 
 const CAPSULES = /(?:^|\n+)Task-specific skill capsules:\n[\s\S]*?(?=\n\n|$)/;
 // The page and the server both build this note; the server's is the one kept.
@@ -97,12 +98,44 @@ const THINKING_INTENTS = new Set(['code', 'math', 'reasoning', 'research', 'file
  * against the per-minute and daily limits, and never cached. An everyday Flash
  * message does not need it; code, math, puzzles, research, documents and the
  * Max and Code modes keep the provider's default.
- * @param {{mode?: string, intent?: string, mathIntent?: boolean}} [route]
+ * A question that needs thought (thinkingNeed) keeps it too.
+ * @param {{mode?: string, intent?: string, mathIntent?: boolean, thought?: {needs: boolean}}} [route]
  * @returns {'low' | undefined}
  */
-function reasoningEffort({ mode, intent, mathIntent } = {}) {
-  if (mode !== 'flash' || mathIntent || THINKING_INTENTS.has(String(intent))) return undefined;
+function reasoningEffort({ mode, intent, mathIntent, thought } = {}) {
+  if (mode !== 'flash' || mathIntent || THINKING_INTENTS.has(String(intent)) || (thought && thought.needs)) return undefined;
   return 'low';
+}
+
+// What a question asks of the one answering it, in the person's own words.
+// Flash answered everything at low effort except code, sums, research and
+// files, so "which is better for a beginner, Python or JavaScript?", "why
+// is the sky blue?" or a riddle got a fast first guess — the owner's "it
+// answers too fast and gets things wrong". These think first (the provider's
+// default effort), and the hardest — a puzzle, a long request, several asks
+// at once — go to the larger model first.
+const THOUGHT = {
+  compare: /\b(?:compare|comparison|versus|vs\.?|difference between|better than|which (?:is|one is) better|pros and cons|trade-?offs?)\b|قارن|مقارنة|الفرق بين|شو الفرق|ايش الفرق|إيش الفرق|أيهما|ايهما|أفضل من|افضل من|أحسن من|احسن من|إيجابيات|ايجابيات|سلبيات|مزايا وعيوب|مميزات وعيوب/i,
+  why: /\b(?:why|how come|what (?:would|will) happen|what if)\b|ليش|لماذا|ليه|ماذا لو|شو بصير لو|شو رح يصير/i,
+  decide: /\b(?:plan|strategy|should i|would you recommend|advise me|decide|choose between|step[- ]by[- ]step|roadmap)\b|خطة|خطّة|استراتيجية|انصحني|بتنصحني|شو بتنصح|شو أعمل|شو اعمل|أختار|اختار بين|أقرر|خطوة بخطوة/i,
+  puzzle: /\b(?:riddle|puzzle|brain ?teaser|logic(?:al)? (?:question|problem)|trick question)\b|لغز|فزورة|حزورة|سؤال منطقي|مسألة منطقية/i
+};
+
+/**
+ * Whether the person's latest message needs thought before an answer, and
+ * whether it is hard enough for the larger model.
+ * @param {Array<{role: string, content: any}>} messages
+ * @returns {{ needs: boolean, hard: boolean, why: string[] }}
+ */
+function thinkingNeed(messages) {
+  const last = [...(messages || [])].reverse().find((m) => m && m.role === 'user');
+  const text = ownWords(textOf(last && last.content));
+  if (text.length < 12) return { needs: false, hard: false, why: [] };
+  const why = Object.keys(THOUGHT).filter((k) => THOUGHT[k].test(text));
+  if ((text.match(/[\d٠-٩]+(?:[.,][\d٠-٩]+)?/g) || []).length >= 2) why.push('numbers');
+  const lines = text.split('\n').filter((l) => l.trim()).length;
+  if (text.length >= 300 || lines >= 4 || (text.match(/[?؟]/g) || []).length >= 2) why.push('long');
+  return { needs: why.length > 0, hard: why.includes('puzzle') || text.length >= 600 || why.length >= 2, why };
 }
 
 const TURN_OPEN = '[From Qjo, for this reply only — written by the app, not by the person. Follow it; never mention it.]';
@@ -141,4 +174,4 @@ function withTurnContext(params) {
   return /** @type {P} */ ({ ...rest, messages: attachTurnContext(rest.messages || [], turnContext) });
 }
 
-module.exports = { textOf, splitClientSystem, promptParts, layoutChatRequest, attachTurnContext, withTurnContext, reasoningEffort, TURN_OPEN, TURN_CLOSE };
+module.exports = { textOf, splitClientSystem, promptParts, layoutChatRequest, attachTurnContext, withTurnContext, reasoningEffort, thinkingNeed, TURN_OPEN, TURN_CLOSE };

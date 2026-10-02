@@ -1,4 +1,4 @@
-// Loads the REAL app in Chromium, clicks the real pills, and inspects the
+// Loads the REAL app in Chromium, uses the real tools menu, and inspects the
 // actual /api/chat and /api/search requests the app puts on the wire.
 const { launchBrowser, BASE_URL } = require('./harness');
 
@@ -36,23 +36,39 @@ const { launchBrowser, BASE_URL } = require('./harness');
   // (voice.test.js speaks through it). It must be that one, not the old.
   check(await page.$('#micBtn[data-i18n-title="voiceInput"]') === null && await page.$('#micBtn[data-i18n-aria-label="voiceStart"]') !== null,
     'the decorative voice-record button is gone; the microphone is the working one');
-  const pills = await page.$$eval('.func-toggle', els => els.map(e => e.id));
-  check(JSON.stringify(pills) === JSON.stringify(['toggleSearch','toggleDeep','toggleTask']), `every pill still does a real job: ${pills.join(', ')}`);
+  // ── The tools are one button with a short menu (public/ui/composerControls.js) ──
+  check(await page.$('#toggleSearch') === null && await page.$('#toggleDeep') === null && await page.$('#toggleTask') === null, 'the three separate pills are gone');
+  const items = await page.$$eval('#toolsMenu .qjo-tools-item', els => els.map(e => e.dataset.tool));
+  check(JSON.stringify(items) === JSON.stringify(['search', 'deep', 'task']), `the menu holds every tool, each doing a real job: ${items.join(', ')}`);
+  check(await page.$eval('#toolsMenu', e => e.hidden), 'control: the menu starts closed');
 
   const state = () => page.evaluate(() => JSON.parse(localStorage.getItem('qjo_function_toggles') || 'null'));
-  const isActive = id => page.$eval('#' + id, e => e.classList.contains('active'));
-  const aria = id => page.$eval('#' + id, e => e.getAttribute('aria-pressed'));
+  const checked = () => page.$$eval('#toolsMenu .qjo-tools-item', els => Object.fromEntries(els.map(e => [e.dataset.tool, e.getAttribute('aria-checked') === 'true'])));
+  const button = () => page.$eval('#toolsMenuBtn', e => ({ text: e.innerText.replace(/\s+/g, ' ').trim(), on: e.classList.contains('is-on'), expanded: e.getAttribute('aria-expanded') }));
+  const choose = async (tool) => { await page.click('#toolsMenuBtn'); await page.click(`#toolsMenu .qjo-tools-item[data-tool="${tool}"]`); };
 
-  // ── Toggle mechanics ──
-  await page.click('#toggleSearch');
-  check(await isActive('toggleSearch'), 'search pill activates');
-  check(await aria('toggleSearch') === 'true', 'aria-pressed reflects state (a11y)');
-  check((await state()).search === true, 'state persisted to localStorage');
+  // ── Tool mechanics: two taps, and the button says what is on ──
+  await page.click('#toolsMenuBtn');
+  check(!(await page.$eval('#toolsMenu', e => e.hidden)) && (await button()).expanded === 'true', 'one tap opens the menu');
+  await page.keyboard.press('Escape');
+  check(await page.$eval('#toolsMenu', e => e.hidden), 'Escape closes it');
+  await choose('search');
+  check((await checked()).search && (await state()).search === true, 'Search turns on, and is kept');
+  check(await page.$eval('#toolsMenu', e => e.hidden) && await page.evaluate(() => document.activeElement && document.activeElement.id) === 'toolsMenuBtn', 'choosing closes the menu, back on the tools button');
+  await page.click('#toolsMenuBtn');
+  await page.click('#input');
+  check(await page.$eval('#toolsMenu', e => e.hidden), 'a tap elsewhere closes it');
+  const b1 = await button();
+  check(b1.on && /بحث|Search/.test(b1.text), `the tools button says Search is on (${b1.text})`);
 
-  await page.click('#toggleDeep');
-  check((await state()).deep === true && (await state()).search === true, 'deep implies search');
-  await page.click('#toggleSearch'); // turn search off
-  check((await state()).search === false && (await state()).deep === false, 'turning search off clears deep');
+  await choose('deep');
+  const afterDeep = await checked();
+  check((await state()).deep === true && (await state()).search === true, 'Deep search is a search');
+  check(afterDeep.deep && !afterDeep.search, 'one of the two at a time: Deep shown on, Search not', afterDeep);
+  await choose('search');
+  check((await state()).deep === false && (await state()).search === true, 'Search from Deep: back to a plain search');
+  await choose('search');
+  check((await state()).search === false && (await state()).deep === false && !(await button()).on, 'Search again: no search at all, and the button shows nothing on');
 
   // ── Search toggle actually forces a live search ──
   const dismissAuth = () => page.evaluate(() => {
@@ -70,13 +86,13 @@ const { launchBrowser, BASE_URL } = require('./harness');
   await ask('احكيلي نكتة');   // a request the heuristic would NOT search for
   check(sent.search.length === 0, 'toggles off: chit-chat does not trigger a search', sent.search);
 
-  await page.click('#toggleSearch');
+  await choose('search');
   sent.search.length = 0; sent.chat.length = 0;
   await ask('احكيلي نكتة');
   check(sent.search.length === 1, 'search ON: forces a search the heuristic would have skipped', sent.search);
 
   // ── Deep toggle routes to /api/deep-search ──
-  await page.click('#toggleDeep');
+  await choose('deep');
   sent.search.length = 0; sent.deep.length = 0;
   await ask('شو رايك بالموضوع');
   check(sent.deep.length === 1 && sent.search.length === 0, 'deep ON: routes to /api/deep-search, not /api/search', { deep: sent.deep.length, shallow: sent.search.length });
@@ -85,9 +101,9 @@ const { launchBrowser, BASE_URL } = require('./harness');
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(2500);
   await dismissAuth();
-  const before = { s: await isActive('toggleSearch'), d: await isActive('toggleDeep') };
-  check(await isActive('toggleSearch') === before.s && await isActive('toggleDeep') === before.d,
-        `state survives a page reload (search=${before.s}, deep=${before.d})`);
+  const kept = await checked();
+  const label = await button();
+  check(kept.deep && !kept.search && label.on && /عميق|Deep/.test(label.text), `state survives a page reload, and the button shows it (${label.text})`, kept);
 
   await browser.close();
   console.log(`\n${pass} passed, ${fail} failed`);

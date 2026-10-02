@@ -49,7 +49,8 @@
     ['speakable text', () => window.QjoDomain && window.QjoDomain.speech],
     ['reading answers', () => window.QjoUI && window.QjoUI.createAnswerReading],
     ['editing a message', () => window.QjoUI && window.QjoUI.createMessageEditor],
-    ['own words', () => window.QjoDomain && window.QjoDomain.ownWords]
+    ['own words', () => window.QjoDomain && window.QjoDomain.ownWords],
+    ['mode and tools buttons', () => window.QjoUI && window.QjoUI.createComposerControls]
   ];
 
   const RELOAD_FLAG = 'qjo_boot_reloaded';

@@ -66,43 +66,13 @@ const { launchBrowser, devices, BASE_URL } = require('./harness');
     return { ctx, page, errors };
   }
 
+  // Task mode is in the tools menu, on a phone and a desktop alike: the tools
+  // button, then Task.
+  const taskOn = (page) => page.$eval('#toolsMenu [data-tool="task"]', el => el.getAttribute('aria-checked') === 'true');
   const startTask = async (page, goal) => {
-    const visible = await page.$eval('#toggleTask', el => {
-      const r = el.getBoundingClientRect();
-      return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden';
-    }).catch(() => false);
-
-    if (visible) {
-      await page.click('#toggleTask');
-    } else {
-      // On a phone the composer row is hidden entirely and the same controls
-      // live in a bottom sheet, so drive that instead of the hidden button.
-      await page.click('#mobileToolsTriggerBtn');
-      await page.waitForTimeout(500);
-      const clicked = await page.evaluate(() => {
-        const cards = [...document.querySelectorAll('.sheet-toggle-card')];
-        const card = cards.find(c => /وضع المهمة|Task mode/.test(c.innerText));
-        if (!card) return false;
-        card.click();
-        return true;
-      });
-      if (!clicked) throw new Error('task mode is unreachable on mobile: no sheet card');
-      await page.waitForTimeout(300);
-      // Dismiss the sheet the way a person would, then wait for it to actually
-      // be gone — it animates out and intercepts taps until it is.
-      await page.evaluate(() => {
-        const backdrop = document.getElementById('mobileToolsBackdrop');
-        if (backdrop) backdrop.click();
-      });
-      await page.waitForFunction(
-        () => !document.getElementById('mobileToolsSheet')?.classList.contains('show'),
-        { timeout: 5000 }
-      );
-      await page.waitForTimeout(400);
-    }
-
-    const on = await page.$eval('#toggleTask', el => el.classList.contains('active'));
-    if (!on) throw new Error('task mode did not turn on');
+    await page.click('#toolsMenuBtn');
+    await page.click('#toolsMenu [data-tool="task"]');
+    if (!(await taskOn(page))) throw new Error('task mode did not turn on');
 
     await page.fill('#input', goal);
     await page.click('#sendBtn');
@@ -256,16 +226,17 @@ const { launchBrowser, devices, BASE_URL } = require('./harness');
     await page.waitForTimeout(1800);
     ok(chatCalls === 1 && taskCalls === 0, `without task mode it is a normal message (chat=${chatCalls}, task=${taskCalls})`);
 
-    await page.click('#toggleTask');
-    const pressed = await page.$eval('#toggleTask', e => e.classList.contains('active'));
-    ok(pressed, 'the toggle shows it is on before you send');
+    await page.click('#toolsMenuBtn');
+    await page.click('#toolsMenu [data-tool="task"]');
+    const pressed = await taskOn(page) && /مهمة|Task/.test(await page.$eval('#toolsMenuBtn', e => e.innerText));
+    ok(pressed, 'the tools button shows task mode is on before you send');
     await page.fill('#input', 'مهمة طويلة');
     await page.click('#sendBtn');
     await page.waitForTimeout(1800);
     ok(taskCalls === 1, `with task mode it starts a task (task=${taskCalls})`);
 
-    const stillOn = await page.$eval('#toggleTask', e => e.classList.contains('active'));
-    ok(!stillOn, 'the toggle resets, so the next message is a normal one');
+    const stillOn = await taskOn(page) || /مهمة|Task/.test(await page.$eval('#toolsMenuBtn', e => e.innerText));
+    ok(!stillOn, 'task mode resets, so the next message is a normal one');
     await ctx.close();
   }
 

@@ -55,7 +55,7 @@ const QUERIES = [
       await route.fulfill({ status: 200, contentType: 'text/event-stream', body: `event: chunk\ndata: ${JSON.stringify({ text: 'رد' })}\n\nevent: done\ndata: {}\n\n` });
     });
 
-    await page.click('#toggleSearch');
+    await page.click('#toolsMenuBtn'); await page.click('#toolsMenu [data-tool="search"]');
     await page.fill('#input', 'اشرحلي الـ closure');
     await page.click('#sendBtn');
     await page.waitForTimeout(2500);
@@ -75,7 +75,7 @@ const QUERIES = [
       await route.fulfill({ status: 200, contentType: 'text/event-stream', body: `event: chunk\ndata: ${JSON.stringify({ text: 'وصلت' })}\n\nevent: done\ndata: {}\n\n` });
     });
 
-    await page.click('#toggleSearch');
+    await page.click('#toolsMenuBtn'); await page.click('#toolsMenu [data-tool="search"]');
     const started = Date.now();
     await page.fill('#input', 'سؤال يحتاج بحث');
     await page.click('#sendBtn');

@@ -1,6 +1,6 @@
 {
-  "public/app.js": 5236,
-  "public/boot.js": 129,
+  "public/app.js": 5141,
+  "public/boot.js": 130,
   "public/lang-boot.js": 26,
   "public/domain/i18n.js": 447,
   "public/domain/language.js": 145,
@@ -34,8 +34,9 @@
   "public/ui/messageEditor.js": 49,
   "public/domain/ownWords.js": 55,
   "src/services/retiredModels.js": 49,
+  "public/ui/composerControls.js": 202,
   "src/services/export/attachedImages.js": 84,
-  "src/services/promptLayout.js": 145,
+  "src/services/promptLayout.js": 178,
   "src/services/export/markdownModel.js": 407,
   "src/services/export/docx.js": 234,
   "src/services/export/xlsx.js": 130,
@@ -59,6 +60,6 @@
   "src/services/searchService.js": 256,
   "src/search/providers.js": 397,
   "src/search/searchCore.js": 360,
-  "src/services/systemPrompt.js": 253,
+  "src/services/systemPrompt.js": 254,
   "src/services/knowledgeBase.js": 448
 }

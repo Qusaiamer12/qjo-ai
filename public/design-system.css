@@ -565,8 +565,8 @@ body.dark:not(#_) .bubble .qjo-quiz :is(.quiz-explanation-note, .quiz-explanatio
   .welcome-starter { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 6px 10px; border-radius: var(--ds-r-md);
     border: 1px solid var(--ds-line-2); background: var(--ds-panel); color: var(--ds-ink); font: 600 13.5px/1.25 var(--ds-sans); text-align: center; cursor: pointer; }
   .welcome-starter[aria-pressed="true"] { border-color: var(--ds-accent); background: var(--ds-accent-soft); }
-  /* The tools button floats over the bottom of the screen: not over a list of starters. */
-  body:has(#quickSuggestionsPanel:not([hidden])) .mobile-tools-notch { display: none !important; }
+  /* The mode and tools buttons float over the bottom of the screen: not over a list of starters. */
+  body:has(#quickSuggestionsPanel:not([hidden])) #composerToggles.qjo-controls { display: none !important; }
 }
 
 /* Edit under the last message sent (public/ui/messageEditor.js). */
@@ -584,8 +584,47 @@ body:not(#_) .mic-btn.is-listening { color: #dc2626 !important; border-color: #d
 body:not(#_) .send-btn.is-stop { background: var(--ds-ink) !important; color: var(--ds-panel) !important; box-shadow: none !important; }
 .bubble .qjo-stopped { margin: 10px 0 0; font-size: 13px; font-style: italic; }
 body:not(#_) .bubble .qjo-stopped { color: var(--ds-ink-2) !important; -webkit-text-fill-color: currentColor !important; }
-/* The phone's floating tools button would sit on the status line. */
-body:has(#requestStatus.show) .mobile-tools-notch { display: none !important; }
+/* The phone's floating mode and tools buttons would sit on the status line. */
+@media (max-width: 768px) { body:has(#requestStatus.show) #composerToggles.qjo-controls { display: none !important; } }
+
+/* The answer mode and the tools, one button each (public/ui/composerControls.js). */
+#composerToggles.qjo-controls { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; padding: 4px 4px 10px; }
+.qjo-controls .qjo-mode-btn, .qjo-controls .qjo-tools-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px;
+  border-radius: 999px; border: 1px solid var(--ds-line-2); background: var(--ds-panel); color: var(--ds-ink); font: 600 13px/1 var(--ds-sans);
+  cursor: pointer; white-space: nowrap; transition: background .15s ease, border-color .15s ease; }
+.qjo-controls .qjo-mode-btn:hover, .qjo-controls .qjo-tools-btn:hover { background: var(--ds-panel-2); }
+.qjo-controls .qjo-mode-btn[data-mode="advanced"] { border-color: var(--ds-accent-line); background: var(--ds-accent-soft); color: var(--ds-accent); }
+.qjo-controls .qjo-tools-btn.is-on { border-color: var(--ds-accent-line); background: var(--ds-accent-soft); color: var(--ds-accent); }
+.qjo-controls button:disabled { opacity: .55; cursor: default; }
+.qjo-controls button:focus-visible { outline: 2px solid var(--ds-accent); outline-offset: 2px; }
+.qjo-tools-badge { padding: 2px 7px; border-radius: 999px; background: var(--ds-accent); color: #fff; font-size: 11px; }
+.qjo-tools-wrap { position: relative; }
+/* It opens toward the inside of the composer, in either direction of writing. */
+.qjo-tools-menu { position: absolute; bottom: calc(100% + 8px); inset-inline-end: 0; z-index: 60; width: min(300px, calc(100vw - 24px));
+  padding: 6px; border-radius: 14px; border: 1px solid var(--ds-line-2); background: var(--ds-panel); color: var(--ds-ink);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, .18); }
+.qjo-tools-menu[hidden] { display: none; }
+.qjo-tools-item { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 8px 10px; border: 0; border-radius: 10px;
+  background: none; color: inherit; font: inherit; text-align: start; cursor: pointer; }
+.qjo-tools-item:hover, .qjo-tools-item:focus-visible { background: var(--ds-panel-2); outline: none; }
+.qjo-tools-icon { font-size: 18px; width: 24px; text-align: center; }
+.qjo-tools-text { display: flex; flex-direction: column; gap: 3px; flex: 1; }
+.qjo-tools-text strong { font: 600 14px/1.2 var(--ds-sans); }
+.qjo-tools-text small { font: 400 12px/1.3 var(--ds-sans); color: var(--ds-ink-2); }
+.qjo-tools-check { width: 20px; height: 20px; border-radius: 6px; border: 1.5px solid var(--ds-line-2); flex: none; }
+.qjo-tools-item[aria-checked="true"] .qjo-tools-check { background: var(--ds-accent); border-color: var(--ds-accent);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5L20 7'/%3E%3C/svg%3E");
+  background-size: 14px; background-position: center; background-repeat: no-repeat; }
+/* On a phone the two buttons float above the composer, where the thumb is. */
+@media (max-width: 768px) {
+  body:not(#_) #composerToggles.qjo-controls { display: flex !important; position: fixed; bottom: calc(64px + env(safe-area-inset-bottom, 8px));
+    inset-inline-start: 12px; z-index: 55; padding: 0; }
+  body.qjo-keyboard-open #composerToggles.qjo-controls, body.drawer-open #composerToggles.qjo-controls,
+  body.sheet-open #composerToggles.qjo-controls { display: none !important; }
+  .qjo-controls .qjo-mode-btn, .qjo-controls .qjo-tools-btn { box-shadow: 0 4px 16px rgba(15, 23, 42, .12); }
+  /* The whole width of the screen above the buttons, never off its edge. */
+  .qjo-tools-menu { position: fixed; bottom: calc(110px + env(safe-area-inset-bottom, 8px)); inset-inline: 12px; width: auto; }
+}
 
 /* Dragging a file over the page (public/ui/composerDrop.js). */
 .qjo-drop-veil { position: fixed; inset: 0; z-index: 2000; display: grid; place-items: center; pointer-events: none;

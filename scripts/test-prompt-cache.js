@@ -194,6 +194,34 @@ const system = (body) => body.messages.filter((m) => m.role === 'system').map((m
       assert.ok(!('reasoning_effort' in body), `${mode} "${content}" sent reasoning_effort ${body.reasoning_effort}`);
     }
   });
+  // Flash thinks when the question needs it (promptLayout.thinkingNeed): it
+  // used to answer a comparison, a "why" or a riddle at low effort.
+  // As the page sends them: in Flash it names the fast model.
+  const flash = async (content) => (await chat([{ role: 'user', content }], { mode: 'normal', model: 'openai/gpt-oss-20b' }))[0].body;
+  await test('a comparison, a "why" and sums in Flash think first; a joke and a greeting do not', async () => {
+    for (const content of ['Which is better for a first car, a Toyota or a Kia?', 'ليش السما زرقا؟', 'راتبي 500 دينار وبصرف 320 بالشهر، قديش بوفر بسنة؟', 'اعملي خطة دراسة للتوجيهي']) {
+      const body = await flash(content);
+      assert.ok(!('reasoning_effort' in body), `"${content}" was answered at ${body.reasoning_effort}`);
+      assert.strictEqual(body.model, 'openai/gpt-oss-20b', `"${content}" went to ${body.model}`);
+    }
+    for (const content of ['Tell me a joke', 'اكتبلي قصيدة عن عمان', 'What is a good name for a bakery?']) {
+      assert.strictEqual((await flash(content)).reasoning_effort, 'low', `"${content}" was made to think`);
+    }
+  });
+  await test('a riddle, or several asks at once, goes to the larger model first, thinking', async () => {
+    for (const content of ['عندي لغز: ثلاث صناديق كلها ملصقاتها غلط، كيف بعرف شو فيها؟', 'Compare renting and buying a flat, and why would you pick one?']) {
+      const body = await flash(content);
+      assert.strictEqual(body.model, 'openai/gpt-oss-120b', `"${content}" went first to ${body.model}, though the page named the fast one`);
+      assert.ok(!('reasoning_effort' in body), `"${content}" was answered at ${body.reasoning_effort}`);
+    }
+  });
+  await test('what decides is the person\'s words, not a file they attached', async () => {
+    const attached = 'استخرج معلوماتي\n\nUser attached or previously indexed files with retrieved evidence. Use them.\nAttachment Index 1: cv.txt\nOrigin: pending\nWhy I left: the new role was better than the old one? Which is better? 2019 2021 2023';
+    assert.ok(require('../src/services/promptLayout').thinkingNeed([{ role: 'user', content: attached.split('\n\n')[1] }]).needs, 'control: the attached text alone would call for thought');
+    const { thinkingNeed } = require('../src/services/promptLayout');
+    assert.deepStrictEqual(thinkingNeed([{ role: 'user', content: attached }]), { needs: false, hard: false, why: [] });
+  });
+
   await test('only Groq\'s gpt-oss models are sent it: llm7 never is', async () => {
     groqDown = true;
     const got = await chat([{ role: 'user', content: 'What is a good name for a bakery?' }], { mode: 'flash' });

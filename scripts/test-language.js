@@ -289,6 +289,13 @@ test('the general rules are on every message', () => {
   }
 });
 
+// "I can't" for things Qjo does: make the files, preview the code, draw the
+// charts, run the Python. The core says what it can make, in one line.
+test('the core says what Qjo makes, and to give the closest thing for what it cannot', () => {
+  assert.ok(/makes Word, PDF, Excel and slide files/.test(CORE_PROMPT) && /previews code live/.test(CORE_PROMPT) && /runs Python/.test(CORE_PROMPT), 'what Qjo makes is not said');
+  assert.ok(/Never say "I can't" to any of these/.test(CORE_PROMPT) && /closest thing it can/.test(CORE_PROMPT));
+});
+
 test('the prompt stays inside what Groq\'s free tier can take', () => {
   // Characters as a stand-in for tokens (Arabic ≈ 4 chars/token here, English
   // ≈ 4.3). 13,500 Arabic chars ≈ 3,300 tokens: with tools, a short history
