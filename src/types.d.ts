@@ -83,3 +83,5 @@ interface AgentTask {
   updatedAt: string;
   finishedAt: string | null;
 }
+
+declare module 'katex';
