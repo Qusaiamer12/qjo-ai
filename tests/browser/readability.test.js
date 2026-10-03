@@ -150,6 +150,22 @@ async function everyWord(page, where) {
   ok(unreadable.length === 0, `${where}: every piece of text in the answer can be read (${unreadable.length} below WCAG AA)`, unreadable.slice(0, 8));
 }
 
+// The preview's toolbar, open: its words and its tab and download icons. On a phone
+// every element of an answer inherits the answer's ink (styles.css), and the
+// toolbar keeps a dark bar of its own: its label was dark on dark, and the
+// buttons beside it would have been too. Emoji draw in their own colours and
+// are not measured.
+async function previewToolbar(page, where) {
+  await page.click('.msg.assistant:last-of-type .live-preview-tab-btn').catch(() => {});
+  await page.waitForTimeout(600);
+  const found = (await page.evaluate(measure, '.msg.assistant:last-of-type .preview-toolbar')) || [];
+  const words = found.filter((f) => !/^[\p{Extended_Pictographic}\uFE0F\s]+$/u.test(f.text));
+  ok(words.some((f) => /icon in preview-tab-btn/.test(f.text)) && words.some((f) => /icon in preview-download-btn/.test(f.text)) && words.some((f) => /معاينة/.test(f.text)), `${where}: control — the toolbar's words and its tab and download icons are measured (${words.map((f) => f.text).join(' | ')})`);
+  const unreadable = words.filter((f) => f.unmeasurable || f.ratio < f.need);
+  ok(unreadable.length === 0, `${where}: the preview's toolbar can be read (${unreadable.length} below WCAG AA)`, unreadable);
+  await page.click('.msg.assistant:last-of-type .code-tab-btn[data-tab="code"]').catch(() => {});
+}
+
 // The code header: one row, whole labels, targets a thumb can hit, and the
 // block's own colours (kept to compare across screens).
 async function codeHeader(page, where, phone, theme) {
@@ -220,6 +236,7 @@ async function check(browser, phone, theme) {
   ok(dark === (theme === 'dark'), `${where}: the page is in ${theme} mode`);
   await everyWord(page, where);
   await codeHeader(page, where, phone, theme);
+  await previewToolbar(page, where);
   // The send arrow points the way a message goes, in Arabic too: right to
   // left pages turned it over, and it pointed down.
   const arrow = await page.$eval('#sendBtn svg', (svg) => {

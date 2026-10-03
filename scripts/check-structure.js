@@ -48,6 +48,8 @@ const WATCHED = [
   'public/ui/answerReading.js',
   'public/ui/messageEditor.js',
   'public/domain/ownWords.js',
+  'public/domain/siteRequest.js',
+  'public/ui/previewTab.js',
   'src/services/retiredModels.js',
   'public/ui/composerControls.js',
   'src/services/export/attachedImages.js',

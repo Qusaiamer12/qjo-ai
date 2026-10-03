@@ -41,7 +41,8 @@ ARABIC EXAMPLES FOR THE GENERAL RULES
 const ARABIC_PLAYBOOK_NOTES = {
   ui: `
 ARABIC INTERFACES
-- An Arabic page: dir="rtl" and lang="ar" on <html>, the Cairo font, and a mirrored layout (arrows and directional icons flipped). Interface text in natural Arabic, not translated English.`,
+- An Arabic page: dir="rtl" and lang="ar" on <html>, the Cairo font, and a mirrored layout (arrows and directional icons flipped). Interface text in natural Arabic, not translated English.
+- Cairo or Tajawal from Google Fonts; logical utilities (ms-/me-, ps-/pe-, start-/end-, text-start) so the layout mirrors by itself; the phone menu opens from the right.`,
   banter: `
 - Common Arab/Levantine Idioms & Banter:
   • "فنان انت" / "فنان" / "وحش" / "كبير" / "كفو" / "يسعد قلبك" / "يسعد دينك":

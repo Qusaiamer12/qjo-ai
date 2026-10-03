@@ -310,7 +310,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     } = QjoDomain.markdown;
 
     // Previews of an answer's code, and the side canvas: public/ui/canvas.js.
-    const codeStudio = QjoUI.createCodeStudio({ t });
+    const codeStudio = QjoUI.createCodeStudio({ t, toast: showMicroToast });
     // Files from an answer — export buttons and the download card.
     const answerExports = QjoUI.createAnswerExports({ downloadExport, t, toast: (m) => showMicroToast(m) });
     const sourceStrip = QjoUI.createSourceStrip({ t, getLanguage: () => qjoLanguage });
@@ -387,7 +387,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       const mathTerms = ['احسب', 'رياضيات', 'معادلة', 'برهان', 'احتمال', 'إحصاء', 'جبر', 'تفاضل', 'تكامل', 'algorithm', 'خوارزمية'];
       const fileTerms = ['pdf', 'ملف', 'وثيقة', 'صورة', 'مرفق', 'csv', 'json', 'حلل هذا الملف', 'حلل الصورة'];
 
-      if (qjoMode === 'code' || hasAny(text, codeTerms)) {
+      if ((qjoMode === 'code' || hasAny(text, codeTerms)) && !QjoDomain.siteRequest.siteInConversation(history, QjoDomain.ownWords)) { // a site is one file, not a project
         capsules.push(`Coding capsule: act as a senior software engineer. For implementation, provide architecture, file structure, clean code, exact placement, tests, edge cases, security, performance, accessibility, and deployment notes. Avoid toy snippets for serious builds. Use targeted patches for existing code.`);
       }
 
@@ -2424,9 +2424,9 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       return pendingAttachments.some(item => item.text || (item.type.startsWith('image/') && item.dataUrl));
     }
 
-    // Code answers must not be starved: running out of tokens mid-answer makes
-    // the server fire completeIfTruncated(), a second full LLM round-trip, which
-    // costs far more latency than the larger budget ever does.
+    // Code answers must not be starved: running out of tokens mid-answer costs a
+    // second round-trip (completeIfTruncated). A whole site gets all the room
+    // there is (7000); the server cuts it to what a provider's minute allows.
     const CODE_BUDGET_TERMS = ['code', 'كود', 'برمج', 'دالة', 'debug', 'bug', 'api', 'html', 'css',
       'javascript', 'typescript', 'python', 'react', 'node', 'sql', 'تطبيق', 'موقع', 'سكربت', 'script', 'function', 'class'];
 
@@ -2440,7 +2440,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
 
       const isMax = qjoMode === 'advanced';
       const codeShaped = hasAny(userText || latestUserTextForPrompt(), CODE_BUDGET_TERMS);
-
+      if (QjoDomain.siteRequest.siteInConversation([...history, { role: 'user', content: userText || '' }])) return { temperature: 0.14, max_tokens: 7000 };
       if (codeShaped) {
         // Complete, runnable files are the house standard, so code gets room in
         // either mode; Max stays the more deliberate of the two.

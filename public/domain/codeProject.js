@@ -67,6 +67,26 @@
   window.addEventListener('message', function (e) {
     if (e.source === window.parent && e.data && e.data.qjoPreview === 'missing') note(S.pageMissing.replace('{name}', e.data.name));
   });
+  // Storage a page uses (a theme, a cart) lives in memory here. Without
+  // same-origin, reading localStorage or a cookie throws, and a site's script
+  // stopped at its first line: no menu, no icons, sections never shown.
+  function memory() {
+    var d = Object.create(null);
+    return { getItem: function (k) { k = String(k); return k in d ? d[k] : null; }, setItem: function (k, v) { d[String(k)] = String(v); },
+      removeItem: function (k) { delete d[String(k)]; }, clear: function () { d = Object.create(null); },
+      key: function (i) { return Object.keys(d)[i] || null; }, get length() { return Object.keys(d).length; } };
+  }
+  ['localStorage', 'sessionStorage'].forEach(function (name) {
+    try { void window[name].length; } catch (_) { try { Object.defineProperty(window, name, { value: memory(), configurable: true }); } catch (_) {} }
+  });
+  try { void document.cookie; } catch (_) {
+    var jar = memory();
+    try {
+      Object.defineProperty(document, 'cookie', { configurable: true,
+        get: function () { var out = []; for (var i = 0; i < jar.length; i++) out.push(jar.key(i) + '=' + jar.getItem(jar.key(i))); return out.join('; '); },
+        set: function (v) { var pair = String(v).split(';')[0]; var at = pair.indexOf('='); if (at > 0) jar.setItem(pair.slice(0, at).trim(), pair.slice(at + 1).trim()); } });
+    } catch (_) {}
+  }
   document.addEventListener('click', function (e) {
     var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
     if (!a || e.defaultPrevented) return;
@@ -93,6 +113,9 @@
   window.addEventListener('submit', function (e) { if (e.target && e.target.addEventListener) e.target.addEventListener('submit', held, { once: true }); }, true);
   HTMLFormElement.prototype.submit = function () { note(S.formHeld); };
 })();`;
+  // What every preview frame may do — in the answer, the studio and a tab of
+  // its own. Never allow-same-origin: the page's code must not reach the app.
+  const SANDBOX = 'allow-scripts allow-modals allow-forms allow-popups allow-popups-to-escape-sandbox';
   const guardScript = (strings) => `<script>${LINK_GUARD.replace('__STRINGS__', () => jsonForScript({ ...DEFAULT_STRINGS, ...(strings || {}) }))}</script>\n`;
 
   const ARABIC = /[\u0600-\u06FF]/;
@@ -211,10 +234,10 @@
   const scriptTag = (js) => `<script${/^\s*(?:import\s[^(]|export\s)/m.test(js) ? ' type="module"' : ''}>\n${js.replace(/<\/script/gi, '<\\/script')}\n</script>\n`;
   const jsonForScript = (value) => JSON.stringify(value).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
 
-  function head(rtl, extra, strings) {
+  function head(rtl, extra, strings, guard) {
     const font = rtl ? "'Cairo', 'Inter'" : "'Inter', 'Cairo'";
     return `<meta charset="utf-8">
-  ${guardScript(strings)}
+  ${guard ? guardScript(strings) : ''}
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="${FONTS}" rel="stylesheet">
   <script src="${LIBS.tailwind}"></script>
@@ -230,13 +253,17 @@
   }
 
   // The preview loads scripts only from the CDNs the app allows (its CSP is
-  // the preview's too): jsdelivr, cdnjs and Tailwind's. A page that took its
-  // libraries from unpkg — most do — stopped with nothing on screen. The same
-  // npm files from jsdelivr, which mirrors them under the same paths.
+  // the preview's too): jsdelivr, cdnjs, unpkg and Tailwind's. ES modules from
+  // CDNs it does not allow come from jsdelivr, which serves npm packages as
+  // modules with their imports resolved.
+  //
+  // unpkg is allowed rather than rewritten: a package's address with no file
+  // in it ("unpkg.com/lucide@latest", as Lucide's own docs write it) names the
+  // browser build on unpkg and the CommonJS build on jsdelivr, which stops a
+  // page's script at its first line.
   /** @type {Array<[RegExp, string]>} */
   const CDN_REWRITES = [
     [/https?:\/\/unpkg\.com\/([^\s"'`)?]+)\?module\b/g, 'https://cdn.jsdelivr.net/npm/$1/+esm'],
-    [/https?:\/\/unpkg\.com\//g, 'https://cdn.jsdelivr.net/npm/'],
     [/https?:\/\/(?:cdn\.)?skypack\.dev\/([^\s"'`)?]+)/g, 'https://cdn.jsdelivr.net/npm/$1/+esm'],
     [/https?:\/\/esm\.sh\/([^\s"'`)?]+)/g, 'https://cdn.jsdelivr.net/npm/$1/+esm'],
     [/https?:\/\/code\.jquery\.com\/jquery-(\d[\d.]*)((?:\.slim)?(?:\.min)?)\.js/g, 'https://cdn.jsdelivr.net/npm/jquery@$1/dist/jquery$2.js']
@@ -245,7 +272,7 @@
     return CDN_REWRITES.reduce((text, [pattern, to]) => text.replace(pattern, to), String(code));
   }
 
-  function htmlDocument(files, strings) {
+  function htmlDocument(files, strings, guard) {
     const main = files.find((f) => f.role === 'main');
     let doc = onAllowedCdns(String(main.code).trim());
     for (const ref of localReferences(doc)) doc = doc.replace(ref.tag, () => '');
@@ -263,14 +290,15 @@
       // The guard before anything of the page's own: straight after <head>,
       // else after <html>, else after the doctype.
       const at = /<head\b[^>]*>/i.exec(doc) || /<html\b[^>]*>/i.exec(doc) || /<!doctype[^>]*>/i.exec(doc);
-      doc = at ? doc.slice(0, at.index + at[0].length) + guardScript(strings) + doc.slice(at.index + at[0].length) : guardScript(strings) + doc;
+      const first = guard ? guardScript(strings) : '';
+      doc = at ? doc.slice(0, at.index + at[0].length) + first + doc.slice(at.index + at[0].length) : first + doc;
       return insertBefore(doc, /<\/body\s*>/gi, scripts, (d) => d.length);
     }
     const rtl = ARABIC.test(doc);
     return `<!DOCTYPE html>
 <html lang="${rtl ? 'ar' : 'en'}" dir="${rtl ? 'rtl' : 'ltr'}">
 <head>
-  ${head(rtl, styles ? '\n' + styles : '', strings)}
+  ${head(rtl, styles ? '\n' + styles : '', strings, guard)}
 </head>
 <body>
 ${doc}
@@ -333,7 +361,7 @@ ${scripts}</body>
   } catch (err) { fail((err && err.message) || err); }
 })();`;
 
-  function reactDocument(files, strings) {
+  function reactDocument(files, strings, guard) {
     const main = files.find((f) => f.role === 'main');
     let source = String(main.code);
     // Top-level components, so an answer that never exports one still shows.
@@ -359,7 +387,7 @@ ${scripts}</body>
     return `<!DOCTYPE html>
 <html lang="${rtl ? 'ar' : 'en'}" dir="${rtl ? 'rtl' : 'ltr'}">
 <head>
-  ${head(rtl, styles ? '\n' + styles : '', strings)}
+  ${head(rtl, styles ? '\n' + styles : '', strings, guard)}
   <script src="${LIBS.react}" crossorigin="anonymous"></script>
   <script src="${LIBS.reactDom}" crossorigin="anonymous"></script>
   <script src="${LIBS.babel}" crossorigin="anonymous"></script>
@@ -389,19 +417,34 @@ ${containers.map((id) => `<div id="${id}"></div>`).join('\n')}
   }
 
   /**
-   * The document for a preview iframe's srcdoc.
+   * The document for a preview iframe's srcdoc — or, with { guard: false },
+   * the page as a file of its own: its styles and scripts in it, without the
+   * guard that keeps a preview's links and forms inside the preview.
    * @param {{kind: string, files: Array<{name: string, lang: string, role: string, code: string}>} | null} project
    * @param {Partial<typeof DEFAULT_STRINGS>} [strings] messages shown inside the preview, in the page's language
+   * @param {{guard?: boolean}} [options]
    * @returns {string}
    */
-  function buildDocument(project, strings) {
+  function buildDocument(project, strings, options) {
     if (!project || !project.files || !project.files.length) return '';
+    const guard = !(options && options.guard === false);
     if (project.kind === 'svg') return svgDocument(project.files[0].code);
-    if (project.kind === 'react') return reactDocument(project.files, strings);
-    return htmlDocument(project.files, strings);
+    if (project.kind === 'react') return reactDocument(project.files, strings, guard);
+    return htmlDocument(project.files, strings, guard);
   }
 
-  const api = { LIBS, kindOf, isReactSource, projectFor, buildDocument, pageNamed, onAllowedCdns };
+  /**
+   * What a page is called, for a tab's title: its own <title>, else its file name.
+   * @param {{files?: Array<{role: string, name: string, code: string}>} | null} project
+   */
+  function titleOf(project) {
+    const main = project && project.files ? project.files.find((f) => f.role === 'main') || project.files[0] : null;
+    if (!main) return '';
+    const own = /<title[^>]*>([^<]{1,120})<\/title>/i.exec(String(main.code));
+    return (own ? own[1] : main.name || '').replace(/\s+/g, ' ').trim();
+  }
+
+  const api = { LIBS, SANDBOX, kindOf, isReactSource, projectFor, buildDocument, pageNamed, onAllowedCdns, titleOf };
   global.QjoDomain = global.QjoDomain || {};
   global.QjoDomain.codeProject = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

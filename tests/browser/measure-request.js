@@ -9,6 +9,9 @@
 // carries. Token counts use the o200k encoding when gpt-tokenizer is
 // installed, otherwise characters / 4.
 //
+// QJO_ONLY=<regex> measures only the messages whose label matches it, and
+// QJO_FRESH=1 sends each one in a new chat (what a first message costs).
+//
 // The messages are one conversation, answered at a realistic length
 // (QJO_REPLY_CHARS, default 2400), so each request also says how much of it
 // opens exactly as an earlier one did. Groq caches that repeated opening for
@@ -116,7 +119,9 @@ function describe(label, body, earlier) {
   await page.waitForTimeout(2500);
   await page.addStyleTag({ content: '#authOverlay{display:none !important;visibility:hidden !important;pointer-events:none !important;}' });
 
-  for (const [label, text] of MESSAGES) {
+  const only = process.env.QJO_ONLY ? new RegExp(process.env.QJO_ONLY, 'i') : null;
+  for (const [label, text] of MESSAGES.filter(([l]) => !only || only.test(l))) {
+    if (process.env.QJO_FRESH) { await page.click('#newChatBtn'); await page.waitForTimeout(400); }
     const before = captured.length;
     await page.fill('#input', text);
     await page.click('#sendBtn');

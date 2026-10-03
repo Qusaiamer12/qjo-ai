@@ -243,14 +243,14 @@ app.use(helmet({
         "https://www.gstatic.com",
         "https://apis.google.com",
         "https://cdnjs.cloudflare.com",
-        "https://cdn.jsdelivr.net",
+        "https://cdn.jsdelivr.net", "https://unpkg.com", // unpkg: code previews load libraries as their docs write them
         "https://cdn.tailwindcss.com"
       ],
       "script-src-attr": ["'unsafe-inline'"],
       "worker-src": ["'self'", "blob:", "https://cdn.jsdelivr.net"],
 
       // styles.css is local; unsafe-inline is kept because a few runtime/third-party widgets may inject styles
-      "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net", "https://cdn.tailwindcss.com"],
+      "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net", "https://unpkg.com", "https://cdn.tailwindcss.com"],
 
       "img-src": ["'self'", "data:", "blob:", "https:"],
       "font-src": ["'self'", "data:", "blob:", "https:", "https://fonts.gstatic.com", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com", "https://www.gstatic.com"],

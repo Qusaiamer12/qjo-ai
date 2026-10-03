@@ -103,13 +103,15 @@ qjo-ai/
 │   │   ├── language.js          Which language a text is in; which one the page opens in
 │   │   ├── i18n.js              Every interface string, English and Arabic, same keys
 │   │   ├── codeProject.js       Which code blocks make one preview; the document it runs
+│   │   ├── siteRequest.js       Whether a message asks for a website (or a change to one)
 │   │   ├── fileRequest.js       Whether an answer has a table, and whether a file was asked for
 │   │   ├── markdown.js
 │   │   ├── requestFailure.js    Error in, message and retry decision out
 │   │   └── streamProtocol.js    SSE parsing, think-tag split, stall watchdog
 │   ├── ui/                      Rendering and DOM behaviour
 │   │   ├── sandbox.js           Runs generated JS/Python in an opaque-origin iframe's worker
-│   │   ├── canvas.js            Code previews, inline and in the side studio
+│   │   ├── canvas.js            Code previews, inline and in the side studio; a tab, a download
+│   │   ├── previewTab.js        A preview in a tab of its own (public/preview.html)
 │   │   └── answerExports.js     Export buttons (Excel with a table) and the file card
 │   └── net/                     API calls
 ├── scripts/                     Tests and checks, all runnable via npm
@@ -178,7 +180,7 @@ thresholds that start where you are get tightened.
 | Workspace file paths come from the model | Absolute paths, drive paths and traversal are validation errors; the workspace is an object in task state, never the filesystem |
 | User JavaScript and Python execution | A worker inside an iframe sandboxed to `allow-scripts` only (`public/ui/sandbox.js`): origin `null`, so no access to the page, its storage or the signed-in session; a run past its limit ends the iframe; plot images accepted only as base64 |
 | Images in an exported PDF | The document is the model's answer, printed by Chromium on the server: every request is intercepted; only inline data and images at public addresses load, each checked after DNS resolution and on every redirect by `fetch_page`'s guard |
-| Code previews (HTML, React) | An iframe sandboxed to `allow-scripts allow-modals`, never `allow-same-origin`; the document is built by `public/domain/codeProject.js`; file names the model chose are inserted as text |
+| Code previews (HTML, React) | An iframe sandboxed to `codeProject.SANDBOX` (scripts, modals, forms, popups), never `allow-same-origin`, in the answer, the studio and a tab of its own; the document is built by `public/domain/codeProject.js`; file names the model chose are inserted as text. The tab (`public/preview.html`) shows only what the app window that opened it sends, from the app's origin |
 | Answer HTML | Escaped before insertion; markdown rendering never emits raw user HTML |
 | Provider keys | `server.js` only, never sent to the client; `scan-secrets` blocks commits |
 | Task access | Every task route checks the caller owns the task |
@@ -249,7 +251,9 @@ Each of these exists because it happened.
 | What a message asks for | Judged on the person's own words (`public/domain/ownWords.js`), never on what the page attached to them: playbooks, the code overlay, the house guidance, the router's hint, the page's capsules, and whether a picture is an exercise. A CV's skills list chose every playbook, and one photo was over Groq's 8K a minute |
 | Choosing the answer mode and the tools | One button switches Flash and Max with a tap and shows the one in use; one tools button opens Search or Deep search (one at a time) and Task, and names what is on (`public/ui/composerControls.js`). The same two buttons float above the composer on a phone. Neither changes while an answer is written |
 | A Flash question that needs thought | A comparison, a "why", a plan, a riddle, sums or a long request (judged on the person's own words: `promptLayout.thinkingNeed`) keeps the model's default reasoning instead of low; the hardest — a riddle, several asks at once — go to the larger model first, even when the page named the fast one |
-| A link or a form inside a code preview | A guard runs first in every preview (`codeProject.js`): a section link scrolls the page; another page of the answer is shown in its place (`canvas.js`), or a note says the answer has none; a link out opens a tab; a form is held with a note. Libraries from CDNs the preview cannot load (unpkg, skypack, esm.sh, code.jquery.com) come from jsdelivr |
+| A link or a form inside a code preview | A guard runs first in every preview (`codeProject.js`): a section link scrolls the page; another page of the answer is shown in its place (`canvas.js`), or a note says the answer has none; a link out opens a tab; a form is held with a note; localStorage, sessionStorage and cookies, which a sandbox without same-origin refuses, live in memory. Libraries from unpkg load as written (the CSP allows it); ES modules from CDNs it does not (skypack, esm.sh, unpkg's `?module`) and code.jquery.com come from jsdelivr |
+| A website asked for | One HTML file for the preview (`public/domain/siteRequest.js`, also a change asked of the page the last answer was): the site playbook alone — no engineering overlay, bug-fix playbook, house guidance, calculator, router hint, tools or coding capsule; the larger model first, thinking lightly in Flash; 7,000 tokens of answer room (Groq's minute leaves about 3,900 of it after the request), and up to three continuations. `site-quality.test.js` holds a site to the playbook — no JS errors, nothing sideways at 360 px, every section link and image, content that appears, dark mode, a phone menu, axe — each check against a copy broken its way; `scripts/eval-sites.js` runs real answers through it when a key is set |
+| A preview outside the answer | Under each page's preview and in the studio: open it in a tab of its own (`public/ui/previewTab.js`), which keeps it across a reload and shows the answer's other pages there; or download it as its file (`index.html`, `about.html`) — its styles and scripts in it, without the preview's guard. From the studio, what was edited there. A browser that blocks the tab is told so |
 | An answer cut off inside its code | Carried on up to three times (`continuation.js`), each request with the instructions, the last request and the end of the answer only, so it fits a per-minute allowance. A block opened again and lines written twice are dropped before the page sees them; the page and the stored answer get the same text. Only a line of backticks alone closes a block, for the renderer and the stream reader alike |
 | A file's text in a request | Each section once — a one-section file went as an overview and three copies — and not again beside the message that already carries it in the history; a retry sends the file again and saves it once |
 | Every provider fails | The page says the AI services could not finish the request, with the reason — not that the server was asleep, not even while it retries quietly |

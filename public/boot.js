@@ -50,6 +50,7 @@
     ['reading answers', () => window.QjoUI && window.QjoUI.createAnswerReading],
     ['editing a message', () => window.QjoUI && window.QjoUI.createMessageEditor],
     ['own words', () => window.QjoDomain && window.QjoDomain.ownWords],
+    ['site requests', () => window.QjoDomain && window.QjoDomain.siteRequest],
     ['mode and tools buttons', () => window.QjoUI && window.QjoUI.createComposerControls]
   ];
 

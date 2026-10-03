@@ -81,6 +81,8 @@ function startApp(baseUrl) {
     defaultModel: 'openai/gpt-oss-120b',
     cleanMessages: (m) => m,
     routingEngine,
+    // House guidance, found for every message; a site goes without it.
+    knowledgeBaseService: { lookup: async () => ({ found: true, block: '<qjo_knowledge_base version="t">house guidance</qjo_knowledge_base>' }) },
     ...createChatPromptBuilder()
   });
   const server = http.createServer(app);
@@ -114,10 +116,10 @@ const system = (body) => body.messages.filter((m) => m.role === 'system').map((m
   console.log('\nTwo turns of one conversation open alike:');
   const first = [{ role: 'user', content: 'شو الفرق بين الذكاء الاصطناعي وتعلم الآلة؟' }];
   const [one] = await chat(first);
-  const second = [...first, { role: 'assistant', content: 'الفرق باختصار: تعلم الآلة فرع من الذكاء الاصطناعي.' }, { role: 'user', content: 'صمملي صفحة هبوط لمقهى بـ React' }];
+  const second = [...first, { role: 'assistant', content: 'الفرق باختصار: تعلم الآلة فرع من الذكاء الاصطناعي.' }, { role: 'user', content: 'صلّحلي هالخطأ بكود React عندي، الصفحة بتوقف لما أضغط على الزر وبطلع خطأ' }];
   const [two] = await chat(second);
 
-  await test('control: the second message needs what the first did not — a code overlay and the interface playbook', () => {
+  await test('control: the second message needs what the first did not — the code overlay', () => {
     assert.ok(/ACTIVE MODE: CODE/.test(textOf(lastUser(two.body).content)) && !/ACTIVE MODE: CODE/.test(textOf(lastUser(one.body).content)), 'the two messages carry the same needs');
   });
   await test('the second request opens exactly as the first did, up to the newest exchange: instructions, tools and conversation', () => {
@@ -175,6 +177,43 @@ const system = (body) => body.messages.filter((m) => m.role === 'system').map((m
     const [call] = await chat([{ role: 'user', content: 'شو أفضل اسم لمخبز؟' }], { mode: 'flash' });
     assert.ok(/statistics/.test(textOf(lastUser(call.body).content)), 'control: the context names what the math check looks for');
     assert.strictEqual(call.body.reasoning_effort, 'low', `reasoning_effort ${call.body.reasoning_effort}`);
+  });
+
+  console.log('\nA site is one file for the preview (siteRequest.js):');
+  const asPage = async (messages) => (await chat(messages, { mode: 'normal', model: 'openai/gpt-oss-20b' }))[0].body;
+  const PAGE = 'تفضل:\n```html\n<!DOCTYPE html>\n<html lang="ar" dir="rtl"><body><h1>مشاوي</h1></body></html>\n```';
+  await test('control: a bug in a React component is code — the overlay, the bug playbook, house guidance, the calculator, the router\'s hint and tools', async () => {
+    const body = await asPage([{ role: 'user', content: 'Fix this bug: TypeError in my React component' }]);
+    const text = textOf(lastUser(body).content);
+    for (const part of ['ACTIVE MODE: CODE', 'START DIRECTLY WITH THE SOLUTION', 'house guidance', 'Calculator tool available', 'Router decision']) assert.ok(text.includes(part), `missing: ${part}`);
+    assert.ok(body.tools && body.tools.length, 'no tools');
+    assert.ok(!('reasoning_effort' in body), `code thinks at ${body.reasoning_effort}`);
+  });
+  await test('a site in Max keeps the provider\'s default thinking', async () => {
+    const [call] = await chat([{ role: 'user', content: 'صمملي موقع لمطعم مشاوي' }], { mode: 'max' });
+    assert.ok(!('reasoning_effort' in call.body), `Max sent ${call.body.reasoning_effort}`);
+  });
+  for (const [label, messages] of [
+    ['an Arabic site', [{ role: 'user', content: 'صمملي موقع لمطعم مشاوي' }]],
+    ['a React landing page', [{ role: 'user', content: 'Build me a landing page for my cafe in React' }]],
+    ['a change to the page the last answer was', [{ role: 'user', content: 'صمملي موقع لمطعم مشاوي' }, { role: 'assistant', content: PAGE }, { role: 'user', content: 'خليه أغمق وزيد قسم للحجز' }]]
+  ]) {
+    await test(`${label}: the site playbook alone — no engineering overlay, bug playbook, house guidance, calculator, router hint or tools`, async () => {
+      const body = await asPage(messages);
+      const text = textOf(lastUser(body).content);
+      assert.ok(text.includes('WEBSITES & INTERFACES') && text.includes('https://cdn.tailwindcss.com'), 'the site playbook is missing');
+      for (const part of ['ACTIVE MODE: CODE', 'START DIRECTLY WITH THE SOLUTION', 'house guidance', 'Calculator tool available', 'Router decision', 'LITERARY CRAFTSMANSHIP']) assert.ok(!text.includes(part), `carried: ${part}`);
+      assert.ok(!body.tools, `offered tools: ${(body.tools || []).map((t) => t.function.name)}`);
+    });
+    await test(`${label}: written by the larger model first, though the page named the fast one — thinking lightly, to leave the room to the page`, async () => {
+      const body = await asPage(messages);
+      assert.strictEqual(body.model, 'openai/gpt-oss-120b');
+      assert.strictEqual(body.reasoning_effort, 'low');
+    });
+  }
+  await test('control: "make it darker" after an answer that was not a page is not a site', async () => {
+    const body = await asPage([{ role: 'user', content: 'اكتبلي فقرة عن البحر' }, { role: 'assistant', content: 'البحر واسع.' }, { role: 'user', content: 'make it darker' }]);
+    assert.ok(!textOf(lastUser(body).content).includes('WEBSITES & INTERFACES') && body.model === 'openai/gpt-oss-20b', `${body.model}`);
   });
 
   console.log('\nThe tool list does not change with the message:');

@@ -964,6 +964,45 @@ const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n
     for (const marker of ADDED) assert.ok(pageSource.includes(marker.slice(2)), `the page no longer writes "${marker.slice(2)}"`);
   });
 
+  console.log('\nA site to write (siteRequest.js):');
+  const { buildsSite, asksForSite, siteInConversation } = require('../public/domain/siteRequest.js');
+
+  test('asked for in English and Arabic, in the ways people ask', () => {
+    for (const text of ['Build me a landing page for my cafe in React', 'Build me a website for my bakery', 'make a website for my dental clinic', 'design a modern portfolio site',
+      'create a dashboard for sales', 'make a todo app in React', 'create a calculator with html css js', 'write a landing page for a SaaS', 'Make me a login page UI',
+      'create a React component for a pricing table', 'Can you build a simple one-page site for my photography business?', 'make for me a website about cats',
+      'صمملي موقع شخصي لمصمم جرافيك', 'بدي موقع لمطعمي', 'اعمللي صفحة هبوط لمنتج', 'سويلي موقع احترافي لشركة مقاولات', 'ابني لي واجهة تسجيل دخول',
+      'برمج موقع متجر الكتروني', 'اكتبلي كود html لموقع مطعم', 'صمم لي داشبورد للمبيعات', 'بدي موقع إلكتروني لمحل ورد', 'أنشئ موقع ويب لمدرسة']) {
+      assert.ok(buildsSite(text), text);
+    }
+  });
+
+  test('not a site: asking about one, a place, a list, a Word page, a bug, a logo', () => {
+    for (const text of ['what is the best website to learn French', 'recommend websites for free movies', 'make a list of websites for learning', 'give me sites to watch anime',
+      'بدي موقع الجامعة', 'وين موقع المطعم', 'اعمل بحث عن موقع الجامعة', 'شو احسن موقع لتعلم الانجليزي', 'سافرت على موقع اثري', 'write an essay about websites',
+      'make the page landscape in Word', 'fix this bug in my code', 'explain how websites work', 'what is tailwind', 'write the components of a cell', 'design a logo', 'كيفك']) {
+      assert.ok(!buildsSite(text), text);
+    }
+  });
+
+  const PAGE = 'Here:\n```html\n<!DOCTYPE html>\n<html><body>hi</body></html>\n```';
+  test('a change to the page the last answer was is a site; thanks, a question, or a change to prose is not', () => {
+    assert.ok(asksForSite({ text: 'add a contact section', lastAnswer: PAGE }));
+    assert.ok(asksForSite({ text: 'خليه أغمق', lastAnswer: PAGE }));
+    assert.ok(asksForSite({ text: 'make it darker', lastAnswer: '```jsx\nexport default function A() { return <div/>; }\n```' }));
+    assert.ok(!asksForSite({ text: 'add a contact section', lastAnswer: 'Sure — an essay about the sea.' }));
+    assert.ok(!asksForSite({ text: 'thanks!', lastAnswer: PAGE }) && !asksForSite({ text: 'شكرا', lastAnswer: PAGE }));
+    assert.ok(!asksForSite({ text: 'what does the meta viewport do?', lastAnswer: PAGE }));
+  });
+
+  test('read from a conversation: the newest message, and the answer before it — not one after', () => {
+    assert.ok(siteInConversation([{ role: 'user', content: 'build a site' }, { role: 'assistant', content: PAGE }, { role: 'user', content: 'make it darker' }]));
+    assert.ok(!siteInConversation([{ role: 'user', content: 'make it darker' }, { role: 'assistant', content: PAGE }]), 'an answer after the message was read as before it');
+    assert.ok(!siteInConversation([]) && !siteInConversation([{ role: 'assistant', content: PAGE }]));
+    assert.ok(siteInConversation([{ role: 'user', content: 'صمملي موقع لمطعم\n\nWeb search note: x' }], ownWords), 'own words');
+    assert.ok(!siteInConversation([{ role: 'user', content: 'استخرج معلوماتي\n\nUser attached or previously indexed files with retrieved evidence.\nbuild a website for my bakery' }], ownWords), 'a file\'s text read as the person');
+  });
+
   console.log('\n========================================');
   console.log(`${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);

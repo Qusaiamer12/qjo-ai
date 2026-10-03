@@ -715,6 +715,53 @@ body.sidebar-collapsed .topbar{ padding-inline:32px !important; }
   transform: rotate(90deg);
 }
 
+/* The toolbar keeps its own dark bar inside an answer. On a phone every
+   element of an answer inherits the answer's ink (styles.css, 0,3,0), and in
+   light mode that is dark on this bar: 1.01:1, the label and both icons. */
+.assistant .bubble .preview-toolbar button {
+  color: #e2e8f0;
+  -webkit-text-fill-color: #e2e8f0;
+}
+
+.assistant .bubble .preview-status-indicator span {
+  color: #94a3b8;
+  -webkit-text-fill-color: #94a3b8;
+}
+
+/* Open in a tab, download, reload: the preview's actions, together on one side. */
+.preview-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.preview-tab-btn,
+.preview-download-btn {
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: #e2e8f0;
+  font-size: 13px;
+  line-height: 1;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 2px 6px;
+  cursor: pointer;
+  opacity: 0.85;
+}
+
+.preview-tab-btn:hover,
+.preview-download-btn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.preview-tab-btn:focus-visible,
+.preview-download-btn:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 1px;
+}
+
 .preview-viewport {
   width: 100%;
   min-height: 340px;

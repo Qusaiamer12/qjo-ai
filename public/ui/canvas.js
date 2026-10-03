@@ -58,6 +58,7 @@
   /**
    * @param {object} deps
    * @param {(key: string, vars?: Record<string, string | number>) => string} deps.t
+   * @param {(text: string) => void} [deps.toast]
    * @param {Document} [deps.document]
    */
   function createCodeStudio(deps) {
@@ -102,12 +103,55 @@
       if (inCanvas) {
         canvas.project = { kind: project.kind, files: project.files.map((f) => ({ ...f })) };
         selectFile(0);
+        label(); // the download is now this page's file
         refresh();
       } else frame.srcdoc = documentFor(project);
     }
     global.addEventListener('message', openPage);
 
     const documentFor = (project) => codeProject().buildDocument(project, previewStrings());
+
+    // Drawn in the button's own colour: "↗" and "⬇" are emoji on some phones.
+    const svg = (path) => `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`; // named by the button
+    const TAB_ICON = svg('<path d="M14 4h6v6"/><path d="M20 4 11 13"/><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/>');
+    const DOWNLOAD_ICON = svg('<path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/>');
+
+    // ── The preview in a tab of its own, and as a file ──────────────────
+    // The tab (preview.html, ui/previewTab.js) asks for what to show once it
+    // has loaded; only a tab opened here, on this origin, is answered.
+    const tabs = new Map();
+    global.addEventListener('message', (event) => {
+      if (event.origin !== global.location.origin || !event.data || event.data.qjoPreviewTab !== 'ready') return;
+      const payload = tabs.get(event.source);
+      if (payload) /** @type {Window} */ (event.source).postMessage(payload, global.location.origin);
+    });
+    function openTab(project, blocks) {
+      if (!project) return;
+      for (const tab of tabs.keys()) if (tab.closed) tabs.delete(tab);
+      const tab = global.open('/preview.html', '_blank');
+      if (!tab) { if (deps.toast) deps.toast(t('previewTabBlocked')); return; }
+      tabs.set(tab, { qjoPreviewTab: 'show', project: { kind: project.kind, files: project.files.map((f) => ({ ...f })) }, blocks, strings: previewStrings(), lang: doc.documentElement.lang || '' });
+    }
+    // The page as the file it is: its styles and scripts in it, without the
+    // guard that keeps a preview's links inside the preview.
+    function fileOf(project) {
+      const main = project.files.find((f) => f.role === 'main') || project.files[0];
+      if (project.kind === 'svg') return { name: main.name || 'image.svg', type: 'image/svg+xml', text: main.code };
+      return { name: project.kind === 'html' && /\.html?$/i.test(main.name) ? main.name : 'index.html', type: 'text/html;charset=utf-8',
+        text: codeProject().buildDocument(project, previewStrings(), { guard: false }) };
+    }
+    function download(project) {
+      if (!project) return;
+      const file = fileOf(project);
+      const url = URL.createObjectURL(new Blob([file.text], { type: file.type }));
+      const link = doc.createElement('a');
+      link.href = url;
+      link.download = file.name;
+      doc.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    }
 
     // ── Inline preview, under the block ─────────────────────────────────
     function showInline(wrapper, reload) {
@@ -147,6 +191,25 @@
         }
       });
       onClick('.preview-reload-btn', element, (_, wrapper) => showInline(wrapper, true));
+      element.querySelectorAll('.preview-toolbar').forEach((bar) => {
+        if (bar.querySelector('.preview-tab-btn')) return;
+        const reload = bar.querySelector('.preview-reload-btn');
+        const wrapper = bar.closest('.code-block-wrapper');
+        const project = wrapper ? projectOf(/** @type {HTMLElement} */ (wrapper)) : null;
+        const tab = button('preview-tab-btn');
+        tab.innerHTML = TAB_ICON;
+        tab.title = t('previewOpenTab');
+        const save = button('preview-download-btn');
+        save.innerHTML = DOWNLOAD_ICON;
+        save.title = t('previewDownload', { name: project ? fileOf(project).name : 'index.html' });
+        const actions = doc.createElement('span');
+        actions.className = 'preview-actions';
+        for (const b of [tab, save]) { b.setAttribute('aria-label', b.title); actions.append(b); }
+        bar.insertBefore(actions, reload);
+        if (reload) actions.append(reload);
+      });
+      onClick('.preview-tab-btn', element, (_, wrapper) => openTab(projectOf(wrapper), blocksOf(wrapper).blocks));
+      onClick('.preview-download-btn', element, (_, wrapper) => download(projectOf(wrapper)));
       element.querySelectorAll('.preview-expand-btn').forEach((button) => {
         button.classList.remove('hidden');
         button.title = t('canvasOpen');
@@ -188,7 +251,7 @@
       const tools = doc.createElement('div');
       tools.className = 'qjo-canvas-tools';
       tools.append(button('qjo-canvas-device is-active', { device: 'desktop' }), button('qjo-canvas-device', { device: 'mobile' }),
-        button('qjo-canvas-reload'), button('qjo-canvas-close'));
+        button('qjo-canvas-tab-open'), button('qjo-canvas-download'), button('qjo-canvas-reload'), button('qjo-canvas-close'));
       bar.append(tabs, tools);
 
       const preview = doc.createElement('div');
@@ -197,7 +260,7 @@
       viewport.className = 'qjo-canvas-viewport';
       const frame = doc.createElement('iframe');
       frame.className = 'qjo-canvas-frame';
-      frame.setAttribute('sandbox', 'allow-scripts allow-modals allow-forms allow-popups allow-popups-to-escape-sandbox');
+      frame.setAttribute('sandbox', codeProject().SANDBOX);
       viewport.append(frame);
       preview.append(viewport);
 
@@ -225,7 +288,9 @@
         if (b.dataset.device) {
           tools.querySelectorAll('.qjo-canvas-device').forEach((d) => d.classList.toggle('is-active', d === b));
           viewport.classList.toggle('is-mobile', b.dataset.device === 'mobile');
-        } else if (b.classList.contains('qjo-canvas-reload')) refresh();
+        } else if (b.classList.contains('qjo-canvas-tab-open')) openTab(canvas.project, canvas.wrapper && canvas.wrapper.isConnected ? blocksOf(canvas.wrapper).blocks : []);
+        else if (b.classList.contains('qjo-canvas-download')) download(canvas.project);
+        else if (b.classList.contains('qjo-canvas-reload')) refresh();
         else if (b.classList.contains('qjo-canvas-close')) close();
       });
       files.addEventListener('click', (e) => {
@@ -252,10 +317,14 @@
       set('[data-view="code"]', t('canvasCode'));
       set('[data-device="desktop"]', t('canvasDesktop'), true);
       set('[data-device="mobile"]', t('canvasMobile'), true);
+      set('.qjo-canvas-tab-open', t('previewOpenTab'), true);
+      set('.qjo-canvas-download', t('previewDownload', { name: canvas.project ? fileOf(canvas.project).name : 'index.html' }), true);
       set('.qjo-canvas-reload', t('canvasReload'), true);
       set('.qjo-canvas-close', t('canvasClose'), true);
       root.querySelector('[data-device="desktop"]').textContent = '💻';
       root.querySelector('[data-device="mobile"]').textContent = '📱';
+      root.querySelector('.qjo-canvas-tab-open').innerHTML = TAB_ICON;
+      root.querySelector('.qjo-canvas-download').innerHTML = DOWNLOAD_ICON;
       root.querySelector('.qjo-canvas-reload').textContent = '↻';
       root.querySelector('.qjo-canvas-close').textContent = '✕';
       canvas.frame.title = t('canvasPreview');

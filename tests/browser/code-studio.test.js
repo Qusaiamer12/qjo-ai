@@ -76,12 +76,15 @@ const COMPONENT = "import { useState } from 'react';\nimport { Plus } from 'luci
     // Scripts, forms and tabs for links out (preview-links.test.js) — never same-origin.
     const tokens = String(attr).split(/\s+/);
     ok(tokens.includes('allow-scripts') && !tokens.includes('allow-same-origin') && !tokens.includes('allow-top-navigation'), `the preview is sandboxed without same-origin (${attr})`);
+    // The page's storage, with something of the app's in it. The preview keeps
+    // its own in memory (the guard in codeProject.js) and never sees the app's.
+    await page.evaluate(() => localStorage.setItem('qjo_isolation_marker', 'app-secret'));
     const reach = present && await frame.evaluate(() => {
       let parentDoc = 'blocked'; try { parentDoc = window.parent.document ? 'READ' : 'none'; } catch (_) { /* expected */ }
-      let storage = 'blocked'; try { storage = typeof window.localStorage.length; } catch (_) { /* expected */ }
+      let storage = 'threw'; try { storage = [window.localStorage.getItem('qjo_isolation_marker'), window.localStorage.length]; } catch (_) { /* a guard that failed */ }
       return { origin: window.origin, parentDoc, storage };
     });
-    ok(reach && reach.origin === 'null' && reach.parentDoc === 'blocked' && reach.storage === 'blocked', 'the preview cannot reach the page or its storage', reach);
+    ok(reach && reach.origin === 'null' && reach.parentDoc === 'blocked' && JSON.stringify(reach.storage) === '[null,0]', 'the preview cannot reach the page or its storage', reach);
     await ctx.close();
   }
 

@@ -144,6 +144,14 @@ Each of these produced a green result that meant nothing.
   control without the guard that does land on the app. The guard once failed
   to parse — a regex lost its backslash inside a template string — and the
   suite caught it: probes that only read a preview's text never would have.
+- **The same file on another host is not the same file.** The preview sent
+  unpkg addresses to jsdelivr, "which mirrors the same npm files". For a
+  package's address with no file in it — Lucide's own snippet,
+  `unpkg.com/lucide@latest` — unpkg serves the browser build and jsdelivr the
+  CommonJS one: no icons, and the site's script stopped at that line. And a
+  sandbox without same-origin throws on `localStorage`, which most sites read
+  first thing. Every suite previewed pages written for the preview;
+  `site-quality.test.js` runs one written the way sites are.
 - **Verification that lives outside the repo.** 264 browser assertions spent
   weeks in a scratch directory that is deleted with the container. A check
   that is not committed and not in CI does not exist.
@@ -186,6 +194,7 @@ npm run test:browser            # all suites; `-- boot xss` to filter
 # carries or how providers are chosen:
 node tests/browser/measure-request.js   # tokens a real message sends, by part
 node scripts/sim-session.js [repoRoot]  # a session against Groq's real limits
+GROQ_API_KEYS=… node scripts/eval-sites.js  # six real site answers, checked as the suite checks
 ```
 
 A browser suite passes only if it exits 0 and prints `N passed, 0 failed`

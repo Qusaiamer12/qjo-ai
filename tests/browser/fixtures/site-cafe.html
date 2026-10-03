@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="scroll-smooth">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>مقهى الياسمين — قهوة مختصة في جبل عمّان</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: { extend: { colors: { brand: { 50: '#fdf6ee', 100: '#f8e6cf', 600: '#9a4d12', 700: '#7c3d0e', 800: '#5f2f0b' } }, fontFamily: { sans: ['Cairo', 'sans-serif'] } } }
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    .js .reveal { opacity: 0; transform: translateY(24px); transition: opacity .6s ease, transform .6s ease; }
+    .js .reveal.is-visible { opacity: 1; transform: none; }
+    @media (prefers-reduced-motion: reduce) { .js .reveal { opacity: 1; transform: none; transition: none; } }
+  </style>
+</head>
+<body class="bg-white text-slate-800 font-sans antialiased dark:bg-slate-950 dark:text-slate-100">
+  <header class="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90">
+    <nav class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3" aria-label="القائمة الرئيسية">
+      <a href="#home" class="flex items-center gap-2 text-xl font-extrabold text-brand-700 dark:text-brand-100">
+        <i data-lucide="coffee" aria-hidden="true"></i><span>الياسمين</span>
+      </a>
+      <ul id="menu" class="hidden items-center gap-6 font-semibold md:flex">
+        <li><a class="hover:text-brand-700 focus-visible:outline focus-visible:outline-2 dark:hover:text-brand-100" href="#menu-list">القائمة</a></li>
+        <li><a class="hover:text-brand-700 focus-visible:outline focus-visible:outline-2 dark:hover:text-brand-100" href="#about">قصتنا</a></li>
+        <li><a class="hover:text-brand-700 focus-visible:outline focus-visible:outline-2 dark:hover:text-brand-100" href="#gallery">المكان</a></li>
+        <li><a class="hover:text-brand-700 focus-visible:outline focus-visible:outline-2 dark:hover:text-brand-100" href="#reviews">آراء الزبائن</a></li>
+        <li><a class="hover:text-brand-700 focus-visible:outline focus-visible:outline-2 dark:hover:text-brand-100" href="#faq">أسئلة</a></li>
+        <li><a class="hover:text-brand-700 focus-visible:outline focus-visible:outline-2 dark:hover:text-brand-100" href="#contact">احجز</a></li>
+      </ul>
+      <div class="flex items-center gap-2">
+        <button id="theme" type="button" class="rounded-full p-2 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 dark:hover:bg-slate-800" aria-label="تبديل الوضع الليلي">
+          <i data-lucide="moon" aria-hidden="true"></i>
+        </button>
+        <button id="menu-button" type="button" class="rounded-full p-2 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 md:hidden dark:hover:bg-slate-800" aria-expanded="false" aria-controls="mobile-menu" aria-label="فتح القائمة">
+          <i data-lucide="menu" aria-hidden="true"></i>
+        </button>
+      </div>
+    </nav>
+    <div id="mobile-menu" class="hidden border-t border-slate-200 px-4 pb-4 md:hidden dark:border-slate-800">
+      <a class="block py-2 font-semibold" href="#menu-list">القائمة</a>
+      <a class="block py-2 font-semibold" href="#about">قصتنا</a>
+      <a class="block py-2 font-semibold" href="#gallery">المكان</a>
+      <a class="block py-2 font-semibold" href="#reviews">آراء الزبائن</a>
+      <a class="block py-2 font-semibold" href="#faq">أسئلة</a>
+      <a class="block py-2 font-semibold" href="#contact">احجز</a>
+    </div>
+  </header>
+
+  <main>
+    <section id="home" class="bg-gradient-to-bl from-brand-50 via-white to-amber-50 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900">
+      <div class="mx-auto grid max-w-6xl items-center gap-10 px-4 py-20 md:grid-cols-2">
+        <div class="reveal">
+          <p class="mb-3 font-semibold text-brand-700 dark:text-brand-100">قهوة مختصة منذ ٢٠١٩</p>
+          <h1 class="text-4xl font-extrabold leading-tight md:text-6xl">فنجانك الأحلى بجبل عمّان</h1>
+          <p class="mt-5 text-lg text-slate-600 dark:text-slate-300">نحمّص البن كل خميس بكميات صغيرة، ونقدّمه مع كعك الجدة وإطلالة على الدوار الأول.</p>
+          <div class="mt-8 flex flex-wrap gap-3">
+            <a href="#contact" class="rounded-2xl bg-brand-700 px-6 py-3 font-bold text-white shadow hover:bg-brand-800 focus-visible:outline focus-visible:outline-2">احجز طاولتك</a>
+            <a href="#menu-list" class="rounded-2xl border border-brand-700 px-6 py-3 font-bold text-brand-700 hover:bg-brand-50 focus-visible:outline focus-visible:outline-2 dark:border-brand-100 dark:text-brand-100 dark:hover:bg-slate-900">شوف القائمة</a>
+          </div>
+        </div>
+        <img class="reveal h-auto w-full max-w-full rounded-2xl shadow-xl" src="https://picsum.photos/seed/coffee/800/600" width="800" height="600" alt="ركن الجلوس في المقهى مع فنجان قهوة على الطاولة" loading="lazy">
+      </div>
+    </section>
+
+    <section id="menu-list" class="py-20">
+      <div class="mx-auto max-w-6xl px-4">
+        <h2 class="reveal text-3xl font-extrabold md:text-4xl">القائمة</h2>
+        <div class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <article class="reveal rounded-2xl border border-slate-200 p-6 shadow-sm dark:border-slate-800">
+            <i data-lucide="coffee" class="text-brand-700 dark:text-brand-100" aria-hidden="true"></i>
+            <h3 class="mt-3 text-xl font-bold">قهوة عربية بالهيل</h3>
+            <p class="mt-2 text-slate-600 dark:text-slate-300">دلة كاملة لأربعة، مع تمر مجدول.</p>
+            <p class="mt-4 font-extrabold text-brand-700 dark:text-brand-100">٣٫٥ دينار</p>
+          </article>
+          <article class="reveal rounded-2xl border border-slate-200 p-6 shadow-sm dark:border-slate-800">
+            <i data-lucide="cup-soda" class="text-brand-700 dark:text-brand-100" aria-hidden="true"></i>
+            <h3 class="mt-3 text-xl font-bold">فلات وايت إثيوبي</h3>
+            <p class="mt-2 text-slate-600 dark:text-slate-300">حبوب يرغاتشيفي بنكهة التوت والياسمين.</p>
+            <p class="mt-4 font-extrabold text-brand-700 dark:text-brand-100">٢٫٧٥ دينار</p>
+          </article>
+          <article class="reveal rounded-2xl border border-slate-200 p-6 shadow-sm dark:border-slate-800">
+            <i data-lucide="croissant" class="text-brand-700 dark:text-brand-100" aria-hidden="true"></i>
+            <h3 class="mt-3 text-xl font-bold">كعك الجدة بالسمسم</h3>
+            <p class="mt-2 text-slate-600 dark:text-slate-300">يُخبز كل صباح، ويخلص عادة قبل الظهر.</p>
+            <p class="mt-4 font-extrabold text-brand-700 dark:text-brand-100">١٫٢٥ دينار</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="about" class="bg-brand-50 py-20 dark:bg-slate-900">
+      <div class="mx-auto grid max-w-6xl items-center gap-10 px-4 md:grid-cols-2">
+        <img class="reveal h-auto w-full max-w-full rounded-2xl" src="https://picsum.photos/seed/roastery/800/600" width="800" height="600" alt="محمصة البن الصغيرة داخل المقهى" loading="lazy">
+        <div class="reveal">
+          <h2 class="text-3xl font-extrabold md:text-4xl">قصتنا</h2>
+          <p class="mt-4 text-lg text-slate-700 dark:text-slate-300">بدأت ليلى وسامي المقهى في بيت جدهما القديم سنة ٢٠١٩، بمحمصة واحدة وست طاولات. اليوم نشتري البن مباشرة من ثلاث مزارع في إثيوبيا وكولومبيا واليمن.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="gallery" class="py-20">
+      <div class="mx-auto max-w-6xl px-4">
+        <h2 class="reveal text-3xl font-extrabold md:text-4xl">المكان</h2>
+        <div class="mt-10 grid grid-cols-2 gap-4 md:grid-cols-3">
+          <img class="reveal h-auto w-full max-w-full rounded-2xl" src="https://picsum.photos/seed/terrace/600/400" width="600" height="400" alt="الشرفة المطلة على الدوار الأول" loading="lazy">
+          <img class="reveal h-auto w-full max-w-full rounded-2xl" src="https://picsum.photos/seed/barista/600/400" width="600" height="400" alt="الباريستا يحضّر فنجان فلات وايت" loading="lazy">
+          <img class="reveal h-auto w-full max-w-full rounded-2xl" src="https://picsum.photos/seed/books/600/400" width="600" height="400" alt="رف الكتب في زاوية القراءة" loading="lazy">
+        </div>
+      </div>
+    </section>
+
+    <section id="reviews" class="bg-slate-50 py-20 dark:bg-slate-900">
+      <div class="mx-auto max-w-6xl px-4">
+        <h2 class="reveal text-3xl font-extrabold md:text-4xl">آراء الزبائن</h2>
+        <div class="mt-10 grid gap-6 md:grid-cols-2">
+          <blockquote class="reveal rounded-2xl bg-white p-6 shadow-sm dark:bg-slate-950">
+            <p>«أطيب فلات وايت بعمّان، والكعك سخن كل مرة.»</p>
+            <footer class="mt-3 font-bold text-brand-700 dark:text-brand-100">— رنا، زبونة من ٢٠٢١</footer>
+          </blockquote>
+          <blockquote class="reveal rounded-2xl bg-white p-6 shadow-sm dark:bg-slate-950">
+            <p>«مكان هادي للشغل، والإنترنت سريع، والموظفين بعرفوا طلبي.»</p>
+            <footer class="mt-3 font-bold text-brand-700 dark:text-brand-100">— خالد، مصمم مستقل</footer>
+          </blockquote>
+        </div>
+      </div>
+    </section>
+
+    <section id="faq" class="py-20">
+      <div class="mx-auto max-w-3xl px-4">
+        <h2 class="reveal text-3xl font-extrabold md:text-4xl">أسئلة</h2>
+        <details class="reveal mt-8 rounded-2xl border border-slate-200 p-5 dark:border-slate-800">
+          <summary class="cursor-pointer font-bold">شو ساعات الدوام؟</summary>
+          <p class="mt-3 text-slate-600 dark:text-slate-300">كل يوم من ٨ الصبح لـ ١١ بالليل، والجمعة من ١ الظهر.</p>
+        </details>
+        <details class="reveal mt-4 rounded-2xl border border-slate-200 p-5 dark:border-slate-800">
+          <summary class="cursor-pointer font-bold">في مواقف سيارات؟</summary>
+          <p class="mt-3 text-slate-600 dark:text-slate-300">في موقف عام على بعد دقيقتين مشي، وبنعطيك ساعة مجانية فيه.</p>
+        </details>
+      </div>
+    </section>
+
+    <section id="contact" class="bg-brand-50 py-20 dark:bg-slate-900">
+      <div class="mx-auto max-w-3xl px-4">
+        <h2 class="reveal text-3xl font-extrabold md:text-4xl">احجز طاولتك</h2>
+        <form id="booking" class="reveal mt-8 grid gap-4" novalidate>
+          <label class="grid gap-1 font-semibold">الاسم
+            <input name="name" required class="rounded-xl border border-slate-300 px-4 py-3 text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100">
+          </label>
+          <label class="grid gap-1 font-semibold">رقم الهاتف
+            <input name="phone" type="tel" required class="rounded-xl border border-slate-300 px-4 py-3 text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100">
+          </label>
+          <p id="booking-status" class="text-brand-800 dark:text-brand-100" role="status"></p>
+          <button class="rounded-2xl bg-brand-700 px-6 py-3 font-bold text-white hover:bg-brand-800 focus-visible:outline focus-visible:outline-2">أرسل الحجز</button>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer class="border-t border-slate-200 py-10 dark:border-slate-800">
+    <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 text-slate-600 dark:text-slate-300">
+      <p>© 2026 مقهى الياسمين — جبل عمّان، شارع الرينبو</p>
+      <a href="#home" class="font-semibold text-brand-700 dark:text-brand-100">للأعلى</a>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/lucide@1.48.0/dist/umd/lucide.min.js"></script>
+  <script>
+    document.documentElement.classList.add('js');
+    if (window.lucide) lucide.createIcons();
+
+    var root = document.documentElement;
+    var saved = null;
+    try { saved = localStorage.getItem('theme'); } catch (_) { saved = null; }
+    if (saved === 'dark') root.classList.add('dark');
+    var theme = document.getElementById('theme');
+    if (theme) theme.addEventListener('click', function () {
+      root.classList.toggle('dark');
+      try { localStorage.setItem('theme', root.classList.contains('dark') ? 'dark' : 'light'); } catch (_) {}
+    });
+
+    var menuButton = document.getElementById('menu-button');
+    var mobileMenu = document.getElementById('mobile-menu');
+    if (menuButton && mobileMenu) {
+      menuButton.addEventListener('click', function () {
+        var open = mobileMenu.classList.toggle('hidden') === false;
+        menuButton.setAttribute('aria-expanded', String(open));
+      });
+      mobileMenu.addEventListener('click', function (e) {
+        if (e.target.closest('a')) { mobileMenu.classList.add('hidden'); menuButton.setAttribute('aria-expanded', 'false'); }
+      });
+    }
+
+    var reveal = document.querySelectorAll('.reveal');
+    if ('IntersectionObserver' in window) {
+      var seen = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) { if (entry.isIntersecting) { entry.target.classList.add('is-visible'); seen.unobserve(entry.target); } });
+      }, { threshold: 0.1 });
+      reveal.forEach(function (el) { seen.observe(el); });
+    } else reveal.forEach(function (el) { el.classList.add('is-visible'); });
+
+    var booking = document.getElementById('booking');
+    if (booking) booking.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var status = document.getElementById('booking-status');
+      var ok = booking.elements['name'].value.trim() && /^[0-9+\s]{8,}$/.test(booking.elements['phone'].value.trim());
+      if (status) status.textContent = ok ? 'وصلنا حجزك، رح نتصل فيك خلال ساعة.' : 'اكتب اسمك ورقم هاتف صحيح لو سمحت.';
+    });
+  </script>
+</body>
+</html>

@@ -24,6 +24,7 @@
 
 const { languageOfText } = require('../../public/domain/language');
 const { ownWords } = require('../../public/domain/ownWords');
+const { siteInConversation } = require('../../public/domain/siteRequest');
 
 const CAPSULES = /(?:^|\n+)Task-specific skill capsules:\n[\s\S]*?(?=\n\n|$)/;
 // The page and the server both build this note; the server's is the one kept.
@@ -98,11 +99,14 @@ const THINKING_INTENTS = new Set(['code', 'math', 'reasoning', 'research', 'file
  * against the per-minute and daily limits, and never cached. An everyday Flash
  * message does not need it; code, math, puzzles, research, documents and the
  * Max and Code modes keep the provider's default.
- * A question that needs thought (thinkingNeed) keeps it too.
- * @param {{mode?: string, intent?: string, mathIntent?: boolean, thought?: {needs: boolean}}} [route]
+ * A question that needs thought (thinkingNeed) keeps it too. A site in Flash
+ * thinks lightly: on Groq the reasoning is written inside the answer room a
+ * minute allows, and a page needs that room for itself.
+ * @param {{mode?: string, intent?: string, mathIntent?: boolean, thought?: {needs: boolean}, site?: boolean}} [route]
  * @returns {'low' | undefined}
  */
-function reasoningEffort({ mode, intent, mathIntent, thought } = {}) {
+function reasoningEffort({ mode, intent, mathIntent, thought, site } = {}) {
+  if (mode === 'flash' && site) return 'low';
   if (mode !== 'flash' || mathIntent || THINKING_INTENTS.has(String(intent)) || (thought && thought.needs)) return undefined;
   return 'low';
 }
@@ -136,6 +140,24 @@ function thinkingNeed(messages) {
   const lines = text.split('\n').filter((l) => l.trim()).length;
   if (text.length >= 300 || lines >= 4 || (text.match(/[?؟]/g) || []).length >= 2) why.push('long');
   return { needs: why.length > 0, hard: why.includes('puzzle') || text.length >= 600 || why.length >= 2, why };
+}
+
+/**
+ * Whether the larger model writes this answer first: a hard question, or a
+ * site. A whole page is where the larger model's design shows, and Groq gives
+ * gpt-oss-120b the same minute as the 20b.
+ * @param {Array<{role: string, content: any}>} messages
+ */
+function largerModelFirst(messages) {
+  return thinkingNeed(messages).hard || siteRequested(messages);
+}
+
+/**
+ * Whether the newest message asks for a site (siteRequest.js), on the person's own words.
+ * @param {Array<{role: string, content: any}>} messages
+ */
+function siteRequested(messages) {
+  return siteInConversation((messages || []).map((m) => ({ role: m && m.role, content: textOf(m && m.content) })), ownWords);
 }
 
 const TURN_OPEN = '[From Qjo, for this reply only — written by the app, not by the person. Follow it; never mention it.]';
@@ -174,4 +196,4 @@ function withTurnContext(params) {
   return /** @type {P} */ ({ ...rest, messages: attachTurnContext(rest.messages || [], turnContext) });
 }
 
-module.exports = { textOf, splitClientSystem, promptParts, layoutChatRequest, attachTurnContext, withTurnContext, reasoningEffort, thinkingNeed, TURN_OPEN, TURN_CLOSE };
+module.exports = { textOf, splitClientSystem, promptParts, layoutChatRequest, attachTurnContext, withTurnContext, reasoningEffort, thinkingNeed, largerModelFirst, siteRequested, TURN_OPEN, TURN_CLOSE };

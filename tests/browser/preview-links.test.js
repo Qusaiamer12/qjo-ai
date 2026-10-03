@@ -6,7 +6,7 @@
 // scrolls the page and the preview stays; a form is held, with a note; a link
 // to another page of the answer shows it — under the block and in the side
 // canvas — and one to a page the answer lacks says so; a link out opens a
-// tab; a library from unpkg loads from jsdelivr, which the preview allows; an
+// tab; a library from unpkg loads as written, which the preview allows; an
 // answer whose code was cut and continued with "```html" previews as one page.
 // The control: the same document without the guard does land on the app.
 const { launchBrowser, BASE_URL } = require('./harness');
@@ -29,8 +29,7 @@ const ABOUT = '<!DOCTYPE html><html><body><h1>صفحة من نحن</h1></body></
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   const fetched = [];
-  await page.route('https://cdn.jsdelivr.net/npm/fake-lib@1.0.0/dist/fake.js', (route) => { fetched.push('jsdelivr'); route.fulfill({ status: 200, contentType: 'application/javascript', body: 'window.fakeLib = "loaded";' }); });
-  await page.route('https://unpkg.com/**', (route) => { fetched.push('unpkg'); route.abort('blockedbyclient'); });
+  await page.route('https://unpkg.com/fake-lib@1.0.0/dist/fake.js', (route) => { fetched.push('unpkg'); route.fulfill({ status: 200, contentType: 'application/javascript', body: 'window.fakeLib = "loaded";' }); });
   let answer = '```html\n' + SITE + '\n```\n\n```html:about.html\n' + ABOUT + '\n```';
   await page.route('**/api/chat', (route) => route.fulfill({ status: 200, contentType: 'text/event-stream', body: `event: chunk\ndata: ${JSON.stringify({ text: answer })}\n\nevent: done\ndata: {}\n\n` }));
   await page.addInitScript("try { localStorage.setItem('qjo_language', 'ar'); } catch (_) {}");
@@ -104,7 +103,7 @@ const ABOUT = '<!DOCTYPE html><html><body><h1>صفحة من نحن</h1></body></
     ok(opened && opened !== page && request && request.frame().page() === opened && (await state()).url === 'about:srcdoc', `a link out opens it in a new tab (${request && request.url()}) and the preview stays`);
     if (opened) await opened.close();
 
-    ok((await (await frame()).evaluate(() => window.fakeLib)) === 'loaded' && fetched.includes('jsdelivr') && !fetched.includes('unpkg'), `a library from unpkg loads from jsdelivr (${fetched.join(', ')})`);
+    ok((await (await frame()).evaluate(() => window.fakeLib)) === 'loaded' && fetched.includes('unpkg'), `a library from unpkg loads as written (${fetched.join(', ')})`);
 
     await (await frame()).click('#other');
     await page.waitForTimeout(1200);

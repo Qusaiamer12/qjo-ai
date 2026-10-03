@@ -24,6 +24,7 @@ const http = require('http');
 const { createLlmService } = require('../src/services/llmService');
 const { createRoutingEngine } = require('../src/agents/RoutingEngine');
 const { buildChatSystemPrompt } = require('../src/services/systemPrompt');
+const { detectNeeds } = require('../src/services/playbooks');
 
 let pass = 0;
 let fail = 0;
@@ -214,6 +215,23 @@ async function main() {
     ok(second && second.maxTokens >= 1024, `with a useful answer length (${second && second.maxTokens} tokens)`);
     ok(res.ok && /groq answered/.test(res.answer || ''), 'and Groq answers', res.error || res.answer);
     ok(llm7Calls().length === 0, 'without waiting on a provider that is not needed');
+  });
+
+  // A site asks for 7,000 tokens of answer room — all a provider without
+  // Groq's minute can give. Groq's larger model is asked first and answers
+  // with what its 8,000 a minute leaves after the request; the rest of a long
+  // page comes by continuation (continuation.js).
+  await scenario('A site: the larger model answers with the room its minute leaves', 30000, async (ok) => {
+    llm7 = { headerDelayMs: 0, dead: true };
+    const fresh = buildEngine(baseUrl);
+    const text = 'صمملي موقع لمطعم مشاوي في عمّان';
+    const messages = [{ role: 'system', content: buildChatSystemPrompt({ mode: 'flash', arabic: true, needs: detectNeeds([{ role: 'user', content: text }]) }) }, { role: 'user', content: text }];
+    const res = await fresh.callAgent({ mode: 'normal', model: 'openai/gpt-oss-20b', messages, max_tokens: 7000, onChunk: () => {} });
+    const all = groqCalls();
+    ok(all[0] && all[0].model === 'openai/gpt-oss-120b' && all[0].maxTokens === 7000, `asked first of the larger model, with 7,000 (${all[0] && all[0].model}, ${all[0] && all[0].maxTokens})`);
+    const answered = all.find((c) => c.model === 'openai/gpt-oss-120b' && c.input + c.maxTokens <= 8000);
+    ok(answered && answered.maxTokens >= 3800, `and answered by it with ${answered && answered.maxTokens} tokens of room, inside its 8,000`, all.map((c) => [c.model, c.input, c.maxTokens]));
+    ok(res.ok && /gpt-oss-120b/.test(res.answer || '') && llm7Calls().length === 0, 'without leaving Groq', res.error || res.answer);
   });
 
   await scenario('Too large for Groq even with a short answer: llm7 is given time to start', 90000, async (ok) => {

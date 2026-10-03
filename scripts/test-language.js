@@ -218,7 +218,8 @@ test('what is asked is judged on the person\'s words, not on the files the page 
   assert.ok(needs.files, 'it is still known that a file is attached');
   // Control: the same words typed by the person choose them.
   const typed = detectNeeds([user('build me a React page in JavaScript')]);
-  assert.ok(typed.code && typed.playbooks.includes('ui'), `typed: code ${typed.code}, [${typed.playbooks}]`);
+  assert.ok(typed.site && typed.playbooks.includes('ui'), `typed: site ${typed.site}, [${typed.playbooks}]`);
+  assert.ok(detectNeeds([user('refactor my React component in JavaScript')]).code, 'typed: code');
 });
 
 test('a file of code still makes the request about code', () => {
@@ -275,6 +276,30 @@ test('a location, a blood test or an investment is not a website to build', () =
     const chosen = detectNeeds([user(text)]).playbooks;
     assert.ok(!chosen.includes('ui'), `"${text}" brought the interfaces playbook: [${chosen}]`);
   }
+});
+
+// A site is one file for the preview (siteRequest.js). It was asked for with
+// the engineering overlay (file tree, npm install, tests, deployment) and any
+// playbook a word chose — "doctor" brought medical guardrails to a clinic's site.
+test('a site carries the interface playbook alone, without the engineering overlay', () => {
+  for (const text of ['Build me a landing page for my cafe in React', 'make a website for my dental clinic, the doctor wants a booking form', 'write a landing page for my bakery with our best recipes', 'صمملي موقع لعيادة دكتور أسنان']) {
+    const needs = detectNeeds([user(text)]);
+    assert.ok(needs.site && !needs.code, `"${text}": site ${needs.site}, code ${needs.code}`);
+    assert.deepStrictEqual(needs.playbooks, ['ui'], text);
+    assert.ok(!/ACTIVE MODE: CODE/.test(buildChatSystemPrompt({ mode: 'flash', needs, arabic: true })), `"${text}" got the engineering overlay`);
+  }
+  // Control: the same words, asked as themselves.
+  assert.ok(detectNeeds([user('my doctor says I have a fever')]).playbooks.includes('medical'));
+  assert.ok(detectNeeds([user('fix this bug: TypeError in my react component')]).code);
+});
+
+test('the site playbook names what the preview loads, at the versions it serves', () => {
+  const { LIBS } = require('../public/domain/codeProject');
+  const ui = PLAYBOOKS.ui.en;
+  const lucide = /lucide@([\d.]+)\/dist\/umd\/lucide\.min\.js/.exec(ui);
+  assert.ok(lucide && LIBS.lucideReact.includes(`lucide-react@${lucide[1]}/`), `Lucide ${lucide && lucide[1]} and lucide-react in ${LIBS.lucideReact}`);
+  assert.ok(ui.includes(LIBS.tailwind) && /picsum\.photos\/seed/.test(ui) && /cdn\.jsdelivr\.net or cdnjs\.cloudflare\.com/.test(ui));
+  assert.ok(/dir="rtl"/.test(require('../src/services/arabicPrompt').ARABIC_PLAYBOOK_NOTES.ui));
 });
 
 test('a follow-up keeps the playbook of the request it follows', () => {

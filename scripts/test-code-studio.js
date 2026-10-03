@@ -249,13 +249,47 @@ test('a link names a page of the answer by its file name; index.html is the firs
   assert.strictEqual(pageNamed(blocks, 'team.html'), -1);
 });
 
-test('libraries from CDNs the preview cannot load come from jsdelivr', () => {
-  assert.strictEqual(onAllowedCdns('<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>'), '<script src="https://cdn.jsdelivr.net/npm/aos@2.3.1/dist/aos.js"></script>');
+test('ES modules from CDNs the preview cannot load come from jsdelivr; unpkg is loaded as written', () => {
   assert.strictEqual(onAllowedCdns("import x from 'https://esm.sh/canvas-confetti@1.9.3'"), "import x from 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/+esm'");
   assert.strictEqual(onAllowedCdns('https://code.jquery.com/jquery-3.7.1.min.js'), 'https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js');
   assert.strictEqual(onAllowedCdns('https://cdn.jsdelivr.net/npm/aos@2'), 'https://cdn.jsdelivr.net/npm/aos@2', 'an allowed CDN is left alone');
+  // A package address with no file in it is the browser build on unpkg and the
+  // CommonJS build on jsdelivr: Lucide's own snippet stopped a page's script.
+  for (const tag of ['<script src="https://unpkg.com/lucide@latest"></script>', '<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>']) {
+    assert.strictEqual(onAllowedCdns(tag), tag);
+  }
   const doc = buildDocument({ kind: 'html', files: [{ name: 'index.html', role: 'main', code: '<script src="https://unpkg.com/x@1/x.js"></script>' }, { name: 'app.js', role: 'script', code: "import y from 'https://unpkg.com/y@2?module'" }] });
-  assert.ok(!/unpkg/.test(doc) && /npm\/x@1\/x\.js/.test(doc) && /npm\/y@2\/\+esm/.test(doc), doc.slice(-300));
+  assert.ok(/unpkg\.com\/x@1\/x\.js/.test(doc) && /npm\/y@2\/\+esm/.test(doc), doc.slice(-300));
+});
+
+test('the app allows unpkg for scripts and styles, which the preview inherits', () => {
+  const server = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  for (const directive of ['script-src', 'style-src']) {
+    const list = new RegExp(`"${directive}": \\[([^\\]]*)\\]`).exec(server);
+    assert.ok(list && list[1].includes('"https://unpkg.com"'), `${directive}: ${list && list[1]}`);
+  }
+});
+
+// The guard keeps a page's storage in memory: in a sandbox without
+// same-origin, localStorage and document.cookie throw.
+test('a page\'s storage and cookies work in memory where the browser refuses them', () => {
+  const guard = /<script>(\(function \(\) \{\n {2}var S = [\s\S]*?\}\)\(\);)<\/script>/.exec(buildDocument({ kind: 'html', files: [{ name: 'index.html', role: 'main', code: '<p>x</p>' }] }))[1];
+  const refuse = () => { const e = new Error('The document is sandboxed'); e.name = 'SecurityError'; throw e; };
+  const win = { addEventListener() {} };
+  const doc = { addEventListener() {} };
+  for (const name of ['localStorage', 'sessionStorage']) Object.defineProperty(win, name, { get: refuse, configurable: true });
+  Object.defineProperty(doc, 'cookie', { get: refuse, set: refuse, configurable: true });
+  new Function('window', 'document', 'HTMLFormElement', guard)(win, doc, function () {});
+  win.localStorage.setItem('theme', 'dark');
+  win.sessionStorage.setItem('n', 2);
+  assert.deepStrictEqual([win.localStorage.getItem('theme'), win.localStorage.getItem('none'), win.localStorage.length, win.sessionStorage.getItem('n')], ['dark', null, 1, '2']);
+  doc.cookie = 'consent=yes; path=/';
+  doc.cookie = 'lang=ar';
+  assert.strictEqual(doc.cookie, 'consent=yes; lang=ar');
+  // Control: where the browser allows storage, the page's own is left alone.
+  const real = { addEventListener() {}, localStorage: { length: 0, mine: true }, sessionStorage: { length: 0 } };
+  new Function('window', 'document', 'HTMLFormElement', guard)(real, { addEventListener() {}, cookie: '' }, function () {});
+  assert.ok(real.localStorage.mine, 'a working localStorage was replaced');
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);

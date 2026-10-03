@@ -17,6 +17,7 @@
 
 const { ARABIC_PLAYBOOK_NOTES } = require('./arabicPrompt');
 const { ownWords } = require('../../public/domain/ownWords');
+const { siteInConversation } = require('../../public/domain/siteRequest');
 
 // The quantities a worked problem is about. Arabic words are whole words, with
 // or without "ال"/"بال"/"لل": "بطاقة" is a card and "بسرعة" is "quickly".
@@ -69,14 +70,20 @@ LITERARY CRAFTSMANSHIP, GRAMMAR & TEXT RESTRUCTURING
   ui: {
     // A page, a component, a screen — built to run in Qjo's preview studio.
     // "موقع" alone is also "location", so it counts only as a site to build.
+    // A site request (siteRequest.js) carries this alone; its addresses are the
+    // ones the preview loads (scripts from jsdelivr, cdnjs, Tailwind's CDN).
     match: /\b(website|web ?site|landing page|web ?page|home ?page|web app|user interface|ui|ux|front-?end|dashboard|portfolio (?:site|website|page)|navbar|html|css|tailwind|react|jsx|tsx)\b|موقع\s*(ويب|إلكتروني|الكتروني|شخصي)|(صمم|صمّم|اعمل|ابني|سوي|برمج)\S*\s+(لي\s+)?(موقع|صفحة|واجهة|تطبيق)|صفحة هبوط|صفحة ويب|واجهة|لوحة تحكم|داشبورد|بورتفوليو|رياكت|ريأكت/i,
     en: `
-- INTERFACES (pages, components, dashboards) — the answer previews live in Qjo's studio:
-  • Deliver one runnable piece: a single complete HTML file (CSS in <style>, JS in <script>), or one React component with export default. If you split HTML, CSS and JS, name the blocks (index.html, style.css, script.js) and link them by those names.
-  • React previews can import only react, react-dom and lucide-react; Tailwind classes are available. No other packages, no local imports, no build step.
-  • In an HTML page, load libraries from cdn.jsdelivr.net or cdnjs.cloudflare.com — the preview loads no other CDN — and link sections with #id anchors.
-  • Style with Tailwind utilities; responsive from 360px to desktop; real hover, focus and active states; every control usable by keyboard and labelled.
-  • Real, specific content in the reply language — never lorem ipsum. Interactive where it helps (tabs, filters, validated forms), with state that actually works.`
+- WEBSITES & INTERFACES — the page previews live in Qjo, opens in its own tab and downloads as index.html: never tell the person to save files, install anything or run a server.
+  • One \`\`\`html block, complete from <!DOCTYPE html> to </html>: <meta name="viewport">, a <title>, <script src="https://cdn.tailwindcss.com"></script> followed by tailwind.config = { darkMode: 'class', theme: { extend: { colors: { brand: {…} }, fontFamily: {…} } } }, one Google Fonts pair, extra CSS in <style>, one <script> at the end of <body>. React only when asked: one component with export default, importing only react, react-dom and lucide-react.
+  • A real site, not a demo: a sticky header (logo, #id links to every section, a dark-mode toggle, a menu button for phones with aria-expanded that opens and closes); a hero with a sharp headline, one line under it, two calls to action and an image; then four to six sections that suit the subject (services or features, about, gallery or work, testimonials, pricing or menu, FAQ in <details>, a contact form with labels and validation); a footer with links and © 2026.
+  • Content written for this subject in the reply language — names, prices, hours, quotes, figures. Never lorem ipsum, "Feature 1" or a placeholder.
+  • Design: one brand colour with neutral greys; sections py-20 in max-w-6xl mx-auto px-4; rounded-2xl cards with soft shadows; a gradient or subtle pattern behind the hero; a clear type scale (text-4xl md:text-6xl for the one h1); dark: variants on every background and text; readable contrast in both themes.
+  • Icons: Lucide — <script src="https://cdn.jsdelivr.net/npm/lucide@1.48.0/dist/umd/lucide.min.js"></script>, <i data-lucide="coffee"></i>, then lucide.createIcons(). Photos: https://picsum.photos/seed/<one-word>/<width>/<height> with alt, width, height and loading="lazy"; no other image addresses.
+  • Motion that never hides content: the script adds class "js" to <html>, and only .js .reveal starts faded and shifted down, shown by an IntersectionObserver; respect prefers-reduced-motion; hover, focus-visible and active states on every control; scroll-smooth on <html>.
+  • 360px wide with no sideways scrolling: grids that stack, nothing wider than the screen, max-w-full images, long words that wrap.
+  • A script that never stops: check an element exists before using it; libraries only from cdn.jsdelivr.net or cdnjs.cloudflare.com.
+  • After the code, at most three short lines: what the page has, and what to ask for next.`
   },
   charts: {
     match: /\b(plot|graph|chart|curve|diagram|visuali[sz]e)\b|رسم|ارسم|منحنى|منحني|مخطط|بياني|دالة/i,
@@ -263,8 +270,8 @@ function selectPlaybooks(recent, { code = false } = {}) {
 
 /**
  * What a chat request needs beyond the core: search and file overlays (from
- * what the page attached), the engineering overlay, and playbooks.
- * @param {Array<{role: string, content: any}>} userMessages
+ * what the page attached), the engineering overlay, a site, and playbooks.
+ * @param {Array<{role: string, content: any}>} userMessages the conversation, the answers in it included
  */
 function detectNeeds(userMessages) {
   const texts = (userMessages || []).filter((m) => m && m.role === 'user').map((m) => textOf(m.content));
@@ -273,7 +280,11 @@ function detectNeeds(userMessages) {
   // attached to them (ownWords.js): a CV's skills list is not a request for code.
   // A file of code still makes the request about code.
   const own = texts.map(ownWords);
-  const code = CODE_WORDS.test(own.join('\n')) || CODE_FILE.test(t);
+  // A site is one file for the preview (siteRequest.js): the interface playbook
+  // alone, without the engineering overlay's file tree, terminal commands and
+  // tests, or a playbook a word chose ("doctor" for a clinic's site).
+  const site = siteInConversation((userMessages || []).map((m) => ({ role: m && m.role, content: textOf(m && m.content) })), ownWords);
+  const code = !site && (CODE_WORDS.test(own.join('\n')) || CODE_FILE.test(t));
   return {
     search: /source pack|connected search|connected deep search|web search note|search query used/i.test(t),
     files: /user attached files|pdf pages processed|ocr text extracted|extraction method|attachment index|المرفقات/i.test(t),
@@ -282,7 +293,8 @@ function detectNeeds(userMessages) {
     // error-handling rules) is attached whenever the request is code-shaped
     // instead of waiting for a mode that can never be chosen.
     code,
-    playbooks: selectPlaybooks(own.slice(-2), { code })
+    site,
+    playbooks: site ? ['ui'] : selectPlaybooks(own.slice(-2), { code })
   };
 }
 
