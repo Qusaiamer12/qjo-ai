@@ -113,8 +113,55 @@ const { launchBrowser, BASE_URL } = require('./harness');
   console.log(`${quizSafe ? '✅ safe      ' : quizRendered ? '❌ VULNERABLE' : '❌ NOT RENDERED'}  quiz question, options and explanation`);
   if (!quizSafe) console.log('              →', JSON.stringify(outcome).slice(0, 200));
 
+  // Chart and quiz blocks that JSON.parse refused were run as JavaScript
+  // (`new Function('return (' + text + ')')`) in the app's own origin, which
+  // allows eval: a block holding code ran with the person's sign-in.
+  let extra = 0;
+  const check = (cond, label, detail) => {
+    extra++;
+    if (!cond) failures++;
+    console.log(`${cond ? '✅ safe      ' : '❌ VULNERABLE'}  ${label}`);
+    if (!cond && detail !== undefined) console.log('              →', JSON.stringify(detail).slice(0, 300));
+  };
+  const blocks = await (await b.newContext()).newPage();
+  // A stand-in Chart.js that keeps what it is handed: proof the page read a block.
+  await blocks.route('https://cdn.jsdelivr.net/npm/chart.js@*/**', (route) => route.fulfill({ status: 200, contentType: 'application/javascript',
+    body: 'window.__charts=[];window.Chart=function(c,cfg){window.__charts.push(cfg)};window.Chart.getChart=function(){return null};' }));
+  const fence = '```';
+  const ANSWER = [
+    fence + 'chart', "{type: 'bar', data: {labels: ['a'], datasets: [{label: 'hostile', data: [(window.__chartRan = 1, 2)]}]}}", fence,
+    fence + 'quiz', "[{question: 'Q', options: ['A', 'B'], answer: 'B', explanation: (window.__quizRan = 1, 'E')}]", fence,
+    // Controls: the same forms without code are read, relaxed as models write them.
+    fence + 'chart', "{type: 'line', data: {labels: ['a', 'b',], datasets: [{label: 'relaxed', data: [3, 4]}]}, // a comment\n}", fence,
+    fence + 'quiz', "[{question: 'Relaxed Q', options: ['A', 'B',], answer: 'B', explanation: 'E'}]", fence
+  ].join('\n');
+  await blocks.route('**/api/chat', (route) => route.fulfill({ status: 200, contentType: 'text/event-stream',
+    body: `event: chunk\ndata: ${JSON.stringify({ text: ANSWER })}\n\nevent: done\ndata: {}\n\n` }));
+  await blocks.goto(BASE_URL + '/', { waitUntil: 'domcontentloaded' });
+  await blocks.addStyleTag({ content: '#authOverlay{display:none !important;visibility:hidden !important;pointer-events:none !important;}' });
+  await blocks.waitForFunction(() => typeof window.Chart === 'function', null, { timeout: 15000 });
+  await blocks.fill('#input', 'chart and quiz');
+  await blocks.click('#sendBtn');
+  await blocks.waitForFunction(() => (window.__charts || []).length && document.querySelector('.quiz-option-btn'), null, { timeout: 10000 }).catch(() => {});
+  await blocks.waitForTimeout(500);
+  const read = await blocks.evaluate(() => ({
+    charts: (window.__charts || []).map((c) => c.data.datasets[0].label),
+    quizzes: [...document.querySelectorAll('.interactive-quiz-container')].map((q) => q.innerText.replace(/\s+/g, ' ').trim()),
+    chartNotes: [...document.querySelectorAll('.chart-error-note:not(.hidden)')].length,
+    chartRan: window.__chartRan === 1, quizRan: window.__quizRan === 1
+  }));
+  if (!read.charts.includes('relaxed') || !read.quizzes.some((q) => /Relaxed Q/.test(q))) {
+    console.log(`❌ control failed: a relaxed chart and quiz were not drawn — the probe is not looking at blocks (${JSON.stringify(read)})`);
+    await b.close();
+    process.exit(1);
+  }
+  console.log('✅ control: a chart and a quiz written as models write them (bare keys, single quotes, trailing commas, a comment) are drawn');
+  check(!read.chartRan && !read.charts.includes('hostile'), 'a chart block holding code: not run, not drawn', read);
+  check(!read.quizRan, 'a quiz block holding code: not run', read);
+  check(read.chartNotes === 1 && read.quizzes.some((q) => /could not be read|ما قدرت أقرأ/.test(q)), 'each refused block says so, not an empty box', read);
+
   await b.close();
-  const total = probes.length + 2;
+  const total = probes.length + 2 + extra;
   console.log(`\n${total - failures} passed, ${failures} failed`);
   process.exit(failures ? 1 : 0);
 })();

@@ -35,6 +35,7 @@
     "test:domain": "node scripts/test-domain.js",
     "test:code-studio": "node scripts/test-code-studio.js",
     "test:python": "node scripts/test-python.js",
+    "test:math-plot": "node scripts/test-math-plot.js",
     "test:browser": "node tests/browser/run.js",
     "test:search-e2e": "node scripts/test-search-e2e.js",
     "test:long-requests": "node scripts/test-long-requests.js",

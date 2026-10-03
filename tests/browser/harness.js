@@ -55,7 +55,11 @@ function findChromium() {
 function launchOptions() {
   const executablePath = findChromium();
   const args = ['--disable-features=IsolateSandboxedIframes'];
-  return executablePath ? { executablePath, args } : { args };
+  // A file a page saves keeps its name only in a UTF-8 locale: under C (this
+  // container sets none; GitHub's runners use C.UTF-8) Chromium names every
+  // download with a letter outside ASCII "download" — "كرة.png" included.
+  const env = { ...process.env, LANG: process.env.LANG || 'C.UTF-8' };
+  return executablePath ? { executablePath, args, env } : { args, env };
 }
 
 /**

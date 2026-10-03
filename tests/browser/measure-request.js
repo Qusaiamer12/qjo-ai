@@ -66,7 +66,9 @@ const MESSAGES = [
   ['physics problem (ar)', 'سيارة تتسارع من السكون بتسارع 3.2 م/ث² لمدة 12 ثانية، احسب سرعتها النهائية والمسافة'],
   ['dose calculation (en)', 'A child weighs 18 kg and the dose is 15 mg/kg every 6 hours. How many mL of a 120 mg/5 mL syrup per dose?'],
   ['python plot (ar)', 'اكتبلي كود بايثون يرسم منحنى المبيعات الشهرية'],
-  ['python analysis (en)', 'Write Python to analyse a year of monthly sales and plot the trend']
+  ['python analysis (en)', 'Write Python to analyse a year of monthly sales and plot the trend'],
+  ['math figure (ar)', 'ارسملي منحنى الدالة y = x^2 - 3x + 2 وحدد جذورها'],
+  ['3D solids (en)', 'Draw a sphere and a cone in 3D and explain their volumes']
 ];
 
 // The request as the model's template lays it out.

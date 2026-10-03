@@ -19,6 +19,7 @@ const { ARABIC_PLAYBOOK_NOTES } = require('./arabicPrompt');
 const { ownWords } = require('../../public/domain/ownWords');
 const { siteInConversation } = require('../../public/domain/siteRequest');
 const { pythonInPage, DATA_FILE } = require('../../public/domain/pythonRun');
+const { asksForPlot, answerHasPlot } = require('../../public/domain/mathPlot');
 
 // The quantities a worked problem is about. Arabic words are whole words, with
 // or without "ال"/"بال"/"لل": "بطاقة" is a card and "بسرعة" is "quickly".
@@ -107,6 +108,21 @@ LITERARY CRAFTSMANSHIP, GRAMMAR & TEXT RESTRUCTURING
     }
     \`\`\`
     Chart titles and labels are in the reply language. Follow the chart with a concise breakdown of key values, domain, and behavior.`
+  },
+  mathplot: {
+    // A figure of mathematics (mathPlot.asksForPlot), chosen in detectNeeds:
+    // drawn by the page (public/ui/mathPlot.js), turned and zoomed, saved as PNG.
+    match: null,
+    en: `
+- MATH FIGURES — drawn in the answer from one \`\`\`mathplot block of JSON; the person turns it, zooms and saves it as PNG. Never Python, a chart block or a picture for these.
+  {"title": "…", "plots": [ … ]}, up to 12 parts, all flat or all 3D:
+  • {"type": "function", "y": "x^2 - 3x + 2", "x": [-1, 4]} · {"type": "polar", "r": "1 + cos(theta)"} · {"type": "curve", "x": "cos(t)", "y": "sin(t)", "z": "t/4", "t": [0, "4pi"]} (without "z": flat) · {"type": "implicit", "equation": "x^2 + y^2 = 9"} (with z: a surface)
+  • {"type": "surface", "z": "sin(x)*cos(y)", "x": [-3, 3], "y": [-3, 3]} · {"type": "parametric", "x": "…", "y": "…", "z": "…", "u": [0, "2pi"], "v": [0, "pi"]}
+  • Solids: {"type": "sphere", "center": [0, 0, 0], "radius": 2}; "cylinder" and "cone" ("center" of the base, "radius", "height"); "torus" ("R", "r"); "box" ("size": 2 or [a, b, c]); "pyramid" ("base", "height"); {"type": "plane", "equation": "x + 2y - z = 3"}
+  • {"type": "vector", "from": [0, 0, 0], "to": [1, 2, 3]} · {"type": "points", "points": [[1, 0], [2, 0]], "labels": ["A", "B"]}
+  • Any part may have "name" (its legend, in the reply language), "color", "opacity".
+  • Expressions: + - * / ^, 2x, sqrt, sin, cos, tan, asin, ln (natural), log (base 10), exp, abs, pi, e. Ranges are numbers or "2pi".
+  • After the block, two or three lines on what the figure shows: roots, extremes, intersections, a volume.`
   },
   python: {
     match: /python|pandas|numpy|sympy|jupyter|pyodide|بايثون/i,
@@ -290,7 +306,12 @@ function detectNeeds(userMessages) {
   // playbook said "never output Python", and the engineering overlay a file
   // tree and npm install.
   const python = !site && pythonInPage(own[own.length - 1] || '', DATA_FILE.test(texts[texts.length - 1] || ''));
-  const code = !site && !python && (CODE_WORDS.test(own.join('\n')) || CODE_FILE.test(t));
+  // A figure of mathematics is a block the page draws: not a chart of
+  // made-up points, and not code ("دالة" is a function in both). A follow-up
+  // to an answer that drew one ("make it red") keeps the format.
+  const answers = (userMessages || []).filter((m) => m && m.role === 'assistant');
+  const plot = !site && !python && (asksForPlot(own[own.length - 1] || '') || answerHasPlot(textOf(answers.length ? answers[answers.length - 1].content : '')));
+  const code = !site && !python && !plot && (CODE_WORDS.test(own.join('\n')) || CODE_FILE.test(t));
   return {
     search: /source pack|connected search|connected deep search|web search note|search query used/i.test(t),
     files: /user attached files|pdf pages processed|ocr text extracted|extraction method|attachment index|المرفقات/i.test(t),
@@ -301,7 +322,8 @@ function detectNeeds(userMessages) {
     code,
     site,
     python,
-    playbooks: site ? ['ui'] : python ? ['python'] : selectPlaybooks(own.slice(-2), { code })
+    plot,
+    playbooks: site ? ['ui'] : python ? ['python'] : plot ? [...selectPlaybooks(own.slice(-2)).filter((k) => !['charts', 'ui', 'code'].includes(k)), 'mathplot'] : selectPlaybooks(own.slice(-2), { code })
   };
 }
 

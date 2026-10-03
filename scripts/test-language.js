@@ -175,7 +175,8 @@ const SAMPLES = {
   time: ['what time is it?', 'شو التاريخ اليوم؟'],
   math: ['calculate 15% of 2400', 'احسبلي 15% من 2400'],
   ui: ['build me a landing page for my cafe', 'صمملي موقع شخصي لمصمم جرافيك'],
-  charts: ['plot e^-t', 'ارسملي منحنى الدالة e^-t'],
+  charts: ['chart our monthly sales: Jan 120, Feb 150, Mar 135', 'ارسملي مخطط المبيعات الشهرية'],
+  mathplot: ['plot e^-t', 'ارسملي منحنى الدالة e^-t', 'draw a sphere of radius 2 and a cone in 3D', 'ارسم سطح z = sin(x)cos(y) ثلاثي الأبعاد'],
   python: ['write python to sort a list', 'اعطيني كود بايثون يرتب قائمة'],
   video: ['a TikTok script for my cafe', 'سكريبت فيديو ريلز لمطعمي'],
   job: ['write me a cover letter for a developer job', 'اكتبلي رسالة تغطية لوظيفة مطور'],
@@ -243,6 +244,30 @@ test('each playbook is chosen by the words that call for it, in English and in A
       assert.ok(chosen.includes(key), `"${text}" did not bring the ${key} playbook: [${chosen}]`);
     }
   }
+});
+
+test('a figure of mathematics carries the figure playbook: not a chart of made-up points, not the code overlay', () => {
+  // "ارسملي منحنى الدالة" brought the engineering overlay ("دالة" is also a
+  // function in code) and the charts playbook, which drew a function as a dozen
+  // hand-computed points and could not draw a surface or a solid at all.
+  for (const text of SAMPLES.mathplot.concat('ارسملي منحنى الدالة y = x^2 - 3x + 2 وحدد جذورها')) {
+    const needs = detectNeeds([user(text)]);
+    assert.ok(needs.plot && !needs.code && !needs.playbooks.includes('charts') && !needs.playbooks.includes('code'), `"${text}": plot ${needs.plot}, code ${needs.code}, [${needs.playbooks}]`);
+  }
+  // Controls: data is a chart, Python is Python, code is code.
+  assert.deepStrictEqual(detectNeeds([user('ارسملي مخطط المبيعات الشهرية')]).playbooks, ['charts']);
+  assert.ok(detectNeeds([user('ارسملي منحنى بالبايثون للدالة sin(x)')]).python);
+  assert.ok(detectNeeds([user('اكتب دالة جافاسكربت ترتب مصفوفة')]).code);
+  // A follow-up to an answer that drew one keeps the format; after one that did not, it does not.
+  const after = (answer) => detectNeeds([user('ارسملي سطح z = x^2 + y^2'), { role: 'assistant', content: answer }, user('خليه أحمر')]).playbooks;
+  assert.ok(after('هاي:\n```mathplot\n{}\n```').includes('mathplot'));
+  assert.ok(!after('تمام').includes('mathplot'));
+});
+
+test('the Arabic flash note no longer sends every plot to the chart block', () => {
+  const prompt = buildChatSystemPrompt({ mode: 'flash', needs: detectNeeds([user('ارسم كرة ومخروط ثلاثي الأبعاد')]), arabic: true });
+  assert.ok(!/get the chart block/.test(prompt), 'the flash note still says plots get the chart block');
+  assert.ok(prompt.includes('MATH FIGURES') && prompt.includes(ARABIC_PLAYBOOK_NOTES.mathplot.trim()));
 });
 
 test('every Arabic playbook note reaches the model when an Arabic message calls for it', () => {

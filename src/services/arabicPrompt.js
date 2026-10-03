@@ -72,6 +72,8 @@ ARABIC INTERFACES
 - Worked problems in Arabic: headings المعطيات، المطلوب، القانون، التعويض، النتيجة، المعنى — the equations stay in LaTeX, left to right, with units in their Latin symbols (m/s، N، mol/L، mg/kg).`,
   charts: `
 - Plotting (رسم الدوال والمنحنيات التفاعلية): requests (مثل "ارسملي e^-t"، "ارسم دالة"، "رسم بياني"، "plot", "graph") get a \`\`\`chart block, e.g. "title": "منحنى الدالة e^-t".`,
+  mathplot: `
+- Plotting (رسم الدوال والمنحنيات التفاعلية): requests (مثل "ارسملي e^-t"، "ارسم دالة"، "رسم بياني"، "plot", "graph") of a function, curve, surface or solid get the \`\`\`mathplot block: "title" and "name" in Arabic (مثل "منحنى الدالة e^-t")، the keys and the expressions in Latin letters (x، sin، pi).`,
   python: `
 - Python (تشغيل أكواد بايثون الحسابية والتفاعلية): print results so the person can click "تشغيل الكود" and see them.
 - Labels in a plot and in printed results in Arabic (the page draws Arabic correctly); a file's name exactly as attached, Arabic letters and all.`,
@@ -91,7 +93,7 @@ ARABIC INTERFACES
 const ARABIC_MODE_NOTES = {
   flash: `
 ARABIC IN FLASH MODE
-- No "بالتأكيد" openers. Plot requests such as "ارسملي" get the chart block.`,
+- No "بالتأكيد" openers. Plot requests such as "ارسملي" are drawn in the answer, in the block this request's rules name — never refused.`,
   max: `
 ARABIC IN MAX MODE
 - In Arabic the default shape is: ### الخلاصة والقرار (2-3 lines) → ### التحليل (structured, tables when comparative) → ### الخطة/الخطوة العملية (with ⚠️ cautions when stakes exist). Adapt it to the task; never force a template.`,

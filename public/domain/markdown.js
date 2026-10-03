@@ -229,6 +229,10 @@
           </div>
         `.trim();
         codeBlocks.push(placeholder);
+      } else if (['mathplot', 'math3d', 'math2d', 'plot3d'].includes(normalizedLang)) {
+        // A figure of mathematics, drawn by public/ui/mathPlot.js. Its text goes
+        // in encoded: no character of it can close the attribute.
+        codeBlocks.push(`<div class="math-plot-card" data-plot-spec="${encodeURIComponent(code.trim())}"></div>`);
       } else if (normalizedLang === 'mermaid') {
         const placeholder = `<div class="mermaid" style="background: white; padding: 12px; border-radius: 8px; margin: 14px 0; overflow-x: auto; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); color: #0F172A;">${escapeHtml(code.trim())}</div>`;
         codeBlocks.push(placeholder);

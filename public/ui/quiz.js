@@ -72,7 +72,8 @@
         } catch (error) {
           console.error('Failed to read a quiz block:', error);
         }
-        if (!questions.length) return;
+        // A quiz that cannot be read says so, not an empty box.
+        if (!questions.length) { container.textContent = t('quizUnreadable'); container.classList.add('quiz-unreadable'); return; }
         const card = el('div', 'qjo-quiz quiz-card-wrapper');
         const blocks = [];
         questions.forEach((q, i) => blocks.push(questionBlock(q, i, questions.length, blocks)));

@@ -163,6 +163,21 @@ Each of these produced a green result that meant nothing.
   under a later answer printed under the first one — while every suite, each
   running one answer, was green. Find an element from the control that owns
   it, not by an id the page repeats.
+- **A parser that runs what it cannot read.** Chart and quiz blocks that
+  JSON.parse refused went to `new Function('return (' + text + ')')` — in the
+  app's own origin, whose CSP allows eval — so a block holding code ran with
+  the person's sign-in. Every suite was green: none served Chart.js, so no
+  chart was ever parsed. An answer's blocks are data (`relaxedJson.js`), and
+  `xss.test.js` serves a stand-in Chart.js and checks nothing runs, against a
+  relaxed block that is drawn.
+- **A name that finds Object.prototype.** A figure's expression `constructor(x)`
+  looked its name up in a plain object, got Object's own constructor, and the
+  parser fell over into a generic error. A name from a model's text is looked up
+  as an own key, and the suite tries `constructor`, `__proto__` and `toString`.
+- **A figure that takes every swipe.** On a phone a Plotly figure takes every
+  touch over it: a page with one stopped scrolling across half the screen,
+  measured with real touch events (0 px, against 302 px over text). A figure
+  on a touch screen waits behind a pill until it is tapped.
 - **Verification that lives outside the repo.** 264 browser assertions spent
   weeks in a scratch directory that is deleted with the container. A check
   that is not committed and not in CI does not exist.
@@ -174,6 +189,7 @@ npm test                  # server behaviour
 npm run test:domain       # front-end pure logic, no browser
 npm run test:code-studio  # which blocks make one preview, and the document it runs
 npm run test:python       # Python as the page runs it, in real Pyodide: files in and out, plots, Excel
+npm run test:math-plot    # math figures: expressions against mathjs, every shape's geometry, which messages ask
 npm run test:search       # search decision, results, budget
 npm run test:sources      # who published a source: ranking, what the model and page get
 npm run test:vision       # an exercise in a picture: read by one model, solved by another

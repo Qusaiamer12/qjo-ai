@@ -229,6 +229,22 @@ const system = (body) => body.messages.filter((m) => m.role === 'system').map((m
     for (const part of ['ACTIVE MODE: CODE', 'house guidance', 'Router decision']) assert.ok(text.includes(part), `missing: ${part}`);
   });
 
+  console.log('\nA math figure:');
+  await test('a figure is asked for with its playbook — not the charts playbook, the engineering overlay, knowledge guidance ("draw it in ASCII") or the router\'s "coding request"', async () => {
+    // "دالة" is a function in code too: the router called this a coding
+    // request, and the knowledge base offered to draw the curve in ASCII.
+    const body = await asPage([{ role: 'user', content: 'ارسملي منحنى الدالة y = x^2 - 3x + 2 وحدد جذورها' }]);
+    const text = textOf(lastUser(body).content);
+    assert.ok(text.includes('MATH FIGURES') && text.includes('```mathplot'), 'the figure playbook');
+    for (const part of ['INTERACTIVE CHARTS', 'ACTIVE MODE: CODE', 'START DIRECTLY WITH THE SOLUTION', 'house guidance', 'Router decision']) assert.ok(!text.includes(part), `carried: ${part}`);
+    assert.ok(text.includes('Calculator tool available') && body.tools && body.tools.length, 'its roots are sums: the calculator stays');
+  });
+  await test('control: a data chart keeps the charts playbook and its guidance', async () => {
+    const text = textOf(lastUser(await asPage([{ role: 'user', content: 'ارسملي مخطط المبيعات الشهرية: يناير 10، شباط 15' }])).content);
+    for (const part of ['INTERACTIVE CHARTS', 'house guidance']) assert.ok(text.includes(part), `missing: ${part}`);
+    assert.ok(!text.includes('MATH FIGURES'), 'a chart of data carried the figure playbook');
+  });
+
   console.log('\nThe tool list does not change with the message:');
   await test('a question with numbers and one without are offered the same tools, in the same order', async () => {
     const [plain] = await chat([{ role: 'user', content: 'Who founded the Umayyad dynasty?' }], { mode: 'flash' });

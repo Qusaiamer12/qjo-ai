@@ -294,10 +294,10 @@ function registerChatRoutes(app, deps) {
       // The newest message's own words, a picture's caption included — not the files the page attached to it.
       const lastUserText = ownWords(textOf([...userMessages].reverse().find(m => m.role === 'user')?.content));
 
-      // Q-KB v1: curated guidance when the last message matches an entry (best-effort). A site and Python
-      // for the page carry their playbook alone: no guidance, calculator or router hint; a site no tools.
-      const alone = needs.site || needs.python; let knowledge = '';
-      if (prompt.system && !alone && typeof deps.knowledgeBaseService?.lookup === 'function') {
+      // Q-KB v1: curated guidance when the last message matches an entry (best-effort). A site, page Python and a math
+      // figure carry their playbook alone: no guidance ("draw it in ASCII") or router hint; the first two no calculator.
+      const alone = needs.site || needs.python, lean = alone || needs.plot; let knowledge = '';
+      if (prompt.system && !lean && typeof deps.knowledgeBaseService?.lookup === 'function') {
         const kbResult = await deps.knowledgeBaseService.lookup(lastUserText);
         if (kbResult && kbResult.found && kbResult.block) knowledge = kbResult.block;
       }
@@ -315,7 +315,7 @@ function registerChatRoutes(app, deps) {
         system: prompt.system,
         standing: client.standing,
         turn: [prompt.turn, knowledge, client.turn, buildContextContinuityHint(lastUserText),
-          needs.search === false && !alone ? CALCULATOR_HINT : '', routingDecision && !alone ? buildRouterSystemHint(routingDecision) : ''],
+          needs.search === false && !alone ? CALCULATOR_HINT : '', routingDecision && !lean ? buildRouterSystemHint(routingDecision) : ''],
         conversation: userMessages
       });
 

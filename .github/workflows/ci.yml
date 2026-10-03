@@ -48,6 +48,10 @@ jobs:
         run: npm run test:domain
       - name: Code studio suite (what an answer previews as)
         run: npm run test:code-studio
+      # Math figures: expressions checked against mathjs, the geometry of every
+      # shape, and which messages ask for one.
+      - name: Math figures suite
+        run: npm run test:math-plot
 
       - name: Type check
         run: npm run typecheck

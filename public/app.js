@@ -319,6 +319,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     const imagePrep = QjoUI.createImagePrep();
     const attachmentShelf = QjoUI.createAttachmentShelf({ maxImages: QjoDomain.imagePlan.LIMITS.maxImages, replyLanguage: (text) => QjoDomain.language.replyLanguage(text, qjoLanguage), t });
     const quiz = QjoUI.createQuiz({ t, parse: (raw) => safeParseRelaxedJson(raw) });
+    const mathPlots = QjoUI.createMathPlots({ t, isDark: () => qjoTheme === 'dark' });
     const sendStop = QjoUI.createSendStop({ button: sendBtn, t });
     const answerReading = QjoUI.createAnswerReading({ t, copy: (text) => copyTextToClipboard(text) });
     const messageEditor = QjoUI.createMessageEditor({ t, canEdit: () => !busy, rewind: () => rewindHistoryToLastQuestion(), composer: inputEl, composerChanged: () => { autoResize(); saveDraft(); } });
@@ -346,6 +347,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         ['charts', () => initializeChartsInElement(bubble)],
         ['code blocks', () => initializeCodeBlockCopyButtons(bubble)],
         ['quizzes', () => quiz.initialize(bubble)],
+        ['math plots', () => mathPlots.initialize(bubble)],
         ['citations', () => sourceStrip.decorate(bubble)],
         ['diagrams', () => {
           if (typeof mermaid !== 'undefined') mermaid.init(undefined, bubble.querySelectorAll('.mermaid'));
@@ -389,7 +391,9 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       const mathTerms = ['احسب', 'رياضيات', 'معادلة', 'برهان', 'احتمال', 'إحصاء', 'جبر', 'تفاضل', 'تكامل', 'algorithm', 'خوارزمية'];
       const fileTerms = ['pdf', 'ملف', 'وثيقة', 'صورة', 'مرفق', 'csv', 'json', 'حلل هذا الملف', 'حلل الصورة'];
 
-      if ((qjoMode === 'code' || hasAny(text, codeTerms)) && !QjoDomain.siteRequest.siteInConversation(history, QjoDomain.ownWords) && !QjoDomain.pythonRun.pythonMessage([...history].reverse().find((m) => m.role === 'user')?.content, QjoDomain.ownWords)) { // a site, or Python for the page, is not a project
+      const asked = [...history].reverse().find((m) => m.role === 'user')?.content;
+      const pageWork = QjoDomain.siteRequest.siteInConversation(history, QjoDomain.ownWords) || QjoDomain.pythonRun.pythonMessage(asked, QjoDomain.ownWords) || QjoDomain.mathPlot.plotMessage(asked, QjoDomain.ownWords);
+      if ((qjoMode === 'code' || hasAny(text, codeTerms)) && !pageWork) { // a site, Python for the page or a math figure is not a project
         capsules.push(`Coding capsule: act as a senior software engineer. For implementation, provide architecture, file structure, clean code, exact placement, tests, edge cases, security, performance, accessibility, and deployment notes. Avoid toy snippets for serious builds. Use targeted patches for existing code.`);
       }
 
@@ -853,70 +857,18 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       }
     }
 
-    // Robust relaxed JSON parser for interactive charts, quizzes, and LLM payloads
-    // Chart blocks inside markdown need this, and the renderer should not carry
-    // a second copy of it.
-    QjoDomain.markdown.setRelaxedJsonParser((raw) => safeParseRelaxedJson(raw));
+    // Chart and quiz blocks are model output: read as data, never run
+    // (public/domain/relaxedJson.js).
+    function safeParseRelaxedJson(raw) { return QjoDomain.relaxedJson.parse(raw); }
+    QjoDomain.markdown.setRelaxedJsonParser(safeParseRelaxedJson);
     QjoDomain.markdown.setLanguageSource(() => qjoLanguage);
     QjoDomain.markdown.setAttachmentSource(attachmentShelf.get);
 
-    function safeParseRelaxedJson(rawStr) {
-      if (!rawStr || typeof rawStr !== 'string') return null;
-      let str = rawStr
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&quot;/g, '"')
-        .replace(/&#039;/g, "'")
-        .replace(/&#39;/g, "'")
-        .trim();
-
-      str = str.replace(/^```[a-z0-9_-]*\s*/i, '').replace(/```\s*$/i, '').trim();
-
-      // 1. Direct standard parse
-      try {
-        return JSON.parse(str);
-      } catch (_) {}
-
-      // 2. Remove comments & fix trailing commas
-      let cleaned = str.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
-      cleaned = cleaned.replace(/,\s*([\]}])/g, '$1');
-
-      // 3. Fix invalid backslash escapes (e.g. \-, \e, \^, \(, \), \ )
-      cleaned = cleaned.replace(/\\([^"\\\/bfnrtu]|u(?!([0-9a-fA-F]{4})))/g, '\\\\$1');
-
-      try {
-        return JSON.parse(cleaned);
-      } catch (_) {}
-
-      // 4. Fallback: parse via JavaScript object evaluator (handles single quotes, unquoted keys, math symbols)
-      try {
-        const fn = new Function('"use strict"; return (' + cleaned + ')');
-        const res = fn();
-        if (res && typeof res === 'object') return res;
-      } catch (_) {}
-
-      // 5. Try extracting outermost { ... } or [ ... ]
-      const objMatch = cleaned.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
-      if (objMatch) {
-        try {
-          return JSON.parse(objMatch[0]);
-        } catch (_) {
-          try {
-            const fn = new Function('"use strict"; return (' + objMatch[0] + ')');
-            const res = fn();
-            if (res && typeof res === 'object') return res;
-          } catch (_) {}
-        }
-      }
-
-      return null;
-    }
-
-    function initializeChartsInElement(element) {
+    function initializeChartsInElement(element, waited = 0) {
       if (typeof Chart === 'undefined') {
-        console.warn('Chart.js is not loaded yet.');
-        setTimeout(() => initializeChartsInElement(element), 500);
+        // Waits 20 s for the library, then says so on each chart, not forever.
+        if (waited < 40) { setTimeout(() => initializeChartsInElement(element, waited + 1), 500); return; }
+        element.querySelectorAll('.interactive-chart-card .chart-error-note').forEach((n) => { n.textContent = t('chartRenderFailed', { error: t('libraryUnavailable') }); n.classList.remove('hidden'); });
         return;
       }
       const containers = element.querySelectorAll('.interactive-chart-container');
@@ -2316,7 +2268,8 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       }
 
       const isMax = qjoMode === 'advanced';
-      const codeShaped = hasAny(userText || latestUserTextForPrompt(), CODE_BUDGET_TERMS);
+      // "ارسم الدالة" is a figure, not code: a block of JSON, not a project's room.
+      const codeShaped = hasAny(userText || latestUserTextForPrompt(), CODE_BUDGET_TERMS) && !QjoDomain.mathPlot.plotMessage(userText || latestUserTextForPrompt(), QjoDomain.ownWords);
       if (QjoDomain.siteRequest.siteInConversation([...history, { role: 'user', content: userText || '' }])) return { temperature: 0.14, max_tokens: 7000 };
       if (codeShaped) {
         // Complete, runnable files are the house standard, so code gets room in

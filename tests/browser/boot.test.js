@@ -21,7 +21,10 @@ const { launchBrowser, BASE_URL } = require('./harness');
   }
 
   // ── Every module, dropped permanently ──
-  for (const blocked of ['/domain/language.js', '/domain/i18n.js', '/domain/markdown.js', '/domain/requestFailure.js', '/domain/streamProtocol.js', '/ui/streamingView.js', '/ui/sandbox.js', '/domain/codeProject.js', '/ui/canvas.js', '/domain/fileRequest.js', '/ui/answerExports.js', '/domain/sourceTier.js', '/ui/sourceStrip.js', '/domain/imagePlan.js', '/ui/imagePrep.js', '/domain/streamBlocks.js', '/domain/historyWindow.js', '/domain/attachmentRefs.js', '/ui/attachmentShelf.js', '/domain/quiz.js', '/ui/quiz.js', '/ui/composerDrop.js', '/ui/starters.js', '/ui/sendStop.js', '/ui/voiceInput.js', '/domain/speech.js', '/ui/answerReading.js', '/ui/messageEditor.js', '/domain/ownWords.js', '/ui/composerControls.js', '/domain/siteRequest.js', '/domain/pythonRun.js', '/domain/xlsxText.js', '/ui/pythonRun.js']) {
+  // Four at a time: each check is a page in a context of its own, mostly
+  // waiting, and one after another they outgrew the runner's three minutes.
+  const MODULES = ['/domain/language.js', '/domain/i18n.js', '/domain/markdown.js', '/domain/requestFailure.js', '/domain/streamProtocol.js', '/ui/streamingView.js', '/ui/sandbox.js', '/domain/codeProject.js', '/ui/canvas.js', '/domain/fileRequest.js', '/ui/answerExports.js', '/domain/sourceTier.js', '/ui/sourceStrip.js', '/domain/imagePlan.js', '/ui/imagePrep.js', '/domain/streamBlocks.js', '/domain/historyWindow.js', '/domain/attachmentRefs.js', '/ui/attachmentShelf.js', '/domain/quiz.js', '/ui/quiz.js', '/ui/composerDrop.js', '/ui/starters.js', '/ui/sendStop.js', '/ui/voiceInput.js', '/domain/speech.js', '/ui/answerReading.js', '/ui/messageEditor.js', '/domain/ownWords.js', '/ui/composerControls.js', '/domain/siteRequest.js', '/domain/pythonRun.js', '/domain/xlsxText.js', '/ui/pythonRun.js', '/domain/relaxedJson.js', '/domain/mathPlot.js', '/ui/mathPlot.js'];
+  const dropped = async (blocked) => {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
     let navigations = 0;
@@ -29,13 +32,17 @@ const { launchBrowser, BASE_URL } = require('./harness');
     await page.route('**' + blocked + '*', r => r.abort('failed'));
     await page.goto(BASE_URL + '/', { waitUntil: 'commit', timeout: 15000 }).catch(() => {});
     await page.waitForTimeout(4500);
-
     const notice = await page.$eval('.qjo-load-failure', e => e.innerText).catch(() => null);
-    ok(Boolean(notice), `${blocked} missing → the person is told`, notice);
-    ok(navigations <= 2, `${blocked} missing → one retry, not a reload loop (${navigations} navigations in 4.5s${navigations > 2 ? ' — RELOAD LOOP' : ''})`);
-    const hasButton = await page.$('.qjo-load-failure button');
-    ok(Boolean(hasButton), `${blocked} missing → a way to retry is offered`);
+    const hasButton = Boolean(await page.$('.qjo-load-failure button'));
     await ctx.close();
+    return { blocked, notice, navigations, hasButton };
+  };
+  for (let i = 0; i < MODULES.length; i += 4) {
+    for (const { blocked, notice, navigations, hasButton } of await Promise.all(MODULES.slice(i, i + 4).map(dropped))) {
+      ok(Boolean(notice), `${blocked} missing → the person is told`, notice);
+      ok(navigations <= 2, `${blocked} missing → one retry, not a reload loop (${navigations} navigations in 4.5s${navigations > 2 ? ' — RELOAD LOOP' : ''})`);
+      ok(hasButton, `${blocked} missing → a way to retry is offered`);
+    }
   }
 
   // ── A dropped request that recovers on reload heals itself ──

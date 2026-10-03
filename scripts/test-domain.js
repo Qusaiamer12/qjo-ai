@@ -1037,6 +1037,80 @@ const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n
     assert.ok(isXlsx({ name: 'Sales.XLSX' }) && isXlsx({ name: 'x', type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }) && !isXlsx({ name: 'a.csv', type: 'text/csv' }));
   });
 
+  console.log('\nChart and quiz blocks read as data, never run (relaxedJson.js):');
+  const relaxed = require('../public/domain/relaxedJson.js');
+  test('strict JSON reads as JSON.parse reads it', () => {
+    const text = '{"type":"bar","data":{"labels":["a","ب"],"datasets":[{"data":[1,2.5,-3e2]}]},"x":null,"y":true}';
+    assert.deepStrictEqual(relaxed.parse(text), JSON.parse(text));
+    assert.deepStrictEqual(relaxed.read(text), { ok: true, value: JSON.parse(text) });
+  });
+  test('the forms models write: bare and Arabic keys, single quotes, backticks, trailing commas, comments, odd numbers', () => {
+    const text = `{
+      type: 'line', // a comment
+      /* another */ عنوان: "مبيعات",
+      url: 'https://example.com/a//b',
+      data: [1, +2, .5, 0x10, -Infinity, NaN, undefined,],
+      note: \`two
+lines\`,
+    }`;
+    const value = relaxed.parse(text);
+    assert.strictEqual(value.type, 'line');
+    assert.strictEqual(value['عنوان'], 'مبيعات');
+    assert.strictEqual(value.url, 'https://example.com/a//b', 'a comment marker inside a string is text');
+    assert.deepStrictEqual(value.data.slice(0, 5), [1, 2, 0.5, 16, -Infinity]);
+    assert.ok(Number.isNaN(value.data[5]) && value.data[6] === null && value.data.length === 7);
+    assert.strictEqual(value.note, 'two\nlines');
+  });
+  test('LaTeX in a string is kept as written; real escapes are read', () => {
+    const value = relaxed.parse("{q: 'solve \\(x^2\\) with \\alpha', e: 'caf\\u00e9 \\x41', n: 'a\\nb', s: 'it\\'s'}");
+    assert.strictEqual(value.q, 'solve \\(x^2\\) with \\alpha');
+    assert.strictEqual(value.e, 'café A');
+    assert.strictEqual(value.n, 'a\nb');
+    assert.strictEqual(value.s, "it's");
+  });
+  test('code in a block is refused, and none of it runs', () => {
+    delete globalThis.__qjoRan;
+    const attempts = [
+      "{data: [1, (globalThis.__qjoRan = 1, 2)]}",
+      "{a: alert(1)}",
+      "(function () { globalThis.__qjoRan = 1; })()",
+      "{a: 1 + 2}",
+      "{a: globalThis}",
+      "{a: new Date()}",
+      "{a: [].constructor.constructor('globalThis.__qjoRan = 1')()}"
+    ];
+    for (const text of attempts) {
+      assert.strictEqual(relaxed.parse(text), null, text);
+      assert.strictEqual(relaxed.read(text).ok, false, text);
+    }
+    const literal = relaxed.parse('{a: `${globalThis.__qjoRan = 1}`}');
+    assert.strictEqual(literal.a, '${globalThis.__qjoRan = 1}', 'a template is text');
+    assert.strictEqual(globalThis.__qjoRan, undefined, 'nothing ran');
+  });
+  test('"__proto__" is a key, as JSON.parse makes it: nothing is polluted', () => {
+    const value = relaxed.parse("{__proto__: {polluted: 1}, 'constructor': {prototype: {x: 1}}, ok: 1,}");
+    assert.ok(Object.prototype.hasOwnProperty.call(value, '__proto__'));
+    assert.strictEqual(Object.getPrototypeOf(value), Object.prototype);
+    assert.strictEqual(/** @type {any} */ ({}).polluted, undefined);
+    assert.strictEqual(value.ok, 1);
+  });
+  test('deep nesting and huge input are refused, not a crash', () => {
+    assert.strictEqual(relaxed.parse('['.repeat(20000)), null);
+    assert.match(relaxed.read('['.repeat(200) + ']'.repeat(200)).error, /nested too deeply/);
+    assert.match(relaxed.read('[' + '1,'.repeat(250000) + ']').error, /too long/);
+  });
+  test('a refusal says where', () => {
+    assert.match(relaxed.read("{\n  a: 1,\n  b: 2 3\n}").error, /line 3, column 8/);
+    assert.match(relaxed.read("{a: 'open").error, /unclosed string/);
+  });
+  test('words, a fence or old escaping around a block do not stop it', () => {
+    assert.deepStrictEqual(relaxed.parse("Here is the chart: {type: 'bar', n: 2} enjoy"), { type: 'bar', n: 2 });
+    assert.deepStrictEqual(relaxed.parse('```chart\n{a: 1}\n```'), { a: 1 });
+    assert.deepStrictEqual(relaxed.parse('{&quot;a&quot;: &quot;x &amp;lt; y&quot;}'), { a: 'x &lt; y' });
+    assert.strictEqual(relaxed.parse(''), null);
+    assert.strictEqual(relaxed.parse(/** @type {any} */ (null)), null);
+  });
+
   console.log('\n========================================');
   console.log(`${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);

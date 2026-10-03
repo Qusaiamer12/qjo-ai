@@ -1283,6 +1283,102 @@ body.dark .interactive-chart-title-box {
   contain: strict !important;
 }
 
+/* ===== Math plots (public/ui/mathPlot.js) ===== */
+.math-plot-card {
+  margin: 16px 0 20px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.25) !important;
+  background: #ffffff !important;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.06), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+body.dark .math-plot-card { background: #0f172a !important; border-color: rgba(255, 255, 255, 0.1) !important; }
+/* The card keeps its own ink: the answer's repaint rules leave its insides
+   alone (an exclusion in their :where), and the fill colour the bubble hands
+   down by inheritance is replaced by each element's own colour. */
+.math-plot-card * { -webkit-text-fill-color: currentColor !important; }
+/* While the answer is still arriving: the figure's place, kept. */
+.math-plot-card:not([data-ready]) { min-height: 380px; animation: math-plot-wait 1.4s ease-in-out infinite; }
+@keyframes math-plot-wait { 50% { opacity: 0.55; } }
+@media (prefers-reduced-motion: reduce) { .math-plot-card:not([data-ready]) { animation: none; } }
+.math-plot-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px 8px 14px;
+  background: #f8fafc !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+}
+body.dark .math-plot-header { background: #1e293b !important; border-bottom-color: rgba(255, 255, 255, 0.08); }
+.math-plot-icon { font-size: 15px; line-height: 1; }
+.math-plot-title { flex: 1; min-width: 0; font-size: 13px; font-weight: 700; color: #0f172a !important; overflow-wrap: anywhere; }
+body.dark .math-plot-title { color: #f8fafc !important; }
+.math-plot-png {
+  flex: none;
+  min-height: 34px;
+  padding: 6px 12px;
+  border-radius: 9px;
+  border: 1px solid rgba(100, 116, 139, 0.45);
+  background: #ffffff !important;
+  color: #0f172a !important;
+  font: 600 12px/1.2 inherit;
+  cursor: pointer;
+}
+.math-plot-png:hover, .math-plot-png:focus-visible { border-color: #0891b2; outline: none; box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.18); }
+body.dark .math-plot-png { background: #0f172a !important; color: #f8fafc !important; border-color: rgba(255, 255, 255, 0.22); }
+.math-plot-stage { position: relative; }
+.math-plot-area { width: 100%; height: 380px; direction: ltr; }
+/* On a touch screen: swipes over a figure scroll the page until it is tapped. */
+.math-plot-lock {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 0 14px;
+  border: 0;
+  background: transparent !important;
+  touch-action: pan-x pan-y pinch-zoom;
+  cursor: pointer;
+  z-index: 2;
+}
+.math-plot-lock-pill {
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.82) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+.math-plot-card.is-3d .math-plot-area { height: 440px; }
+@media (max-width: 640px) {
+  .math-plot-area { height: 320px; }
+  .math-plot-card.is-3d .math-plot-area { height: 360px; }
+}
+.math-plot-note { margin: 0; padding: 6px 14px 10px; font-size: 13px; line-height: 1.5; color: #475569 !important; }
+.math-plot-note:empty { display: none; }
+body.dark .math-plot-note { color: #cbd5e1 !important; }
+.math-plot-note.is-error { padding-top: 12px; color: #b91c1c !important; }
+body.dark .math-plot-note.is-error { color: #fca5a5 !important; }
+.math-plot-code { display: inline-block; max-width: 100%; direction: ltr; unicode-bidi: isolate; overflow-wrap: anywhere; font-family: "JetBrains Mono", "Fira Code", monospace; font-size: 0.95em; }
+.math-plot-source { padding: 0 14px 12px; font-size: 12px; }
+.math-plot-source summary { cursor: pointer; color: #334155 !important; }
+body.dark .math-plot-source summary { color: #cbd5e1 !important; }
+.math-plot-source pre {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  direction: ltr;
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+body.dark .math-plot-source pre { background: #1e293b !important; color: #e2e8f0 !important; }
+
 .interactive-chart-container canvas {
   display: block !important;
   width: 100% !important;
