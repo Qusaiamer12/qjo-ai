@@ -220,7 +220,8 @@ async function phone(browser, desktopBar) {
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     await p.waitForTimeout(700);
   };
-  const centre = async () => { await pc.evaluate((el) => el.scrollIntoView({ block: 'center' })); await p.waitForTimeout(500); const b = await pc.locator('.math-plot-area').boundingBox(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 - 60 }; };
+  // The chat scrolls smoothly (styles.css): positions are read once it has stopped.
+  const centre = async () => { await pc.evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' })); await p.waitForTimeout(500); const b = await pc.locator('.math-plot-area').boundingBox(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 - 60 }; };
   let at = await centre();
   let before = await scrollTop();
   await swipe(at.x, at.y);
@@ -233,8 +234,9 @@ async function phone(browser, desktopBar) {
   before = await scrollTop();
   await swipe(at.x, at.y);
   const freeScroll = Math.abs((await scrollTop()) - before);
-  const text = await p.evaluate(() => { const el = [...document.querySelectorAll('.msg.assistant p')].find((x) => /سطر 3 /.test(x.textContent)); el.scrollIntoView({ block: 'center' }); const r = el.getBoundingClientRect(); return { x: r.x + 60, y: r.y }; });
-  await p.waitForTimeout(400);
+  await p.evaluate(() => [...document.querySelectorAll('.msg.assistant p')].find((x) => /سطر 12 /.test(x.textContent)).scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await p.waitForTimeout(500);
+  const text = await p.evaluate(() => { const r = [...document.querySelectorAll('.msg.assistant p')].find((x) => /سطر 12 /.test(x.textContent)).getBoundingClientRect(); return { x: r.x + 60, y: r.y }; });
   before = await scrollTop();
   await swipe(text.x, text.y);
   const textScroll = Math.abs((await scrollTop()) - before);
