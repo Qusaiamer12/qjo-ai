@@ -20,6 +20,7 @@ self.loadPyodide = async () => {
   let userCode = '';
   return {
     globals: { set: (k, v) => { if (k === '__qjo_user_code') userCode = v; } },
+    toPy: (v) => v,
     loadPackagesFromImports: async () => {},
     runPythonAsync: async () => {
       if (userCode.includes('HANG')) { for (;;) {} }

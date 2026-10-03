@@ -331,10 +331,10 @@ app.use(express.static(path.join(__dirname, 'public'), {
   maxAge: '0',
   etag: false,
   setHeaders: (res, filePath) => {
+    if (/\.whl$/i.test(filePath)) res.setHeader('Access-Control-Allow-Origin', '*'); // Python packages for the code sandbox, which has no origin
     if (/\.(html|js|css|webmanifest)$/i.test(filePath)) {
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-      res.setHeader('Pragma', 'no-cache');
-      res.setHeader('Expires', '0');
+      res.setHeader('Pragma', 'no-cache'); res.setHeader('Expires', '0');
     }
   }
 }));

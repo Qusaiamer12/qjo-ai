@@ -311,6 +311,8 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
 
     // Previews of an answer's code, and the side canvas: public/ui/canvas.js.
     const codeStudio = QjoUI.createCodeStudio({ t, toast: showMicroToast });
+    // Python under an answer — files in and out, plots, explain: public/ui/pythonRun.js.
+    const pythonRunner = QjoUI.createPythonRunner({ t, escapeHtml, renderRunTerminal, copyText: (s) => copyTextToClipboard(s), sendMessage: (text) => sendMessage(text), isBusy: () => busy });
     // Files from an answer — export buttons and the download card.
     const answerExports = QjoUI.createAnswerExports({ downloadExport, t, toast: (m) => showMicroToast(m) });
     const sourceStrip = QjoUI.createSourceStrip({ t, getLanguage: () => qjoLanguage });
@@ -387,7 +389,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       const mathTerms = ['احسب', 'رياضيات', 'معادلة', 'برهان', 'احتمال', 'إحصاء', 'جبر', 'تفاضل', 'تكامل', 'algorithm', 'خوارزمية'];
       const fileTerms = ['pdf', 'ملف', 'وثيقة', 'صورة', 'مرفق', 'csv', 'json', 'حلل هذا الملف', 'حلل الصورة'];
 
-      if ((qjoMode === 'code' || hasAny(text, codeTerms)) && !QjoDomain.siteRequest.siteInConversation(history, QjoDomain.ownWords)) { // a site is one file, not a project
+      if ((qjoMode === 'code' || hasAny(text, codeTerms)) && !QjoDomain.siteRequest.siteInConversation(history, QjoDomain.ownWords) && !QjoDomain.pythonRun.pythonMessage([...history].reverse().find((m) => m.role === 'user')?.content, QjoDomain.ownWords)) { // a site, or Python for the page, is not a project
         capsules.push(`Coding capsule: act as a senior software engineer. For implementation, provide architecture, file structure, clean code, exact placement, tests, edge cases, security, performance, accessibility, and deployment notes. Avoid toy snippets for serious builds. Use targeted patches for existing code.`);
       }
 
@@ -1105,7 +1107,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
           }
         });
       });
-      initializePythonRunButtons(element);
+      pythonRunner.initialize(element);
       initializeJsRunButtons(element);
       initializeCodeViewToggles(element);
       codeStudio.initializePreviews(element);
@@ -1116,21 +1118,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     // code cannot read the page, its storage or the signed-in session, and a
     // run past its limit is stopped. Results are treated as untrusted there.
     const JS_SANDBOX_TIMEOUT_MS = 5000;
-    const PY_STATUS = {
-      loading: ['تحميل بيئة بايثون (WASM)...', 'Loading Pyodide WASM...'],
-      initializing: ['تهيئة محرك بايثون...', 'Initializing Python engine...'],
-      packages: ['تحميل الحزم المستخدمة...', 'Loading packages...'],
-      running: ['جاري التشغيل...', 'Running code...']
-    };
-
-    function executePythonCodeInSandbox(code, onStatus) {
-      return QjoUI.sandbox.runPython(code, {
-        onStatus: (s) => { if (onStatus && PY_STATUS[s]) onStatus(PY_STATUS[s][qjoLanguage === 'ar' ? 0 : 1]); },
-        timeoutMessage: t('pyTimeout', { s: 30 }),
-        truncated: { stdout: t('pyOutputTruncated'), stderr: t('pyWarningsTruncated') }
-      });
-    }
-
     // Resolves to { ok, logs, error, durationMs, timedOut }. Never rejects:
     // a failure is data the caller renders, including the auto-fix affordance.
     function executeJavaScriptInSandbox(code) {
@@ -1341,7 +1328,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         btn.addEventListener('click', async (e) => {
           e.preventDefault();
           const rawCode = decodeURIComponent(btn.dataset.code || '');
-          const outputEl = btn.dataset.target ? document.getElementById(btn.dataset.target) : null;
+          const outputEl = btn.closest('.code-block-wrapper')?.querySelector('.python-output-container') || null; // its own block's: ids restart in every answer
           if (!rawCode || !outputEl) return;
 
           const isTypeScript = btn.dataset.lang === 'typescript';
@@ -1445,117 +1432,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
               durationMs: undefined,
               bodyContent: `<div class="python-terminal-body error-text">${escapeHtml(execErr?.message || String(execErr))}</div>`,
               autoFix: { language: isTypeScript ? 'typescript' : 'javascript', code: rawCode, errorText: execErr?.message || String(execErr) }
-            });
-          } finally {
-            btn.disabled = false;
-            if (runSpinner) runSpinner.classList.add('hidden');
-            if (runIcon) runIcon.classList.remove('hidden');
-            if (runLabel) runLabel.textContent = qjoLanguage === 'ar' ? 'إعادة تشغيل' : 'Rerun';
-          }
-        });
-      });
-    }
-
-    function initializePythonRunButtons(element) {
-      if (!element) return;
-      element.querySelectorAll('.run-python-btn').forEach(btn => {
-        if (btn.dataset.initialized) return;
-        btn.dataset.initialized = 'true';
-
-        btn.addEventListener('click', async (e) => {
-          e.preventDefault();
-          const rawCode = decodeURIComponent(btn.dataset.code || '');
-          const targetId = btn.dataset.target;
-          const outputEl = targetId ? document.getElementById(targetId) : null;
-          if (!rawCode || !outputEl) return;
-
-          const runSpinner = btn.querySelector('.run-spinner');
-          const runIcon = btn.querySelector('.run-icon');
-          const runLabel = btn.querySelector('.run-label');
-
-          btn.disabled = true;
-          if (runSpinner) runSpinner.classList.remove('hidden');
-          if (runIcon) runIcon.classList.add('hidden');
-
-          outputEl.classList.remove('hidden');
-          outputEl.innerHTML = `
-            <div class="python-terminal-loading">
-              <span class="run-spinner"></span>
-              <span class="py-status-text">${qjoLanguage === 'ar' ? 'تحضير بايثون...' : 'Preparing Python...'}</span>
-            </div>
-          `;
-
-          const updateStatusText = (txt) => {
-            const statusTextEl = outputEl.querySelector('.py-status-text');
-            if (statusTextEl) statusTextEl.textContent = txt;
-          };
-
-          try {
-            const res = await executePythonCodeInSandbox(rawCode, updateStatusText);
-            const isSuccess = !res.error;
-            const statusText = isSuccess
-              ? (qjoLanguage === 'ar' ? '● اكتمل بنجاح' : '● Success')
-              : (qjoLanguage === 'ar' ? '● خطأ برمجيا' : '● Error');
-            const statusClass = isSuccess ? 'success' : 'error';
-
-            let bodyContent = '';
-            if (res.error) {
-              bodyContent = `<div class="python-terminal-body error-text">${escapeHtml(res.error)}</div>`;
-            } else {
-              let textOut = (res.stdout || '').trim();
-              if (res.stderr && res.stderr.trim()) {
-                textOut = (textOut ? textOut + '\n' : '') + res.stderr.trim();
-              }
-              if (!textOut && (!res.images || !res.images.length)) {
-                textOut = qjoLanguage === 'ar' ? '(تم تنفيذ الكود بنجاح - لا توجد مخرجات نصية)' : '(Code executed successfully - no stdout output)';
-              }
-              if (textOut) {
-                bodyContent += `<div class="python-terminal-body">${escapeHtml(textOut)}</div>`;
-              }
-              if (res.images && res.images.length) {
-                res.images.forEach(imgBase64 => {
-                  bodyContent += `
-                    <div class="python-plot-wrap">
-                      <img class="python-plot-img" src="data:image/png;base64,${imgBase64}" alt="Matplotlib Plot" />
-                    </div>
-                  `;
-                });
-              }
-            }
-
-            renderRunTerminal(outputEl, {
-              icon: '🐍',
-              title: qjoLanguage === 'ar' ? 'مخرجات بايثون' : 'Python Output',
-              statusText,
-              statusClass,
-              durationMs: res.durationMs,
-              bodyContent,
-              autoFix: isSuccess ? null : { language: 'python', code: rawCode, errorText: res.error }
-            });
-
-            const copyBtn = outputEl.querySelector('.python-terminal-copy');
-            if (copyBtn) {
-              copyBtn.addEventListener('click', async () => {
-                const textToCopy = res.error || res.stdout || '';
-                if (textToCopy) {
-                  const ok = await copyTextToClipboard(textToCopy);
-                  if (ok) {
-                    copyBtn.classList.add('copied');
-                    setTimeout(() => copyBtn.classList.remove('copied'), 1500);
-                  }
-                }
-              });
-            }
-
-          } catch (execErr) {
-            renderRunTerminal(outputEl, {
-              icon: '⚠️',
-              title: qjoLanguage === 'ar' ? 'خطأ في تشغيل بايثون' : 'Python Execution Error',
-              statusText: qjoLanguage === 'ar' ? '● خطأ' : '● Error',
-              statusClass: 'error',
-              durationMs: undefined,
-              bodyContent: `<div class="python-terminal-body error-text">${escapeHtml(execErr?.message || String(execErr))}</div>`,
-              autoFix: { language: 'python', code: rawCode, errorText: execErr?.message || String(execErr) }
             });
           } finally {
             btn.disabled = false;
@@ -1792,7 +1668,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
 
     function isReadableTextFile(file) {
       const name = file.name.toLowerCase();
-      return file.type.startsWith('text/') || ['.txt', '.md', '.csv', '.json', '.js', '.jsx', '.ts', '.tsx', '.py', '.java', '.c', '.cpp', '.cs', '.go', '.rs', '.php', '.rb', '.swift', '.kt', '.html', '.css', '.scss', '.sql', '.sh', '.yml', '.yaml', '.xml', '.vue', '.svelte'].some(ext => name.endsWith(ext));
+      return file.type.startsWith('text/') || QjoDomain.xlsxText.isXlsx(file) || ['.txt', '.md', '.csv', '.json', '.js', '.jsx', '.ts', '.tsx', '.py', '.java', '.c', '.cpp', '.cs', '.go', '.rs', '.php', '.rb', '.swift', '.kt', '.html', '.css', '.scss', '.sql', '.sh', '.yml', '.yaml', '.xml', '.vue', '.svelte'].some(ext => name.endsWith(ext));
     }
 
     function isPdfFile(file) {
@@ -1800,6 +1676,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     }
 
     function readTextFile(file) {
+      if (QjoDomain.xlsxText.isXlsx(file)) return file.arrayBuffer().then(QjoDomain.xlsxText.readXlsx).then((book) => `Excel workbook "${file.name}" (sheets as CSV):\n${book.text}`);
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(String(reader.result || ''));
@@ -2932,6 +2809,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       const generationConfig = getGenerationConfig(hasAttachmentAnalysis, rawText);
 
       lastFailedRequest = { text: rawText, fallbackText: text, attachments: attachmentsForRag }; // a retry sends the files again
+      pythonRunner.keepFiles(attachmentsForRag); // its data files, for Python to read
       if (!isRegenerate) messageEditor.offer(addMessage('user', displayText + attachmentNames), attachmentNames ? '' : rawText);
       pendingAttachments = [];
       renderAttachments();
@@ -3114,6 +2992,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
             extras: [
               ['sources', () => { sourceStrip.add(view.wrap, QjoDomain.sourcesFromToolsUsed(lastMetadata.toolsUsed)); sourceStrip.finish(view.wrap); }],
               ['tools note', () => appendToolsUsedNote(view.wrap, lastMetadata.toolsUsed)],
+              ['python', () => pythonRunner.autoRun(view.bubble)],
               // Now that the answer is complete, re-decide the content-dependent
               // actions (exports, project ZIP) that could not be judged when the
               // empty message element was created.

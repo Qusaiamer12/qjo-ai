@@ -152,6 +152,17 @@ Each of these produced a green result that meant nothing.
   sandbox without same-origin throws on `localStorage`, which most sites read
   first thing. Every suite previewed pages written for the preview;
   `site-quality.test.js` runs one written the way sites are.
+- **A runtime only ever met as a stand-in.** Every check of Python ran a fake
+  Pyodide that echoed its input. The real one prints a pandas notice about
+  pyarrow on every import and a matplotlib one on every `plt.show()`, and the
+  page showed both under the output; on a phone in light mode the terminal's
+  header was 1.02:1. `scripts/test-python.js` and `python-run.test.js` run
+  real Pyodide, from a cache checked against its lock file.
+- **An id that is unique only in its answer.** Code blocks are numbered from 0
+  in every answer, so every answer's first output was `py-output-0`, and Run
+  under a later answer printed under the first one — while every suite, each
+  running one answer, was green. Find an element from the control that owns
+  it, not by an id the page repeats.
 - **Verification that lives outside the repo.** 264 browser assertions spent
   weeks in a scratch directory that is deleted with the container. A check
   that is not committed and not in CI does not exist.
@@ -162,6 +173,7 @@ Each of these produced a green result that meant nothing.
 npm test                  # server behaviour
 npm run test:domain       # front-end pure logic, no browser
 npm run test:code-studio  # which blocks make one preview, and the document it runs
+npm run test:python       # Python as the page runs it, in real Pyodide: files in and out, plots, Excel
 npm run test:search       # search decision, results, budget
 npm run test:sources      # who published a source: ranking, what the model and page get
 npm run test:vision       # an exercise in a picture: read by one model, solved by another
@@ -195,6 +207,9 @@ npm run test:browser            # all suites; `-- boot xss` to filter
 node tests/browser/measure-request.js   # tokens a real message sends, by part
 node scripts/sim-session.js [repoRoot]  # a session against Groq's real limits
 GROQ_API_KEYS=… node scripts/eval-sites.js  # six real site answers, checked as the suite checks
+
+# Real Python (npm run test:python, python-run.test.js) needs its packages once:
+node tests/browser/fetch-pyodide.js     # numpy, pandas, matplotlib, sympy, hash-checked
 ```
 
 A browser suite passes only if it exits 0 and prints `N passed, 0 failed`

@@ -18,6 +18,7 @@
 const { ARABIC_PLAYBOOK_NOTES } = require('./arabicPrompt');
 const { ownWords } = require('../../public/domain/ownWords');
 const { siteInConversation } = require('../../public/domain/siteRequest');
+const { pythonInPage, DATA_FILE } = require('../../public/domain/pythonRun');
 
 // The quantities a worked problem is about. Arabic words are whole words, with
 // or without "ال"/"بال"/"لل": "بطاقة" is a card and "بسرعة" is "quickly".
@@ -110,12 +111,13 @@ LITERARY CRAFTSMANSHIP, GRAMMAR & TEXT RESTRUCTURING
   python: {
     match: /python|pandas|numpy|sympy|jupyter|pyodide|بايثون/i,
     en: `
-- PYTHON CODE & COMPUTATION:
-  • Qjo includes an interactive client-side Python execution engine (Pyodide).
-  • When the user asks for Python code, algorithms, data analysis, or calculations solved via Python:
-    - Write complete, self-contained, and executable Python code in \`\`\`python code blocks.
-    - Include clear \`print(...)\` statements for output values and results so the user can immediately click "Run" and see the live result.
-    - Standard libraries as well as \`math\`, \`random\`, \`statistics\`, \`numpy\`, \`sympy\`, and \`pandas\` are supported.`
+- PYTHON — it runs in the page under the answer (Pyodide, Python 3.12): numpy, pandas, matplotlib and sympy load by themselves; no internet, no pip, no input().
+  • One complete \`\`\`python block that runs as it is; print the results that matter, each with a label.
+  • Files the person attached are in the working directory by their exact names: pd.read_csv("sales.csv"), pd.read_excel("sales.xlsx"), json.load(open("data.json")).
+  • A plot draws under the code by itself: matplotlib with a title and axis labels in the reply language (Arabic shows correctly), plt.show() at the end; 3D with fig.add_subplot(projection="3d").
+  • A file the code writes — df.to_excel("result.xlsx"), df.to_csv(…), plt.savefig("chart.png") — is offered to the person as a download: write one when they want a file.
+  • Exact maths with sympy (solve, integrate, simplify); numbers with numpy; tables with pandas.
+  • After the code, two or three lines on what the output will show.`
   },
   video: {
     // "script" alone matched JavaScript, TypeScript and every Python script.
@@ -242,7 +244,7 @@ LITERARY CRAFTSMANSHIP, GRAMMAR & TEXT RESTRUCTURING
 // no cache holds them. A plain greeting's warmth is the core prompt's (TONE).
 const BANTER = /فنان|وحش|كفو|يسعد|بحبك|بنحبك|أحبك|احبك|الهمة|الأخبار|الاخبار|أفضل|افضل|أحسن|احسن|رأيك|رايك|بتتوقع|يفوز/;
 const SOCIAL = ['apology', 'subtext', 'excuses'];
-const CODE_WORDS = /```|\bfunction\b|\bconst\b|\bclass\b|\bimport\b|stack trace|traceback|compile|debug|refactor|npm |yarn |pip |docker|regex|api\b|sdk\b|react|node\.js|typescript|javascript|python|java\b|sql\b|كود|برمج|برمجة|دالة|كلاس|مكتبة|خطأ برمجي|صحح الكود|اكتب لي برنامج|تطبيق ويب/i;
+const CODE_WORDS = /```|\bfunction\b|\bconst\b|\bclass\b|\bimport\b|stack trace|traceback|compile|debug|refactor|npm |yarn |pip |docker|regex|api\b|sdk\b|react|node\.js|typescript|javascript|python|java\b|sql\b|كود|بايثون|برمج|برمجة|دالة|كلاس|مكتبة|خطأ برمجي|صحح الكود|اكتب لي برنامج|تطبيق ويب/i;
 // An attached file the page names (app.js's attachment context) that is code.
 const CODE_FILE = /^Attachment Index \d+: .+\.(?:[cm]?jsx?|tsx?|py|ipynb|java|kt|swift|c|cc|cpp|h|hpp|cs|go|rb|php|rs|dart|sql|sh|ps1|html?|css|scss|vue|svelte)$/im;
 
@@ -284,7 +286,11 @@ function detectNeeds(userMessages) {
   // alone, without the engineering overlay's file tree, terminal commands and
   // tests, or a playbook a word chose ("doctor" for a clinic's site).
   const site = siteInConversation((userMessages || []).map((m) => ({ role: m && m.role, content: textOf(m && m.content) })), ownWords);
-  const code = !site && (CODE_WORDS.test(own.join('\n')) || CODE_FILE.test(t));
+  // Python for the page carries the Python playbook alone: the charts
+  // playbook said "never output Python", and the engineering overlay a file
+  // tree and npm install.
+  const python = !site && pythonInPage(own[own.length - 1] || '', DATA_FILE.test(texts[texts.length - 1] || ''));
+  const code = !site && !python && (CODE_WORDS.test(own.join('\n')) || CODE_FILE.test(t));
   return {
     search: /source pack|connected search|connected deep search|web search note|search query used/i.test(t),
     files: /user attached files|pdf pages processed|ocr text extracted|extraction method|attachment index|المرفقات/i.test(t),
@@ -294,7 +300,8 @@ function detectNeeds(userMessages) {
     // instead of waiting for a mode that can never be chosen.
     code,
     site,
-    playbooks: site ? ['ui'] : selectPlaybooks(own.slice(-2), { code })
+    python,
+    playbooks: site ? ['ui'] : python ? ['python'] : selectPlaybooks(own.slice(-2), { code })
   };
 }
 

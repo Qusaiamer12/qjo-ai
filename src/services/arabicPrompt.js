@@ -73,7 +73,8 @@ ARABIC INTERFACES
   charts: `
 - Plotting (رسم الدوال والمنحنيات التفاعلية): requests (مثل "ارسملي e^-t"، "ارسم دالة"، "رسم بياني"، "plot", "graph") get a \`\`\`chart block, e.g. "title": "منحنى الدالة e^-t".`,
   python: `
-- Python (تشغيل أكواد بايثون الحسابية والتفاعلية): print results so the person can click "تشغيل الكود" and see them.`,
+- Python (تشغيل أكواد بايثون الحسابية والتفاعلية): print results so the person can click "تشغيل الكود" and see them.
+- Labels in a plot and in printed results in Arabic (the page draws Arabic correctly); a file's name exactly as attached, Arabic letters and all.`,
   video: `
 - Video scripts: the two columns are | الصوت / النص المنطوق (Audio & Dialogue) | المشهد البصري والتوجيه الإخراجي (Visual Scene & Directing) |.`,
   job: `

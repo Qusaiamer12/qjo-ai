@@ -30,7 +30,8 @@
     '[Image(s) attached and analyzed when this was sent]',
     '[تم إرفاق صورة/صور وتحليلها',
     '[🖼️',
-    'OCR text extracted from image'
+    'OCR text extracted from image',
+    '[The output of running the Python code above, sent by the page:]'
   ].map((marker) => '\n\n' + marker);
 
   /** @param {string} text a message as the page sent it */

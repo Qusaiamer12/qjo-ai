@@ -933,7 +933,7 @@ const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n
   console.log('\nThe person\'s own words in what the page sent (ownWords.js):');
   const { ownWords, ADDED } = require('../public/domain/ownWords.js');
   const i18nSource = require('../public/domain/i18n.js');
-  const pageSource = ['../public/app.js', '../public/ui/attachmentShelf.js', '../public/domain/attachmentRefs.js', '../public/domain/i18n.js']
+  const pageSource = ['../public/app.js', '../public/ui/attachmentShelf.js', '../public/domain/attachmentRefs.js', '../public/domain/i18n.js', '../public/ui/pythonRun.js']
     .map((f) => require('fs').readFileSync(require('path').join(__dirname, f), 'utf8')).join('\n');
 
   test('what the person typed is kept whole, line breaks and all', () => {
@@ -1001,6 +1001,40 @@ const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n
     assert.ok(!siteInConversation([]) && !siteInConversation([{ role: 'assistant', content: PAGE }]));
     assert.ok(siteInConversation([{ role: 'user', content: 'صمملي موقع لمطعم\n\nWeb search note: x' }], ownWords), 'own words');
     assert.ok(!siteInConversation([{ role: 'user', content: 'استخرج معلوماتي\n\nUser attached or previously indexed files with retrieved evidence.\nbuild a website for my bakery' }], ownWords), 'a file\'s text read as the person');
+  });
+
+  console.log('\nAn Excel file as text the model can read (xlsxText.js):');
+  const ExcelJS = require('exceljs');
+  const { readXlsx, isXlsx } = require('../public/domain/xlsxText.js');
+  const book = new ExcelJS.Workbook();
+  const sales = book.addWorksheet('المبيعات');
+  sales.addRow(['الشهر', 'amount', 'date', 'when', 'ok', 'note']);
+  sales.addRow(['كانون الثاني', 10, new Date(Date.UTC(2026, 0, 31)), new Date(Date.UTC(2026, 0, 31, 14, 30)), true, 'a, "quoted"\nline']);
+  sales.getCell('C2').numFmt = 'yyyy-mm-dd';
+  sales.getCell('D2').numFmt = 'yyyy-mm-dd hh:mm';
+  sales.addRow(['Feb', 20.5]);
+  sales.getCell('F3').value = 'after a gap';
+  sales.getCell('A5').value = 'after an empty row';
+  sales.getCell('B6').value = { formula: 'B2+B3', result: 30.5 };
+  book.addWorksheet('Second').addRow(['x']);
+  const workbook = new Uint8Array(await book.xlsx.writeBuffer());
+
+  await testAsync('every sheet by its name, its rows as CSV: Arabic, numbers, a formula\'s result, gaps kept in place', async () => {
+    const { sheets, text } = await readXlsx(workbook);
+    assert.deepStrictEqual(sheets.map((s) => s.name), ['المبيعات', 'Second']);
+    assert.deepStrictEqual(sheets[0].rows[2], ['Feb', '20.5', '', '', '', 'after a gap']);
+    assert.deepStrictEqual(sheets[0].rows[3], [], 'the empty row is kept in its place');
+    assert.deepStrictEqual(sheets[0].rows.slice(4), [['after an empty row'], ['', '30.5']]);
+    assert.ok(text.startsWith('Sheet: المبيعات\nالشهر,amount,date,when,ok,note\n') && text.includes('\n\nSheet: Second\nx'), text);
+  });
+  await testAsync('dates as dates, a time with its time, booleans as words, a field with a comma, a quote or a line quoted', async () => {
+    const { sheets, text } = await readXlsx(workbook);
+    assert.deepStrictEqual(sheets[0].rows[1].slice(0, 5), ['كانون الثاني', '10', '2026-01-31', '2026-01-31 14:30:00', 'TRUE']);
+    assert.ok(text.includes(',TRUE,"a, ""quoted""\nline"'), text);
+  });
+  await testAsync('a file that is not a workbook is refused, by what it is', async () => {
+    await assert.rejects(() => readXlsx(new TextEncoder().encode('month,amount\nJan,10')), /not a zip file/);
+    assert.ok(isXlsx({ name: 'Sales.XLSX' }) && isXlsx({ name: 'x', type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }) && !isXlsx({ name: 'a.csv', type: 'text/csv' }));
   });
 
   console.log('\n========================================');

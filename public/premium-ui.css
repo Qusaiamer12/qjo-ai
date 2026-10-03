@@ -944,6 +944,74 @@ body.has-fullscreen-code {
 }
 
 
+/* A run's output keeps its own dark terminal inside an answer. On a phone
+   every element of an answer inherits the answer's ink (styles.css, 0,3,0):
+   in light mode the header, its status, timer and buttons were 1.02:1. */
+.assistant .bubble .python-output-container .python-terminal-title,
+.assistant .bubble .python-output-container .python-terminal-loading { color: #cbd5e1; -webkit-text-fill-color: #cbd5e1; }
+.assistant .bubble .python-output-container .python-terminal-time { color: #a8b3c4; -webkit-text-fill-color: #a8b3c4; }
+.assistant .bubble .python-output-container .python-terminal-status.success { color: #34d399; -webkit-text-fill-color: #34d399; }
+.assistant .bubble .python-output-container .python-terminal-status.error { color: #fda4af; -webkit-text-fill-color: #fda4af; }
+.assistant .bubble .python-output-container .python-terminal-actions button { color: #cbd5e1; -webkit-text-fill-color: #cbd5e1; }
+.assistant .bubble .python-output-container .python-terminal-body { color: #e2e8f0; -webkit-text-fill-color: #e2e8f0; }
+.assistant .bubble .python-output-container .python-terminal-body.error-text { color: #fda4af; -webkit-text-fill-color: #fda4af; }
+
+/* What a run hands back under its output: the files it wrote, a note, Explain. */
+.python-run-extras {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px 12px;
+  direction: ltr;
+}
+
+.assistant .bubble .python-output-container .python-run-note {
+  flex-basis: 100%;
+  margin: 0;
+  font: 500 12px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: #fcd34d;
+  -webkit-text-fill-color: #fcd34d;
+  direction: auto;
+  unicode-bidi: plaintext;
+  text-align: start;
+}
+
+.assistant .bubble .python-output-container a.python-file-download,
+.assistant .bubble .python-output-container .python-explain-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font: 600 12px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.assistant .bubble .python-output-container a.python-file-download {
+  background: rgba(14, 165, 233, 0.12);
+  border: 1px solid rgba(125, 211, 252, 0.45);
+  color: #7dd3fc;
+  -webkit-text-fill-color: #7dd3fc;
+}
+
+.assistant .bubble .python-output-container .python-explain-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  color: #e2e8f0;
+  -webkit-text-fill-color: #e2e8f0;
+}
+
+.assistant .bubble .python-output-container a.python-file-download:hover,
+.assistant .bubble .python-output-container .python-explain-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.12); }
+
+.assistant .bubble .python-output-container a.python-file-download:focus-visible,
+.assistant .bubble .python-output-container .python-explain-btn:focus-visible { outline: 2px solid #7dd3fc; outline-offset: 2px; }
+
+.assistant .bubble .python-output-container .python-explain-btn:disabled { opacity: 0.6; cursor: default; }
+
 /* Python Terminal Output Container */
 .python-output-container {
   border-top: 1px solid rgba(148, 163, 184, 0.2);

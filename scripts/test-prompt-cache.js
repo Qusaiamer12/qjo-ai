@@ -216,6 +216,19 @@ const system = (body) => body.messages.filter((m) => m.role === 'system').map((m
     assert.ok(!textOf(lastUser(body).content).includes('WEBSITES & INTERFACES') && body.model === 'openai/gpt-oss-20b', `${body.model}`);
   });
 
+  console.log('\nPython that runs in the page:');
+  await test('a Python plot is asked for with the Python playbook alone — not "never output Python", not the engineering overlay', async () => {
+    const body = await asPage([{ role: 'user', content: 'اكتبلي كود بايثون يرسم منحنى المبيعات' }]);
+    const text = textOf(lastUser(body).content);
+    assert.ok(text.includes('PYTHON — it runs in the page') && text.includes('the page draws Arabic correctly'), 'the Python playbook and its Arabic note');
+    for (const part of ['NEVER output Python', 'ACTIVE MODE: CODE', 'LITERARY CRAFTSMANSHIP', 'START DIRECTLY WITH THE SOLUTION', 'house guidance', 'Calculator tool available', 'Router decision']) assert.ok(!text.includes(part), `carried: ${part}`);
+    assert.ok(body.tools && body.tools.length, 'Python for the page keeps its tools: an analysis may need a search');
+  });
+  await test('control: a Python project is still code, with its guidance and hints', async () => {
+    const text = textOf(lastUser(await asPage([{ role: 'user', content: 'build me a flask api in python for my shop' }])).content);
+    for (const part of ['ACTIVE MODE: CODE', 'house guidance', 'Router decision']) assert.ok(text.includes(part), `missing: ${part}`);
+  });
+
   console.log('\nThe tool list does not change with the message:');
   await test('a question with numbers and one without are offered the same tools, in the same order', async () => {
     const [plain] = await chat([{ role: 'user', content: 'Who founded the Umayyad dynasty?' }], { mode: 'flash' });

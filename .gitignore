@@ -28,3 +28,6 @@ knowledge/.vector-cache.json
 
 # Reports written by the eval scripts on every run
 evals/*-report-*.json
+
+# Python packages for the suites that run real Python (tests/browser/fetch-pyodide.js)
+tests/browser/.pyodide-cache/

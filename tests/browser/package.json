@@ -14,6 +14,7 @@
     "mathjax": "3.2.2",
     "pdfjs-dist": "4.10.38",
     "playwright": "^1.63.0",
+    "pyodide": "0.26.4",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "tailwindcss-cdn": "3.4.10"

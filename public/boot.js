@@ -51,6 +51,9 @@
     ['editing a message', () => window.QjoUI && window.QjoUI.createMessageEditor],
     ['own words', () => window.QjoDomain && window.QjoDomain.ownWords],
     ['site requests', () => window.QjoDomain && window.QjoDomain.siteRequest],
+    ['python runs', () => window.QjoDomain && window.QjoDomain.pythonRun],
+    ['excel reading', () => window.QjoDomain && window.QjoDomain.xlsxText],
+    ['python under answers', () => window.QjoUI && window.QjoUI.createPythonRunner],
     ['mode and tools buttons', () => window.QjoUI && window.QjoUI.createComposerControls]
   ];
 

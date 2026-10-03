@@ -133,82 +133,37 @@
     };
   `;
 
-  // Pyodide, loaded once per sandbox and kept for the next run. The runner
-  // wraps the user's code the way app.js did: stdout/stderr captured,
-  // matplotlib figures returned as PNG, long output truncated.
-  const PY_WORKER_SOURCE = `
+  // Pyodide, loaded once per sandbox and kept for the next run. The run
+  // itself is public/domain/pythonRun.js — its runner and runInPyodide, the
+  // code the real-Python suite runs — embedded here by its source.
+  const pyWorkerSource = () => `
+    const runInPyodide = ${global.QjoDomain.pythonRun.runInPyodide.toString()};
     let pyodide = null;
     self.onmessage = async function (event) {
-      const { code, indexURL, truncated } = event.data;
+      const job = event.data;
       const post = (m) => self.postMessage(m);
       try {
         if (!pyodide) {
           post({ status: 'loading' });
-          importScripts(indexURL + 'pyodide.js');
+          importScripts(job.indexURL + 'pyodide.js');
           post({ status: 'initializing' });
-          pyodide = await loadPyodide({ indexURL });
+          pyodide = await loadPyodide({ indexURL: job.indexURL });
         }
       } catch (err) {
         post({ done: true, loadError: String((err && err.message) || err) });
         return;
       }
       post({ status: 'packages' });
-      try { await pyodide.loadPackagesFromImports(code); } catch (_) { /* reported by the run itself */ }
+      try { await pyodide.loadPackagesFromImports(job.code); } catch (_) { /* reported by the run itself */ }
+      // Excel: openpyxl is not part of Pyodide; the app serves it.
+      if (job.wheels && job.wheels.length) { try { await pyodide.loadPackage(job.wheels); } catch (_) { /* reported by the run itself */ } }
       post({ status: 'running' });
-      pyodide.globals.set('__qjo_user_code', code);
-      const runner = [
-        'import sys',
-        'from io import StringIO',
-        '__qjo_stdout = StringIO()',
-        '__qjo_stderr = StringIO()',
-        '__qjo_old_stdout = sys.stdout',
-        '__qjo_old_stderr = sys.stderr',
-        'sys.stdout = __qjo_stdout',
-        'sys.stderr = __qjo_stderr',
-        '__qjo_error = None',
-        '__qjo_images = []',
-        "if 'matplotlib' in __qjo_user_code:",
-        '    try:',
-        '        import matplotlib',
-        "        matplotlib.use('Agg')",
-        '    except Exception:',
-        '        pass',
-        'try:',
-        "    __qjo_compiled = compile(__qjo_user_code, '<qjo-sandbox>', 'exec')",
-        '    exec(__qjo_compiled, globals())',
-        "    if 'matplotlib.pyplot' in sys.modules:",
-        '        import matplotlib.pyplot as plt',
-        '        import base64',
-        '        from io import BytesIO',
-        '        for fig_num in plt.get_fignums():',
-        '            fig = plt.figure(fig_num)',
-        '            buf = BytesIO()',
-        "            fig.savefig(buf, format='png', bbox_inches='tight', dpi=120)",
-        '            buf.seek(0)',
-        "            __qjo_images.append(base64.b64encode(buf.read()).decode('utf-8'))",
-        '            plt.close(fig)',
-        'except Exception:',
-        '    import traceback',
-        '    __qjo_error = traceback.format_exc()',
-        'finally:',
-        '    sys.stdout = __qjo_old_stdout',
-        '    sys.stderr = __qjo_old_stderr',
-        '__qjo_out_str = __qjo_stdout.getvalue()',
-        '__qjo_err_str = __qjo_stderr.getvalue()',
-        'if len(__qjo_out_str) > 40000:',
-        '    __qjo_out_str = __qjo_out_str[:40000] + "\\\\n... " + ' + JSON.stringify(truncated.stdout),
-        'if len(__qjo_err_str) > 20000:',
-        '    __qjo_err_str = __qjo_err_str[:20000] + "\\\\n... " + ' + JSON.stringify(truncated.stderr),
-        '{"stdout": __qjo_out_str, "stderr": __qjo_err_str, "error": __qjo_error, "images": __qjo_images}'
-      ].join('\\n');
       const startedAt = performance.now();
       try {
-        const res = await pyodide.runPythonAsync(runner);
-        const out = res.toJs({ dict_converter: Object.fromEntries });
-        if (res && typeof res.destroy === 'function') { try { res.destroy(); } catch (_) {} }
+        const out = await runInPyodide(pyodide, job);
         post({ done: true, result: { ...out, durationMs: Math.round(performance.now() - startedAt) } });
       } catch (err) {
-        post({ done: true, result: { stdout: '', stderr: '', error: String((err && err.message) || err), images: [], durationMs: Math.round(performance.now() - startedAt) } });
+        post({ done: true, result: { stdout: '', stderr: '', error: String((err && err.message) || err), images: [], files: [], skipped: [], durationMs: Math.round(performance.now() - startedAt) } });
       }
     };
   `;
@@ -334,39 +289,53 @@
     return run;
   }
 
+  // Excel files: pandas reads and writes them with openpyxl, which Pyodide
+  // does not ship. Served by the app (public/vendor/python), MIT-licensed.
+  const EXCEL_WHEELS = ['/vendor/python/et_xmlfile-2.0.0-py3-none-any.whl', '/vendor/python/openpyxl-3.1.5-py2.py3-none-any.whl'];
+  const USES_EXCEL = /read_excel|to_excel|ExcelWriter|openpyxl|\.xlsx\b/;
+
   /**
    * Runs Python in the shared Python sandbox (Pyodide stays loaded between
    * runs). Loading has its own, longer limit than running. Throws when Python
    * cannot be loaded at all, as before; a run that errors resolves with it.
    * @param {string} code
    * @param {{onStatus?: (status: string) => void, loadTimeoutMs?: number, runTimeoutMs?: number,
-   *   timeoutMessage?: string, truncated?: {stdout: string, stderr: string}, indexURL?: string, document?: Document}} [options]
+   *   timeoutMessage?: string, truncated?: {stdout: string, stderr: string}, indexURL?: string, document?: Document,
+   *   files?: Array<{name: string, bytes: Uint8Array}>}} [options]
    */
   async function runPythonNow(code, {
     onStatus, loadTimeoutMs = 120000, runTimeoutMs = 30000, timeoutMessage = 'Execution halted: the code ran too long.',
-    truncated = { stdout: 'output truncated', stderr: 'warnings truncated' }, indexURL = PYODIDE_INDEX_URL, document: doc = global.document
+    truncated = { stdout: 'output truncated', stderr: 'warnings truncated' }, indexURL = PYODIDE_INDEX_URL, document: doc = global.document,
+    files = []
   } = {}) {
+    const run = global.QjoDomain.pythonRun;
     if (!pythonSandbox) pythonSandbox = createSandbox(doc);
     const sandbox = pythonSandbox;
+    const source = String(code || '');
+    const job = {
+      code: source, indexURL, runner: run.runnerSource(truncated), limits: run.LIMITS,
+      files: (files || []).map((f) => ({ name: run.safeName(f.name), bytes: f.bytes })),
+      wheels: USES_EXCEL.test(source) ? EXCEL_WHEELS.map((p) => new URL(p, global.location.href).href) : []
+    };
     let phaseTimer = null;
     let resolveTimeout;
     const timedOut = new Promise((resolve) => { resolveTimeout = resolve; });
     const arm = (ms) => { clearTimeout(phaseTimer); phaseTimer = setTimeout(() => resolveTimeout({ timedOut: true }), ms); };
     arm(loadTimeoutMs);
-    const job = sandbox.run('py', PY_WORKER_SOURCE, { code: String(code || ''), indexURL, truncated }, {
+    const pending = sandbox.run('py', pyWorkerSource(), job, {
       onMessage: (m) => {
         if (m.status === 'running') arm(runTimeoutMs);
         if (m.status && onStatus) onStatus(String(m.status));
       }
     });
-    const raw = await Promise.race([job, timedOut]);
+    const raw = await Promise.race([pending, timedOut]);
     clearTimeout(phaseTimer);
     if (raw.timedOut) {
       // The only way to stop Python mid-run: end the sandbox. The next run
       // starts a fresh one.
       sandbox.destroy();
       if (pythonSandbox === sandbox) pythonSandbox = null;
-      return { stdout: '', stderr: '', error: timeoutMessage, images: [], durationMs: 0, timedOut: true };
+      return { stdout: '', stderr: '', error: timeoutMessage, images: [], files: [], skipped: [], durationMs: 0, timedOut: true };
     }
     if (raw.sandboxError || raw.loadError) {
       sandbox.destroy();
@@ -378,7 +347,11 @@
       stdout: text(r.stdout, 60000),
       stderr: text(r.stderr, 30000),
       error: r.error ? text(r.error, 30000) : null,
-      images: (Array.isArray(r.images) ? r.images : []).filter((b) => typeof b === 'string' && BASE64.test(b)).slice(0, 12),
+      images: (Array.isArray(r.images) ? r.images : []).filter((b) => typeof b === 'string' && BASE64.test(b)).slice(0, run.LIMITS.plots),
+      // What the code wrote: a name made safe, and base64 only, as for plots.
+      files: (Array.isArray(r.files) ? r.files : []).filter((f) => f && typeof f.base64 === 'string' && BASE64.test(f.base64) && typeof f.name === 'string')
+        .slice(0, run.LIMITS.files).map((f) => ({ name: run.safeName(f.name), size: Number(f.size) || 0, base64: f.base64 })),
+      skipped: (Array.isArray(r.skipped) ? r.skipped : []).filter((n) => typeof n === 'string').slice(0, 20).map(run.safeName),
       durationMs: Number.isFinite(r.durationMs) ? r.durationMs : 0
     };
   }

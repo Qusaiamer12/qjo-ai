@@ -293,6 +293,36 @@ test('a site carries the interface playbook alone, without the engineering overl
   assert.ok(detectNeeds([user('fix this bug: TypeError in my react component')]).code);
 });
 
+// Python that runs in the page was asked for with the charts playbook ("never
+// output Python"), the essay playbook ("write") and the engineering overlay's
+// file tree and npm install, beside the Python playbook.
+const withData = (own, file = 'sales.csv') => `${own}\n\nUser attached or previously indexed files with retrieved evidence. Use them.\nAttachment Index 1: ${file}\nOrigin: pending\nType: text/csv\nmonth,amount\nJan,10`;
+test('Python for the page carries the Python playbook alone: no charts, essay or engineering overlay', () => {
+  for (const text of ['write python to analyse my sales', 'اكتبلي كود بايثون يرسم منحنى', 'solve x^2 = 2 with sympy', withData('حللي هالملف وارسملي رسمة'), withData('analyse this file', 'sales.xlsx')]) {
+    const needs = detectNeeds([user(text)]);
+    assert.ok(needs.python && !needs.code, `"${text.split('\n')[0]}": python ${needs.python}, code ${needs.code}`);
+    assert.deepStrictEqual(needs.playbooks, ['python'], text.split('\n')[0]);
+  }
+  // Controls: a Python project is code; a data file without an ask to work it, or an ask without a file, is not Python.
+  // Projects that also name a sum or a plot: the project wins.
+  for (const text of ['build me a flask api in python', 'write a python telegram bot', 'fix this python bug: IndexError',
+    'build a flask api in python that computes the average order', 'write a python telegram bot that plots the daily total', 'سويلي بوت بالبايثون يحسب مجموع الطلبات']) {
+    const needs = detectNeeds([user(text)]);
+    assert.ok(!needs.python && needs.code, `"${text}" was taken for Python in the page`);
+  }
+  assert.ok(!detectNeeds([user(withData('شو رأيك بالأرقام؟'))]).python, 'a data file with a question was taken for Python');
+  assert.ok(!detectNeeds([user('analyse this poem for me')]).python, 'an ask without a file or Python was taken for Python');
+  assert.ok(!detectNeeds([user(withData('حللي هالملف', 'report.pdf'))]).python, 'a PDF was taken for a data file');
+});
+
+test('the Python playbook says what the page does with the code: files by name, plots drawn, files offered back', () => {
+  const py = PLAYBOOKS.python.en;
+  assert.ok(/working directory by their exact names/.test(py) && /pd\.read_excel/.test(py), 'files');
+  assert.ok(/draws under the code by itself/.test(py) && /projection="3d"/.test(py), 'plots');
+  assert.ok(/offered to the person as a download/.test(py), 'files out');
+  assert.ok(/no internet, no pip, no input\(\)/.test(py), 'limits');
+});
+
 test('the site playbook names what the preview loads, at the versions it serves', () => {
   const { LIBS } = require('../public/domain/codeProject');
   const ui = PLAYBOOKS.ui.en;
