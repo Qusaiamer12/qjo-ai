@@ -204,7 +204,9 @@ jobs:
   # origin, so a CDN being up or down cannot change a result here.
   browser:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # 19m44s at Stage 16, and real Python added about three minutes: a limit
+    # the suites outgrow fails a green run.
+    timeout-minutes: 35
 
     steps:
       - uses: actions/checkout@v4
