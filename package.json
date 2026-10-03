@@ -41,7 +41,9 @@
     "test:long-requests": "node scripts/test-long-requests.js",
     "test:route": "node scripts/test-chat-route.js",
     "test:language": "node scripts/test-language.js",
-    "test:search-providers": "node scripts/test-search-providers.js"
+    "test:search-providers": "node scripts/test-search-providers.js",
+    "logo:red": "node scripts/toggle-brand-logo.js red",
+    "logo:legacy": "node scripts/toggle-brand-logo.js legacy"
   },
   "dependencies": {
     "@qdrant/js-client-rest": "^1.19.0",

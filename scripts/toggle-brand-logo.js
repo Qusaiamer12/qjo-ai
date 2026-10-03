@@ -18,6 +18,7 @@ const RED_DIR = path.join(PUBLIC_DIR, 'red-logo-source');
 const LOGO_FILES = [
   'qjo-logo.png',
   'favicon.png',
+  'favicon.ico',
   'apple-touch-icon.png',
   'icon-16.png',
   'icon-32.png',
