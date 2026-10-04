@@ -2431,7 +2431,7 @@ body.dark .export-table-csv-btn:hover svg {
 
   /* Topbar title — keep it compact */
   .top-title { flex: 1; min-width: 0; }
-  .top-title strong { font-size: 16px !important; }
+  .top-title strong { font-size: 16.5px !important; }
   #topSubtitle { display: none !important; }
 
   /* Topbar actions — keep new chat + export, hide sidebar toggle */
@@ -3233,7 +3233,7 @@ html body:not(.dark) .assistant .bubble {
   border: none !important;
   box-shadow: none !important;
   padding: 12px 0 !important;
-  max-width: 100% !important; font-size: 16px !important; line-height: 1.75 !important;
+  max-width: 100% !important; font-size: 16.5px !important; line-height: 1.75 !important;
   width: 100% !important;
 }
 
@@ -3275,4 +3275,25 @@ html body.dark .user .bubble {
   background: #1e293b !important;
   color: #f8fafc !important;
   -webkit-text-fill-color: #f8fafc !important;
+}
+
+/* Force text size on inner tags (p, li, td) to override old styles */
+html body .msg.assistant .bubble p,
+html body .assistant .bubble p,
+html body .msg.assistant .bubble li,
+html body .assistant .bubble li,
+html body .msg.assistant .bubble td,
+html body .assistant .bubble td,
+html body .msg.assistant .bubble th,
+html body .assistant .bubble th {
+  font-size: 16.5px !important;
+  line-height: 1.75 !important;
+}
+
+html body .msg.user .bubble p,
+html body .user .bubble p,
+html body .msg.user .bubble li,
+html body .user .bubble li {
+  font-size: 15.5px !important;
+  line-height: 1.65 !important;
 }
