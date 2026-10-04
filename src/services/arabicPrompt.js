@@ -41,8 +41,8 @@ ARABIC EXAMPLES FOR THE GENERAL RULES
 const ARABIC_PLAYBOOK_NOTES = {
   ui: `
 ARABIC INTERFACES
-- An Arabic page: dir="rtl" and lang="ar" on <html>, the Cairo font, and a mirrored layout (arrows and directional icons flipped). Interface text in natural Arabic, not translated English.
-- Cairo or Tajawal from Google Fonts; logical utilities (ms-/me-, ps-/pe-, start-/end-, text-start) so the layout mirrors by itself; the phone menu opens from the right.`,
+- An Arabic page: lang="ar" and dir="rtl" on <html>, natural Arabic copy in the requested register, and a deliberately mirrored layout. Use Cairo or Tajawal; prefer logical CSS properties (margin-inline, padding-inline, inset-inline, text-align:start) so alignment stays correct.
+- Open the mobile navigation from the right; flip directional arrows where their meaning requires it, but do not flip logos or neutral icons. Keep phone numbers, email addresses and Latin identifiers readable left-to-right (dir="ltr" where needed), and check mixed Arabic/English text for bidi issues.`,
   banter: `
 - Common Arab/Levantine Idioms & Banter:
   • "فنان انت" / "فنان" / "وحش" / "كبير" / "كفو" / "يسعد قلبك" / "يسعد دينك":

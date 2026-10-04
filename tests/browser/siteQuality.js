@@ -1,7 +1,8 @@
 // What makes a generated website good enough to show, measured in a real
 // Chromium on the page as it runs in Qjo's preview: the same document
 // (codeProject.buildDocument, with its guard), in an iframe with the same
-// sandbox, inside a page whose only job is to hold it.
+// sandbox, across phone, tablet and desktop breakpoints, inside a page whose
+// only job is to hold it.
 //
 //   const report = await checkSite(browser, html, { serve });
 //   report.problems  →  [] for a good site, else one line per failure
@@ -23,7 +24,7 @@ const LIBRARIES = {
   'https://cdn.jsdelivr.net/npm/lucide@1.48.0/dist/umd/lucide.min.js': () => fs.readFileSync(path.join(modules, 'lucide', 'dist', 'umd', 'lucide.min.js'), 'utf8')
 };
 const AXE = path.join(modules, 'axe-core', 'axe.min.js');
-// A photo from picsum: a real image of the size asked for.
+// A tiny local image fixture: browser checks must not depend on the image CDN.
 const PHOTO = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkaPhfDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
 
 /**
@@ -35,7 +36,7 @@ async function serveSiteAssets(context) {
   for (const [url, body] of Object.entries(LIBRARIES)) {
     await context.route(url, (route) => route.fulfill({ status: 200, contentType: 'application/javascript', headers: { 'access-control-allow-origin': '*' }, body: body() }));
   }
-  await context.route('https://picsum.photos/**', (route) => route.fulfill({ status: 200, contentType: 'image/png', body: PHOTO }));
+  await context.route('https://images.unsplash.com/**', (route) => route.fulfill({ status: 200, contentType: 'image/png', body: PHOTO }));
   await context.route('https://fonts.googleapis.com/**', (route) => route.fulfill({ status: 200, contentType: 'text/css', body: '' }));
 }
 
@@ -94,6 +95,7 @@ async function checkContent(frame, problems, facts, expect) {
       hiddenAfterScroll: hidden.slice(0, 5).map((el) => el.tagName.toLowerCase() + ':' + (el.textContent || el.getAttribute('alt') || '').trim().slice(0, 30)),
       images: images.length,
       brokenImages: images.filter((img) => img.complete && img.naturalWidth === 0).map((img) => img.getAttribute('src')).slice(0, 5),
+      randomImageSources: images.map((img) => img.getAttribute('src') || '').filter((src) => /picsum\.photos|source\.unsplash\.com|loremflickr\.com|placekitten\.com|placebear\.com/i.test(src)).slice(0, 5),
       imagesWithoutAlt: images.filter((img) => !img.hasAttribute('alt')).length,
       lucidePlaceholders: document.querySelectorAll('i[data-lucide]').length,
       text: document.body.innerText.length,
@@ -110,6 +112,7 @@ async function checkContent(frame, problems, facts, expect) {
     [desk.brokenAnchors.length, `links to sections that do not exist: #${desk.brokenAnchors.join(', #')}`],
     [desk.hiddenAfterScroll.length, `content still invisible after scrolling through: ${desk.hiddenAfterScroll.join(' | ')}`],
     [desk.brokenImages.length, `images that did not load: ${desk.brokenImages.join(', ')}`],
+    [desk.randomImageSources.length, `random image sources that may show unrelated subjects: ${desk.randomImageSources.join(', ')}`],
     [desk.imagesWithoutAlt, `${desk.imagesWithoutAlt} images without alt`],
     [desk.lucidePlaceholders, `${desk.lucidePlaceholders} icons never drawn (data-lucide left as <i>)`],
     [expect.rtl && (desk.lang !== 'ar' || desk.dir !== 'rtl'), `an Arabic site with lang="${desk.lang}" dir="${desk.dir}"`]
@@ -167,6 +170,30 @@ async function checkAccessibility(frame, problems, facts) {
   else if (axe.length) problems.push(`accessibility: ${axe.join(', ')}`);
 }
 
+// At intermediate/large breakpoints, catch overflow hidden between mobile and desktop.
+async function checkResponsiveSizes(page, frame, problems, facts) {
+  const widths = [390, 768, 1024, 1280, 1440];
+  const measurements = [];
+  for (const width of widths) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.waitForTimeout(80);
+    const result = await frame.evaluate(() => {
+      const viewport = document.documentElement.clientWidth;
+      const scrollWidth = document.documentElement.scrollWidth;
+      const wide = [...document.body.querySelectorAll('*')].filter((el) => {
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && (rect.right > viewport + 1 || rect.left < -1) && getComputedStyle(el).position !== 'fixed';
+      });
+      return { viewport, scrollWidth, wide: wide.slice(0, 3).map((el) => el.tagName.toLowerCase() + (el.id ? '#' + el.id : '')) };
+    });
+    measurements.push({ width, ...result });
+    if (result.scrollWidth > result.viewport + 1) problems.push(`scrolls sideways at ${width}px (${result.scrollWidth}px wide: ${result.wide.join(', ')})`);
+  }
+  facts.breakpoints = measurements;
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.waitForTimeout(80);
+}
+
 // At 360 px: nothing scrolls sideways, and the menu opens and says so.
 async function checkPhone(phone, problems, facts) {
   const narrow = await phone.evaluate(() => {
@@ -211,6 +238,7 @@ async function checkSite(browser, html, expect = {}) {
     await checkAccessibility(frame, problems, facts);
     const phone = await framed(page, html, 360);
     await scrollThrough(phone);
+    await checkResponsiveSizes(page, phone, problems, facts);
     await checkPhone(phone, problems, facts);
     facts.errors = errors.slice(0, 5);
     if (errors.length) problems.push(`JavaScript errors: ${errors.slice(0, 3).join(' | ')}`);

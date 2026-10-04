@@ -11,6 +11,7 @@
 'use strict';
 
 const assert = require('assert');
+const fs = require('fs');
 const { languageOfText, replyLanguage, resolveInitialLanguage, arabicInPlay } = require('../public/domain/language.js');
 const { buildChatSystemPrompt, CORE_PROMPT } = require('../src/services/systemPrompt');
 const baseline = require('./fixtures/arabic-prompt-baseline.json');
@@ -348,13 +349,30 @@ test('the Python playbook says what the page does with the code: files by name, 
   assert.ok(/no internet, no pip, no input\(\)/.test(py), 'limits');
 });
 
-test('the site playbook names what the preview loads, at the versions it serves', () => {
+test('the site playbook names supported libraries and forbids random image sources', () => {
   const { LIBS } = require('../public/domain/codeProject');
   const ui = PLAYBOOKS.ui.en;
   const lucide = /lucide@([\d.]+)\/dist\/umd\/lucide\.min\.js/.exec(ui);
   assert.ok(lucide && LIBS.lucideReact.includes(`lucide-react@${lucide[1]}/`), `Lucide ${lucide && lucide[1]} and lucide-react in ${LIBS.lucideReact}`);
-  assert.ok(ui.includes(LIBS.tailwind) && /picsum\.photos\/seed/.test(ui) && /cdn\.jsdelivr\.net or cdnjs\.cloudflare\.com/.test(ui));
-  assert.ok(/dir="rtl"/.test(require('../src/services/arabicPrompt').ARABIC_PLAYBOOK_NOTES.ui));
+  assert.ok(ui.includes(LIBS.tailwind) && /cdn\.jsdelivr\.net \/ cdnjs\.cloudflare\.com/.test(ui));
+  assert.ok(/random-image services/.test(ui) && /picsum\.photos/.test(ui) && /source\.unsplash\.com/.test(ui));
+  assert.ok(/subject-specific inline SVG\/CSS/.test(ui), 'no useful image fallback');
+  assert.ok(/UI\/HTML IMAGES/.test(CORE_PROMPT) && /Never invent URLs or use random-image services/.test(CORE_PROMPT), 'the global image policy conflicts with the site playbook');
+  assert.ok(/Never invent business facts or trust signals/.test(ui), 'business facts may be fabricated');
+  assert.ok(/1120–1280px/.test(ui) && /360, 390, 768, 1024, 1280 and 1440px/.test(ui) && /44×44px/.test(ui), 'responsive measurements are missing');
+  const ar = require('../src/services/arabicPrompt').ARABIC_PLAYBOOK_NOTES.ui;
+  assert.ok(/lang="ar" and dir="rtl"/.test(ar) && /left-to-right/.test(ar) && /logical CSS properties/.test(ar));
+});
+
+test('the chat client gives site requests the same full output budget in Flash and Max', () => {
+  const app = fs.readFileSync(require('path').join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  const configStart = app.indexOf('function getGenerationConfig(');
+  const siteDetection = app.indexOf('QjoDomain.siteRequest.siteInConversation', configStart);
+  const siteBudget = app.indexOf('max_tokens: 7000', siteDetection);
+  const codeBudget = app.indexOf('if (codeShaped)', siteDetection);
+  const siteBranch = app.slice(siteDetection, codeBudget);
+  assert.ok(configStart >= 0 && siteDetection > configStart && /return\s*\{[^}]*max_tokens:\s*7000[^}]*\}/s.test(siteBranch), 'site requests no longer receive the 7000-token budget');
+  assert.ok(codeBudget > siteBudget, 'site detection must precede mode-specific generic code budgets');
 });
 
 test('a follow-up keeps the playbook of the request it follows', () => {
@@ -377,14 +395,14 @@ test('the core says what Qjo makes, and to give the closest thing for what it ca
 });
 
 test('the prompt stays inside what Groq\'s free tier can take', () => {
-  // Characters as a stand-in for tokens (Arabic ≈ 4 chars/token here, English
-  // ≈ 4.3). 13,500 Arabic chars ≈ 3,300 tokens: with tools, a short history
-  // and 2,000 tokens of answer room, a message fits Groq's 8,000 a minute.
+  // Characters as a stand-in for tokens (Arabic ≈ 3 chars/token, English
+  // ≈ 4.3). 9,800 English chars are ≈ 2,280 tokens; with tools, a short
+  // history and 2,000 tokens of answer room, this stays below Groq's 8,000/min.
   for (const mode of ['flash', 'max']) {
     const ar = buildChatSystemPrompt({ mode, needs: detectNeeds([user('كيفك')]), arabic: true, runtimeLine: 'Friday 26 September 2026 (approximate location: Amman; time zone: Asia/Amman)' });
     const en = buildChatSystemPrompt({ mode, needs: detectNeeds([user('hi')]), runtimeLine: 'Friday 26 September 2026 (approximate location: Amman; time zone: Asia/Amman)' });
     assert.ok(ar.length <= 13500, `${mode}, Arabic: ${ar.length} chars`);
-    assert.ok(en.length <= 9500, `${mode}, English: ${en.length} chars`);
+    assert.ok(en.length <= 9800, `${mode}, English: ${en.length} chars`);
   }
 });
 
