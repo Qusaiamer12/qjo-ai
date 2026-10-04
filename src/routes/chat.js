@@ -241,9 +241,14 @@ function registerChatRoutes(app, deps) {
       if (!cleanedMessages.length) return res.status(400).json({ error: 'No valid messages.' });
 
       const useStreaming = req.body.stream === true || req.headers.accept === 'text/event-stream';
-      const temperature = req.body.temperature !== undefined ? clampNumber(req.body.temperature, 0.7, 0, 1) : undefined;
-      const maxTokens = clampNumber(req.body.max_tokens, deps.defaultMaxTokens || 2600, 64, 7992);
       const mode = String(req.body.mode || '');
+      
+      // Smart Defaults based on mode
+      const defaultTemp = mode === 'flash' ? 0.3 : (mode === 'max' ? 0.6 : 0.7);
+      const defaultTokens = mode === 'flash' ? 1500 : (mode === 'max' ? 8000 : (deps.defaultMaxTokens || 2600));
+      
+      const temperature = req.body.temperature !== undefined ? clampNumber(req.body.temperature, defaultTemp, 0, 1) : defaultTemp;
+      const maxTokens = clampNumber(req.body.max_tokens, defaultTokens, 64, 8192);
       // Computed here rather than taken from the request body. The router lives
       // in a CommonJS server module the browser cannot import, so a client-side
       // decision would mean duplicating the classifier — and a body field would

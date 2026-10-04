@@ -187,15 +187,15 @@ function isLiteRequest(messages) {
 // gpt-oss-20b used to hand over straight to the slowest provider.)
 const PIPELINES = {
   // Lite track: greetings only — spread across all providers for max resilience.
-  lite: [['groq', 'flash'], ['cerebras', 'flash'], ['gemini', 'flash'], ['openrouter', 'flash'], ['groq', 'text'], ['qwen', 'flash'], ['kimi', 'flash'], ['llm7', 'flash']],
+  lite: [['cerebras', 'flash'], ['groq', 'flash'], ['gemini', 'flash'], ['openrouter', 'flash'], ['qwen', 'flash'], ['kimi', 'flash'], ['llm7', 'flash']],
   // Flash mode: high velocity — cross-provider fallback chain.
-  flash: [['groq', 'flash'], ['cerebras', 'flash'], ['gemini', 'flash'], ['openrouter', 'flash'], ['groq', 'text'], ['qwen', 'flash'], ['kimi', 'flash'], ['llm7', 'flash']],
-  // Max mode (Arabic-heavy): larger models, cross-provider. Gemini and OpenRouter added.
-  maxAr: [['groq', 'text'], ['gemini', 'text'], ['openrouter', 'text'], ['qwen', 'text'], ['kimi', 'text'], ['cerebras', 'text'], ['groq', 'flash'], ['llm7', 'text']],
+  flash: [['cerebras', 'flash'], ['groq', 'flash'], ['gemini', 'flash'], ['openrouter', 'flash'], ['groq', 'text'], ['qwen', 'flash'], ['kimi', 'flash'], ['llm7', 'flash']],
+  // Max mode (Arabic-heavy): larger models, cross-provider.
+  maxAr: [['gemini', 'text'], ['openrouter', 'text'], ['groq', 'text'], ['qwen', 'text'], ['kimi', 'text'], ['cerebras', 'text'], ['llm7', 'text']],
   // Max mode (English / mixed): larger models, cross-provider.
-  maxEn: [['groq', 'text'], ['cerebras', 'text'], ['gemini', 'text'], ['openrouter', 'text'], ['groq', 'flash'], ['qwen', 'text'], ['kimi', 'text'], ['llm7', 'text']],
-  // Code mode: text-grade models first, cross-provider.
-  code: [['groq', 'text'], ['gemini', 'text'], ['openrouter', 'code'], ['cerebras', 'text'], ['groq', 'flash'], ['kimi', 'code'], ['qwen', 'code'], ['llm7', 'text']],
+  maxEn: [['gemini', 'text'], ['openrouter', 'text'], ['groq', 'text'], ['cerebras', 'text'], ['qwen', 'text'], ['kimi', 'text'], ['llm7', 'text']],
+  // Code mode: text-grade models first, cross-provider. (OpenRouter maps to DeepSeek-R1)
+  code: [['openrouter', 'code'], ['gemini', 'text'], ['groq', 'text'], ['cerebras', 'text'], ['kimi', 'code'], ['qwen', 'code'], ['llm7', 'text']],
   // Vision requests: vision-capable slots.
   vision: [['gemini', 'vision'], ['groq', 'vision'], ['qwen', 'vision']]
 };
@@ -534,10 +534,16 @@ function createRoutingEngine(deps) {
       if (searchService && !route.hasSearchContext) {
         attach.push('web_search');
         // Opening a page is how a search result becomes evidence; on its own
-        // the model has no URL to open.
-        attach.push('fetch_page');
+        // the model has no URL to open. However, in Flash mode, we restrict deep
+        // page fetching to save time and ensure instant response.
+        if (normMode !== 'flash') {
+          attach.push('fetch_page');
+        }
       }
-      for (const name of extraToolNames) attach.push(name);
+      // Only attach extra tools (if any) to max modes
+      if (normMode !== 'flash') {
+        for (const name of extraToolNames) attach.push(name);
+      }
     }
     const tools = buildTools({ attach });
     // A turn that may search, open a source and then write has more steps
