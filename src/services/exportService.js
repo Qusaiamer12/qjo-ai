@@ -484,14 +484,14 @@ function buildExportHtmlDocument({ title, content, rtl }) {
   p, li { orphans: 3; widows: 3; }
   table, pre, blockquote, figure, .table-wrap, .math-block { break-inside: avoid; page-break-inside: avoid; }
 
-  .cover { border-bottom: 3px solid #123B7A; padding-bottom: 16px; margin-bottom: 26px; }
-  .brand { color: #123B7A; font-weight: 800; letter-spacing: .04em; font-size: 12px; text-transform: uppercase; }
+  .cover { border-bottom: 3px solid #7B3FE4; padding-bottom: 16px; margin-bottom: 26px; }
+  .brand { color: #7B3FE4; font-weight: 800; letter-spacing: .04em; font-size: 12px; text-transform: uppercase; }
   .cover h1 { margin: 10px 0 8px; font-size: 27px; line-height: 1.35; font-weight: 800; }
   .meta { color: #64748b; font-size: 10.5px; }
   .meta .sep { margin: 0 6px; color: #cbd5e1; }
 
   h1 { font-size: 23px; margin: 26px 0 10px; font-weight: 800; }
-  h2 { color: #123B7A; font-size: 18px; margin: 22px 0 8px; font-weight: 700; }
+  h2 { color: #7B3FE4; font-size: 18px; margin: 22px 0 8px; font-weight: 700; }
   h3 { color: #7B3FE4; font-size: 15px; margin: 18px 0 6px; font-weight: 700; }
   h4 { color: #334155; font-size: 13.5px; margin: 14px 0 5px; font-weight: 700; }
   h5, h6 { color: #475569; font-size: 12.5px; margin: 12px 0 4px; font-weight: 700; }
@@ -504,9 +504,9 @@ function buildExportHtmlDocument({ title, content, rtl }) {
 
   ul, ol { margin: 0 0 12px; padding-inline-start: 24px; padding-inline-end: 0; }
   li { margin: 5px 0; }
-  li::marker { color: #123B7A; font-weight: 700; }
+  li::marker { color: #7B3FE4; font-weight: 700; }
   ul ul, ol ol, ul ol, ol ul { margin: 5px 0 0; }
-  .task-box { font-size: 13px; color: #123B7A; }
+  .task-box { font-size: 13px; color: #7B3FE4; }
 
   blockquote {
     margin: 14px 0;
@@ -550,7 +550,7 @@ function buildExportHtmlDocument({ title, content, rtl }) {
 
   .table-wrap { margin: 14px 0; }
   table { width: 100%; border-collapse: collapse; font-size: 11px; }
-  th { background: #123B7A; color: #fff; padding: 8px 10px; border: 1px solid #123B7A; text-align: ${start}; font-weight: 700; }
+  th { background: #7B3FE4; color: #fff; padding: 8px 10px; border: 1px solid #7B3FE4; text-align: ${start}; font-weight: 700; }
   td { padding: 8px 10px; border: 1px solid #cbd5e1; vertical-align: top; text-align: ${start}; }
   tr:nth-child(even) td { background: #f8fafc; }
 

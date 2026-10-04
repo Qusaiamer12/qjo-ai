@@ -16,7 +16,7 @@ const JSZip = require('jszip');
 const { parseMarkdown, mathToText } = require('./markdownModel');
 const { decodeImage } = require('./attachedImages');
 
-const COLOR = { ink: '0F172A', accent: '123B7A', muted: '64748B', link: '1D4ED8', codeBg: 'F1F5F9', line: 'CBD5E1', zebra: 'F8FAFC', white: 'FFFFFF' };
+const COLOR = { ink: '0F172A', accent: '7B3FE4', muted: '64748B', link: '1D4ED8', codeBg: 'F1F5F9', line: 'CBD5E1', zebra: 'F8FAFC', white: 'FFFFFF' };
 // Arial carries Arabic on every system Word runs on; Calibri is Word's own.
 const FONT = { ascii: 'Calibri', hAnsi: 'Calibri', cs: 'Arial' };
 // Consolas has no Arabic; an Arabic comment in code falls to Courier New, which does.

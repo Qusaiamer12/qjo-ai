@@ -17,7 +17,7 @@ const { parseMarkdown, runsText, mathToText } = require('./markdownModel');
 const PptxGen = require('pptxgenjs');
 
 const W = 13.333, H = 7.5;
-const BRAND = { navy: '07101F', blue: '123B7A', cyan: '38C7DD', violet: '7B3FE4', text: '0F172A', muted: '64748B', bg: 'F8FAFC', white: 'FFFFFF',
+const BRAND = { navy: '07101F', blue: '7B3FE4', cyan: '38C7DD', violet: '7B3FE4', text: '0F172A', muted: '64748B', bg: 'F8FAFC', white: 'FFFFFF',
   line: 'CBD5E1', zebra: 'F1F5F9', codeBg: '0B1220', codeText: 'E5E7EB', quoteBg: 'EEF2FF', card: 'FFFFFF' };
 const BODY = { x: 0.7, y: 1.35, w: W - 1.4, h: 5.55 };
 // What fits a slide at the body size, measured on the rendered deck.
