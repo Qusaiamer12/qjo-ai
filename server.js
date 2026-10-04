@@ -83,6 +83,24 @@ const QWEN_API_KEYS = String(process.env.QWEN_API_KEYS || process.env.QWEN_API_K
   .map(k => k.trim())
   .filter(Boolean);
 
+// OpenRouter Free Tier
+const OPENROUTER_API_KEYS = String(process.env.OPENROUTER_API_KEYS || process.env.OPENROUTER_API_KEY || '')
+  .split(',')
+  .map(k => k.trim())
+  .filter(Boolean);
+
+// Cerebras
+const CEREBRAS_API_KEYS = String(process.env.CEREBRAS_API_KEYS || process.env.CEREBRAS_API_KEY || '')
+  .split(',')
+  .map(k => k.trim())
+  .filter(Boolean);
+
+// Google Gemini
+const GEMINI_API_KEYS = String(process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || '')
+  .split(',')
+  .map(k => k.trim())
+  .filter(Boolean);
+
 const EMBEDDING_API_KEYS = String(process.env.EMBEDDING_API_KEYS || process.env.EMBEDDING_API_KEY || '')
   .split(',')
   .map(k => k.trim())
@@ -108,6 +126,18 @@ const QWEN_FLASH_MODEL = process.env.QWEN_FLASH_MODEL || 'qwen-plus';
 const QWEN_TEXT_MODEL = process.env.QWEN_TEXT_MODEL || 'qwen-plus';
 const QWEN_CODE_MODEL = process.env.QWEN_CODE_MODEL || QWEN_TEXT_MODEL;
 const QWEN_VISION_MODEL = process.env.QWEN_VISION_MODEL || 'qwen-vl-plus';
+
+const OPENROUTER_FLASH_MODEL = process.env.OPENROUTER_FLASH_MODEL || 'google/gemini-2.5-flash:free';
+const OPENROUTER_TEXT_MODEL = process.env.OPENROUTER_TEXT_MODEL || 'meta-llama/llama-3.3-70b-instruct:free';
+const OPENROUTER_CODE_MODEL = process.env.OPENROUTER_CODE_MODEL || 'deepseek/deepseek-r1:free';
+
+const CEREBRAS_FLASH_MODEL = process.env.CEREBRAS_FLASH_MODEL || 'llama3.1-8b';
+const CEREBRAS_TEXT_MODEL = process.env.CEREBRAS_TEXT_MODEL || 'llama-3.3-70b';
+
+const GEMINI_FLASH_MODEL = process.env.GEMINI_FLASH_MODEL || 'gemini-2.0-flash';
+const GEMINI_TEXT_MODEL = process.env.GEMINI_TEXT_MODEL || 'gemini-2.0-pro-exp';
+const GEMINI_VISION_MODEL = process.env.GEMINI_VISION_MODEL || 'gemini-2.0-flash';
+
 const KIMI_BASE_URL = String(process.env.KIMI_BASE_URL || 'https://api.moonshot.ai/v1').replace(/\/$/, '');
 const KIMI_FLASH_MODEL = process.env.KIMI_FLASH_MODEL || process.env.KIMI_MODEL || 'moonshot-v1-8k';
 const KIMI_TEXT_MODEL = process.env.KIMI_TEXT_MODEL || process.env.KIMI_MODEL || 'moonshot-v1-8k';
@@ -268,6 +298,9 @@ app.use(helmet({
         "https://api.deepseek.com",
         "https://api.openai.com",
         "https://api.duckduckgo.com",
+        "https://openrouter.ai",
+        "https://api.cerebras.ai",
+        "https://generativelanguage.googleapis.com",
         "https://cdn.jsdelivr.net",
 
         "https://*.googleapis.com",
@@ -421,7 +454,10 @@ const llmService = createLlmService({
   hasLlm7: true,
   qwenKeys: QWEN_API_KEYS,
   kimiKeys: KIMI_API_KEYS,
-  kimiBaseUrl: KIMI_BASE_URL
+  kimiBaseUrl: KIMI_BASE_URL,
+  openrouterKeys: OPENROUTER_API_KEYS,
+  cerebrasKeys: CEREBRAS_API_KEYS,
+  geminiKeys: GEMINI_API_KEYS
 });
 
 const routingEngine = createRoutingEngine({
@@ -446,7 +482,10 @@ const routingEngine = createRoutingEngine({
     groq: GROQ_API_KEYS.length,
     llm7: LLM7_API_KEYS.length || 1,
     qwen: QWEN_API_KEYS.length,
-    kimi: KIMI_API_KEYS.length
+    kimi: KIMI_API_KEYS.length,
+    openrouter: OPENROUTER_API_KEYS.length,
+    cerebras: CEREBRAS_API_KEYS.length,
+    gemini: GEMINI_API_KEYS.length
   },
   models: {
     groqFlash: GROQ_FLASH_MODEL,
@@ -462,7 +501,17 @@ const routingEngine = createRoutingEngine({
     qwenVision: QWEN_VISION_MODEL,
     kimiFlash: KIMI_FLASH_MODEL,
     kimiText: KIMI_TEXT_MODEL,
-    kimiCode: KIMI_CODE_MODEL
+    kimiCode: KIMI_CODE_MODEL,
+    openrouterFlash: OPENROUTER_FLASH_MODEL,
+    openrouterText: OPENROUTER_TEXT_MODEL,
+    openrouterCode: OPENROUTER_CODE_MODEL,
+    cerebrasFlash: CEREBRAS_FLASH_MODEL,
+    cerebrasText: CEREBRAS_TEXT_MODEL,
+    cerebrasCode: CEREBRAS_TEXT_MODEL,
+    geminiFlash: GEMINI_FLASH_MODEL,
+    geminiText: GEMINI_TEXT_MODEL,
+    geminiCode: GEMINI_TEXT_MODEL,
+    geminiVision: GEMINI_VISION_MODEL
   }
 });
 

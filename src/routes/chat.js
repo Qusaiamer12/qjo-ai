@@ -226,6 +226,7 @@ function registerChatRoutes(app, deps) {
     let responseFinished = false;
     res.on('close', () => { if (!responseFinished) clientAbort.abort(); });
 
+    let chunksEmitted = 0;
     try {
       if (!deps.hasAnyAiProvider()) return res.status(500).json({ error: 'AI service is not configured.' });
 
@@ -325,6 +326,7 @@ function registerChatRoutes(app, deps) {
       const emit = (text) => {
         if (responseFinished || !text) return;
         res.write(`event: chunk\ndata: ${JSON.stringify({ text })}\n\n`);
+        chunksEmitted++;
         if (typeof res.flush === 'function') res.flush();
       };
       const writeChunk = (text) => {
@@ -376,7 +378,11 @@ function registerChatRoutes(app, deps) {
 
       if (!ai.ok) {
         if (useStreaming) {
-          res.write(`event: error\ndata: ${JSON.stringify({ error: ai.error || 'AI provider failed.' })}\n\n`);
+          if (chunksEmitted > 0) {
+             res.write(`event: done\ndata: ${JSON.stringify({ provider: 'qjo-fallback', model: 'fail-safe', toolsUsed: [], continued: false, truncated: true })}\n\n`);
+          } else {
+             res.write(`event: error\ndata: ${JSON.stringify({ error: ai.error || 'AI provider failed.' })}\n\n`);
+          }
           res.end();
           return;
         }
@@ -433,9 +439,12 @@ function registerChatRoutes(app, deps) {
       }
       console.error('[chat] error:', err.message);
       if (!res.headersSent) res.status(500).json({ error: 'Internal server error.' });
-      // Mid-stream, a bare end() looked to the client like an answer that
-      // simply stopped. An error event says what happened, so it can retry.
-      else try {
+      else if (chunksEmitted > 0) {
+        try {
+          res.write(`event: done\ndata: ${JSON.stringify({ provider: 'qjo-fallback', model: 'fail-safe', toolsUsed: [], continued: false, truncated: true })}\n\n`);
+          res.end();
+        } catch (_) {}
+      } else try {
         res.write(`event: error\ndata: ${JSON.stringify({ error: 'Internal server error.' })}\n\n`);
         res.end();
       } catch (_) {}

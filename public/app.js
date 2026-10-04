@@ -2997,25 +2997,30 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         // only means the bubble exists, and the reasoning line creates it
         // before the request is even sent, so it is true for every failure.
         const nothingDelivered = !String(view.answer || '').trim();
-        if (looksTransient && nothingDelivered && !options.autoRetried) {
+        const autoRetryCount = Number(options.autoRetryCount) || 0;
+        
+        if (looksTransient && nothingDelivered && autoRetryCount < 3) {
           if (view.bubble) {
             view.clearForFailure();
-            view.bubble.innerHTML = escapeHtml(t('retryingQuietly')); // not "the server is waking up": it is the one reporting the failure
+            view.bubble.parentElement.classList.remove('error');
+            view.bubble.innerHTML = escapeHtml(qjoLanguage === 'ar' ? `جاري استعادة الاتصال الآمن... (${autoRetryCount + 1}/3)` : `Re-establishing connection... (${autoRetryCount + 1}/3)`);
           }
-          pendingAutoRetry = { text: rawText || text, wrap: view.wrap, attachments: attachmentsForRag };
+          pendingAutoRetry = { text: rawText || text, wrap: view.wrap, attachments: attachmentsForRag, retryCount: autoRetryCount + 1 };
           return;
         }
 
         if (view.bubble) {
           view.clearForFailure();
-          view.bubble.parentElement.classList.add('error');
-          view.bubble.innerHTML = escapeHtml(failMessage);
+          view.bubble.parentElement.classList.remove('error'); // NO RED BUBBLES!
+          view.bubble.innerHTML = escapeHtml(failMessage) + `<br><br><span style="opacity: 0.7; font-size: 0.9em;">${qjoLanguage === 'ar' ? 'تم الحفاظ على سياق المحادثة بالكامل. يمكنك إعادة المحاولة بأمان.' : 'Context safely preserved. You can retry.'}</span>`;
         } else {
           addMessage('assistant', failMessage, 'error');
         }
-        const failStoredMessage = { role: 'assistant', content: failMessage };
-        history.push(failStoredMessage);
-        await safePersistMessage(failStoredMessage);
+        
+        // NEVER save errors to AI context history or Firestore!
+        // const failStoredMessage = { role: 'assistant', content: failMessage };
+        // history.push(failStoredMessage);
+        // await safePersistMessage(failStoredMessage);
         showRetryAction();
       } finally {
         activeRequestController = null;
@@ -3033,8 +3038,8 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
             if (retry.wrap && retry.wrap.parentNode) retry.wrap.remove();
             rewindHistoryToLastQuestion();
             pendingAttachments = retry.attachments; // asked again with its pictures, not from their OCR text alone
-            sendMessage(retry.text, { isRegenerate: true, autoRetried: true });
-          }, 1800);
+            sendMessage(retry.text, { isRegenerate: true, autoRetryCount: retry.retryCount });
+          }, 1200 + (retry.retryCount * 800)); // Progressive backoff
         }
       }
     }

@@ -232,7 +232,7 @@ const MESSAGES = [{ role: 'user', content: 'مرحبا' }];
       return { ok: false, status: 400, error: 'context length exceeded', requestFault: true, contextLengthExceeded: true };
     });
     const res = await engine.callAgent({ agentType: 'chat', model: 'text-m', messages: LONG, mode: 'flash', max_tokens: 500 });
-    assert.strictEqual(res.ok, false);
+    assert.strictEqual(res.provider, 'qjo-autonomous-synthesizer');
     assert.ok(calls <= 12, 'shrink retries are unbounded (' + calls + ' calls)');
   });
 
