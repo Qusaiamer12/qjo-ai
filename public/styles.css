@@ -4708,7 +4708,7 @@ body.dark .auth-browser-tip {
    Fixes low contrast message bubbles and tiny response text.
    ========================================================= */
 .messages-inner {
-  max-width: 980px !important;
+  max-width: 1040px !important;
 }
 
 .msg {

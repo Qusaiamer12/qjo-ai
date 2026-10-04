@@ -2233,7 +2233,7 @@ body:not(.dark) .qjo-reasoning-step.tool-step .tool-check {
   color: #0f172a !important;
   font-weight: 700 !important;
   font-size: 13.5px !important;
-  padding: 12px 16px !important;
+  padding: 12px 18px !important; font-size: 15.5px !important;
   border-bottom: 2px solid #e2e8f0 !important;
   border-top: none !important;
   border-left: none !important;
@@ -2244,7 +2244,7 @@ body:not(.dark) .qjo-reasoning-step.tool-step .tool-check {
 }
 
 .md-table td {
-  padding: 12px 16px !important;
+  padding: 12px 18px !important; font-size: 15.5px !important;
   border-bottom: 1px solid #f1f5f9 !important;
   border-top: none !important;
   border-left: none !important;
@@ -3233,7 +3233,7 @@ html body:not(.dark) .assistant .bubble {
   border: none !important;
   box-shadow: none !important;
   padding: 12px 0 !important;
-  max-width: 900px !important;
+  max-width: 100% !important; font-size: 16px !important; line-height: 1.75 !important;
   width: 100% !important;
 }
 
@@ -3267,7 +3267,7 @@ html body .user .bubble {
   box-shadow: none !important;
   border: 1px solid transparent !important;
   border-radius: 20px 20px 4px 20px !important;
-  padding: 12px 16px !important;
+  padding: 12px 18px !important; font-size: 15.5px !important;
   max-width: 80% !important;
 }
 html body.dark .msg.user .bubble,
