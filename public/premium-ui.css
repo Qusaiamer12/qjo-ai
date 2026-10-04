@@ -3218,3 +3218,61 @@ body.has-focused-code::after {
   background: var(--qjo-border);
   flex: 0 0 auto;
 }
+
+/* -------------------------------------------------------------------------
+   ChatGPT/Claude Seamless Message Style
+   Hard override to guarantee the assistant bubble has NO frame
+   ------------------------------------------------------------------------- */
+html body .msg.assistant .bubble,
+html body .assistant .bubble,
+html body.dark .msg.assistant .bubble,
+html body.dark .assistant .bubble,
+html body:not(.dark) .msg.assistant .bubble,
+html body:not(.dark) .assistant .bubble {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 12px 0 !important;
+  max-width: 900px !important;
+  width: 100% !important;
+}
+
+/* Ensure code blocks and tables have borders since the bubble no longer does */
+html body .msg.assistant .bubble pre,
+html body .assistant .bubble pre,
+html body .assistant .bubble .md-table-wrap {
+  border: 1px solid var(--ds-line-2, rgba(148,163,184,0.25)) !important;
+  border-radius: 12px !important;
+}
+
+/* Fix text colors */
+html body.dark .msg.assistant .bubble,
+html body.dark .assistant .bubble {
+  color: #e2e8f0 !important;
+  -webkit-text-fill-color: #e2e8f0 !important;
+}
+
+html body:not(.dark) .msg.assistant .bubble,
+html body:not(.dark) .assistant .bubble {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+/* Make User Bubbles look like ChatGPT (Gray/Blue Pill on the right) */
+html body .msg.user .bubble,
+html body .user .bubble {
+  background: var(--ds-panel-2, #f1f5f9) !important;
+  color: var(--ds-ink, #0f172a) !important;
+  -webkit-text-fill-color: var(--ds-ink, #0f172a) !important;
+  box-shadow: none !important;
+  border: 1px solid transparent !important;
+  border-radius: 20px 20px 4px 20px !important;
+  padding: 12px 16px !important;
+  max-width: 80% !important;
+}
+html body.dark .msg.user .bubble,
+html body.dark .user .bubble {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
