@@ -193,6 +193,20 @@ const system = (body) => body.messages.filter((m) => m.role === 'system').map((m
     const [call] = await chat([{ role: 'user', content: 'صمملي موقع لمطعم مشاوي' }], { mode: 'max' });
     assert.ok(!('reasoning_effort' in call.body), `Max sent ${call.body.reasoning_effort}`);
   });
+  for (const [label, mode, effort] of [['Flash', 'normal', 'low'], ['Max', 'advanced', undefined]]) {
+    await test(`a restaurant site in ${label} gets the full site prompt, large model and 7000-token budget`, async () => {
+      const [call] = await chat([{ role: 'user', content: 'صمملي موقع HTML احترافي لمطعم مشاوي في عمّان' }], {
+        mode, model: 'openai/gpt-oss-20b', max_tokens: 7000
+      });
+      assert.strictEqual(call.body.model, 'openai/gpt-oss-120b');
+      assert.strictEqual(call.body.max_tokens, 7000);
+      if (effort) assert.strictEqual(call.body.reasoning_effort, effort);
+      else assert.ok(!('reasoning_effort' in call.body), `Max sent ${call.body.reasoning_effort}`);
+      const prompt = textOf(lastUser(call.body).content);
+      assert.ok(prompt.includes('WEBSITES & INTERFACES') && /never use random-image services/.test(prompt), 'the website/image guidance is missing');
+      assert.ok(!call.body.tools, `tools were unexpectedly attached: ${(call.body.tools || []).map((t) => t.function.name)}`);
+    });
+  }
   for (const [label, messages] of [
     ['an Arabic site', [{ role: 'user', content: 'صمملي موقع لمطعم مشاوي' }]],
     ['a React landing page', [{ role: 'user', content: 'Build me a landing page for my cafe in React' }]],
