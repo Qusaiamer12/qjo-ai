@@ -781,3 +781,47 @@ body:not(#_) .bubble .qjo-stopped { color: var(--ds-ink-2) !important; -webkit-t
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: .001ms !important; transition-duration: .001ms !important; }
 }
+
+/* -------------------------------------------------------------------------
+   ChatGPT/Claude Seamless Message Style
+   Removes the chat-bubble frame from the assistant's responses
+   ------------------------------------------------------------------------- */
+.msg.assistant .bubble,
+.assistant .bubble {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 12px 0 !important;
+  max-width: 820px !important;
+  width: 100% !important;
+}
+
+body.dark .msg.assistant .bubble,
+body.dark .assistant .bubble {
+  color: var(--ds-ink) !important;
+  -webkit-text-fill-color: var(--ds-ink) !important;
+}
+
+body:not(.dark) .msg.assistant .bubble,
+body:not(.dark) .assistant .bubble {
+  color: var(--ds-ink) !important;
+  -webkit-text-fill-color: var(--ds-ink) !important;
+}
+
+/* Ensure code blocks and tables still look good on transparent background */
+.msg.assistant .bubble pre,
+.assistant .bubble .md-table-wrap {
+  border: 1px solid var(--ds-line-2) !important;
+  border-radius: 12px !important;
+}
+
+/* User messages remain as chat bubbles but slightly more refined */
+.msg.user .bubble,
+.user .bubble {
+  background: var(--ds-panel-2) !important;
+  color: var(--ds-ink) !important;
+  -webkit-text-fill-color: var(--ds-ink) !important;
+  box-shadow: none !important;
+  border: 1px solid var(--ds-line-2) !important;
+  border-radius: 18px 18px 4px 18px !important;
+}
