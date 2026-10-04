@@ -502,13 +502,18 @@
   /* -------------------------------------------------------------------------
      5. Hide inline clutter on mobile — moved to clean bottom sheet
      ------------------------------------------------------------------------- */
-  #composerToggles,
-  .composer-function-toggles,
   #quickCommandCats,
   .quick-command-cats,
-  .composer-shell .composer-function-toggles,
   .composer-shell .quick-command-cats {
     display: none !important;
+  }
+  
+  /* Make composerToggles (Max/Flash buttons) clean and properly positioned on mobile */
+  #composerToggles, .composer-function-toggles, .composer-shell .composer-function-toggles {
+    display: flex !important;
+    justify-content: flex-start;
+    padding-inline: 4px;
+    margin-bottom: 4px;
   }
 
   /* -------------------------------------------------------------------------
