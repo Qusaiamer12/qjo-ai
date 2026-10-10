@@ -88,6 +88,14 @@ const GOOD = '## النتيجة\n\nجواب كامل ومفيد للمستخدم
     ok(/خدمات الذكاء/.test(errText) && !/نايم/.test(errText), 'every provider failing is not blamed on a sleeping server', errText.slice(0, 160));
     const retry = await page.$('.retry-row button');
     ok(Boolean(retry), 'a retry button is offered');
+    // Drawn calmly: the reason in the answer's own ink, a quieter line saying the
+    // question is kept — never the danger red a failure used to be painted in.
+    const look = await page.$$eval('.msg.assistant', (els) => {
+      const msg = els[els.length - 1]; const note = msg.querySelector('.qjo-failure-note');
+      const [r, g, b] = getComputedStyle(msg.querySelector('.bubble')).color.match(/[\d.]+/g).map(Number);
+      return { note: note ? note.innerText : null, marked: msg.classList.contains('error'), red: r > 120 && r > 2 * g && r > 2 * b, ink: [r, g, b] };
+    });
+    ok(/سؤالك محفوظ/.test(look.note || '') && look.marked && !look.red, `it says the question is kept, marked a failure but not painted red (${look.ink})`, look);
 
     // Pressing it must not ask the question twice.
     if (retry) {

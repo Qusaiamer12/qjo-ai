@@ -23,7 +23,7 @@ const LIBRARIES = {
   'https://cdn.jsdelivr.net/npm/lucide@1.48.0/dist/umd/lucide.min.js': () => fs.readFileSync(path.join(modules, 'lucide', 'dist', 'umd', 'lucide.min.js'), 'utf8')
 };
 const AXE = path.join(modules, 'axe-core', 'axe.min.js');
-// A photo from picsum: a real image of the size asked for.
+// A photo from picsum or Pollinations (the subject's own photos): a real image.
 const PHOTO = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkaPhfDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
 
 /**
@@ -35,7 +35,9 @@ async function serveSiteAssets(context) {
   for (const [url, body] of Object.entries(LIBRARIES)) {
     await context.route(url, (route) => route.fulfill({ status: 200, contentType: 'application/javascript', headers: { 'access-control-allow-origin': '*' }, body: body() }));
   }
-  await context.route('https://picsum.photos/**', (route) => route.fulfill({ status: 200, contentType: 'image/png', body: PHOTO }));
+  for (const photos of ['https://picsum.photos/**', 'https://image.pollinations.ai/prompt/**']) {
+    await context.route(photos, (route) => route.fulfill({ status: 200, contentType: 'image/png', body: PHOTO }));
+  }
   await context.route('https://fonts.googleapis.com/**', (route) => route.fulfill({ status: 200, contentType: 'text/css', body: '' }));
 }
 

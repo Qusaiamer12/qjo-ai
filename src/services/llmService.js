@@ -33,14 +33,8 @@ function createLlmService(config = {}) {
 
   function getKeys(provider) {
     switch (provider) {
-      case 'groq': return Array.isArray(config.groqKeys) ? config.groqKeys : [];
       case 'llm7': return Array.isArray(config.llm7Keys) && config.llm7Keys.length ? config.llm7Keys : (config.hasLlm7 ? ['llm7-free-key'] : []);
-      case 'qwen': return Array.isArray(config.qwenKeys) ? config.qwenKeys : [];
-      case 'kimi': return Array.isArray(config.kimiKeys) ? config.kimiKeys : [];
-      case 'openrouter': return Array.isArray(config.openrouterKeys) ? config.openrouterKeys : [];
-      case 'cerebras': return Array.isArray(config.cerebrasKeys) ? config.cerebrasKeys : [];
-      case 'gemini': return Array.isArray(config.geminiKeys) ? config.geminiKeys : [];
-      default: return [];
+      default: { const keys = config[`${provider}Keys`]; return Array.isArray(keys) ? keys : []; } // groq, qwen, kimi, openrouter, cerebras, gemini
     }
   }
 
@@ -218,17 +212,10 @@ function createLlmService(config = {}) {
     if (res.ok) return { ok: true, upstream: { ok: true }, data: res.raw, ...res };
     return { ok: false, upstream: { ok: false, status: res.status }, data: { error: { message: res.error } }, ...res };
   }
-  async function callLlm7Chat(opts) {
-    return callOpenAICompatible({
-      provider: 'llm7',
-      baseUrl: config.llm7BaseUrl || 'https://api.llm7.io/v1',
-      ...opts
-    });
-  }
-  async function callKimiChat(opts) { return callOpenAICompatible({ provider: 'kimi', baseUrl: config.kimiBaseUrl || 'https://api.moonshot.ai/v1', ...opts }); }
-  async function callOpenRouterChat(opts) { return callOpenAICompatible({ provider: 'openrouter', baseUrl: 'https://openrouter.ai/api/v1', ...opts }); }
-  async function callCerebrasChat(opts) { return callOpenAICompatible({ provider: 'cerebras', baseUrl: 'https://api.cerebras.ai/v1', ...opts }); }
-  async function callGeminiChat(opts) { return callOpenAICompatible({ provider: 'gemini', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', ...opts }); }
+  // OpenAI-compatible providers that need nothing but their address.
+  const at = (provider, baseUrl) => (opts) => callOpenAICompatible({ provider, baseUrl, ...opts });
+  const callLlm7Chat = at('llm7', config.llm7BaseUrl || 'https://api.llm7.io/v1');
+  const callKimiChat = at('kimi', config.kimiBaseUrl || 'https://api.moonshot.ai/v1');
 
   // Generic dispatcher by provider name
   const PROVIDER_METHODS = {
@@ -236,10 +223,11 @@ function createLlmService(config = {}) {
     llm7: callLlm7Chat,
     qwen: callQwenChat,
     kimi: callKimiChat,
-    openrouter: callOpenRouterChat,
-    cerebras: callCerebrasChat,
-    gemini: callGeminiChat
+    openrouter: at('openrouter', 'https://openrouter.ai/api/v1'),
+    cerebras: at('cerebras', 'https://api.cerebras.ai/v1'),
+    gemini: at('gemini', 'https://generativelanguage.googleapis.com/v1beta/openai')
   };
+  const PROVIDERS = Object.keys(PROVIDER_METHODS);
   async function dispatch(provider, opts) {
     const fn = PROVIDER_METHODS[provider];
     if (!fn) return { ok: false, status: 501, error: `Unknown provider: ${provider}` };
@@ -250,16 +238,13 @@ function createLlmService(config = {}) {
     callGroqChat,
     callLlm7Chat,
     callKimiChat,
-    callOpenRouterChat,
-    callCerebrasChat,
-    callGeminiChat,
     dispatch,
     hasKeys: (provider) => getKeys(provider).length > 0,
     allowanceFor: (provider, model) => pool.limitOf(provider, model),
     /** Per provider, key position and model: rests and last errors. Never keys. */
-    health: () => pool.snapshot({ groq: getKeys('groq'), llm7: getKeys('llm7'), qwen: getKeys('qwen'), kimi: getKeys('kimi'), openrouter: getKeys('openrouter'), cerebras: getKeys('cerebras'), gemini: getKeys('gemini') }),
+    health: () => pool.snapshot(Object.fromEntries(PROVIDERS.map((p) => [p, getKeys(p)]))),
     normalizeProviderFinishReason,
-    hasAnyProvider: () => ['groq', 'llm7', 'qwen', 'kimi', 'openrouter', 'cerebras', 'gemini'].some(p => getKeys(p).length > 0)
+    hasAnyProvider: () => PROVIDERS.some(p => getKeys(p).length > 0)
   };
 }
 

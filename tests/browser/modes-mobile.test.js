@@ -1,5 +1,5 @@
-// The answer mode on a phone: one button above the composer, one tap to
-// switch — it used to be a card in a sheet, two taps away.
+// The answer mode on a phone: one button above the composer that opens a menu
+// of the two modes — it used to be a card in a sheet.
 const { launchBrowser, devices, BASE_URL } = require('./harness');
 (async () => {
   const b = await launchBrowser();
@@ -17,9 +17,13 @@ const { launchBrowser, devices, BASE_URL } = require('./harness');
   ok(box.top < input, 'above the composer, where the thumb is', { button: box.top, input });
   ok(/Flash/.test(box.text), 'Flash shown as the current mode', box);
   await p.tap('#modeToggle');
+  await p.waitForTimeout(300);
+  const item = await p.$eval('#modeMenu .qjo-tools-item[data-mode="advanced"]', (e) => { const r = e.getBoundingClientRect(); const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return { w: r.width, h: r.height, left: r.left, right: r.right, vw: window.innerWidth, reachable: Boolean(hit && (hit === e || e.contains(hit))) }; });
+  ok(item.reachable && item.h >= 44 && item.left >= 0 && item.right <= item.vw, `the menu opens on screen, Max in reach of a thumb (${Math.round(item.w)}x${Math.round(item.h)})`, item);
+  await p.tap('#modeMenu .qjo-tools-item[data-mode="advanced"]');
   await p.waitForTimeout(400);
   const after = await p.evaluate(() => ({ mode: document.body.dataset.qjoMode, stored: localStorage.getItem('qjo_response_mode'), text: document.getElementById('modeToggle').innerText.trim() }));
-  ok(after.mode === 'advanced' && after.stored === 'advanced', `one tap switches to Max (${after.mode})`, after);
+  ok(after.mode === 'advanced' && after.stored === 'advanced', `choosing Max switches to it (${after.mode})`, after);
   ok(/Max/.test(after.text), `and the button says so (${after.text})`, after);
   await b.close();
   console.log(`\n${pass} passed, ${fail} failed`);

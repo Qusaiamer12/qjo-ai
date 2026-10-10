@@ -243,6 +243,12 @@
       closeModeMenu(true);
     });
 
+    modeMenu.addEventListener('keydown', (event) => {
+      const at = modeItems.indexOf(/** @type {HTMLButtonElement} */ (doc.activeElement));
+      if (event.key === 'Escape') { event.preventDefault(); closeModeMenu(true); }
+      else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); modeItems[(at + 1) % modeItems.length].focus(); }
+    });
+
     tools.addEventListener('click', () => (menu.hidden ? openToolsMenu() : closeToolsMenu(false)));
 
     menu.addEventListener('click', (event) => {
@@ -255,12 +261,12 @@
       else if (key === 'deep') setFunction('deep', !on.deep);
       else setFunction('task', !on.task);
       render();
-      closeMenu(true);
+      closeToolsMenu(true);
     });
 
     menu.addEventListener('keydown', (event) => {
       const at = items.indexOf(/** @type {HTMLButtonElement} */ (doc.activeElement));
-      if (event.key === 'Escape') { event.preventDefault(); closeMenu(true); }
+      if (event.key === 'Escape') { event.preventDefault(); closeToolsMenu(true); }
       else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
         event.preventDefault();
         items[(at + (event.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length].focus();

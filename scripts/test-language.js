@@ -354,6 +354,8 @@ test('the site playbook names what the preview loads, at the versions it serves'
   const lucide = /lucide@([\d.]+)\/dist\/umd\/lucide\.min\.js/.exec(ui);
   assert.ok(lucide && LIBS.lucideReact.includes(`lucide-react@${lucide[1]}/`), `Lucide ${lucide && lucide[1]} and lucide-react in ${LIBS.lucideReact}`);
   assert.ok(ui.includes(LIBS.tailwind) && /picsum\.photos\/seed/.test(ui) && /cdn\.jsdelivr\.net or cdnjs\.cloudflare\.com/.test(ui));
+  // The subject's own photos: picsum's are random, so a bakery got mountains.
+  assert.ok(/image\.pollinations\.ai\/prompt\/<short English description/.test(ui) && /nologo=true/.test(ui), 'topic photos');
   assert.ok(/dir="rtl"/.test(require('../src/services/arabicPrompt').ARABIC_PLAYBOOK_NOTES.ui));
 });
 

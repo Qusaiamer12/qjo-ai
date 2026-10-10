@@ -232,7 +232,7 @@ const MESSAGES = [{ role: 'user', content: 'مرحبا' }];
       return { ok: false, status: 400, error: 'context length exceeded', requestFault: true, contextLengthExceeded: true };
     });
     const res = await engine.callAgent({ agentType: 'chat', model: 'text-m', messages: LONG, mode: 'flash', max_tokens: 500 });
-    assert.strictEqual(res.provider, 'qjo-autonomous-synthesizer');
+    assert.strictEqual(res.ok, false);
     assert.ok(calls <= 12, 'shrink retries are unbounded (' + calls + ' calls)');
   });
 
@@ -364,6 +364,20 @@ const MESSAGES = [{ role: 'user', content: 'مرحبا' }];
     pool.success('groq', 'k', 'm', { get: (n) => ({ 'x-ratelimit-limit-tokens': '8000', 'x-ratelimit-remaining-tokens': '100' })[n] || null });
     const order = pool.order('groq', ['k'], 'm', { messages: [{ role: 'user', content: 'x'.repeat(40000) }], max_tokens: 2000 });
     assert.deepStrictEqual(order.keys, ['k']);
+  });
+
+  // OpenRouter, Cerebras and Gemini arrived naming models none of them served
+  // any more: Gemini 2.0, Cerebras' Llamas, OpenRouter's renamed free models.
+  await test('the optional providers name models they serve today, and their old IDs are replaced', () => {
+    const { currentModel } = require('../src/services/retiredModels');
+    const served = new Set(['google/gemma-4-31b-it:free', 'nvidia/nemotron-3-super-120b-a12b:free', 'gpt-oss-120b', 'gemini-2.5-flash', 'gemini-3.8-flash']); // 2026-10-10
+    const server = require('fs').readFileSync(require('path').join(__dirname, '..', 'server.js'), 'utf8');
+    const defaults = [...server.matchAll(/process\.env\.(?:OPENROUTER|CEREBRAS|GEMINI)_\w+_MODEL \|\| '([^']+)'/g)].map((m) => m[1]);
+    assert.strictEqual(defaults.length, 7, `defaults found: ${defaults}`);
+    for (const id of defaults) assert.ok(served.has(currentModel(id)), `default ${id}`);
+    for (const old of ['gemini-2.0-flash', 'gemini-2.0-pro-exp', 'llama3.1-8b', 'llama-3.3-70b', 'google/gemini-2.5-flash:free', 'meta-llama/llama-3.3-70b-instruct:free', 'deepseek/deepseek-r1:free']) {
+      assert.ok(served.has(currentModel(old)), `a setting naming ${old} gets ${currentModel(old)}`);
+    }
   });
 
   console.log('\n========================================');

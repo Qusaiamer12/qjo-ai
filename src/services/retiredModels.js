@@ -27,6 +27,14 @@ const RETIRED = {
   'gemini-1.5-flash-8b': 'gemini-3.8-flash',
   'gemini-2.0-flash': 'gemini-3.8-flash',
   'gemini-2.0-flash-lite': 'gemini-3.8-flash',
+  'gemini-2.0-pro-exp': 'gemini-2.5-flash',
+  // Cerebras serves gpt-oss-120b and qwen-3.8-27b; its Llama models are gone.
+  'llama3.1-8b': 'gpt-oss-120b',
+  'llama-3.3-70b': 'gpt-oss-120b',
+  // OpenRouter's free list, 2026-10-10: none of these is on it any more.
+  'google/gemini-2.5-flash:free': 'google/gemma-4-31b-it:free',
+  'meta-llama/llama-3.3-70b-instruct:free': 'nvidia/nemotron-3-super-120b-a12b:free',
+  'deepseek/deepseek-r1:free': 'nvidia/nemotron-3-super-120b-a12b:free',
   'kimi-k2-0711-preview': 'kimi-k2.6',
   'kimi-k2-0905-preview': 'kimi-k2.6',
   'kimi-k2-turbo-preview': 'kimi-k2.6',

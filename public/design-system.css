@@ -639,7 +639,7 @@ body:not(#_) .bubble .qjo-stopped { color: var(--ds-ink-2) !important; -webkit-t
     inset-inline-start: 12px; z-index: 55; padding: 0; }
   body.qjo-keyboard-open #composerToggles.qjo-controls, body.drawer-open #composerToggles.qjo-controls,
   body.sheet-open #composerToggles.qjo-controls { display: none !important; }
-  .qjo-controls .qjo-mode-btn, .qjo-controls .qjo-tools-btn { box-shadow: 0 4px 16px rgba(15, 23, 42, .12); }
+  .qjo-controls .qjo-mode-btn, .qjo-controls .qjo-tools-btn { min-height: 40px; background: var(--ds-panel); border: 1px solid var(--ds-line-2); box-shadow: 0 4px 16px rgba(15, 23, 42, .12); }
   /* The whole width of the screen above the buttons, never off its edge. */
   .qjo-tools-menu { position: fixed; bottom: calc(110px + env(safe-area-inset-bottom, 8px)); inset-inline: 12px; width: auto; }
 }

@@ -185,7 +185,7 @@ console.log('----------');
 // and get the engineering overlay on their own.
 const controls = read('public/ui/composerControls.js');
 must(html.includes('id="composerToggles"') && html.includes('/ui/composerControls.js'), 'The mode and tools buttons are in the page');
-must(controls.includes("isMax() ? 'normal' : 'advanced'") && app.includes('createComposerControls') && app.includes('setMode,'), 'The mode button switches Flash and Max through setMode');
+must(controls.includes("modeMenu.addEventListener('click'") && controls.includes('setMode(key)') && app.includes('createComposerControls') && app.includes('setMode,'), 'The mode menu switches Flash and Max through setMode');
 must(!html.includes('id="codeModeBtn"'), 'Code is not offered as a selectable mode');
 must(!html.includes('id="toggleReason"'), 'Reasoning pill is gone (Max is the deeper-reasoning mode)');
 must(read('public/design-system.css').includes('.qjo-mode-btn'), 'The mode button is styled');

@@ -3277,17 +3277,37 @@ html body.dark .user .bubble {
   -webkit-text-fill-color: #f8fafc !important;
 }
 
-/* Force text size on inner tags (p, li, td) to override old styles */
+/* One scale for an answer's text, frameless (16.5px body, set above): the
+   headings stand above it — "###" was 15.7px, smaller than the text under it —
+   tables, quiz options and code sit just below it, and a phone's table is
+   narrow enough to read without scrolling sideways. */
 html body .msg.assistant .bubble p,
 html body .assistant .bubble p,
 html body .msg.assistant .bubble li,
-html body .assistant .bubble li,
+html body .assistant .bubble li {
+  font-size: 16.5px !important;
+  line-height: 1.75 !important;
+}
+html body .assistant .bubble h1 { font-size: 24px !important; line-height: 1.35 !important; }
+html body .assistant .bubble h2 { font-size: 21px !important; line-height: 1.4 !important; }
+html body .assistant .bubble h3 { font-size: 19px !important; line-height: 1.45 !important; }
+html body .assistant .bubble h4 { font-size: 17.5px !important; line-height: 1.5 !important; }
 html body .msg.assistant .bubble td,
 html body .assistant .bubble td,
 html body .msg.assistant .bubble th,
-html body .assistant .bubble th {
-  font-size: 16.5px !important;
-  line-height: 1.75 !important;
+html body .assistant .bubble th { font-size: 15px !important; line-height: 1.6 !important; }
+html body .assistant .bubble .quiz-option-btn { font-size: 15.5px !important; }
+html body .assistant .bubble pre,
+html body .assistant .bubble pre code { font-size: 13.5px !important; }
+html body .assistant .bubble p.qjo-failure-note { margin: 10px 0 0 !important; font-size: 14px !important; color: var(--ds-ink-2, #475569) !important; -webkit-text-fill-color: currentColor !important; }
+@media (max-width: 640px) {
+  html body .assistant .bubble h1 { font-size: 22px !important; }
+  html body .assistant .bubble h2 { font-size: 19.5px !important; }
+  html body .assistant .bubble h3 { font-size: 18px !important; }
+  html body .msg.assistant .bubble td,
+  html body .assistant .bubble td,
+  html body .msg.assistant .bubble th,
+  html body .assistant .bubble th { font-size: 14px !important; padding: 10px 12px !important; }
 }
 
 html body .msg.user .bubble p,

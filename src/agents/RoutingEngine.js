@@ -187,7 +187,7 @@ function isLiteRequest(messages) {
 // gpt-oss-20b used to hand over straight to the slowest provider.)
 const PIPELINES = {
   // Lite track: greetings only — spread across all providers for max resilience.
-  lite: [['cerebras', 'flash'], ['groq', 'flash'], ['gemini', 'flash'], ['openrouter', 'flash'], ['qwen', 'flash'], ['kimi', 'flash'], ['llm7', 'flash']],
+  lite: [['cerebras', 'flash'], ['groq', 'flash'], ['gemini', 'flash'], ['openrouter', 'flash'], ['groq', 'text'], ['qwen', 'flash'], ['kimi', 'flash'], ['llm7', 'flash']],
   // Flash mode: high velocity — cross-provider fallback chain.
   flash: [['cerebras', 'flash'], ['groq', 'flash'], ['gemini', 'flash'], ['openrouter', 'flash'], ['groq', 'text'], ['qwen', 'flash'], ['kimi', 'flash'], ['llm7', 'flash']],
   // Max mode (Arabic-heavy): larger models, cross-provider.
@@ -387,40 +387,10 @@ function createRoutingEngine(deps) {
     // warning to reconstruct what was even tried — now it's one line.
     console.error(`[RoutingEngine] CHAIN FAILED at ${new Date().toISOString()} — ${error}`);
 
-    // ── Autonomous Emergency Synthesizer (0% Error Guarantee) ──
-    // If every single provider in the chain failed, instead of throwing a hard 500/503
-    // back to the client, we synthesize a polite offline response incorporating any
-    // search or file context available, ensuring a 0% user-facing error rate.
-    const arabicContext = isArabicHeavyText(originalQuestion);
-    let synthesizedAnswer = arabicContext
-      ? "عذراً، يبدو أن هناك ضغطاً هائلاً أو انقطاعاً في خوادم الذكاء الاصطناعي العالمية في هذه اللحظة. "
-      : "Sorry, it seems all global AI servers are currently experiencing heavy load or an outage. ";
-      
-    let hasSources = false;
-    for (const msg of (params.messages || [])) {
-      const txt = typeof msg.content === 'string' ? msg.content : (Array.isArray(msg.content) ? msg.content.map(p => p.text || '').join(' ') : '');
-      if (txt.includes('SOURCE PACK:') || txt.includes('Connected Deep Search executed') || txt.includes('تعليمات البحث:')) {
-        hasSources = true;
-        break;
-      }
-    }
-    
-    if (hasSources) {
-      synthesizedAnswer += arabicContext
-        ? "\n\nومع ذلك، من خلال مصادر البحث والبيانات المرفقة التي تم جلبها، يمكنك الاطلاع على التفاصيل من الروابط الموجودة أعلاه كمرجع مباشر لسؤالك.\n\n*(تمت صياغة هذا الرد عبر نظام الاستجابة الاحتياطي المستقل لضمان استمرارية الخدمة وعدم انقطاعها)*."
-        : "\n\nHowever, based on the search sources and data already fetched, you can review the details from the links found above as a direct reference to your question.\n\n*(This response was synthesized by the autonomous emergency fallback system to ensure uninterrupted service)*.";
-    } else {
-       synthesizedAnswer += arabicContext
-         ? "يرجى الانتظار دقيقة والمحاولة مرة أخرى.\n\n*(تمت صياغة هذا الرد عبر نظام الاستجابة الاحتياطي المستقل)*."
-         : "Please wait a minute and try again.\n\n*(This response was synthesized by the autonomous emergency fallback system)*.";
-    }
-
-    if (params.onChunk) {
-       params.onChunk(synthesizedAnswer);
-    }
-    
-    console.warn(`[RoutingEngine] Activating Autonomous Emergency Synthesizer to prevent user-facing error.`);
-    return { ok: true, answer: synthesizedAnswer, provider: 'qjo-autonomous-synthesizer', model: 'fallback-engine', finish_reason: 'stop', toolsUsed: [] };
+    // Every provider failed: that is said as a failure, with its reason, so the
+    // page can offer Retry. A reply written in its place ("all servers are
+    // busy") counted as an answer, was saved as one, and left nothing to retry.
+    return last ? { ...last, status, error } : { ok: false, status: 503, error };
   }
 
   // Locates which provider/slot an explicit client-chosen model maps to.
@@ -534,16 +504,11 @@ function createRoutingEngine(deps) {
       if (searchService && !route.hasSearchContext) {
         attach.push('web_search');
         // Opening a page is how a search result becomes evidence; on its own
-        // the model has no URL to open. However, in Flash mode, we restrict deep
-        // page fetching to save time and ensure instant response.
-        if (normMode !== 'flash') {
-          attach.push('fetch_page');
-        }
+        // the model has no URL to open — in Flash too, the mode most answers
+        // are written in. A page is opened only when the model asks for one.
+        attach.push('fetch_page');
       }
-      // Only attach extra tools (if any) to max modes
-      if (normMode !== 'flash') {
-        for (const name of extraToolNames) attach.push(name);
-      }
+      for (const name of extraToolNames) attach.push(name);
     }
     const tools = buildTools({ attach });
     // A turn that may search, open a source and then write has more steps

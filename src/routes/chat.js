@@ -226,7 +226,6 @@ function registerChatRoutes(app, deps) {
     let responseFinished = false;
     res.on('close', () => { if (!responseFinished) clientAbort.abort(); });
 
-    let chunksEmitted = 0;
     try {
       if (!deps.hasAnyAiProvider()) return res.status(500).json({ error: 'AI service is not configured.' });
 
@@ -242,22 +241,15 @@ function registerChatRoutes(app, deps) {
 
       const useStreaming = req.body.stream === true || req.headers.accept === 'text/event-stream';
       const mode = String(req.body.mode || '');
-      
-      // Smart Defaults based on mode
-      const defaultTemp = mode === 'flash' ? 0.3 : (mode === 'max' ? 0.6 : 0.7);
-      const defaultTokens = mode === 'flash' ? 1500 : (mode === 'max' ? 8000 : (deps.defaultMaxTokens || 2600));
-      
-      const temperature = req.body.temperature !== undefined ? clampNumber(req.body.temperature, defaultTemp, 0, 1) : defaultTemp;
-      const maxTokens = clampNumber(req.body.max_tokens, defaultTokens, 64, 8192);
+      // Defaults by mode for a caller that sends neither; the page sends both.
+      const [defaultTemp, defaultTokens] = mode === 'flash' ? [0.3, 1500] : mode === 'max' ? [0.6, 8000] : [0.7, deps.defaultMaxTokens || 2600];
+      const temperature = clampNumber(req.body.temperature, defaultTemp, 0, 1);
+      const maxTokens = clampNumber(req.body.max_tokens, defaultTokens, 64, 7992);
       // Computed here rather than taken from the request body. The router lives
       // in a CommonJS server module the browser cannot import, so a client-side
       // decision would mean duplicating the classifier — and a body field would
       // be caller-controlled, letting anyone pin their own routing. The server
       // already holds the messages, so it just classifies them itself.
-      //
-      // This was dead until now: nothing ever populated req.body.routingDecision,
-      // so addRouterSystemHint() never ran and classifyQjoRequest()'s
-      // high-confidence intent overrides could never fire.
       let routingDecision = null;
       const useTools = req.body.useTools !== false;
 
@@ -331,7 +323,6 @@ function registerChatRoutes(app, deps) {
       const emit = (text) => {
         if (responseFinished || !text) return;
         res.write(`event: chunk\ndata: ${JSON.stringify({ text })}\n\n`);
-        chunksEmitted++;
         if (typeof res.flush === 'function') res.flush();
       };
       const writeChunk = (text) => {
@@ -383,11 +374,7 @@ function registerChatRoutes(app, deps) {
 
       if (!ai.ok) {
         if (useStreaming) {
-          if (chunksEmitted > 0) {
-             res.write(`event: done\ndata: ${JSON.stringify({ provider: 'qjo-fallback', model: 'fail-safe', toolsUsed: [], continued: false, truncated: true })}\n\n`);
-          } else {
-             res.write(`event: error\ndata: ${JSON.stringify({ error: ai.error || 'AI provider failed.' })}\n\n`);
-          }
+          res.write(`event: error\ndata: ${JSON.stringify({ error: ai.error || 'AI provider failed.' })}\n\n`);
           res.end();
           return;
         }
@@ -444,12 +431,9 @@ function registerChatRoutes(app, deps) {
       }
       console.error('[chat] error:', err.message);
       if (!res.headersSent) res.status(500).json({ error: 'Internal server error.' });
-      else if (chunksEmitted > 0) {
-        try {
-          res.write(`event: done\ndata: ${JSON.stringify({ provider: 'qjo-fallback', model: 'fail-safe', toolsUsed: [], continued: false, truncated: true })}\n\n`);
-          res.end();
-        } catch (_) {}
-      } else try {
+      // Mid-stream, a bare end() looked to the client like an answer that
+      // simply stopped. An error event says what happened, so it can retry.
+      else try {
         res.write(`event: error\ndata: ${JSON.stringify({ error: 'Internal server error.' })}\n\n`);
         res.end();
       } catch (_) {}

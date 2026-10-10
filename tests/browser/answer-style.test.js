@@ -156,9 +156,39 @@ async function directions() {
   await english.ctx.close();
 }
 
+// Answers have no frame now, so their sizes alone order the page: a heading
+// stands above the text under it ("###", an h4, was smaller than its own text),
+// and on a phone a three-column table fits as it is while a wide one scrolls.
+const SIZES = ['## A heading', '', 'Body text under it.', '', '### A smaller heading', '', 'More text.', '',
+  '| Name | Role | City |', '|---|---|---|', '| Sami Khaled | Engineer | Amman |', '| Lina | Doctor | Irbid |', '',
+  '| One | Two | Three | Four | Five | Six |', '|---|---|---|---|---|---|', '| alpha beta | gamma delta | epsilon zeta | eta theta | iota kappa | lambda mu |'].join('\n');
+const measure = (page) => page.evaluate(() => {
+  const root = [...document.querySelectorAll('.msg.assistant .qjo-streamed-content')].pop();
+  if (!root) return { missing: 'answer' };
+  const px = (sel) => { const el = root.querySelector(sel); return el ? parseFloat(getComputedStyle(el).fontSize) : null; };
+  const width = root.getBoundingClientRect().width;
+  return { h3: px('h3'), h4: px('h4'), p: px('p'), td: px('td'), width, tables: [...root.querySelectorAll('table')].map((t) => Math.round(t.getBoundingClientRect().width)) };
+});
+async function sizes() {
+  for (const mobile of [false, true]) {
+    const { ctx, page, errors } = await open({ answer: SIZES, mobile, message: 'a table please' });
+    const m = await measure(page);
+    const where = mobile ? 'phone' : 'desktop';
+    ok(m.p >= 15 && m.tables.length === 2, `${where}: the answer is there, body text ${m.p}px`, m);
+    ok(m.h3 > m.h4 && m.h4 > m.p, `${where}: headings stand above the text (h3 ${m.h3}, h4 ${m.h4}, text ${m.p})`, m);
+    ok(m.td < m.p && m.td >= 13, `${where}: a table's text sits just below it (${m.td}px)`, m);
+    if (mobile) {
+      ok(m.tables[0] <= m.width + 1, `phone: three columns fit the screen (${m.tables[0]} of ${Math.round(m.width)}px)`, m);
+      ok(m.tables[1] > m.width, `control: six columns are wider than the screen and scroll (${m.tables[1]}px)`, m);
+    }
+    ok(errors.length === 0, `${where}: no JS errors`, errors.slice(0, 2));
+    await ctx.close();
+  }
+}
+
 (async () => {
   browser = await launchBrowser();
-  for (const scenario of [english, arabicOnAPhone, directions]) await scenario();
+  for (const scenario of [english, arabicOnAPhone, directions, sizes]) await scenario();
   await browser.close();
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);

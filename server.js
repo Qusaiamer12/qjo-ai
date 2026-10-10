@@ -56,62 +56,28 @@ const QJO_FULL_TRAINING_PROMPT = (() => {
   try { return fs.readFileSync(path.join(__dirname, 'QJO_FULL_TRAINING_PROMPT.md'), 'utf8').trim(); }
   catch { return ''; }
 })();
-const _GROQ_API_KEY = process.env.GROQ_API_KEY;
-const GROQ_API_KEYS = String(process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || '')
-  .split(',')
-  .map(k => k.trim())
-  .filter(Boolean);
+// A comma-separated key list from the first of these settings that is set.
+const keyList = (...names) => String(names.map((n) => process.env[n]).find(Boolean) || '').split(',').map((k) => k.trim()).filter(Boolean);
+const GROQ_API_KEYS = keyList('GROQ_API_KEYS', 'GROQ_API_KEY');
 
 // LLM7: Free OpenAI-compatible aggregator
-const LLM7_API_KEYS = String(process.env.LLM7_API_KEYS || process.env.LLM7_API_KEY || '')
-  .split(',')
-  .map(k => k.trim())
-  .filter(Boolean);
+const LLM7_API_KEYS = keyList('LLM7_API_KEYS', 'LLM7_API_KEY');
 const LLM7_BASE_URL = String(process.env.LLM7_BASE_URL || 'https://api.llm7.io/v1').replace(/\/$/, '');
 const LLM7_FLASH_MODEL = process.env.LLM7_FLASH_MODEL || 'minimax-m2.7';
 const LLM7_TEXT_MODEL = process.env.LLM7_TEXT_MODEL || 'minimax-m2.7';
 
-// Kimi (Moonshot) Free tier
-const KIMI_API_KEYS = String(process.env.KIMI_API_KEYS || process.env.KIMI_API_KEY || '')
-  .split(',')
-  .map(k => k.trim())
-  .filter(Boolean);
-
-// Qwen (DashScope) Free tier
-const QWEN_API_KEYS = String(process.env.QWEN_API_KEYS || process.env.QWEN_API_KEY || '')
-  .split(',')
-  .map(k => k.trim())
-  .filter(Boolean);
-
-// OpenRouter Free Tier
-const OPENROUTER_API_KEYS = String(process.env.OPENROUTER_API_KEYS || process.env.OPENROUTER_API_KEY || '')
-  .split(',')
-  .map(k => k.trim())
-  .filter(Boolean);
-
-// Cerebras
-const CEREBRAS_API_KEYS = String(process.env.CEREBRAS_API_KEYS || process.env.CEREBRAS_API_KEY || '')
-  .split(',')
-  .map(k => k.trim())
-  .filter(Boolean);
-
-// Google Gemini
-const GEMINI_API_KEYS = String(process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || '')
-  .split(',')
-  .map(k => k.trim())
-  .filter(Boolean);
-
-const EMBEDDING_API_KEYS = String(process.env.EMBEDDING_API_KEYS || process.env.EMBEDDING_API_KEY || '')
-  .split(',')
-  .map(k => k.trim())
-  .filter(Boolean);
+// Kimi (Moonshot) and Qwen (DashScope) free tiers.
+const KIMI_API_KEYS = keyList('KIMI_API_KEYS', 'KIMI_API_KEY');
+const QWEN_API_KEYS = keyList('QWEN_API_KEYS', 'QWEN_API_KEY');
+// OpenRouter, Cerebras and Gemini: optional, skipped without a key.
+const OPENROUTER_API_KEYS = keyList('OPENROUTER_API_KEYS', 'OPENROUTER_API_KEY');
+const CEREBRAS_API_KEYS = keyList('CEREBRAS_API_KEYS', 'CEREBRAS_API_KEY');
+const GEMINI_API_KEYS = keyList('GEMINI_API_KEYS', 'GEMINI_API_KEY');
+const EMBEDDING_API_KEYS = keyList('EMBEDDING_API_KEYS', 'EMBEDDING_API_KEY');
 const EMBEDDING_PROVIDER = String(process.env.EMBEDDING_PROVIDER || 'openai').toLowerCase();
 const EMBEDDING_BASE_URL = String(process.env.EMBEDDING_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, '');
 const EMBEDDING_MODEL = process.env.EMBEDDING_MODEL || 'text-embedding-3-small';
-const HUGGINGFACE_API_KEYS = String(process.env.HUGGINGFACE_API_KEYS || process.env.HUGGINGFACE_API_KEY || process.env.HF_API_KEY || '')
-  .split(',')
-  .map(k => k.trim())
-  .filter(Boolean);
+const HUGGINGFACE_API_KEYS = keyList('HUGGINGFACE_API_KEYS', 'HUGGINGFACE_API_KEY', 'HF_API_KEY');
 const HUGGINGFACE_EMBEDDING_MODEL = process.env.HUGGINGFACE_EMBEDDING_MODEL || 'intfloat/multilingual-e5-base';
 const HUGGINGFACE_EMBEDDING_URL = String(process.env.HUGGINGFACE_EMBEDDING_URL || '').replace(/\/$/, '');
 
@@ -126,18 +92,16 @@ const QWEN_FLASH_MODEL = process.env.QWEN_FLASH_MODEL || 'qwen-plus';
 const QWEN_TEXT_MODEL = process.env.QWEN_TEXT_MODEL || 'qwen-plus';
 const QWEN_CODE_MODEL = process.env.QWEN_CODE_MODEL || QWEN_TEXT_MODEL;
 const QWEN_VISION_MODEL = process.env.QWEN_VISION_MODEL || 'qwen-vl-plus';
-
-const OPENROUTER_FLASH_MODEL = process.env.OPENROUTER_FLASH_MODEL || 'google/gemini-2.5-flash:free';
-const OPENROUTER_TEXT_MODEL = process.env.OPENROUTER_TEXT_MODEL || 'meta-llama/llama-3.3-70b-instruct:free';
-const OPENROUTER_CODE_MODEL = process.env.OPENROUTER_CODE_MODEL || 'deepseek/deepseek-r1:free';
-
-const CEREBRAS_FLASH_MODEL = process.env.CEREBRAS_FLASH_MODEL || 'llama3.1-8b';
-const CEREBRAS_TEXT_MODEL = process.env.CEREBRAS_TEXT_MODEL || 'llama-3.3-70b';
-
-const GEMINI_FLASH_MODEL = process.env.GEMINI_FLASH_MODEL || 'gemini-2.0-flash';
-const GEMINI_TEXT_MODEL = process.env.GEMINI_TEXT_MODEL || 'gemini-2.0-pro-exp';
-const GEMINI_VISION_MODEL = process.env.GEMINI_VISION_MODEL || 'gemini-2.0-flash';
-
+// Models each serves today (openrouter.ai/api/v1/models, Cerebras' and Gemini's
+// model pages, 2026-10-10); an older ID in a setting is replaced (retiredModels).
+const OPENROUTER_FLASH_MODEL = currentModel(process.env.OPENROUTER_FLASH_MODEL || 'google/gemma-4-31b-it:free');
+const OPENROUTER_TEXT_MODEL = currentModel(process.env.OPENROUTER_TEXT_MODEL || 'nvidia/nemotron-3-super-120b-a12b:free');
+const OPENROUTER_CODE_MODEL = currentModel(process.env.OPENROUTER_CODE_MODEL || OPENROUTER_TEXT_MODEL);
+const CEREBRAS_FLASH_MODEL = currentModel(process.env.CEREBRAS_FLASH_MODEL || 'gpt-oss-120b');
+const CEREBRAS_TEXT_MODEL = currentModel(process.env.CEREBRAS_TEXT_MODEL || 'gpt-oss-120b');
+const GEMINI_FLASH_MODEL = currentModel(process.env.GEMINI_FLASH_MODEL || 'gemini-2.5-flash');
+const GEMINI_TEXT_MODEL = currentModel(process.env.GEMINI_TEXT_MODEL || 'gemini-2.5-flash');
+const GEMINI_VISION_MODEL = currentModel(process.env.GEMINI_VISION_MODEL || 'gemini-2.5-flash');
 const KIMI_BASE_URL = String(process.env.KIMI_BASE_URL || 'https://api.moonshot.ai/v1').replace(/\/$/, '');
 const KIMI_FLASH_MODEL = process.env.KIMI_FLASH_MODEL || process.env.KIMI_MODEL || 'moonshot-v1-8k';
 const KIMI_TEXT_MODEL = process.env.KIMI_TEXT_MODEL || process.env.KIMI_MODEL || 'moonshot-v1-8k';
@@ -298,9 +262,6 @@ app.use(helmet({
         "https://api.deepseek.com",
         "https://api.openai.com",
         "https://api.duckduckgo.com",
-        "https://openrouter.ai",
-        "https://api.cerebras.ai",
-        "https://generativelanguage.googleapis.com",
         "https://cdn.jsdelivr.net",
 
         "https://*.googleapis.com",
@@ -455,9 +416,7 @@ const llmService = createLlmService({
   qwenKeys: QWEN_API_KEYS,
   kimiKeys: KIMI_API_KEYS,
   kimiBaseUrl: KIMI_BASE_URL,
-  openrouterKeys: OPENROUTER_API_KEYS,
-  cerebrasKeys: CEREBRAS_API_KEYS,
-  geminiKeys: GEMINI_API_KEYS
+  openrouterKeys: OPENROUTER_API_KEYS, cerebrasKeys: CEREBRAS_API_KEYS, geminiKeys: GEMINI_API_KEYS
 });
 
 const routingEngine = createRoutingEngine({
@@ -483,9 +442,7 @@ const routingEngine = createRoutingEngine({
     llm7: LLM7_API_KEYS.length || 1,
     qwen: QWEN_API_KEYS.length,
     kimi: KIMI_API_KEYS.length,
-    openrouter: OPENROUTER_API_KEYS.length,
-    cerebras: CEREBRAS_API_KEYS.length,
-    gemini: GEMINI_API_KEYS.length
+    openrouter: OPENROUTER_API_KEYS.length, cerebras: CEREBRAS_API_KEYS.length, gemini: GEMINI_API_KEYS.length
   },
   models: {
     groqFlash: GROQ_FLASH_MODEL,
@@ -502,20 +459,11 @@ const routingEngine = createRoutingEngine({
     kimiFlash: KIMI_FLASH_MODEL,
     kimiText: KIMI_TEXT_MODEL,
     kimiCode: KIMI_CODE_MODEL,
-    openrouterFlash: OPENROUTER_FLASH_MODEL,
-    openrouterText: OPENROUTER_TEXT_MODEL,
-    openrouterCode: OPENROUTER_CODE_MODEL,
-    cerebrasFlash: CEREBRAS_FLASH_MODEL,
-    cerebrasText: CEREBRAS_TEXT_MODEL,
-    cerebrasCode: CEREBRAS_TEXT_MODEL,
-    geminiFlash: GEMINI_FLASH_MODEL,
-    geminiText: GEMINI_TEXT_MODEL,
-    geminiCode: GEMINI_TEXT_MODEL,
-    geminiVision: GEMINI_VISION_MODEL
+    openrouterFlash: OPENROUTER_FLASH_MODEL, openrouterText: OPENROUTER_TEXT_MODEL, openrouterCode: OPENROUTER_CODE_MODEL,
+    cerebrasFlash: CEREBRAS_FLASH_MODEL, cerebrasText: CEREBRAS_TEXT_MODEL, cerebrasCode: CEREBRAS_TEXT_MODEL,
+    geminiFlash: GEMINI_FLASH_MODEL, geminiText: GEMINI_TEXT_MODEL, geminiCode: GEMINI_TEXT_MODEL, geminiVision: GEMINI_VISION_MODEL
   }
 });
-
-
 
 registerFeedbackRoutes(app, { feedbackService, verifyAdminRequest });
 

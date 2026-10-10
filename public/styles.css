@@ -5196,6 +5196,8 @@ body:not(.dark) .composer textarea::placeholder {
   }
 
   .assistant .bubble table { min-width: 520px !important; }
+  /* Up to three columns fit a phone as they are; only a wider table scrolls sideways. */
+  .assistant .bubble table:not(:has(tr > :nth-child(4))) { min-width: 0 !important; }
   .assistant .bubble code { white-space: pre-wrap !important; }
   .assistant .bubble pre code { white-space: pre !important; }
 
