@@ -354,14 +354,74 @@ test('the site playbook names what the preview loads, at the versions it serves'
   const lucide = /lucide@([\d.]+)\/dist\/umd\/lucide\.min\.js/.exec(ui);
   assert.ok(lucide && LIBS.lucideReact.includes(`lucide-react@${lucide[1]}/`), `Lucide ${lucide && lucide[1]} and lucide-react in ${LIBS.lucideReact}`);
   assert.ok(ui.includes(LIBS.tailwind) && /picsum\.photos\/seed/.test(ui) && /cdn\.jsdelivr\.net or cdnjs\.cloudflare\.com/.test(ui));
-  // The subject's own photos: picsum's are random, so a bakery got mountains.
-  assert.ok(/image\.pollinations\.ai\/prompt\/<short English description/.test(ui) && /nologo=true/.test(ui), 'topic photos');
+  // The subject's own photos: picsum's are random, so a restaurant got forests.
+  // The page draws each from an English data-photo (codeProject.js).
+  assert.ok(/data-photo="<what this photo shows, in English/.test(ui), 'topic photos');
   assert.ok(/dir="rtl"/.test(require('../src/services/arabicPrompt').ARABIC_PLAYBOOK_NOTES.ui));
 });
 
 test('a follow-up keeps the playbook of the request it follows', () => {
   const chosen = detectNeeds([user('write me a cover letter for a developer job'), user('make it shorter')]).playbooks;
   assert.ok(chosen.includes('job'), `[${chosen}]`);
+  const arabic = detectNeeds([user('اكتبلي رسالة تغطية لوظيفة مطور'), { role: 'assistant', content: 'عزيزي مدير التوظيف…' }, user('خليها أقصر')]).playbooks;
+  assert.ok(arabic.includes('job'), `[${arabic}]`);
+});
+
+// What counts as working on the answer before: kept follow-ups found by
+// running the real functions over realistic conversations, and new questions
+// that must stand on their own.
+test('a follow-up is told from a new question', () => {
+  const { isFollowUp } = require('../src/services/followUp');
+  for (const text of ['make it shorter', 'add comments', 'add a title', 'خليه أحمر', 'زيد عليه العنوان بالعربي', 'كبر المجال لـ 10', 'make it a line chart', 'add March 7', 'more formal', 'خليها أقصر', 'ترجمها للإنجليزي', 'اختصره', 'translate it to Arabic', 'بدون باذنجان', 'وإذا ما راح؟', 'now in km/h', 'بس بدي فضفض', 'طيب شو أعمل؟', 'and in Python?', 'what about the second one?', 'كمان مثال', 'with less sugar']) {
+    assert.ok(isFollowUp(text), `a follow-up taken for a new question: ${text}`);
+  }
+  for (const text of ['شو عاصمة اليابان؟', 'what is the capital of Japan?', 'اشرحلي نظرية فيثاغورس', 'كيف استخدم الذكاء الاصطناعي بالدراسة؟', 'وين موقع البتراء؟', 'متى توفي صلاح الدين؟', 'why is the sky blue?', 'I feel so sad today', 'اكتبلي قصيدة عن البحر', 'write a javascript function that sorts an array', 'كيفك؟']) {
+    assert.ok(!isFollowUp(text), `a new question taken for a follow-up: ${text}`);
+  }
+  const recipe = detectNeeds([user('اعطيني وصفة مقلوبة'), { role: 'assistant', content: 'المقادير…' }, user('بدون باذنجان')]).playbooks;
+  assert.ok(recipe.includes('recipe'), `a recipe's follow-up keeps the recipe: [${recipe}]`);
+});
+
+// A word inside another word, or with another meaning, chose a playbook that
+// told the model the wrong thing: "متى توفي صلاح الدين؟" got the venting one
+// ("don't give advice"), "شو وظيفة الميتوكوندريا؟" the job one, "cookies" a
+// recipe. Each must choose nothing; each real request below keeps its own.
+test('a playbook is chosen by what a message asks, not by a word inside another', () => {
+  for (const q of ['متى توفي صلاح الدين؟', 'متى انفصلت سنغافورة عن ماليزيا؟', 'مين اللاعب الوحيد اللي فاز بالكرة الذهبية ٨ مرات؟', 'how does ventilation work in a car?', 'كم عظمة بالجسم البشري؟', 'شو آخر أخبار القصف على غزة؟', 'شو درجة الحرارة بعمان؟', 'مين المرشح الأقوى بالانتخابات؟', 'ideas to paint my bedroom', 'شو وظيفة الميتوكوندريا؟', 'how do I clear cookies in chrome?', 'شو أكبر جزيرة بالبحر المتوسط؟', 'شو فائدة الرياضة؟', 'شو أسماء الكواكب؟', 'شو أحسن مدرسة بعمان؟', 'ليش تراجع سعر الذهب؟']) {
+    const got = detectNeeds([user(q)]).playbooks.filter((k) => k !== 'banter');
+    assert.deepStrictEqual(got, [], `${q}: [${got}]`);
+  }
+  const keeps = { 'أنا زعلان كتير اليوم': 'venting', 'عندي صداع وحرارتي عالية': 'medical', 'اكتبلي رسالة تغطية لوظيفة مطور': 'job', 'اقترحلي أسماء لمحل قهوة': 'naming', 'احسب المتوسط لـ 3 و 5 و 8': 'math', 'ارسملي رسم بياني للمبيعات': 'charts', 'اشرحلي الدرس الخامس': 'teach', 'راجعلي هالفقرة': 'teach', 'how to cook rice': 'recipe', 'اكتبلي مقال عن البحر': 'writing', 'كم نسبة الفائدة على القرض؟': 'math' };
+  for (const [q, key] of Object.entries(keeps)) assert.ok(detectNeeds([user(q)]).playbooks.includes(key), `${q} lost ${key}`);
+  const fn = detectNeeds([user('اكتبلي دالة بايثون بتعكس نص')]).playbooks;
+  assert.ok(!fn.includes('charts') && !fn.includes('writing'), `a function to write is neither a chart nor prose: [${fn}]`);
+});
+
+// After a figure or Python, a new question is not a figure or Python; a
+// follow-up to them still is.
+test('a figure and Python carry over to a follow-up only', () => {
+  const plot = [user('ارسملي الدالة y = x^2'), { role: 'assistant', content: '```mathplot\n{"plots":[]}\n```' }];
+  const py = [user('حللي هالأرقام بالبايثون وارسملي متوسطها: 3 5 8 13'), { role: 'assistant', content: '```python\nprint(1)\n```' }];
+  assert.ok(!detectNeeds([...plot, user('شو عاصمة اليابان؟')]).plot && detectNeeds([...plot, user('خليه أحمر')]).plot);
+  assert.deepStrictEqual(detectNeeds([...plot, user('بدي وصفة مقلوبة')]).playbooks, ['recipe']);
+  const red = detectNeeds([...py, user('خليه أحمر')]);
+  assert.ok(red.python && red.playbooks.join() === 'python' && !red.code, `[${red.playbooks}] code=${red.code}`);
+  assert.ok(!detectNeeds([...py, user('شو عاصمة اليابان؟')]).python);
+});
+
+// After a restaurant site, "شو عاصمة اليابان؟" was sent with the website
+// playbook and answered about the site: playbooks came from the last two
+// messages, whatever the newest asked.
+test('a new question after a site, or after a cover letter, carries none of their playbooks', () => {
+  const site = [user('بدي موقع html لمطعم'), { role: 'assistant', content: '```html\n<!DOCTYPE html><html><body>مطعم</body></html>\n```' }];
+  for (const question of ['شو عاصمة اليابان؟', 'اشرحلي نظرية فيثاغورس', 'كيف استخدم الذكاء الاصطناعي بالدراسة؟', 'what is the capital of Japan?']) {
+    const needs = detectNeeds([...site, user(question)]);
+    assert.ok(!needs.site && !needs.playbooks.includes('ui') && !needs.code, `${question}: [${needs.playbooks}] site=${needs.site} code=${needs.code}`);
+  }
+  const darker = detectNeeds([...site, user('خلي الخلفية أغمق')]);
+  assert.ok(darker.site && darker.playbooks.includes('ui'), 'control: a change to the site is still a site');
+  const letter = detectNeeds([user('write me a cover letter for a developer job'), { role: 'assistant', content: 'Dear hiring manager' }, user('what is the capital of Japan?')]);
+  assert.ok(!letter.playbooks.includes('job'), `[${letter.playbooks}]`);
 });
 
 test('the general rules are on every message', () => {

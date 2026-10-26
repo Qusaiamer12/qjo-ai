@@ -18,6 +18,7 @@
 const { ARABIC_PLAYBOOK_NOTES } = require('./arabicPrompt');
 const { ownWords } = require('../../public/domain/ownWords');
 const { siteInConversation } = require('../../public/domain/siteRequest');
+const { isFollowUp } = require('./followUp');
 const { pythonInPage, DATA_FILE } = require('../../public/domain/pythonRun');
 const { asksForPlot, answerHasPlot } = require('../../public/domain/mathPlot');
 
@@ -52,7 +53,7 @@ LITERARY CRAFTSMANSHIP, GRAMMAR & TEXT RESTRUCTURING
     NEVER dump raw debug logs, time zone abbreviations, or machine output like "Time zone: Asia/Amman (+03:00) Approximate location: ...".`
   },
   math: {
-    match: /\d\s*[-+*/^%×÷=]\s*\d|\b(calculat|comput|solve|equation|integral|derivativ|percent|probabilit|statistic|sqrt|compound|average|median)\w*|احسب|حساب|معادلة|مسألة|مسأله|تكامل|مشتقة|نسبة|مئوية|احتمال|إحصاء|احصاء|جذر|فائدة|متوسط|معدل/i,
+    match: /\d\s*[-+*/^%×÷=]\s*\d|\b(calculat|comput|solve|equation|integral|derivativ|percent|probabilit|statistic|sqrt|compound|average|median)\w*|احسب|حساب|معادلة|مسألة|مسأله|تكامل|مشتقة|نسبة|مئوية|احتمال|إحصاء|احصاء|جذر|(?:سعر|نسبة) الفائدة|فائدة (?:مركبة|بسيطة|سنوية)|(?<!البحر ال)متوسط|معدل/i,
     en: `
 - In mathematical problems and calculations, strictly employ Chain of Thought inside the <think> block:
   1. Analyze givens, unknowns, and underlying rules first.
@@ -81,14 +82,14 @@ LITERARY CRAFTSMANSHIP, GRAMMAR & TEXT RESTRUCTURING
   • A real site, not a demo: a sticky header (logo, #id links to every section, a dark-mode toggle, a menu button for phones with aria-expanded that opens and closes); a hero with a sharp headline, one line under it, two calls to action and an image; then four to six sections that suit the subject (services or features, about, gallery or work, testimonials, pricing or menu, FAQ in <details>, a contact form with labels and validation); a footer with links and © 2026.
   • Content written for this subject in the reply language — names, prices, hours, quotes, figures. Never lorem ipsum, "Feature 1" or a placeholder.
   • Design: one brand colour with neutral greys; sections py-20 in max-w-6xl mx-auto px-4; rounded-2xl cards with soft shadows; a gradient or subtle pattern behind the hero; a clear type scale (text-4xl md:text-6xl for the one h1); dark: variants on every background and text; readable contrast in both themes.
-  • Icons: Lucide — <script src="https://cdn.jsdelivr.net/npm/lucide@1.48.0/dist/umd/lucide.min.js"></script>, <i data-lucide="coffee"></i>, then lucide.createIcons(). Photos that show the subject: https://image.pollinations.ai/prompt/<short English description, %20 between words>?width=<w>&height=<h>&nologo=true&seed=<a different number each> with alt, width, height and loading="lazy"; https://picsum.photos/seed/<one-word>/<w>/<h> only for a generic backdrop; no other image addresses.
+  • Icons: Lucide — <script src="https://cdn.jsdelivr.net/npm/lucide@1.48.0/dist/umd/lucide.min.js"></script>, <i data-lucide="coffee"></i>, then lucide.createIcons(). Photos: <img src="https://picsum.photos/seed/<word>/<w>/<h>" data-photo="<what this photo shows, in English, 3-8 words: grilled lamb kebab platter>" alt="…" width height loading="lazy"> — the preview draws each from its data-photo, so every photo shows this subject; no other image addresses.
   • Motion that never hides content: the script adds class "js" to <html>, and only .js .reveal starts faded and shifted down, shown by an IntersectionObserver; respect prefers-reduced-motion; hover, focus-visible and active states on every control; scroll-smooth on <html>.
   • 360px wide with no sideways scrolling: grids that stack, nothing wider than the screen, max-w-full images, long words that wrap.
   • A script that never stops: check an element exists before using it; libraries only from cdn.jsdelivr.net or cdnjs.cloudflare.com.
   • After the code, at most three short lines: what the page has, and what to ask for next.`
   },
   charts: {
-    match: /\b(plot|graph|chart|curve|diagram|visuali[sz]e)\b|رسم|ارسم|منحنى|منحني|مخطط|بياني|دالة/i,
+    match: /\b(plot|graph|chart|curve|diagram|visuali[sz]e)\b|(?<![\u0600-\u06FF])(?:ال)?(?:رسم|ارسم|رسمة|رسوم)(?:ة|ه|لي)?(?![\u0600-\u06FF])|منحنى|منحني|مخطط|بياني/i,
     en: `
 - INTERACTIVE CHARTS & FUNCTION PLOTTING:
   • When asked to draw, plot, or graph any mathematical function, curve, or numerical comparison ("plot e^-t", "graph this function"):
@@ -146,7 +147,7 @@ LITERARY CRAFTSMANSHIP, GRAMMAR & TEXT RESTRUCTURING
     | Audio & Dialogue | Visual Scene & Directing |`
   },
   job: {
-    match: /cover letter|\bjob\b|resume|\bcv\b|interview|linkedin|hiring|وظيف|سيرة ذاتية|سي ?في|تقديم على|مقابلة|رسالة تغطية|لينكد|توظيف/i,
+    match: /cover letter|\bjob\b|resume|\bcv\b|interview|linkedin|hiring|(?:على|عن|ل|بدي)\s*وظيفة|وظيفتي|وظايف|سيرة ذاتية|سي ?في|تقديم على|مقابلة|رسالة تغطية|لينكد|توظيف/i,
     en: `
 - JOB APPLICATIONS & COVER LETTERS (Few-Shot Precision):
   • Deeply align the candidate's actual qualifications and tangible impact with the target job posting.
@@ -156,21 +157,21 @@ LITERARY CRAFTSMANSHIP, GRAMMAR & TEXT RESTRUCTURING
     - Adopt: "While leading our cloud platform work, I cut response latency by 35% — exactly the scaling your infrastructure roadmap calls for."`
   },
   naming: {
-    match: /\bbrand|naming|name (for|ideas)|names for|product name|اسم (ل|تجاري|مشروع|شركة|تطبيق|منتج|براند|محل|متجر)|أسماء|اسماء|اسامي|اقترح(لي)? اسم|براند|علامة تجارية/i,
+    match: /\bbrand|naming|name (for|ideas)|names for|product name|اسم (ل|تجاري|مشروع|شركة|تطبيق|منتج|براند|محل|متجر)|(?:أسماء|اسماء|اسامي) (?:ل|مقترحة|حلوة)|اقترح(لي)? (?:اسم|أسماء|اسماء)|براند|علامة تجارية/i,
     en: `
 - BRAND & PRODUCT NAMING:
   • Criteria: Maximum two syllables, effortless pronunciation, high modern/tech resonance.
   • Include the linguistic root, brand positioning, and domain availability feasibility for each suggestion.`
   },
   recipe: {
-    match: /recipe|\bcook|\bdish\b|\bmeal\b|ingredients|وصفة|طبخ|اطبخ|أطبخ|طبخة|أكلة|اكلة|مكونات|حلويات/i,
+    match: /recipe|\bcook(?:ing|ed|s)?\b|\bdish\b|\bmeal\b|ingredients|وصفة|طبخ|اطبخ|أطبخ|طبخة|أكلة|اكلة|مكونات|حلويات/i,
     en: `
 - PRACTICAL COOKING RECIPES:
   • Hyper-practical: Offer exactly ONE cohesive recipe doable in under 30 minutes based strictly on the user's available ingredients.
   • Explicitly list practical substitutes for common missing ingredients.`
   },
   venting: {
-    match: /\b(sad|depress|anxious|anxiety|stressed|burn ?out|lonely|upset|heartbroken|crying|grief|vent)\w*|زعلان|حزين|مضايق|مكتئب|اكتئاب|قلقان|متوتر|تعبان|مخنوق|طفشان|وحيد|ابكي|أبكي|فضفض|مقهور|محبط|خذلني|انفصل|توفي|ضغط نفسي/i,
+    match: /\b(sad|depress|anxious|anxiety|stressed|burn ?out|lonely|upset|heartbroken|crying|grief)\w*|\bvent(?:ing)?\b|زعلان|حزين|مضايق|مكتئب|اكتئاب|قلقان|متوتر|تعبان|مخنوق|طفشان|(?<![\u0600-\u06FF])وحيدة?(?![\u0600-\u06FF])|ابكي|أبكي|فضفض|مقهور|محبط|خذلني|انفصلنا|ضغط نفسي/i,
     en: `
 - VENTING & COGNITIVE EMPATHY:
   • Practice Cognitive Empathy: Recognize emotional weight (burnout, sadness, grief, relationship distress).
@@ -193,7 +194,7 @@ LITERARY CRAFTSMANSHIP, GRAMMAR & TEXT RESTRUCTURING
   • Suggest an emotionally intelligent, balanced reply.`
   },
   excuses: {
-    match: /excuse|comeback|\broast|clap back|عذر|أعذار|اعذار|حجة|حجج|رد قوي|قصف|جبهة|يتمسخر|بيستفز|يستهزئ|تنمر/i,
+    match: /excuse|comeback|\broast|clap back|عذر|أعذار|اعذار|حجة|حجج|رد قوي|يتمسخر|بيستفز|يستهزئ|تنمر/i,
     en: `
 - STREET-SMART EXCUSES & WITTY COMEBACKS:
   • Persona: Street-smart, witty, realistic, and culturally savvy.
@@ -201,7 +202,7 @@ LITERARY CRAFTSMANSHIP, GRAMMAR & TEXT RESTRUCTURING
   • Witty Comebacks: ZERO vulgarity or insults. Master razor-sharp irony, expose logical fallacies, and turn the attacker's premise against them to dismantle hostility with class.`
   },
   human: {
-    match: /detector|humani[sz]e|sound (more )?human|ai detection|gptzero|turnitin|undetectable|كاشف|يبين انه|يبين إنه|بشري|انساني|إنساني/i,
+    match: /detector|humani[sz]e|sound (more )?human|ai detection|gptzero|turnitin|undetectable|كاشف|يبين انه|يبين إنه|(?:بأسلوب|باسلوب|كأنه|كانه) (?:بشري|إنساني|انساني|انسان|إنسان)/i,
     en: `
 - BYPASSING AI DETECTORS & PURE HUMAN CADENCE:
   • Burstiness Control: Intentionally vary sentence lengths dramatically. Interleave short punchy statements (3-5 words) with rich, multi-clause thoughts.
@@ -229,7 +230,7 @@ LITERARY CRAFTSMANSHIP, GRAMMAR & TEXT RESTRUCTURING
     // Explaining a topic or preparing for an exam — not "explain this error",
     // which the code rules answer.
     match: {
-      test: (t) => /\b(?:explain|teach me|lesson|lecture|revise|revision|study|studying|exam|midterm|quiz me|help me understand)\b|اشرح|شرح|فهمني|فهّمني|وضح|وضّح|درس|ادرس|مراجعة|راجع|امتحان|اختبار|محاضرة/i.test(t)
+      test: (t) => /\b(?:explain|teach me|lesson|lecture|revise|revision|study|studying|exam|midterm|quiz me|help me understand)\b|اشرح|شرح|فهمني|فهّمني|وضح|وضّح|(?<![\u0600-\u06FF])(?:ا?درس|دروس|راجع)(?:لي|ني)?(?![\u0600-\u06FF])|مراجعة|امتحان|اختبار|محاضرة/i.test(t)
         && !/\b(?:error|bug|exception|traceback|stack trace|crash(?:es|ed)?)\b|(?<![\u0600-\u06FF])(?:ها|هال|ال|بال|لل)?(?:خطأ|غلط)(?![\u0600-\u06FF])|ايرور|إيرور/i.test(t)
     },
     en: `
@@ -244,7 +245,7 @@ LITERARY CRAFTSMANSHIP, GRAMMAR & TEXT RESTRUCTURING
   • For study or exam preparation, end with a \`\`\`quiz block of three questions: [{"question": "…", "options": ["…", "…", "…", "…"], "answer": "the correct option, word for word", "explanation": "…"}].`
   },
   medical: {
-    match: /symptom|\bpain|doctor|medicin|headache|fever|\bsick\b|dizz|pregnan|\bpills?\b|\bdose|blood pressure|وجع|ألم|دكتور|طبيب|مرض|مريض|أعراض|اعراض|دواء|صداع|حرارة|سخونة|دوخة|حامل|جرعة|كحة|رشح|ضغط الدم|سكري/i,
+    match: /symptom|\bpain(?:s|ful)?\b|doctor|medicin|headache|fever|\bsick\b|dizz|pregnan|\bpills?\b|\bdose|blood pressure|وجع|ألم|دكتور|طبيب|مرض|مريض|أعراض|اعراض|دواء|صداع|(?:حرارتي|حرارته|حرارتها|حرارة (?:عالية|مرتفعة|عندي))|سخونة|دوخة|حامل|جرعة|كحة|(?<![\u0600-\u06FF])(?:ال)?رشح(?![\u0600-\u06FF])|ضغط الدم|سكري/i,
     en: `
 - FLEXIBLE MEDICAL & HEALTH GUARDRAILS:
   • Never issue a cold, abrupt robotic refusal ("I am an AI and cannot give medical advice").
@@ -302,16 +303,26 @@ function detectNeeds(userMessages) {
   // alone, without the engineering overlay's file tree, terminal commands and
   // tests, or a playbook a word chose ("doctor" for a clinic's site).
   const site = siteInConversation((userMessages || []).map((m) => ({ role: m && m.role, content: textOf(m && m.content) })), ownWords);
+  // A follow-up keeps what the request before it was about; a new question is
+  // judged on its own words (followUp.js) — after a site, a figure or Python,
+  // "شو عاصمة اليابان؟" was sent with their playbook and answered with them.
+  const newest = own[own.length - 1] || '';
+  const followUp = isFollowUp(newest);
+  const recent = followUp ? own.slice(-2) : own.slice(-1);
   // Python for the page carries the Python playbook alone: the charts
   // playbook said "never output Python", and the engineering overlay a file
-  // tree and npm install.
-  const python = !site && pythonInPage(own[own.length - 1] || '', DATA_FILE.test(texts[texts.length - 1] || ''));
+  // tree and npm install. "خليه أحمر" after it stays Python.
+  const pythonAt = (i) => i >= 0 && pythonInPage(own[i] || '', DATA_FILE.test(texts[i] || ''));
+  const python = !site && (pythonAt(own.length - 1) || (followUp && pythonAt(own.length - 2)));
   // A figure of mathematics is a block the page draws: not a chart of
   // made-up points, and not code ("دالة" is a function in both). A follow-up
   // to an answer that drew one ("make it red") keeps the format.
   const answers = (userMessages || []).filter((m) => m && m.role === 'assistant');
-  const plot = !site && !python && (asksForPlot(own[own.length - 1] || '') || answerHasPlot(textOf(answers.length ? answers[answers.length - 1].content : '')));
-  const code = !site && !python && !plot && (CODE_WORDS.test(own.join('\n')) || CODE_FILE.test(t));
+  const plot = !site && !python && (asksForPlot(newest) || (followUp && answerHasPlot(textOf(answers.length ? answers[answers.length - 1].content : ''))));
+  // The interface playbook comes only with a site: a question about a page is
+  // not a page to write.
+  const code = !site && !python && !plot && (CODE_WORDS.test(recent.join('\n')) || CODE_FILE.test(t));
+  const chosen = (list) => list.filter((k) => (k !== 'ui' || selectPlaybooks(own.slice(-1)).includes('ui')) && !(k === 'writing' && code));
   return {
     search: /source pack|connected search|connected deep search|web search note|search query used/i.test(t),
     files: /user attached files|pdf pages processed|ocr text extracted|extraction method|attachment index|المرفقات/i.test(t),
@@ -323,7 +334,7 @@ function detectNeeds(userMessages) {
     site,
     python,
     plot,
-    playbooks: site ? ['ui'] : python ? ['python'] : plot ? [...selectPlaybooks(own.slice(-2)).filter((k) => !['charts', 'ui', 'code'].includes(k)), 'mathplot'] : selectPlaybooks(own.slice(-2), { code })
+    playbooks: site ? ['ui'] : python ? ['python'] : plot ? [...selectPlaybooks(recent).filter((k) => !['charts', 'ui', 'code'].includes(k)), 'mathplot'] : chosen(selectPlaybooks(recent, { code }))
   };
 }
 
