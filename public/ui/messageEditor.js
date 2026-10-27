@@ -20,8 +20,12 @@
   function createMessageEditor({ t, canEdit, rewind, composer, composerChanged }) {
     /** Offers Edit under this message, and takes it away from any earlier one. */
     function offer(wrap, text) {
-      document.querySelectorAll('.qjo-edit-message').forEach((b) => b.remove());
+      document.querySelectorAll('.qjo-edit-row').forEach((b) => b.remove());
       if (!wrap || !String(text || '').trim()) return;
+      // A row of its own under the message, holding a button the size of its
+      // label: when the button was the row, a tap on blank space edited.
+      const row = document.createElement('div');
+      row.className = 'qjo-edit-row';
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'qjo-edit-message';
@@ -37,7 +41,8 @@
         composerChanged();
         composer.focus();
       });
-      wrap.appendChild(button);
+      row.appendChild(button);
+      wrap.appendChild(row);
     }
 
     return { offer };

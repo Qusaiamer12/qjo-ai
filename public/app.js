@@ -1590,26 +1590,18 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     }
 
     function scrollToBottom(smooth = true) {
+      scrollFollow().follow();
       messagesEl.scrollTo({ top: messagesEl.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
       window.scrollTo({ top: document.documentElement.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
       setTimeout(updateScrollBottomButton, 220);
     }
 
-    let scrollRafPending = false;
-    function requestSmoothScroll() {
-      if (scrollRafPending) return;
-      scrollRafPending = true;
-      requestAnimationFrame(() => {
-        scrollRafPending = false;
-        // One measurement, reused for both the scroll decision and the button.
-        const near = isNearBottom();
-        if (near) {
-          messagesEl.scrollTop = messagesEl.scrollHeight;
-          window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'auto' });
-        }
-        updateScrollBottomButton(near);
-      });
+    // Follows an answer while the reader stays at its end (public/ui/scrollFollow.js).
+    function scrollFollow() {
+      return scrollFollow.made || (scrollFollow.made = QjoUI.createScrollFollow({ scroller: messagesEl, settled: updateScrollBottomButton,
+        toBottom: () => { messagesEl.scrollTop = messagesEl.scrollHeight; window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'auto' }); } }));
     }
+    function requestSmoothScroll() { scrollFollow().request(); }
 
     function formatBytes(bytes) {
       if (!Number.isFinite(bytes)) return '';

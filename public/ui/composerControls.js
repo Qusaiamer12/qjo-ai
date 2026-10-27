@@ -274,11 +274,15 @@
     });
     // By the event's path, not its target: choosing redraws the item clicked,
     // and its old content is no longer inside the menu by the time this runs.
-    doc.addEventListener('click', (event) => { 
+    // On the pointer going down as well as on click: a disabled button (an
+    // answered quiz's options) gets no click, and a tap on one left them open.
+    const closeOutside = (event) => {
       const path = event.composedPath();
-      if (!path.includes(wrap)) closeToolsMenu(false); 
+      if (!path.includes(wrap)) closeToolsMenu(false);
       if (!path.includes(modeWrap)) closeModeMenu(false);
-    });
+    };
+    doc.addEventListener('pointerdown', closeOutside);
+    doc.addEventListener('click', closeOutside);
 
     // The app's own changes: a mode set elsewhere, tools turned off by a send.
     new MutationObserver(render).observe(doc.body, { attributes: true, attributeFilter: ['data-qjo-mode'] });

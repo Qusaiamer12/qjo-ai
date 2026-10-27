@@ -437,6 +437,53 @@
     return found === 'ar' ? ' dir="rtl"' : found === 'en' ? ' dir="ltr"' : '';
   }
 
+  // A list item: its indent, its marker ("-", "*", "1." or "1)") and its text.
+  const LIST_ITEM = /^([ \t]*)([-*]|\d+[.)])\s+(.*)$/;
+  const MAX_LIST_DEPTH = 6;
+  const indentOf = (space) => space.replace(/\t/g, '    ').length;
+
+  /**
+   * The list that starts at lines[at], with the lists nested in it: an item
+   * indented two or more spaces (or a tab) past the one before it belongs to
+   * that item. Every line was escaped before this ran, and an item's text is
+   * rendered as inline Markdown only, as before.
+   * @param {string[]} lines
+   * @param {number} at
+   * @param {number} depth
+   * @returns {{html: string, nextIndex: number}}
+   */
+  function renderList(lines, at, depth) {
+    const first = lines[at].match(LIST_ITEM);
+    const base = indentOf(first[1]);
+    const ordered = /\d/.test(first[2]);
+    /** @type {Array<{text: string, nested: string}>} */
+    const items = [];
+    let i = at;
+    while (i < lines.length) {
+      const item = lines[i].match(LIST_ITEM);
+      if (!item) break;
+      const indent = indentOf(item[1]);
+      if (indent < base) break;
+      if (indent >= base + 2 && items.length && depth < MAX_LIST_DEPTH) {
+        const nested = renderList(lines, i, depth + 1);
+        items[items.length - 1].nested += nested.html;
+        i = nested.nextIndex;
+        continue;
+      }
+      // A list of the other kind at this level is a list of its own.
+      if (/\d/.test(item[2]) !== ordered) break;
+      items.push({ text: item[3], nested: '' });
+      i++;
+    }
+    const body = items.map((item) => `<li>${parseInlineMarkdown(item.text)}${item.nested}</li>`).join('');
+    if (!ordered) return { html: `<ul${depth ? '' : dirOf(items.map((item) => item.text).join(' '))}>${body}</ul>`, nextIndex: i };
+    // Numbered from the first item's number, as written: a blank line or an
+    // explanation between items ends a list here, and each part used to start
+    // again at 1.
+    const start = Number(first[2].match(/^\d+/)[0]);
+    return { html: `<ol${depth ? '' : dirOf(items.map((item) => item.text).join(' '))}${start === 1 ? '' : ` start="${start}"`}>${body}</ol>`, nextIndex: i };
+  }
+
   // Block by block: code placeholders, tables, headings, rules, lists, quotes
   // and paragraphs. Called again for the lines inside a quote.
   function renderLines(lines) {
@@ -477,7 +524,9 @@
       const heading = trimmed.match(/^(#{1,6})\s+(.+)$/);
       if (heading) {
         flushParagraph();
-        const level = Math.min(4, Math.max(2, heading[1].length + 1));
+        // "#" an h2 (the page has the h1), down to "####" an h5: "###" and
+        // "####" were both h4, one size, and a sub-section looked like its section.
+        const level = Math.min(5, Math.max(2, heading[1].length + 1));
         out.push(`<h${level}${dirOf(heading[2])}>${parseInlineMarkdown(heading[2])}</h${level}>`);
         i++;
         continue;
@@ -498,29 +547,11 @@
         continue;
       }
 
-      if (/^[-*]\s+/.test(trimmed)) {
+      if (LIST_ITEM.test(raw)) {
         flushParagraph();
-        const items = [];
-        while (i < lines.length && /^[-*]\s+/.test(lines[i].trim())) {
-          items.push(lines[i].trim().replace(/^[-*]\s+/, ''));
-          i++;
-        }
-        out.push(`<ul${dirOf(items.join(' '))}>` + items.map(item => `<li>${parseInlineMarkdown(item)}</li>`).join('') + '</ul>');
-        continue;
-      }
-
-      if (/^\d+[.)]\s+/.test(trimmed)) {
-        flushParagraph();
-        const items = [];
-        // Numbered from the first item's number, as written: a blank line or
-        // an explanation between items ends a list here, and each part used
-        // to start again at 1.
-        const start = Number(trimmed.match(/^\d+/)[0]);
-        while (i < lines.length && /^\d+[.)]\s+/.test(lines[i].trim())) {
-          items.push(lines[i].trim().replace(/^\d+[.)]\s+/, ''));
-          i++;
-        }
-        out.push(`<ol${dirOf(items.join(' '))}${start === 1 ? '' : ` start="${start}"`}>` + items.map(item => `<li>${parseInlineMarkdown(item)}</li>`).join('') + '</ol>');
+        const list = renderList(lines, i, 0);
+        out.push(list.html);
+        i = list.nextIndex;
         continue;
       }
 
