@@ -31,3 +31,6 @@ evals/*-report-*.json
 
 # Python packages for the suites that run real Python (tests/browser/fetch-pyodide.js)
 tests/browser/.pyodide-cache/
+
+# Claude Code agent worktrees
+.claude/worktrees/

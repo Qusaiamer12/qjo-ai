@@ -134,7 +134,7 @@ const SHARED_RULES = {
 
 module.exports = [
   {
-    ignores: ['node_modules/**', 'qcode-workspace/**', '.qcode-*/**', 'public/**/*.min.js', 'tests/browser/.pyodide-cache/**']
+    ignores: ['node_modules/**', 'qcode-workspace/**', '.qcode-*/**', 'public/**/*.min.js', 'tests/browser/.pyodide-cache/**', '.claude/**']
   },
   {
     files: ['server.js', 'src/**/*.js', 'scripts/**/*.js', 'evals/**/*.js', 'eslint.config.js'],

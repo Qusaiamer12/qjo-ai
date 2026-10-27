@@ -425,12 +425,57 @@ ${containers.map((id) => `<div id="${id}"></div>`).join('\n')}
    * @param {{guard?: boolean}} [options]
    * @returns {string}
    */
+  // Photos that show the page's subject. picsum's are random whatever the seed
+  // (a restaurant's site showed mountains and forests), and an Unsplash address
+  // a model writes from memory is another photo or none. Each becomes a picture
+  // drawn from a description: the image's data-photo, picsum's seed word, an
+  // English alt, else the site's subject. In English only — an Arabic
+  // "مشاوي على طبق" drew a woman in a headscarf, its English a grill platter.
+  const STOCK_PHOTO = /https?:\/\/(?:picsum\.photos|(?:images|source)\.unsplash\.com|placehold\.co|via\.placeholder\.com|dummyimage\.com|loremflickr\.com)\/[^\s"'`)<>\\]*/gi;
+  /** @type {Array<[RegExp, string]>} */
+  const SUBJECTS = [
+    [/مطعم|مشاوي|مشويات|مأكولات|وجبات|منيو|طعام|أكل|اكل|restaurant|grill|food|menu/i, 'restaurant dish, food photography'],
+    [/كافيه|مقهى|قهوة|كوفي|caf[eé]|coffee/i, 'coffee shop, latte and pastries'], [/مخبز|مخبوزات|معجنات|bakery|bread/i, 'bakery, fresh bread and pastries'],
+    [/حلويات|كيك|كنافة|sweets|dessert|cake/i, 'desserts and cakes'], [/بيتزا|pizza/i, 'pizza'], [/برجر|برغر|burger/i, 'gourmet burger'], [/شاورما|shawarma/i, 'shawarma wrap'],
+    [/جيم|نادي رياضي|لياقة|gym|fitness/i, 'modern gym, fitness training'], [/أسنان|اسنان|dental|dentist/i, 'modern dental clinic'], [/عيادة|طبيب|طبي|مستشفى|clinic|doctor|medical/i, 'modern medical clinic'],
+    [/صالون|تجميل|حلاق|salon|beauty|barber/i, 'beauty salon'], [/فندق|منتجع|hotel|resort/i, 'hotel room and lobby'], [/سفر|سياحة|رحلات|travel|tour/i, 'travel destination, landscape'],
+    [/عقار|عقارات|شقق|real estate|apartment/i, 'modern apartment interior'], [/سيارات|سيارة|car|auto/i, 'cars, showroom'], [/مدرسة|تعليم|أكاديمية|دورات|school|academy|course/i, 'students in a classroom'],
+    [/محاماة|محامي|قانون|law|lawyer/i, 'law office'], [/ملابس|أزياء|موضة|fashion|clothing/i, 'fashion clothing'], [/ورد|زهور|ورود|flower|florist/i, 'flower bouquets'],
+    [/زفاف|أعراس|اعراس|عرس|wedding/i, 'wedding'], [/تصوير|مصور|photograph/i, 'photography studio'], [/عطور|عطر|perfume/i, 'perfume bottles'],
+    [/برمجة|تقنية|تكنولوجيا|شركة ناشئة|software|tech|startup|saas/i, 'technology office, laptops']
+  ];
+  const englishWords = (text) => (/^[\x20-\x7E]+$/.test(text) && /[a-z]{3}/i.test(text) ? text.trim() : '');
+  const subjectOf = (text) => { const hit = SUBJECTS.find(([pattern]) => pattern.test(text)); return hit ? hit[1] : ''; };
+  const attribute = (tag, name) => { const m = new RegExp(`\\s${name}\\s*=\\s*("([^"]*)"|'([^']*)')`, 'i').exec(tag); return m ? (m[2] !== undefined ? m[2] : m[3]) : ''; };
+  function photoFor(url, description, n) {
+    const size = /\/(\d{2,4})(?:x|\/)(\d{2,4})\b/.exec(url) || /\/(\d{2,4})\b/.exec(url);
+    const [w, h] = size ? [Math.min(+size[1], 1600), Math.min(+(size[2] || size[1]), 1600)] : [800, 600];
+    let seed = n + 1;
+    for (const ch of description) seed = (seed * 31 + ch.charCodeAt(0)) % 100000;
+    return `https://image.pollinations.ai/prompt/${encodeURIComponent(description + ', professional photo')}?width=${w}&height=${h}&nologo=true&seed=${seed}`;
+  }
+  function subjectPhotos(code, pageText) {
+    const subject = subjectOf(pageText) || englishWords(pageText.slice(0, 80));
+    let n = 0;
+    const describe = (url, alt, own) => {
+      const word = /picsum\.photos\/seed\/([A-Za-z][A-Za-z-]{2,})/.exec(url);
+      const said = englishWords(own) || (word ? `${word[1].replace(/-/g, ' ')}${subject ? ', ' + subject : ''}` : '') || englishWords(alt) || [...new Set([subjectOf(alt), subject].filter(Boolean))].join(', ');
+      return said ? photoFor(url, said, n++) : url;
+    };
+    const tags = String(code).replace(/<img\b[^>]*>/gi, (tag) => tag.replace(STOCK_PHOTO, (url) => describe(url, attribute(tag, 'alt'), attribute(tag, 'data-photo'))));
+    return tags.replace(STOCK_PHOTO, (url) => describe(url, '', ''));
+  }
+
   function buildDocument(project, strings, options) {
     if (!project || !project.files || !project.files.length) return '';
     const guard = !(options && options.guard === false);
     if (project.kind === 'svg') return svgDocument(project.files[0].code);
-    if (project.kind === 'react') return reactDocument(project.files, strings, guard);
-    return htmlDocument(project.files, strings, guard);
+    const main = project.files.find((f) => f.role === 'main') || project.files[0];
+    const heading = /<h1\b[^>]*>([\s\S]{1,200}?)<\/h1>/i.exec(String(main.code));
+    const pageText = [titleOf(project), heading ? heading[1].replace(/<[^>]+>/g, ' ') : ''].join(' ');
+    const files = project.files.map((f) => ({ ...f, code: subjectPhotos(f.code, pageText) }));
+    if (project.kind === 'react') return reactDocument(files, strings, guard);
+    return htmlDocument(files, strings, guard);
   }
 
   /**

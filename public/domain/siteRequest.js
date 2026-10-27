@@ -32,7 +32,7 @@
   // سويلي), then a site, a page, an interface or a dashboard.
   const AR_MAKE = '(?:صمم|صمّم|اعمل|إعمل|ابني|إبني|سوي|سوّي|برمج|انشئ|أنشئ|طور|طوّر|جهز|جهّز|اصنع|إصنع)';
   const AR_THING = '(?:ال)?(?:موقع|صفحة|صفحه|واجهة|واجهه|لوحة تحكم|داشبورد|بورتفوليو|تطبيق ويب|لاندنج)';
-  const AR_BUILD = new RegExp(`(?<![\\u0600-\\u06FF])${AR_MAKE}\\S*(?:\\s+(?:لي|إلي|الي|لنا))?(?:\\s+(?!عن|من|في|على|حول)\\S+){0,3}?\\s+${AR_THING}(?![\\u0600-\\u06FF])`);
+  const AR_BUILD = new RegExp(`(?<![\\u0621-\\u065F\\u0671-\\u06D3])${AR_MAKE}\\S*(?:\\s+(?:لي|إلي|الي|لنا))?(?:\\s+(?!عن|من|في|على|حول)\\S+){0,3}?\\s+${AR_THING}(?![\\u0621-\\u065F\\u0671-\\u06D3])`);
   // "بدي موقع لمطعمي" — but not "بدي موقع الجامعة", the university's own.
   const AR_WANT = /(?<![؀-ۿ])(?:بدي|بدنا|ابغى|أبغى|أريد|اريد|عايز|ودي)\s+(?:\S+\s+){0,2}?(?:موقع|صفحة هبوط|صفحة ويب|لاندنج|بورتفوليو|داشبورد|لوحة تحكم)\s+(?:ل\S*|إلكتروني|الكتروني|ويب|شخصي|احترافي|بسيط|حديث|كامل|متكامل|تعريفي|عصري|بـ?\S*)/;
   const AR_CODE = /(?<![؀-ۿ])(?:اكتب|إكتب|اعطيني|أعطني|عطيني)\S*\s+(?:لي\s+)?كود\s+(?:html|react|رياكت|لموقع|لصفحة)/i;
@@ -47,6 +47,11 @@
   const PAGE_ANSWER = /```[ \t]*(?:html?|xml)?[ \t]*\r?\n[\s\S]*?<(?:!doctype\s+html|html|body)\b|```[ \t]*(?:jsx|tsx)\b|```[ \t]*(?:javascript|js|typescript|ts)[ \t]*\r?\n[\s\S]*?export\s+default\b/i;
   // Asking to change something in it.
   const CHANGE = /\b(?:add|change|make (?:it|the|them|this)|remove|delete|replace|move|swap|use|turn|switch|translate|redo|improve|fix|update|put|increase|decrease|bigger|smaller|darker|lighter|another|more)\b|(?<![؀-ۿ])(?:ضيف|أضف|اضف|زيد|زود|غير|غيّر|خلي|خلّي|شيل|احذف|حط|عدل|عدّل|بدل|بدّل|كبر|كبّر|صغر|صغّر|ترجم|حسن|حسّن|طور|طوّر|صلح|صلّح|زبط|ظبط|اجعل|استخدم)/i;
+  // ...of the page itself: a part of it, or the page pointed at ("make it",
+  // "خليه"). A verb alone is not enough: "خلي جوابك قصير" and "how do I use
+  // AI to study?" after a site were taken for changes to it, and answered with
+  // the site again.
+  const PAGE_PART = /\b(?:it|this|that|them|site|website|page|header|footer|hero|nav(?:bar)?|menu|section|button|colou?rs?|font|text|title|heading|image|photo|picture|logo|icon|background|theme|dark|light|mode|layout|form|card|gallery|pric(?:e|es|ing)|contact|about|testimonials?|faq|links?|animation|mobile|style|design|cta|banner|slider|map)\b|(?<![\u0621-\u065F\u0671-\u06D3])(?:ال)?(?:موقع|صفحة|صفحه|هيدر|فوتر|قائمة|قائمه|منيو|قسم|أقسام|اقسام|زر|زرار|أزرار|لون|ألوان|الوان|خط|خطوط|نص|كلام|عنوان|صورة|صوره|صور|لوجو|شعار|أيقونة|ايقونة|أيقونات|خلفية|خلفيه|ثيم|دارك|وضع|تصميم|فورم|نموذج|كرت|كروت|بطاقة|بطاقات|معرض|أسعار|اسعار|سعر|تواصل|روابط|رابط|حركة|حركات|أنيميشن|انيميشن|جوال|موبايل|شكل|ستايل|بانر)(?![\u0621-\u065F\u0671-\u06D3])|(?<![\u0621-\u065F\u0671-\u06D3])(?:خلي|خلّي|غير|غيّر|عدل|عدّل|كبر|كبّر|صغر|صغّر|ترجم|حسن|حسّن|طور|طوّر|صلح|صلّح|زبط|ظبط|بدل|بدّل|اجعل|زيد|زود|شيل|احذف|حط)(?:ه|ها|هم|و)(?![\u0621-\u065F\u0671-\u06D3])/i;
   const CHANGE_MAX_CHARS = 400;
 
   /**
@@ -57,7 +62,7 @@
   function asksForSite({ text = '', lastAnswer = '' } = {}) {
     const value = String(text || '');
     if (buildsSite(value)) return true;
-    return value.length <= CHANGE_MAX_CHARS && !value.includes('```') && CHANGE.test(value) && PAGE_ANSWER.test(String(lastAnswer || ''));
+    return value.length <= CHANGE_MAX_CHARS && !value.includes('```') && CHANGE.test(value) && PAGE_PART.test(value) && PAGE_ANSWER.test(String(lastAnswer || ''));
   }
 
   /**
