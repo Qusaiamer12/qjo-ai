@@ -369,6 +369,7 @@ function test(name, fn) {
     ['markup inside bold', '**<img src=x onerror=alert(1)>**'],
     ['markup in a table cell', '| a | b |\n| --- | --- |\n| <img src=x onerror=alert(1)> | y |'],
     ['markup in a heading', '# <img src=x onerror=alert(1)>'],
+    ['markup in a nested list item', '- a\n  - <img src=x onerror=alert(1)>\n    1. <svg onload=alert(1)>'],
     ['an svg handler', '<svg onload=alert(1)>'],
     ['an iframe', '<iframe src="javascript:alert(1)"></iframe>'],
     ['a style block', '<style>body{display:none}</style>']
@@ -766,6 +767,32 @@ const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n
     // Apart by a blank line or an explanation, each part keeps its number.
     assert.strictEqual(html('1. a\n\n2. b'), '<ol><li>a</li></ol><ol start="2"><li>b</li></ol>');
     assert.ok(/<ol start="3"><li>c<\/li><\/ol>$/.test(html('1. a\nWhy it matters.\n\n3. c')));
+  });
+
+  test('a list indented under an item is nested in it, bulleted or numbered, by spaces or a tab', () => {
+    assert.strictEqual(html('- a\n  - b\n  - c\n- d'), '<ul><li>a<ul><li>b</li><li>c</li></ul></li><li>d</li></ul>');
+    assert.strictEqual(html('1. one\n2. two\n   - why\n   - how\n3. three'), '<ol><li>one</li><li>two<ul><li>why</li><li>how</li></ul></li><li>three</li></ol>',
+      'three is still item three of the same list, not a new list starting at 3');
+    assert.strictEqual(html('- a\n    1. deep\n    2. deeper\n- b'), '<ul><li>a<ol><li>deep</li><li>deeper</li></ol></li><li>b</li></ul>', 'four spaces');
+    assert.strictEqual(html('- a\n\t- tabbed\n- b'), '<ul><li>a<ul><li>tabbed</li></ul></li><li>b</li></ul>', 'a tab');
+    assert.strictEqual(html('- a\n  - b\n    - c\n- d'), '<ul><li>a<ul><li>b<ul><li>c</li></ul></li></ul></li><li>d</li></ul>', 'three levels');
+    assert.strictEqual(html('- a\n  1. x\n  2. y'), '<ul><li>a<ol><li>x</li><li>y</li></ol></li></ul>');
+    // One space is not an indent; an item of the other kind at the same level is a list of its own, as before.
+    assert.strictEqual(html('- a\n - b'), '<ul><li>a</li><li>b</li></ul>');
+    assert.strictEqual(html('- a\n1. b'), '<ul><li>a</li></ul><ol><li>b</li></ol>');
+    // Escaped first: markup in a nested item is text.
+    const nested = markdown.lightMarkdown('- a\n  - <b>bold</b> & **strong**');
+    assert.ok(nested.includes('&lt;b&gt;bold&lt;/b&gt; &amp; <strong>strong</strong>') && !/<b>/.test(nested), nested);
+    // Deep nesting is bounded, not a stack overflow.
+    const deep = Array.from({ length: 400 }, (_, k) => ' '.repeat(2 * k) + '- level ' + k).join('\n');
+    assert.strictEqual((markdown.lightMarkdown(deep).match(/<li>/g) || []).length, 400);
+  });
+
+  test('"###" is an h4 and "####" an h5: a sub-section reads below its section', () => {
+    assert.strictEqual(html('### Section'), '<h4>Section</h4>');
+    assert.strictEqual(html('#### Sub-section'), '<h5>Sub-section</h5>');
+    assert.strictEqual(html('###### Deeper'), '<h5>Deeper</h5>');
+    assert.strictEqual(html('# Top'), '<h2>Top</h2>');
   });
 
   test('each block reads in its own direction, by the share of its letters, not its first one', () => {

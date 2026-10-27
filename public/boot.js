@@ -27,6 +27,8 @@
     ['request failure handling', () => window.QjoDomain && window.QjoDomain.classifyRequestFailure],
     ['stream protocol', () => window.QjoDomain && window.QjoDomain.createSseParser],
     ['streaming view', () => window.QjoUI && window.QjoUI.createStreamingView],
+    ['following an answer', () => window.QjoUI && window.QjoUI.createScrollFollow],
+    ['keyboard on screen', () => window.QjoUI && window.QjoUI.keyboardWatch],
     ['streaming blocks', () => window.QjoDomain && window.QjoDomain.streamBlocks],
     ['history window', () => window.QjoDomain && window.QjoDomain.historyWindow],
     ['code sandbox', () => window.QjoUI && window.QjoUI.sandbox],

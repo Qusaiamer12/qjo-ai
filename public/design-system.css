@@ -350,8 +350,14 @@ body.dark .brand-mark img {
   font-family: var(--ds-mono) !important;
   font-size: 10.5px !important;
   letter-spacing: .06em !important;
-  color: var(--ds-muted-2) !important;
+  /* Small text needs 4.5:1. --ds-muted-2 was 2.35-2.55:1 on the light header
+     and 3.7-3.9:1 on the dark one; these are 5.6:1 and 6:1 at the least. */
+  color: #5b5e68 !important;
 }
+body.dark .top-title span { color: var(--ds-muted) !important; }
+/* "Download as file" (answerExports.js) is words, not an icon: the muted ink
+   of the icons beside it was 4.44:1 on a desktop in light mode. */
+body:not(.dark) .msg-actions-toolbar .msg-action-btn.qjo-export-toggle { color: #475569 !important; }
 
 .icon-btn,
 .mobile-menu {
@@ -571,8 +577,11 @@ body.dark:not(#_) .bubble .qjo-quiz :is(.quiz-explanation-note, .quiz-explanatio
 
 /* Edit under the last message sent (public/ui/messageEditor.js). */
 .msg.user { flex-wrap: wrap; }
-.msg.user .qjo-edit-message { flex-basis: 100%; display: flex; justify-content: flex-end; align-items: center; gap: 5px; min-height: 32px; margin-top: 2px;
-  padding: 0 4px; border: 0; background: none; color: var(--ds-ink-2); font: 600 12.5px/1 var(--ds-sans); cursor: pointer; }
+/* The row is the width of the message; only the label in it takes a tap. */
+.msg.user .qjo-edit-row { flex-basis: 100%; display: flex; justify-content: flex-end; margin-top: 2px; }
+.msg.user .qjo-edit-message { display: inline-flex; align-items: center; gap: 5px; min-height: 32px;
+  padding: 0 8px; border: 0; border-radius: 8px; background: none; color: var(--ds-ink-2); font: 600 12.5px/1 var(--ds-sans); cursor: pointer; }
+@media (max-width: 768px) { .msg.user .qjo-edit-message { min-height: 40px; } }
 .msg.user .qjo-edit-message:hover { color: var(--ds-ink); }
 
 /* Listening for a spoken message (public/ui/voiceInput.js). */
@@ -637,8 +646,12 @@ body:not(#_) .bubble .qjo-stopped { color: var(--ds-ink-2) !important; -webkit-t
 @media (max-width: 768px) {
   body:not(#_) #composerToggles.qjo-controls { display: flex !important; position: fixed; bottom: calc(64px + env(safe-area-inset-bottom, 8px));
     inset-inline-start: 12px; z-index: 55; padding: 0; }
-  body.qjo-keyboard-open #composerToggles.qjo-controls, body.drawer-open #composerToggles.qjo-controls,
-  body.sheet-open #composerToggles.qjo-controls { display: none !important; }
+  /* Out of the way with the keyboard open (iOS: app.js; Android, where the
+     keyboard shrinks the window: public/ui/keyboardWatch.js), a drawer or a
+     sheet. The same weight as the rule above, by :where(), and after it: as
+     "body.qjo-keyboard-open #composerToggles…" it lost to body:not(#_) and
+     the pills never hid. */
+  body:not(#_):where(.qjo-keyboard-open, .qjo-keyboard-resized, .drawer-open, .sheet-open) #composerToggles.qjo-controls { display: none !important; }
   .qjo-controls .qjo-mode-btn, .qjo-controls .qjo-tools-btn { min-height: 40px; background: var(--ds-panel); border: 1px solid var(--ds-line-2); box-shadow: 0 4px 16px rgba(15, 23, 42, .12); }
   /* The whole width of the screen above the buttons, never off its edge. */
   .qjo-tools-menu { position: fixed; bottom: calc(110px + env(safe-area-inset-bottom, 8px)); inset-inline: 12px; width: auto; }

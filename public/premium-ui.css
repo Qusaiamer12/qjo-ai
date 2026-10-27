@@ -1164,7 +1164,13 @@ body.dark .bubble pre {
   -webkit-text-fill-color: #e6edf3 !important;
 }
 
-.code-block-wrapper pre {
+/* The frame is the wrapper's: the code inside it has none of its own. As
+   ".code-block-wrapper pre" alone this lost to ".msg.assistant .bubble pre"
+   (below, and in the rule above), and the code sat in a bordered, rounded box
+   inside the dark frame. */
+.code-block-wrapper pre,
+html body .msg.assistant .bubble .code-block-wrapper pre,
+html body .assistant .bubble .code-block-wrapper pre {
   margin: 0 !important;
   border: none !important;
   border-radius: 0 !important;
@@ -3292,6 +3298,8 @@ html body .assistant .bubble h1 { font-size: 24px !important; line-height: 1.35 
 html body .assistant .bubble h2 { font-size: 21px !important; line-height: 1.4 !important; }
 html body .assistant .bubble h3 { font-size: 19px !important; line-height: 1.45 !important; }
 html body .assistant .bubble h4 { font-size: 17.5px !important; line-height: 1.5 !important; }
+/* "####": between "###" and the text under it (markdown.js). */
+html body .assistant .bubble h5 { font-size: 17px !important; line-height: 1.5 !important; font-weight: 700 !important; margin: 14px 0 6px !important; }
 html body .msg.assistant .bubble td,
 html body .assistant .bubble td,
 html body .msg.assistant .bubble th,

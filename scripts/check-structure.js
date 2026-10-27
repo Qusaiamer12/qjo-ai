@@ -47,6 +47,8 @@ const WATCHED = [
   'public/domain/speech.js',
   'public/ui/answerReading.js',
   'public/ui/messageEditor.js',
+  'public/ui/scrollFollow.js',
+  'public/ui/keyboardWatch.js',
   'public/domain/ownWords.js',
   'public/domain/siteRequest.js',
   'public/ui/previewTab.js',

@@ -157,9 +157,10 @@ async function directions() {
 }
 
 // Answers have no frame now, so their sizes alone order the page: a heading
-// stands above the text under it ("###", an h4, was smaller than its own text),
+// stands above the text under it ("###", an h4, was smaller than its own text;
+// "####" was an h4 as well, and is an h5 between them),
 // and on a phone a three-column table fits as it is while a wide one scrolls.
-const SIZES = ['## A heading', '', 'Body text under it.', '', '### A smaller heading', '', 'More text.', '',
+const SIZES = ['## A heading', '', 'Body text under it.', '', '### A smaller heading', '', 'More text.', '', '#### A sub-heading', '', 'Text under it.', '',
   '| Name | Role | City |', '|---|---|---|', '| Sami Khaled | Engineer | Amman |', '| Lina | Doctor | Irbid |', '',
   '| One | Two | Three | Four | Five | Six |', '|---|---|---|---|---|---|', '| alpha beta | gamma delta | epsilon zeta | eta theta | iota kappa | lambda mu |'].join('\n');
 const measure = (page) => page.evaluate(() => {
@@ -167,7 +168,7 @@ const measure = (page) => page.evaluate(() => {
   if (!root) return { missing: 'answer' };
   const px = (sel) => { const el = root.querySelector(sel); return el ? parseFloat(getComputedStyle(el).fontSize) : null; };
   const width = root.getBoundingClientRect().width;
-  return { h3: px('h3'), h4: px('h4'), p: px('p'), td: px('td'), width, tables: [...root.querySelectorAll('table')].map((t) => Math.round(t.getBoundingClientRect().width)) };
+  return { h3: px('h3'), h4: px('h4'), h5: px('h5'), p: px('p'), td: px('td'), width, tables: [...root.querySelectorAll('table')].map((t) => Math.round(t.getBoundingClientRect().width)) };
 });
 async function sizes() {
   for (const mobile of [false, true]) {
@@ -176,6 +177,8 @@ async function sizes() {
     const where = mobile ? 'phone' : 'desktop';
     ok(m.p >= 15 && m.tables.length === 2, `${where}: the answer is there, body text ${m.p}px`, m);
     ok(m.h3 > m.h4 && m.h4 > m.p, `${where}: headings stand above the text (h3 ${m.h3}, h4 ${m.h4}, text ${m.p})`, m);
+    // "####" was an h4 too, the size of "###": now an h5, between the two.
+    ok(m.h4 === 17.5 && m.h4 > m.h5 && m.h5 > m.p, `${where}: "####" sits between "###" and the text (h4 ${m.h4}, h5 ${m.h5}, text ${m.p})`, m);
     ok(m.td < m.p && m.td >= 13, `${where}: a table's text sits just below it (${m.td}px)`, m);
     if (mobile) {
       ok(m.tables[0] <= m.width + 1, `phone: three columns fit the screen (${m.tables[0]} of ${Math.round(m.width)}px)`, m);
