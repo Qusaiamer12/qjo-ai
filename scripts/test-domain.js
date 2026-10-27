@@ -1025,7 +1025,7 @@ const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n
   // After a restaurant site the next question was answered with the site again:
   // a verb ("خلي", "use") was enough to make any short message a change to it.
   test('a change names part of the page or points at it; a new question that uses the same verb is not one', () => {
-    for (const text of ['خلي الهيدر أغمق', 'ضيف قسم للمنيو', 'غيرو للأزرق', 'خليها أحلى', 'حط صور أكل', 'كبر الخط', 'use the Cairo font', 'translate it to English', 'ترجمه للإنجليزي']) {
+    for (const text of ['غيرو؟', 'خليه أغمق؟', 'خلي الهيدر أغمق', 'ضيف قسم للمنيو', 'غيرو للأزرق', 'خليها أحلى', 'حط صور أكل', 'كبر الخط', 'use the Cairo font', 'translate it to English', 'ترجمه للإنجليزي']) {
       assert.ok(asksForSite({ text, lastAnswer: PAGE }), `a change to the page: ${text}`);
     }
     for (const text of ['خلي جوابك قصير: شو أحسن لغة برمجة؟', 'كيف استخدم الذكاء الاصطناعي بالدراسة؟', 'use more examples please', 'make the answer shorter', 'شو عاصمة اليابان؟']) {

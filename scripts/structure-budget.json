@@ -66,7 +66,7 @@
   "src/services/providerResponse.js": 348,
   "src/services/providerLimits.js": 246,
   "src/services/keyPool.js": 237,
-  "src/services/playbooks.js": 363,
+  "src/services/playbooks.js": 368,
   "src/services/searchService.js": 256,
   "src/search/providers.js": 397,
   "src/search/searchCore.js": 360,
