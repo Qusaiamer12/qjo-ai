@@ -73,7 +73,25 @@ function continuationMessages(messages, answerSoFar, prompt) {
 
 // Text held back from the start of a continuation, to judge what it repeats.
 const HEAD_CHARS = 400;
-const REOPENED = /^[ \t]*`{3,}[ \t]*[A-Za-z0-9_+#.:-]+[ \t]*\r?\n/;
+// A fence opened again: "```html", or a bare "```" with code after it — a
+// bare fence followed by prose closes the block instead, and is kept. Before
+// it, at most two short lines of the model talking ("Here is the rest of the
+// code:"): inside the open block they would be part of the page.
+const REOPENED = /^((?:[ \t]*\r?\n)*(?:[^\s<>{}()[\];=`/*#.@$][^\n<>{};=`]{0,160}[:.!…][ \t]*\r?\n(?:[ \t]*\r?\n)*){0,2})[ \t]*`{3,}[ \t]*([A-Za-z0-9_+#.:-]*)[ \t]*\r?\n(?:[ \t]*\r?\n)*([^\n]*)/;
+const CODE_LIKE = /^(?:\s|[<>{}()[\];=/*#.@$"'`:-]|(?:const|let|var|function|class|import|export|return|if|for|while|def)\b|[\w$.]+\(|[\w$.]+\s*=[^=])/;
+
+/**
+ * The start of a continuation without a fence it opens again inside the
+ * block it was cut in, and without what it says before that fence.
+ * @param {string} text
+ */
+function withoutReopenedFence(text) {
+  const m = REOPENED.exec(text);
+  if (!m) return text;
+  const [whole, , lang, next] = m;
+  if (!lang && !CODE_LIKE.test(next)) return text; // it closes the block
+  return text.slice(whole.length - next.length);
+}
 
 /**
  * What of a continuation's opening is new: without a code block opened again
@@ -86,7 +104,7 @@ function newPart(before, head) {
   const prior = String(before || '');
   let text = String(head || '');
   const inCode = Boolean(openFence(prior));
-  if (inCode) text = text.replace(REOPENED, '');
+  if (inCode) text = withoutReopenedFence(text);
   const lastLine = prior.slice(prior.lastIndexOf('\n') + 1);
   if (inCode && lastLine.trim().length >= 2 && text.startsWith(lastLine)) return text.slice(lastLine.length);
   const tail = prior.slice(-HEAD_CHARS);

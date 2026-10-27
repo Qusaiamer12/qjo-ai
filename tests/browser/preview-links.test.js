@@ -9,6 +9,7 @@
 // tab; a library from unpkg loads as written, which the preview allows; an
 // answer whose code was cut and continued with "```html" previews as one page.
 // The control: the same document without the guard does land on the app.
+// A preview that stays is "about:srcdoc", with the hash a section link gave it.
 const { launchBrowser, BASE_URL } = require('./harness');
 
 let pass = 0, fail = 0;
@@ -16,11 +17,12 @@ const ok = (c, m, d) => { c ? pass++ : fail++; console.log(`${c ? '✅' : '❌'}
 
 const SITE = '<!DOCTYPE html><html lang="ar" dir="rtl"><head><title>مقهى</title><script src="https://unpkg.com/fake-lib@1.0.0/dist/fake.js"></script></head><body>'
   + '<nav><a id="go" href="#about">من نحن</a> <a id="other" href="about.html">صفحة أخرى</a> <a id="none" href="team.html">الفريق</a> <a id="out" href="https://example.com/menu">القائمة</a></nav>'
-  + '<h1>مقهى الياسمين</h1><form id="f"><input name="q"><button id="send">أرسل</button></form>'
+  + '<script>document.documentElement.dataset.start = location.hash;</script><h1>مقهى الياسمين</h1><form id="f"><input name="q"><button id="send">أرسل</button></form>'
   + '<form id="g"><button id="send2">اشترك</button></form><script>document.getElementById("g").addEventListener("submit", function (e) { e.stopPropagation(); });</script>'
   + '<div style="height:2200px"></div>'
   + '<section id="about"><h2>قصتنا</h2><a id="btn" href="#">زر</a></section><div style="height:600px"></div></body></html>';
-const ABOUT = '<!DOCTYPE html><html><body><h1>صفحة من نحن</h1></body></html>';
+// A link back to a section of the first page, as a shared header writes it.
+const ABOUT = '<!DOCTYPE html><html><body><h1>صفحة من نحن</h1><a id="back" href="index.html#about">قصتنا</a></body></html>';
 
 (async () => {
   const browser = await launchBrowser();
@@ -37,6 +39,7 @@ const ABOUT = '<!DOCTYPE html><html><body><h1>صفحة من نحن</h1></body></
   await page.waitForTimeout(2200);
   await page.addStyleTag({ content: '#authOverlay{display:none !important;visibility:hidden !important;pointer-events:none !important;}' });
 
+  const stays = (url) => /^about:srcdoc(?:#[^/]*)?$/.test(url);
   try {
     // Control: the document as it was, without the guard, in an iframe like the preview's.
     const escaped = await page.evaluate(async (doc) => {
@@ -68,18 +71,18 @@ const ABOUT = '<!DOCTYPE html><html><body><h1>صفحة من نحن</h1></body></
     await (await frame()).click('#go');
     await page.waitForTimeout(1200);
     const hash = await state();
-    ok(hash.url === 'about:srcdoc' && /مقهى الياسمين/.test(hash.text) && hash.y > 1000, `"#about" scrolls to the section and the preview stays the site (y=${hash.y}, ${hash.url})`);
+    ok(hash.url === 'about:srcdoc#about' && /مقهى الياسمين/.test(hash.text) && hash.y > 1000, `"#about" scrolls to the section, the hash is the frame's own, and the preview stays the site (y=${hash.y}, ${hash.url})`);
 
     await (await frame()).click('#send');
     await page.waitForTimeout(700);
     const form = await state();
-    ok(form.url === 'about:srcdoc' && /الفورم شغّال/.test(form.note), `a form is held, with a note in the page's language ("${form.note}")`);
+    ok(stays(form.url) && /الفورم شغّال/.test(form.note), `a form is held, with a note in the page's language ("${form.note}")`);
 
     await (await frame()).evaluate(() => { const n = document.getElementById('qjo-preview-note'); if (n) n.remove(); });
     await (await frame()).click('#send2');
     await page.waitForTimeout(700);
     const stopped = await state();
-    ok(stopped.url === 'about:srcdoc' && /الفورم شغّال/.test(stopped.note), 'a form whose own handler stops the event is held too');
+    ok(stays(stopped.url) && /الفورم شغّال/.test(stopped.note), 'a form whose own handler stops the event is held too');
 
     // Near the bottom, so the click itself does not scroll the page up to it.
     await (await frame()).evaluate(() => document.getElementById('btn').scrollIntoView());
@@ -87,12 +90,12 @@ const ABOUT = '<!DOCTYPE html><html><body><h1>صفحة من نحن</h1></body></
     await (await frame()).click('#btn');
     await page.waitForTimeout(600);
     const button = await state();
-    ok(button.url === 'about:srcdoc' && before > 1000 && Math.abs(button.y - before) < 50, `a link that is a button (href="#") does not jump the page (y ${before} → ${button.y})`);
+    ok(stays(button.url) && before > 1000 && Math.abs(button.y - before) < 50, `a link that is a button (href="#") does not jump the page (y ${before} → ${button.y})`);
 
     await (await frame()).click('#none');
     await page.waitForTimeout(900);
     const missing = await state();
-    ok(missing.url === 'about:srcdoc' && /team\.html/.test(missing.note) && /مش موجودة/.test(missing.note), `a link to a page the answer lacks says so ("${missing.note}")`);
+    ok(stays(missing.url) && /team\.html/.test(missing.note) && /مش موجودة/.test(missing.note), `a link to a page the answer lacks says so ("${missing.note}")`);
 
     // The harness lets no site but the app's load, so the tab is known by
     // what it asked for, not by what it shows.
@@ -100,7 +103,7 @@ const ABOUT = '<!DOCTYPE html><html><body><h1>صفحة من نحن</h1></body></
     const asked = ctx.waitForEvent('request', { predicate: (r) => /example\.com\/menu/.test(r.url()), timeout: 5000 }).catch(() => null);
     await (await frame()).click('#out');
     const [opened, request] = await Promise.all([popup, asked]);
-    ok(opened && opened !== page && request && request.frame().page() === opened && (await state()).url === 'about:srcdoc', `a link out opens it in a new tab (${request && request.url()}) and the preview stays`);
+    ok(opened && opened !== page && request && request.frame().page() === opened && stays((await state()).url), `a link out opens it in a new tab (${request && request.url()}) and the preview stays`);
     if (opened) await opened.close();
 
     ok((await (await frame()).evaluate(() => window.fakeLib)) === 'loaded' && fetched.includes('unpkg'), `a library from unpkg loads as written (${fetched.join(', ')})`);
@@ -108,7 +111,18 @@ const ABOUT = '<!DOCTYPE html><html><body><h1>صفحة من نحن</h1></body></
     await (await frame()).click('#other');
     await page.waitForTimeout(1200);
     const other = await state();
-    ok(other.url === 'about:srcdoc' && /صفحة من نحن/.test(other.text), `a link to another page of the answer shows it (${other.text.slice(0, 30)})`);
+    ok(stays(other.url) && /صفحة من نحن/.test(other.text), `a link to another page of the answer shows it (${other.text.slice(0, 30)})`);
+
+    // "index.html#about" from that page: the first page, at its section, the
+    // hash its own code reads as it starts. It used to open at the top.
+    // At the section, or as far down as the page goes when less than a screen is left under it.
+    const landed = (at) => at.y > 1000 && (Math.abs(at.top) < 5 || at.y >= at.max - 1);
+    const atSection = async (f) => f.evaluate(() => ({ y: Math.round(window.scrollY), top: Math.round(document.getElementById('about').getBoundingClientRect().top),
+      max: document.documentElement.scrollHeight - window.innerHeight, start: document.documentElement.dataset.start, url: location.href })).catch((e) => ({ error: e.message }));
+    await (await frame()).click('#back');
+    await page.waitForTimeout(1500);
+    const back = await atSection(await frame());
+    ok(landed(back) && back.start === '#about' && back.url === 'about:srcdoc#about', `"index.html#about" from the other page opens the first at its section (${JSON.stringify(back)})`);
 
     // The side canvas: the same link, the same page.
     await page.click('.live-preview-tab-btn').catch(() => {});
@@ -120,6 +134,10 @@ const ABOUT = '<!DOCTYPE html><html><body><h1>صفحة من نحن</h1></body></
     await page.waitForTimeout(1200);
     const after = await (await page.$('.qjo-canvas-frame')).contentFrame();
     ok(after.url() === 'about:srcdoc' && /صفحة من نحن/.test(await after.evaluate(() => document.body.innerText)), 'in the canvas, the link shows the other page');
+    await after.click('#back');
+    await page.waitForTimeout(1500);
+    const canvasBack = await atSection(await (await page.$('.qjo-canvas-frame')).contentFrame());
+    ok(landed(canvasBack) && canvasBack.start === '#about', `in the canvas, "index.html#about" opens it at its section (${JSON.stringify(canvasBack)})`);
     await page.keyboard.press('Escape');
 
     // An answer cut in its code and continued with "```html", glued as it was.

@@ -145,6 +145,51 @@ test('a document with Tailwind of its own does not get a second copy', () => {
   assert.strictEqual(count(doc, 'cdn.tailwindcss.com'), 1);
 });
 
+// Tailwind's reset and its own .collapse and .container are a framework: in
+// a Bootstrap page they hid the navbar, in a plain one they shrank headings.
+// tests/browser/preview-sites.test.js measures the pages; this pins who gets it.
+const tailwindIn = (doc) => count(doc, LIBS.tailwind);
+const page = (head, body) => `<!DOCTYPE html><html><head><title>t</title>${head}</head><body>${body}</body></html>`;
+test('Tailwind goes into a page written in its classes that does not load it — in the preview and the download', () => {
+  for (const [label, code] of [
+    ['three common utilities', page('', '<div class="flex items-center px-4">x</div>')],
+    ['a variant', page('', '<p class="md:hidden">x</p>')],
+    ['an arbitrary value', page('', '<p class="w-[42px]">x</p>')],
+    ['classes a script puts on the page', page('', '<div id="a"></div><script>a.innerHTML = \'<p class="text-xl font-bold mt-4">x</p>\';</script>')],
+    ['a page that only names Tailwind in its words', page('', '<!-- Tailwind layout --><div class="flex items-center px-4">Built with Tailwind</div>')],
+    ['icons from Bootstrap Icons are not Bootstrap', page('<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">', '<i class="bi bi-star md:text-xl"></i>')]
+  ]) {
+    const project = projectFor([{ lang: 'html', code }], 0);
+    assert.strictEqual(tailwindIn(buildDocument(project)), 1, label);
+    assert.strictEqual(tailwindIn(buildDocument(project, {}, { guard: false })), 1, `${label}: the download`);
+  }
+});
+
+test('and into no other page', () => {
+  const BS = '<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">';
+  for (const [label, blocks] of [
+    ['Bootstrap', [{ lang: 'html', code: page(BS, '<nav class="navbar navbar-expand-lg"><div class="collapse navbar-collapse"></div></nav><main class="py-5"><h2 class="mb-4 mt-3 text-center p-3">x</h2></main>') }]],
+    ['Bootstrap from BootstrapCDN', [{ lang: 'html', code: page('<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">', '<div class="d-flex mt-3 p-4 mb-5 text-white shadow-sm">x</div>') }]],
+    ['Bulma', [{ lang: 'html', code: page('<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.2/css/bulma.min.css">', '<div class="columns mt-4 px-4 py-2 is-flex">x</div>') }]],
+    ['its own CSS, which defines what it uses', [{ lang: 'html', code: page('<style>.hero{padding:2rem}.flex{display:flex}.items-center{align-items:center}.px-4{padding:0 1rem}</style>', '<div class="hero flex items-center px-4"><h2>x</h2><ul><li>a</li></ul></div>') }]],
+    ['plain CSS with its own class names', [{ lang: 'html', code: page('<style>.card{border:1px solid}</style>', '<div class="card"><h2>Skills</h2></div>') }]],
+    ['Tailwind 2 from its stylesheet', [{ lang: 'html', code: page('<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">', '<div class="flex items-center px-4">x</div>') }]],
+    ['no classes at all', [{ lang: 'html', code: page('', '<h1>Hello</h1><p>Plain.</p>') }]],
+    ['a fragment with its own stylesheet', [{ lang: 'html', code: '<button class="btn">x</button>' }, { lang: 'css', code: '.btn { color: red; }' }]]
+  ]) {
+    const project = projectFor(blocks, 0);
+    assert.strictEqual(tailwindIn(buildDocument(project)), 0, label);
+    assert.strictEqual(tailwindIn(buildDocument(project, {}, { guard: false })), 0, `${label}: the download`);
+  }
+});
+
+test('a fragment with nothing of its own keeps Tailwind, as it always had it; a component always has it', () => {
+  assert.strictEqual(tailwindIn(buildDocument(projectFor([{ lang: 'html', code: '<div class="p-4 rounded">x</div>' }], 0))), 1);
+  assert.strictEqual(tailwindIn(buildDocument(projectFor([{ lang: 'html', code: '<p>x</p>' }], 0))), 1);
+  assert.strictEqual(tailwindIn(buildDocument(projectFor([{ lang: 'html', code: '<!-- Tailwind card --><div class="p-4">x</div>' }], 0))), 1, 'a comment that names it');
+  assert.strictEqual(tailwindIn(buildDocument(projectFor([{ lang: 'jsx', code: 'export default () => <div className="p-4"/>' }], 0))), 1);
+});
+
 test('Arabic content previews right to left in an Arabic font', () => {
   const doc = buildDocument(projectFor([{ lang: 'html', code: '<h1>مرحبا</h1>' }], 0));
   assert.ok(/dir="rtl"/.test(doc) && /'Cairo', 'Inter'/.test(doc));
@@ -218,7 +263,7 @@ test('each library is the version the browser suite tests', () => {
 // before anything of the page's own, in every kind of preview — and parse: a
 // regex that lost a backslash inside the template once kept it from running
 // at all, and the preview still escaped to the app.
-const { pageNamed, onAllowedCdns } = require('../public/domain/codeProject.js');
+const { pageNamed, onAllowedCdns, titleOf } = require('../public/domain/codeProject.js');
 const guardOf = (doc) => (doc.match(/<script>(\(function \(\) \{\n {2}var S = [\s\S]*?)<\/script>/) || [])[1];
 test('every preview runs the link guard first, and the guard parses', () => {
   const full = buildDocument({ kind: 'html', files: [{ name: 'index.html', role: 'main', code: '<!DOCTYPE html><html><head><script>window.mine = 1</script></head><body><a href="#x">x</a></body></html>' }] });
@@ -260,6 +305,67 @@ test('ES modules from CDNs the preview cannot load come from jsdelivr; unpkg is 
   }
   const doc = buildDocument({ kind: 'html', files: [{ name: 'index.html', role: 'main', code: '<script src="https://unpkg.com/x@1/x.js"></script>' }, { name: 'app.js', role: 'script', code: "import y from 'https://unpkg.com/y@2?module'" }] });
   assert.ok(/unpkg\.com\/x@1\/x\.js/.test(doc) && /npm\/y@2\/\+esm/.test(doc), doc.slice(-300));
+});
+
+// The app's CSP is the preview's, and it is not widened for a site: the
+// libraries of other hosts load from jsdelivr's copy, the same file at the
+// same version (each pair fetched from both hosts and compared, 2026-10-26).
+test('libraries from Google, BootstrapCDN and Font Awesome come from jsdelivr, at the same version', () => {
+  const J = 'https://cdn.jsdelivr.net/npm/';
+  for (const [from, to] of [
+    ['https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js', `${J}jquery@3.7.1/dist/jquery.min.js`],
+    ['//ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.js', `${J}jquery@1.12.4/dist/jquery.js`],
+    ['https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.slim.min.js', `${J}jquery@3.7.1/dist/jquery.slim.min.js`],
+    ['https://ajax.googleapis.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js', `${J}jquery-ui@1.13.2/dist/jquery-ui.min.js`],
+    ['https://ajax.googleapis.com/ajax/libs/jqueryui/1.13.2/themes/smoothness/jquery-ui.css', `${J}jquery-ui@1.13.2/dist/themes/smoothness/jquery-ui.css`],
+    ['https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js', `${J}angular@1.8.2/angular.min.js`],
+    ['https://ajax.googleapis.com/ajax/libs/d3js/7.8.5/d3.min.js', `${J}d3@7.8.5/dist/d3.min.js`],
+    ['https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css', `${J}bootstrap@4.5.2/dist/css/bootstrap.min.css`],
+    ['https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js', `${J}bootstrap@3.4.1/dist/js/bootstrap.min.js`],
+    ['https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.bundle.min.js', `${J}bootstrap@4.1.3/dist/js/bootstrap.bundle.min.js`],
+    ['https://stackpath.bootstrapcdn.com/bootswatch/4.5.2/darkly/bootstrap.min.css', `${J}bootswatch@4.5.2/dist/darkly/bootstrap.min.css`],
+    ['https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css', `${J}font-awesome@4.7.0/css/font-awesome.min.css`],
+    ['https://use.fontawesome.com/releases/v5.15.4/css/all.css', `${J}@fortawesome/fontawesome-free@5.15.4/css/all.min.css`],
+    ['https://use.fontawesome.com/releases/v6.4.0/css/all.min.css', `${J}@fortawesome/fontawesome-free@6.4.0/css/all.min.css`],
+    ['https://use.fontawesome.com/releases/v5.15.4/js/all.js', `${J}@fortawesome/fontawesome-free@5.15.4/js/all.min.js`]
+  ]) assert.strictEqual(onAllowedCdns(`<script src="${from}"></script>`), `<script src="${to}"></script>`, from);
+  // Left as they are: a kit is made per account, and npm has no dist for these.
+  for (const keep of ['https://kit.fontawesome.com/a076d05399.js', 'https://ajax.googleapis.com/ajax/libs/d3js/4.13.0/d3.min.js', 'https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js']) {
+    assert.strictEqual(onAllowedCdns(keep), keep);
+  }
+});
+
+test('the app allows video players to be framed and media from any https host — and widens nothing else', () => {
+  const server = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  const directive = (name) => { const m = new RegExp(`"${name}": \\[([^\\]]*)\\]`).exec(server); return m ? m[1] : ''; };
+  for (const host of ['https://www.youtube.com', 'https://www.youtube-nocookie.com', 'https://player.vimeo.com']) assert.ok(directive('frame-src').includes(`"${host}"`), host);
+  assert.ok(/"'self'", "https:", "data:", "blob:"/.test(directive('media-src')), directive('media-src'));
+  for (const name of ['script-src', 'style-src', 'connect-src']) {
+    assert.ok(!/"https:"|youtube|vimeo|googleapis\.com\/ajax|bootstrapcdn|fontawesome/.test(directive(name).replace('"https://*.googleapis.com"', '')), `${name} was widened: ${directive(name)}`);
+  }
+});
+
+// A link from another page of the answer to "index.html#menu": the page opens
+// at its section, with the hash its own code reads as it starts.
+test('a preview opened at a section carries it into the guard, as data', () => {
+  const project = { kind: 'html', files: [{ name: 'index.html', role: 'main', code: '<!DOCTYPE html><html><head></head><body><p id="menu">x</p></body></html>' }] };
+  assert.ok(/var START = "";/.test(buildDocument(project)), 'no section, none');
+  assert.ok(/var START = "menu";/.test(buildDocument(project, {}, { hash: 'menu' })));
+  const hostile = buildDocument(project, {}, { hash: '</script><script>parent.x=1</script>__STRINGS__' });
+  const guard = guardOf(hostile);
+  assert.ok(guard && !/<\/script>/i.test(guard), 'the hash ended the guard');
+  assert.doesNotThrow(() => new Function(guard));
+  assert.ok(/var S = \{/.test(guard) && /"\\u003c\/script>\\u003cscript>parent\.x=1\\u003c\/script>__STRINGS__"/.test(guard), 'filled in once, as a string');
+  assert.ok(!buildDocument(project, {}, { guard: false, hash: 'menu' }).includes('qjo-preview-note'), 'the download has no guard');
+});
+
+test('a tab is titled as the page is, its entities read once', () => {
+  const titled = (title) => titleOf({ files: [{ role: 'main', name: 'index.html', code: `<title>${title}</title>` }] });
+  assert.strictEqual(titled('Olive &amp; Thyme'), 'Olive & Thyme');
+  assert.strictEqual(titled('Tom &amp;amp; Jerry'), 'Tom &amp; Jerry', 'once, as a browser reads it');
+  assert.strictEqual(titled('&#1605;&#x637;&#x639;&#x645; &lt;3 &quot;x&quot; &nbsp;'), 'مطعم <3 "x"', 'numbers, and the names a title uses');
+  assert.strictEqual(titled('a &constructor; b &toString; &#0; &#xD800;'), 'a &constructor; b &toString; \uFFFD \uFFFD', 'an unknown name stays; a code that is no character is a replacement');
+  assert.strictEqual(titleOf({ files: [{ role: 'main', name: 'about.html', code: '<p>no title</p>' }] }), 'about.html');
 });
 
 test('the app allows unpkg for scripts and styles, which the preview inherits', () => {

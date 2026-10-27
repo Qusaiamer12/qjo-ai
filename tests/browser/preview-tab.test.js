@@ -17,7 +17,8 @@ const { launchBrowser, BASE_URL } = require('./harness');
 const { serveSiteAssets } = require('./siteQuality');
 
 const SITE = fs.readFileSync(path.join(__dirname, 'fixtures', 'site-cafe.html'), 'utf8');
-const ABOUT = '<!DOCTYPE html><html lang="ar" dir="rtl"><head><title>من نحن</title></head><body><h1>صفحة من نحن</h1><a id="back" href="index.html">الرئيسية</a></body></html>';
+// Its title is HTML: "&amp;" in it is an ampersand, and the tab must say so.
+const ABOUT = '<!DOCTYPE html><html lang="ar" dir="rtl"><head><title>من نحن &amp; فريقنا</title></head><body><h1>صفحة من نحن</h1><a id="back" href="index.html">الرئيسية</a> <a id="to-section" href="index.html#about">قصتنا</a></body></html>';
 const SITE_WITH_PAGE = SITE.replace('<a href="#home" class="font-semibold', '<a id="to-about" href="about.html" class="font-semibold');
 const ANSWER = 'هذا موقع المقهى:\n\n```html\n' + SITE_WITH_PAGE + '\n```\n\n```html:about.html\n' + ABOUT + '\n```\n\nفيه قائمة وحجز ووضع ليلي.';
 const GUARD_MARK = 'qjo-preview-note';
@@ -66,17 +67,25 @@ async function tabOfItsOwn(ctx, page) {
       await site.click('header a[href="#about"]');
       await tab.waitForTimeout(1200);
       const at = await site.evaluate(() => ({ top: document.getElementById('about').getBoundingClientRect().top, y: window.scrollY }));
-      ok(site.url() === 'about:srcdoc' && at.y > 500 && Math.abs(at.top) < 160, 'a section link scrolls to its section, and the tab stays the site', { url: site.url(), ...at });
+      ok(site.url() === 'about:srcdoc#about' && at.y > 500 && Math.abs(at.top) < 160, 'a section link scrolls to its section, and the tab stays the site', { url: site.url(), ...at });
       await site.click('#to-about');
       await tab.waitForTimeout(1200);
       const other = await (await tab.$('iframe.qjo-tab-frame')).contentFrame();
-      ok(/صفحة من نحن/.test(await other.evaluate(() => document.body.innerText)) && await tab.title() === 'من نحن', 'a link to another page of the answer shows it, here');
+      ok(/صفحة من نحن/.test(await other.evaluate(() => document.body.innerText)) && await tab.title() === 'من نحن & فريقنا', `a link to another page of the answer shows it, here, titled as it is (${await tab.title()})`);
     }
     await tab.reload({ waitUntil: 'domcontentloaded' });
     await tab.waitForTimeout(1500);
     const again = await tab.$('iframe.qjo-tab-frame');
     // The page it was on, not the one the app first sent: the app, asked again, would send that.
     ok(again && /صفحة من نحن/.test(await (await again.contentFrame()).evaluate(() => document.body.innerText)), 'a reload keeps the page it was showing');
+    if (again) {
+      // "index.html#about" from that page: the site, at its section.
+      await (await again.contentFrame()).click('#to-section');
+      await tab.waitForTimeout(1500);
+      const home = await (await tab.$('iframe.qjo-tab-frame')).contentFrame();
+      const at = await home.evaluate(() => ({ top: Math.round(document.getElementById('about').getBoundingClientRect().top), y: Math.round(window.scrollY), url: location.href }));
+      ok(at.y > 500 && Math.abs(at.top) < 160 && at.url === 'about:srcdoc#about' && await tab.title() === 'مقهى الياسمين — قهوة مختصة في جبل عمّان', '"index.html#about" from the other page opens the site at its section', at);
+    }
     ok(tabErrors.length === 0, 'no errors in the tab', tabErrors.slice(0, 2));
     await tab.close();
   }
