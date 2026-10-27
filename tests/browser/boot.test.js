@@ -30,17 +30,23 @@ const { launchBrowser, BASE_URL } = require('./harness');
     let navigations = 0;
     page.on('framenavigated', f => { if (f === page.mainFrame()) navigations++; });
     await page.route('**' + blocked + '*', r => r.abort('failed'));
+    const started = Date.now();
     await page.goto(BASE_URL + '/', { waitUntil: 'commit', timeout: 15000 }).catch(() => {});
-    await page.waitForTimeout(4500);
+    // Waits for the notice, not a fixed 4.5 s: four pages at once on a busy
+    // runner showed it later than that, and 29–66 checks failed as "not told".
+    // Then 1.5 s more, so a reload loop still has time to show itself.
+    await page.waitForSelector('.qjo-load-failure', { timeout: 20000 }).catch(() => {});
+    const shownAfter = ((Date.now() - started) / 1000).toFixed(1);
+    await page.waitForTimeout(1500);
     const notice = await page.$eval('.qjo-load-failure', e => e.innerText).catch(() => null);
     const hasButton = Boolean(await page.$('.qjo-load-failure button'));
     await ctx.close();
-    return { blocked, notice, navigations, hasButton };
+    return { blocked, notice: notice && `${notice.slice(0, 60)} (after ${shownAfter}s)`, navigations, hasButton };
   };
   for (let i = 0; i < MODULES.length; i += 4) {
     for (const { blocked, notice, navigations, hasButton } of await Promise.all(MODULES.slice(i, i + 4).map(dropped))) {
-      ok(Boolean(notice), `${blocked} missing → the person is told`, notice);
-      ok(navigations <= 2, `${blocked} missing → one retry, not a reload loop (${navigations} navigations in 4.5s${navigations > 2 ? ' — RELOAD LOOP' : ''})`);
+      ok(Boolean(notice), `${blocked} missing → the person is told${notice ? '' : ' (nothing within 20 s)'}`, notice);
+      ok(navigations <= 2, `${blocked} missing → one retry, not a reload loop (${navigations} navigations${navigations > 2 ? ' — RELOAD LOOP' : ''})`);
       ok(hasButton, `${blocked} missing → a way to retry is offered`);
     }
   }
