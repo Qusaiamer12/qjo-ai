@@ -52,12 +52,17 @@ async function filesCarryThePhoto(page, exports, id, imagesIn) {
   const pdf = fetched('pdf');
   const drawn = pdf ? await imagesIn(pdf.body) : 'no file within 30 s';
   ok(drawn === 1, `the PDF has the photo in it (${drawn} image(s) drawn)`, pdf && { status: pdf.status, start: pdf.body.slice(0, 120).toString() });
-  await page.click('.msg.assistant:last-of-type .qjo-export-toggle').catch(() => {});
-  await page.click('.msg.assistant:last-of-type .qjo-export-item[data-export="docx"]').catch(() => {});
+  // Each click says how it went: a failure once read only "none", for a menu
+  // that never opened and a file without the photo alike.
+  const clicks = [];
+  for (const selector of ['.msg.assistant:last-of-type .qjo-export-toggle', '.msg.assistant:last-of-type .qjo-export-item[data-export="docx"]']) {
+    await page.click(selector, { timeout: 15000 }).then(() => clicks.push('ok'), (e) => clicks.push(e.message.split('\n')[0]));
+  }
   for (let i = 0; i < 120 && !fetched('docx'); i++) await page.waitForTimeout(250);
   const docx = fetched('docx');
   const media = docx ? Object.keys((await JSZip.loadAsync(docx.body)).files).filter((f) => /^word\/media\/.+\.\w+$/.test(f)) : [];
-  ok(media.length === 1, `the Word file has the photo in it (${media.join(', ') || 'none'})`);
+  const why = docx ? `${media.join(', ') || 'no image in word/media'}` : asked('docx') ? 'asked, no file within 30 s' : `never asked; menu clicks: ${clicks.join(' | ')}`;
+  ok(media.length === 1, `the Word file has the photo in it (${why})`);
 }
 
 (async () => {

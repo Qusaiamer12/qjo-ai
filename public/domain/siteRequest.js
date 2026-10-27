@@ -32,7 +32,7 @@
   // سويلي), then a site, a page, an interface or a dashboard.
   const AR_MAKE = '(?:صمم|صمّم|اعمل|إعمل|ابني|إبني|سوي|سوّي|برمج|انشئ|أنشئ|طور|طوّر|جهز|جهّز|اصنع|إصنع)';
   const AR_THING = '(?:ال)?(?:موقع|صفحة|صفحه|واجهة|واجهه|لوحة تحكم|داشبورد|بورتفوليو|تطبيق ويب|لاندنج)';
-  const AR_BUILD = new RegExp(`(?<![\\u0600-\\u06FF])${AR_MAKE}\\S*(?:\\s+(?:لي|إلي|الي|لنا))?(?:\\s+(?!عن|من|في|على|حول)\\S+){0,3}?\\s+${AR_THING}(?![\\u0600-\\u06FF])`);
+  const AR_BUILD = new RegExp(`(?<![\\u0621-\\u065F\\u0671-\\u06D3])${AR_MAKE}\\S*(?:\\s+(?:لي|إلي|الي|لنا))?(?:\\s+(?!عن|من|في|على|حول)\\S+){0,3}?\\s+${AR_THING}(?![\\u0621-\\u065F\\u0671-\\u06D3])`);
   // "بدي موقع لمطعمي" — but not "بدي موقع الجامعة", the university's own.
   const AR_WANT = /(?<![؀-ۿ])(?:بدي|بدنا|ابغى|أبغى|أريد|اريد|عايز|ودي)\s+(?:\S+\s+){0,2}?(?:موقع|صفحة هبوط|صفحة ويب|لاندنج|بورتفوليو|داشبورد|لوحة تحكم)\s+(?:ل\S*|إلكتروني|الكتروني|ويب|شخصي|احترافي|بسيط|حديث|كامل|متكامل|تعريفي|عصري|بـ?\S*)/;
   const AR_CODE = /(?<![؀-ۿ])(?:اكتب|إكتب|اعطيني|أعطني|عطيني)\S*\s+(?:لي\s+)?كود\s+(?:html|react|رياكت|لموقع|لصفحة)/i;
@@ -51,7 +51,7 @@
   // "خليه"). A verb alone is not enough: "خلي جوابك قصير" and "how do I use
   // AI to study?" after a site were taken for changes to it, and answered with
   // the site again.
-  const PAGE_PART = /\b(?:it|this|that|them|site|website|page|header|footer|hero|nav(?:bar)?|menu|section|button|colou?rs?|font|text|title|heading|image|photo|picture|logo|icon|background|theme|dark|light|mode|layout|form|card|gallery|pric(?:e|es|ing)|contact|about|testimonials?|faq|links?|animation|mobile|style|design|cta|banner|slider|map)\b|(?<![\u0600-\u06FF])(?:ال)?(?:موقع|صفحة|صفحه|هيدر|فوتر|قائمة|قائمه|منيو|قسم|أقسام|اقسام|زر|زرار|أزرار|لون|ألوان|الوان|خط|خطوط|نص|كلام|عنوان|صورة|صوره|صور|لوجو|شعار|أيقونة|ايقونة|أيقونات|خلفية|خلفيه|ثيم|دارك|وضع|تصميم|فورم|نموذج|كرت|كروت|بطاقة|بطاقات|معرض|أسعار|اسعار|سعر|تواصل|روابط|رابط|حركة|حركات|أنيميشن|انيميشن|جوال|موبايل|شكل|ستايل|بانر)(?![\u0600-\u06FF])|(?<![\u0600-\u06FF])(?:خلي|خلّي|غير|غيّر|عدل|عدّل|كبر|كبّر|صغر|صغّر|ترجم|حسن|حسّن|طور|طوّر|صلح|صلّح|زبط|ظبط|بدل|بدّل|اجعل|زيد|زود|شيل|احذف|حط)(?:ه|ها|هم|و)(?![\u0600-\u06FF])/i;
+  const PAGE_PART = /\b(?:it|this|that|them|site|website|page|header|footer|hero|nav(?:bar)?|menu|section|button|colou?rs?|font|text|title|heading|image|photo|picture|logo|icon|background|theme|dark|light|mode|layout|form|card|gallery|pric(?:e|es|ing)|contact|about|testimonials?|faq|links?|animation|mobile|style|design|cta|banner|slider|map)\b|(?<![\u0621-\u065F\u0671-\u06D3])(?:ال)?(?:موقع|صفحة|صفحه|هيدر|فوتر|قائمة|قائمه|منيو|قسم|أقسام|اقسام|زر|زرار|أزرار|لون|ألوان|الوان|خط|خطوط|نص|كلام|عنوان|صورة|صوره|صور|لوجو|شعار|أيقونة|ايقونة|أيقونات|خلفية|خلفيه|ثيم|دارك|وضع|تصميم|فورم|نموذج|كرت|كروت|بطاقة|بطاقات|معرض|أسعار|اسعار|سعر|تواصل|روابط|رابط|حركة|حركات|أنيميشن|انيميشن|جوال|موبايل|شكل|ستايل|بانر)(?![\u0621-\u065F\u0671-\u06D3])|(?<![\u0621-\u065F\u0671-\u06D3])(?:خلي|خلّي|غير|غيّر|عدل|عدّل|كبر|كبّر|صغر|صغّر|ترجم|حسن|حسّن|طور|طوّر|صلح|صلّح|زبط|ظبط|بدل|بدّل|اجعل|زيد|زود|شيل|احذف|حط)(?:ه|ها|هم|و)(?![\u0621-\u065F\u0671-\u06D3])/i;
   const CHANGE_MAX_CHARS = 400;
 
   /**
