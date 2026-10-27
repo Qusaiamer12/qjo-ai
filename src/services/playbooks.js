@@ -261,6 +261,7 @@ LITERARY CRAFTSMANSHIP, GRAMMAR & TEXT RESTRUCTURING
 // no cache holds them. A plain greeting's warmth is the core prompt's (TONE).
 const BANTER = /فنان|وحش|كفو|يسعد|بحبك|بنحبك|أحبك|احبك|الهمة|الأخبار|الاخبار|أفضل|افضل|أحسن|احسن|رأيك|رايك|بتتوقع|يفوز/;
 const SOCIAL = ['apology', 'subtext', 'excuses'];
+const QUESTION_START = /^(?:what|who|whom|whose|where|when|why|how|which|is|are|was|were|do|does|did|can|could|should|would|will|tell me|explain)\b|^(?:شو|ايش|إيش|وش|مين|من هو|من هي|وين|أين|اين|متى|امتى|إمتى|ليش|لماذا|ليه|كيف|كيفك|قديش|كم|هل|ما هو|ما هي|ماذا|اشرح|احكيلي|خبرني)(?![\u0600-\u06FF])/i;
 const CODE_WORDS = /```|\bfunction\b|\bconst\b|\bclass\b|\bimport\b|stack trace|traceback|compile|debug|refactor|npm |yarn |pip |docker|regex|api\b|sdk\b|react|node\.js|typescript|javascript|python|java\b|sql\b|كود|بايثون|برمج|برمجة|دالة|كلاس|مكتبة|خطأ برمجي|صحح الكود|اكتب لي برنامج|تطبيق ويب/i;
 // An attached file the page names (app.js's attachment context) that is code.
 const CODE_FILE = /^Attachment Index \d+: .+\.(?:[cm]?jsx?|tsx?|py|ipynb|java|kt|swift|c|cc|cpp|h|hpp|cs|go|rb|php|rs|dart|sql|sh|ps1|html?|css|scss|vue|svelte)$/im;
@@ -308,7 +309,11 @@ function detectNeeds(userMessages) {
   // "شو عاصمة اليابان؟" was sent with their playbook and answered with them.
   const newest = own[own.length - 1] || '';
   const followUp = isFollowUp(newest);
-  const recent = followUp ? own.slice(-2) : own.slice(-1);
+  // A short instruction with no subject of its own continues the task too —
+  // "استخرج معلوماتي" with a CV's photo, after "بدي اعمل سيرة ذاتية" — while a
+  // question opens a new one ("شو عاصمة اليابان؟").
+  const continues = followUp || (newest.length <= 120 && !selectPlaybooks([newest]).length && !QUESTION_START.test(newest.trim()));
+  const recent = continues ? own.slice(-2) : own.slice(-1);
   // Python for the page carries the Python playbook alone: the charts
   // playbook said "never output Python", and the engineering overlay a file
   // tree and npm install. "خليه أحمر" after it stays Python.

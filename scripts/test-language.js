@@ -380,6 +380,11 @@ test('a follow-up is told from a new question', () => {
   }
   const recipe = detectNeeds([user('اعطيني وصفة مقلوبة'), { role: 'assistant', content: 'المقادير…' }, user('بدون باذنجان')]).playbooks;
   assert.ok(recipe.includes('recipe'), `a recipe's follow-up keeps the recipe: [${recipe}]`);
+  // An instruction with no subject of its own continues the task (image-chat.test.js).
+  const cv = detectNeeds([user('بدي اعمل سيرة ذاتية'), { role: 'assistant', content: 'تمام' }, user('استخرج معلوماتي')]).playbooks;
+  assert.ok(cv.includes('job'), `a CV's next instruction keeps the CV: [${cv}]`);
+  const joke = detectNeeds([user('بدي موقع html لمطعم'), { role: 'assistant', content: '```html\n<!DOCTYPE html><html></html>\n```' }, user('اعطيني نكتة')]);
+  assert.ok(!joke.site && !joke.playbooks.includes('ui'), `the website playbook never rides along without a site: [${joke.playbooks}]`);
 });
 
 // A word inside another word, or with another meaning, chose a playbook that
