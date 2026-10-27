@@ -8,6 +8,8 @@ const { completeIfTruncated: continueAnswer } = require('./continuation');
 const { shrinkMessages, fitToAllowance, prefitToAllowance } = require('../services/providerLimits');
 const { withTurnContext, reasoningEffort, thinkingNeed, largerModelFirst, siteRequested } = require('../services/promptLayout');
 const { z } = require('zod');
+const { ownWords } = require('../../public/domain/ownWords');
+const { intentWindow, hardCodeSignal, codeAsked, mathAsked, words } = require('./requestSignals');
 
 // ── Zod Schema ──
 const RoutingDecisionSchema = z.object({
@@ -45,14 +47,9 @@ function combinedUserText(messages) {
     .slice(-90000);
 }
 
-function combinedRecentUserText(messages) {
-  return (messages || [])
-    .filter(m => m && m.role === 'user')
-    .slice(-3)
-    .map(m => textFromMessageContent(m.content))
-    .join('\n\n')
-    .slice(-12000);
-}
+// What a request's intent is read from: the newest user message, and the ones
+// before it only while it refers back to them (requestSignals.js).
+const intentMessages = (messages, own) => intentWindow((messages || []).filter(m => m && m.role === 'user').map(m => textFromMessageContent(m.content)), own);
 
 function lastUserText(messagesOrText) {
   if (typeof messagesOrText === 'string') return messagesOrText;
@@ -109,19 +106,21 @@ function validateRoutingDecision(raw) {
 
 // ── Smart Intent Classifier (4-Pillar AI Intelligence Aware) ──
 function classifyQjoRequest({ messages, mode, routingDecision }) {
-  const text = combinedUserText(messages);
+  const asked = intentMessages(messages, ownWords);
+  const text = asked.join('\n\n').slice(-90000);
+  const own = asked.map(ownWords).join('\n\n'); // not the files or sources the page attached
   const systemText = String(messages?.[0]?.content || '').toLowerCase();
   const hasSearchContext = /source pack|connected search|connected deep search|web search note|search query used|url:\s*https?:\/\//i.test(text);
   const hasFileContext = /user attached files|pdf pages processed|ocr text extracted|extracted characters|extraction method|uploaded file|المرفقات/i.test(text);
-  const codeIntent = mode === 'code' || /(```|\bfunction\b|\bconst\b|\bclass\b|debug|bug|stack trace|terminal|error|exception|syntax|npm|react|node|typescript|javascript|python|firebase|render|كود|برمج|برمجة|موقع|تطبيق|حل الخطأ|إصلاح|دالة)/i.test(text);
-  const mathIntent = /(احسب|حساب|نسبة|معادلة|جذر|تكامل|تفاضل|matrix|probability|statistics|\d+\s*[+\-*/^%]\s*\d+)/i.test(text);
-  const tableIntent = /(جدول|جدولة|نظم في جدول|رتب في جدول|اعرض في جدول|markdown table|table format)/i.test(text);
-  const humanizeIntent = /(كاشف|كواشف|ai detector|humanize|كتابة بشرية|بدون كليشيه|burstiness|perplexity|أسلوب بشري)/i.test(text);
-  const socialIntent = /(فضفض|تعبان|مضايق|حزين|زعلان|استعطاف|اعتذار|قصف جبهة|رد عليه|شو قصده|شو قصدها|نية|بين السطور|عذر|اعذار|تصريفة|شريكي|شريكتي|محادثة بيننا)/i.test(text);
-  const creativeIntent = /(سكربت|سيناريو|ريلز|تيك توك|reels|tiktok|shorts|cover letter|رسالة عمل|سيرة ذاتية|ابتكر اسم|اسم تطبيق|اسم شركة|اسم علامة|تسمية|naming|وصفة طبخ|طبخة|طبخ)/i.test(text);
+  const codeIntent = mode === 'code' || hardCodeSignal(own) || codeAsked(own);
+  const mathIntent = mathAsked(own);
+  const tableIntent = words.table(own);
+  const humanizeIntent = words.humanize(own);
+  const socialIntent = words.social(own);
+  const creativeIntent = words.creative(own);
   const longContext = text.length > 18000;
-  const researchIntent = hasSearchContext || /(بحث|مصادر|دراسة|تقرير|قارن|مقارنة|تحليل سوق|research|sources|compare|report|market analysis|literature)/i.test(text);
-  const puzzleReasoningIntent = /(لغز|صناديق|ملصقات خاطئة|تفاح|برتقال|فاكهة واحدة|منطق|استنتاج|logic puzzle|riddle|boxes|labels|apples|oranges)/i.test(text);
+  const researchIntent = hasSearchContext || words.research(own);
+  const puzzleReasoningIntent = words.puzzle(own);
   const advancedIntent = mode === 'advanced' || mode === 'max';
 
   let intent = 'general';
@@ -580,7 +579,7 @@ function instructionRegion(text) {
 // ── Deterministic Router (used by client-side routing) ──
 function routeUserRequestDeterministic(messagesOrText) {
   const latest = lastUserText(messagesOrText);
-  const recent = typeof messagesOrText === 'string' ? latest : combinedRecentUserText(messagesOrText);
+  const recent = typeof messagesOrText === 'string' ? latest : intentMessages(messagesOrText).join('\n\n').slice(-12000);
   const q = `${recent}\n${latest}`.toLowerCase();
 
   const explicitQcode = /(qcode|q-code|code lab|كيو\s*كود|كيوكود)/i.test(q);
@@ -594,27 +593,11 @@ function routeUserRequestDeterministic(messagesOrText) {
   // listed skill) and the name of the clinical database a device trained on.
   const qIntent = `${instructionRegion(recent)}\n${instructionRegion(latest)}`.toLowerCase();
 
-  // Signals that mean code wherever they appear. Nobody pastes a stack trace
-  // or a fenced block as background for a non-coding request.
-  const hardCodeSignal = /(```|~~~|stack\s+trace|traceback|segmentation\s+fault|nullpointerexception|syntaxerror|typeerror|referenceerror|package\.json|node_modules)/i.test(q);
-
-  // Tools, languages and code nouns. A mention counts only inside the
-  // instruction region, because naming React is not asking for React.
-  const codeTopic = /(كود|برمج|برمجة|مبرمج|سكربت|سكريبت|\bapi\b|\bsdk\b|\bdebug\b|\bbug\b|compile|refactor|react|next\.js|vue|angular|svelte|\bnode(?:\.js)?\b|express|fastapi|django|flask|laravel|python|javascript|typescript|golang|\brust\b|kotlin|swift|firebase|supabase|\bdeploy\b|github|\bnpm\b|\byarn\b|\bpnpm\b|docker|kubernetes|\bsql\b|mysql|nosql|mongodb|postgres|backend|frontend|full[- ]?stack|هندسة\s+برمجيات|تصحيح\s+خطأ|بايثون|جافا|جافاسكريبت|جافا\s*سكريبت|تايب\s*سكريبت|ريأكت|رياكت|دالة|كلاس|خوارزمي|مصفوفة|اكتب(?:لي|لنا)?\s+(?:دالة|كلاس|برنامج|كود|سكربت)|سوي(?:لي|لنا)?\s+(?:دالة|كود|برنامج)|اعمل(?:لي|لنا)?\s+(?:دالة|كود|برنامج|تطبيق))/i.test(qIntent);
-
-  // Ambiguous on their own, so they need a verb or a qualifier to count.
-  // "موقع" is a location as often as a website, "git" is a CV skill as often
-  // as a command, and a database is usually the thing being described rather
-  // than the thing being asked for.
-  const ambiguousWithContext = /((?:اعمل|سوي|صمم|ابن[يى]|أنشئ|انشئ|برمج|طور|بني|بدي|أبغى|ابغى)\w*\s+(?:لي\s+|لنا\s+)?(?:موقع|مواقع|تطبيق)|(?:موقع|مواقع)\s*(?:ويب|إلكتروني|الكتروني|انترنت|إنترنت)|\bwebsite\b|\bweb\s*app\b|\bgit\s+(?:clone|push|pull|commit|merge|rebase|branch|status|diff|init|checkout|log)\b|(?:صمم|اعمل|انشئ|أنشئ|بدي|اربط)\w*\s+(?:لي\s+)?قاعدة\s+بيانات)/i.test(qIntent);
-
-  // "Summarise this article", "format this CV", "translate this text": the verb
-  // names the task and the object names a document, so whatever the pasted
-  // body happens to mention, this is not a request to write software. A real
-  // code signal (a fenced block, a stack trace) still wins over it.
-  const documentTask = /((?:لخص|اختصر|ترجم|نسق|نسّق|رتب|رتّب|صغ|صيغ|راجع|دقق|حسّن|حسن)(?:لي|لنا)?\s+(?:هاد|هذا|هاي|هذه)?\s*(?:ال)?(?:مقال|نص|مستند|تقرير|سيرة\s*ذاتية|رسالة|ايميل|إيميل|بريد)|(?:summari[sz]e|translate|proofread|format|polish)\s+(?:this|the)\s+(?:article|text|document|report|cv|resume|email|letter))/i.test(qIntent);
-
-  const codingIntent = hardCodeSignal || ((codeTopic || ambiguousWithContext) && !documentTask);
+  // Code wherever it appears (a fenced block, a stack trace); a tool, a
+  // language or a code noun only inside the instruction region, because
+  // naming React is not asking for React — and never a document task's
+  // ("summarise this article") (requestSignals.js).
+  const codingIntent = hardCodeSignal(q) || codeAsked(qIntent);
   const fileEditIntent = /(اقرأ\s+ملف|اكتب\s+ملف|عدّل\s+ملف|عدل\s+ملف|حرر\s+ملف|read_file|write_file|edit_file|run\s+tests|شغل\s+اختبار|نفذ\s+أمر)/i.test(q);
 
   if (explicitQcode || fileEditIntent || codingIntent) {
@@ -625,9 +608,9 @@ function routeUserRequestDeterministic(messagesOrText) {
     });
   }
 
-  const explicitQSpark = /(q-spark|qspark|notebooklm|notebook|كيو\s*سبارك|كيوسبارك)/i.test(q);
-  const studyResearchIntent = /(pdf|مصادر|مصدر|دراسة|بحث|أبحاث|ابحاث|ورقة|paper|journal|doi|arxiv|pubmed|تلخيص\s+مستند|لخص\s+المستند|مراجعة|اختبار|quiz|flashcard|flashcards|بطاقات|تكرار\s+متباعد|spaced\s+repetition|خريطة\s+مفاهيم|concept\s+map|دفتر|محاضرة|lecture|منهج|ملزمة|source-grounded|citations|اقتباسات)/i.test(q);
-  const sourceNotebookAction = /(ارفع|حلل|استخرج|قارن\s+بين\s+المصادر|اسأل\s+عن\s+المصادر|اعمل\s+لي\s+كويز|اعمل\s+بطاقات|audio\s+overview|نظرة\s+صوتية)/i.test(q);
+  const explicitQSpark = words.qspark(q);
+  const studyResearchIntent = words.study(q);
+  const sourceNotebookAction = words.notebookAction(q);
 
   if (explicitQSpark || sourceNotebookAction || studyResearchIntent) {
     return validateRoutingDecision({
@@ -637,7 +620,7 @@ function routeUserRequestDeterministic(messagesOrText) {
     });
   }
 
-  const currentSearchGeneral = /(اليوم|الآن|حالي|آخر|اخر|سعر|نتيجة|مباراة|طقس|خبر|أخبار|exchange|latest|current|today|price|score|weather|news)/i.test(q);
+  const currentSearchGeneral = words.current(q);
   if (currentSearchGeneral) {
     return validateRoutingDecision({
       targetAgent: 'general',

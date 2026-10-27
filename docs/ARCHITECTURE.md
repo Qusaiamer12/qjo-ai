@@ -70,6 +70,7 @@ qjo-ai/
 │   │   └── tasks.js
 │   ├── agents/                  Orchestration: what to call, in what order,
 │   │   ├── RoutingEngine.js     what to do when it fails.
+│   │   ├── requestSignals.js    What a message asks for: code, math, study — on the newest message, earlier ones only for a follow-up
 │   │   ├── toolLoop.js          Tool rounds against the deadline; always ends in an answer
 │   │   ├── toolAnswer.js        Evidence as data, synthesis prompt, sources-only fallback
 │   │   ├── TaskRunner.js
@@ -104,6 +105,7 @@ qjo-ai/
 │   │   ├── i18n.js              Every interface string, English and Arabic, same keys
 │   │   ├── codeProject.js       Which code blocks make one preview; the document it runs
 │   │   ├── siteRequest.js       Whether a message asks for a website (or a change to one)
+│   │   ├── topicWords.js        Words matched as words (Arabic clitics too); the page's capsule and code-room lists
 │   │   ├── pythonRun.js         One Python run (worker and real-Python suite alike); Python for the page
 │   │   ├── xlsxText.js          An Excel file as text: zip and XML read with no library
 │   │   ├── relaxedJson.js       Chart and quiz blocks read as data (relaxed JSON), never run

@@ -314,7 +314,11 @@ async function main() {
     llm7 = { headerDelayMs: 0, dead: true };
     groqReportsLimit = true;
     const fresh = buildEngine(baseUrl);
-    await ask(fresh, { userChars: 40, maxTokens: 1200 }); // any answer carries the allowance
+    // Any answer carries the allowance — of the model that gave it. A long
+    // request goes to the larger model first, so the short one asks it too
+    // (Max); "…لتطبيق توصيل" is a plan for an app, not code, and no longer
+    // takes the code pipeline there by a substring.
+    await ask(fresh, { userChars: 40, maxTokens: 1200, mode: 'max' });
     calls = [];
     const { res } = await ask(fresh, { userChars: FITS_WHEN_RESIZED, maxTokens: 4000 });
     groqReportsLimit = false;
@@ -332,7 +336,7 @@ async function main() {
     llm7 = { headerDelayMs: 0, dead: true };
     groqReportsLimit = true;
     const fresh = buildEngine(baseUrl);
-    await ask(fresh, { userChars: 40, maxTokens: 1200 });
+    await ask(fresh, { userChars: 40, maxTokens: 1200, mode: 'max' }); // the larger model's allowance, as above
     calls = [];
     groqCountsMore = 1500;
     const { res } = await ask(fresh, { userChars: FITS_WHEN_RESIZED, maxTokens: 4000 });

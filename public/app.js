@@ -375,45 +375,37 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       return '';
     }
 
-    function hasAny(text, words) {
-      const value = String(text || '').toLowerCase();
-      return words.some(w => value.includes(String(w).toLowerCase()));
-    }
+    // Whole words: "api" is not in "capital", nor "app" in "apply" (topicWords.js).
+    const hasTopic = (text, topic) => QjoDomain.topicWords.pageTopic(text, topic);
 
     function buildSkillCapsules() {
       const text = latestUserTextForPrompt();
       const capsules = [];
 
-      const codeTerms = ['code', 'كود', 'برمج', 'debug', 'bug', 'api', 'html', 'css', 'javascript', 'typescript', 'python', 'react', 'node', 'تطبيق', 'موقع', 'لعبة', 'app', 'website', 'game'];
-      const neuralTerms = ['neural', 'شبكة عصبية', 'شبكات عصبية', 'transformer', 'cnn', 'rnn', 'gnn', 'attention', 'architecture', 'معمارية', 'نموذج تعلم عميق', 'deep learning'];
-      const researchTerms = ['بحث', 'بحث علمي', 'paper', 'دراسة', 'منهجية', 'فرضية', 'literature', 'review', 'academic', 'أكاديمي', 'مصادر', 'توثيق'];
-      const tutoringTerms = ['اشرح', 'علمني', 'ادرس', 'طالب', 'امتحان', 'quiz', 'اختبار', 'مذاكرة', 'لخص', 'تلخيص', 'افهم', 'شرح'];
-      const mathTerms = ['احسب', 'رياضيات', 'معادلة', 'برهان', 'احتمال', 'إحصاء', 'جبر', 'تفاضل', 'تكامل', 'algorithm', 'خوارزمية'];
-      const fileTerms = ['pdf', 'ملف', 'وثيقة', 'صورة', 'مرفق', 'csv', 'json', 'حلل هذا الملف', 'حلل الصورة'];
 
       const asked = [...history].reverse().find((m) => m.role === 'user')?.content;
       const pageWork = QjoDomain.siteRequest.siteInConversation(history, QjoDomain.ownWords) || QjoDomain.pythonRun.pythonMessage(asked, QjoDomain.ownWords) || QjoDomain.mathPlot.plotMessage(asked, QjoDomain.ownWords);
-      if ((qjoMode === 'code' || hasAny(text, codeTerms)) && !pageWork) { // a site, Python for the page or a math figure is not a project
+      if ((qjoMode === 'code' || hasTopic(text, 'code')) && !pageWork) { // a site, Python for the page or a math figure is not a project
         capsules.push(`Coding capsule: act as a senior software engineer. For implementation, provide architecture, file structure, clean code, exact placement, tests, edge cases, security, performance, accessibility, and deployment notes. Avoid toy snippets for serious builds. Use targeted patches for existing code.`);
       }
 
-      if (hasAny(text, neuralTerms)) {
+      if (hasTopic(text, 'neural')) {
         capsules.push(`Neural architecture capsule: act as a deep learning architect. Discuss task type, data modality, tensor shapes, architecture choice, layers/blocks, loss, optimizer, training strategy, evaluation metrics, ablations, deployment latency, memory, and failure modes. Compare alternatives such as MLP, CNN, RNN, Transformer, ViT, U-Net, diffusion, GNN when relevant.`);
       }
 
-      if (hasAny(text, researchTerms)) {
+      if (hasTopic(text, 'research')) {
         capsules.push(`Academic research capsule: act as a rigorous research assistant. Structure help around research question, hypothesis, literature review, methodology, variables, dataset/sample, analysis approach, limitations, contribution, and future work. Never fabricate citations. Use search results when current literature is needed.`);
       }
 
-      if (hasAny(text, tutoringTerms)) {
+      if (hasTopic(text, 'tutoring')) {
         capsules.push(`Adaptive tutoring capsule: teach from the user's level. Start with intuition, then example, then steps, then common mistakes, then a small exercise if useful. Adjust difficulty based on the user's answer. Summaries should be layered and study-friendly.`);
       }
 
-      if (hasAny(text, mathTerms)) {
+      if (hasTopic(text, 'math')) {
         capsules.push(`Math and reasoning capsule: identify givens, unknowns, assumptions, method, calculation, verification, and final answer. Use the calculator tool for exact arithmetic. Avoid skipping critical derivation steps in complex math.`);
       }
 
-      if (hasAny(text, fileTerms)) {
+      if (hasTopic(text, 'file')) {
         capsules.push(`File and image analysis capsule: extract concrete facts first, then summarize, analyze risks/issues, and provide actionable recommendations. If extracted text/content exists, analyze it directly. If content is missing or scanned, use available OCR text when provided; if OCR is incomplete, state limits and request a clearer source when needed.`);
       }
 
@@ -2256,8 +2248,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     // Code answers must not be starved: running out of tokens mid-answer costs a
     // second round-trip (completeIfTruncated). A whole site gets all the room
     // there is (7000); the server cuts it to what a provider's minute allows.
-    const CODE_BUDGET_TERMS = ['code', 'كود', 'برمج', 'دالة', 'debug', 'bug', 'api', 'html', 'css',
-      'javascript', 'typescript', 'python', 'react', 'node', 'sql', 'تطبيق', 'موقع', 'سكربت', 'script', 'function', 'class'];
 
     function getGenerationConfig(hasAttachmentAnalysis, userText) {
       if (hasImageAttachments()) {
@@ -2269,7 +2259,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
 
       const isMax = qjoMode === 'advanced';
       // "ارسم الدالة" is a figure, not code: a block of JSON, not a project's room.
-      const codeShaped = hasAny(userText || latestUserTextForPrompt(), CODE_BUDGET_TERMS) && !QjoDomain.mathPlot.plotMessage(userText || latestUserTextForPrompt(), QjoDomain.ownWords);
+      const codeShaped = hasTopic(userText || latestUserTextForPrompt(), 'codeBudget') && !QjoDomain.mathPlot.plotMessage(userText || latestUserTextForPrompt(), QjoDomain.ownWords);
       if (QjoDomain.siteRequest.siteInConversation([...history, { role: 'user', content: userText || '' }])) return { temperature: 0.14, max_tokens: 7000 };
       if (codeShaped) {
         // Complete, runnable files are the house standard, so code gets room in

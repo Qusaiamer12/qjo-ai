@@ -253,6 +253,50 @@ const system = (body) => body.messages.filter((m) => m.role === 'system').map((m
     assert.deepStrictEqual(plain.body.tools.map((t) => t.function.name), numbers.body.tools.map((t) => t.function.name));
   });
 
+  // The router and the classifier read the last three or four user messages,
+  // so one coding question made the next ones coding requests: the router's
+  // hint and full reasoning (and the code pipeline: test-routing.js). Checked
+  // through the route, on what Groq is sent, as the page sends it in Flash.
+  console.log('\nAfter a coding question, a new one is judged on its own:');
+  const PY = [{ role: 'user', content: 'اكتبلي دالة بايثون بتعكس نص' }, { role: 'assistant', content: '```python\ndef reverse(s):\n    return s[::-1]\n```' }];
+  const sentFor = async (messages) => { const got = await chat(messages, { mode: 'normal', model: 'openai/gpt-oss-20b' }); return got[got.length - 1].body; };
+  const routerSaid = (body) => (textOf(lastUser(body).content).match(/Router decision: (\w+)/) || [])[1];
+  const seen = (body) => JSON.stringify([routerSaid(body), body.reasoning_effort || 'default']);
+  await test('control: the coding question is code, thinking — and so is a follow-up to it: "خليها أقصر", "make it shorter"', async () => {
+    for (const messages of [PY.slice(0, 1), [...PY, { role: 'user', content: 'خليها أقصر' }], [...PY, { role: 'user', content: 'make it shorter' }]]) {
+      assert.strictEqual(seen(await sentFor(messages)), '["qcode","default"]', textOf(messages[messages.length - 1].content));
+    }
+  });
+  await test('a new question after it is general, thinking lightly', async () => {
+    for (const content of ['شو عاصمة اليابان؟', 'أنا متوتر من الامتحان بكرا', 'what is the capital of Japan?']) {
+      assert.strictEqual(seen(await sentFor([...PY, { role: 'user', content }])), '["general","low"]', content);
+    }
+    // A "why" thinks first by itself (thinkingNeed), code or no code.
+    assert.strictEqual(routerSaid(await sentFor([...PY, { role: 'user', content: 'why is the sky blue?' }])), 'general', 'why is the sky blue?');
+  });
+  await test('a word with another meaning is not code: a location, a reaction, a velocity', async () => {
+    for (const content of ['وين موقع البتراء؟', 'explain a chemical reaction', 'what is terminal velocity?']) {
+      assert.strictEqual(seen(await sentFor([{ role: 'user', content }])), '["general","low"]', content);
+    }
+  });
+  await test('English math thinks, as Arabic math does; an English verb with another meaning does not', async () => {
+    for (const content of ['solve the integral of x*sin(x) dx', 'integrate x*sin(x)', 'differentiate x ln x', 'simplify (a+b)(a-b)', 'احسب تكامل x*sin(x)']) {
+      const body = await sentFor([{ role: 'user', content }]);
+      assert.ok(!('reasoning_effort' in body), `"${content}" was answered at ${body.reasoning_effort}`);
+    }
+    for (const content of ['how do I integrate into a new team?', 'simplify this paragraph for me']) {
+      assert.strictEqual((await sentFor([{ role: 'user', content }])).reasoning_effort, 'low', content);
+    }
+  });
+  await test('the continuity lock goes with an edit of the last answer, not with a new question', async () => {
+    const before = [{ role: 'user', content: 'شو أهم صادرات اليابان؟' }, { role: 'assistant', content: 'السيارات والإلكترونيات.' }];
+    const locked = (body) => /Context continuity lock/.test(textOf(lastUser(body).content));
+    for (const content of ['حوله لجدول', 'make it a table']) assert.ok(locked(await sentFor([...before, { role: 'user', content }])), `${content} was not locked`);
+    for (const content of ['what is the capital of Japan? give me more information', 'اكتب مقال حول مستقبل الطاقة', 'كم معدل البطالة بالأردن هذا العام؟']) {
+      assert.ok(!locked(await sentFor([...before, { role: 'user', content }])), `${content} was locked to the last answer`);
+    }
+  });
+
   console.log('\nReasoning effort follows the work:');
   const effort = async (content, mode) => (await chat([{ role: 'user', content }], { mode }))[0].body;
   await test('an everyday Flash question thinks lightly; code, math and Max keep the provider\'s default', async () => {

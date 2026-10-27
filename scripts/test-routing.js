@@ -85,6 +85,126 @@ NOT_CODE('لخصلي هاد المقال:\n\n' + 'React و Node.js و Python م�
 CODE('اعمللي دالة بايثون:\n\n' + 'هاي بيانات المشروع بدون أي علاقة بالبرمجة. '.repeat(12),
   'a code request survives a long pasted body');
 
-console.log('\n========================================');
-console.log(`${pass} passed, ${fail} failed`);
-process.exit(fail ? 1 : 0);
+// ── The newest message decides; earlier ones only when it refers back ──
+// The router read the last three user messages and the classifier the last
+// four, so after one coding question every message for the next three or four
+// was a coding request: the router's hint, the code pipeline, full reasoning.
+const { classifyQjoRequest } = require('../src/agents/RoutingEngine');
+const { isContextualTransformRequest } = require('../src/agents/contextContinuity');
+const after = (...texts) => texts.flatMap((t, i) => (i < texts.length - 1 ? [{ role: 'user', content: t }, { role: 'assistant', content: 'Here it is.' }] : [{ role: 'user', content: t }]));
+function routes(messages, want, label) {
+  const decision = routeUserRequestDeterministic(messages);
+  const route = classifyQjoRequest({ messages, mode: 'flash', routingDecision: decision });
+  const got = `${decision.targetAgent}/${route.intent}`;
+  const good = got === want;
+  good ? pass++ : fail++;
+  console.log(`  ${good ? '✅' : '❌'} ${label}`);
+  if (!good) console.log(`     wanted ${want}, got ${got}`);
+}
+const PY = 'اكتبلي دالة بايثون بتعكس نص';
+
+console.log('\nAfter a coding question, a new question is judged on its own:');
+routes(after(PY), 'qcode/code', 'control: the coding question itself is code');
+routes(after(PY, 'شو عاصمة اليابان؟'), 'general/general', 'شو عاصمة اليابان؟');
+routes(after(PY, 'أنا متوتر من الامتحان بكرا'), 'general/general', 'أنا متوتر من الامتحان بكرا');
+routes(after(PY, 'why is the sky blue?'), 'general/general', 'why is the sky blue?');
+routes(after(PY, 'شو عاصمة اليابان؟', 'make it shorter'), 'general/general', 'a follow-up to the new question follows the new question, not the code before it');
+
+console.log('\nA follow-up still carries the request it follows:');
+routes(after(PY, 'خليها أقصر'), 'qcode/code', 'خليها أقصر');
+routes(after(PY, 'make it shorter'), 'qcode/code', 'make it shorter');
+routes(after(PY, 'make it shorter', 'and add comments'), 'qcode/code', 'a chain of follow-ups reaches back to the request');
+routes(after('what is 17 * 23?', 'and why?'), 'general/math', 'math carries over to a follow-up too');
+{
+  // The page writes its own notes after the person's words; a follow-up is
+  // read on the words (ownWords.js), however long the note.
+  const noted = after(PY, 'make it shorter\n\n[Image(s) attached and analyzed when this was sent] ' + 'a picture of a cat. '.repeat(30));
+  const route = classifyQjoRequest({ messages: noted, mode: 'flash', routingDecision: null });
+  route.intent === 'code' ? pass++ : fail++;
+  console.log(`  ${route.intent === 'code' ? '✅' : '❌'} a follow-up with the page's note after it is still a follow-up (${route.intent})`);
+}
+
+console.log('\nWords, not letters — and code only where it is code:');
+NOT_CODE('ارسملي الدالة y = x^2', 'دالة: a function in math');
+NOT_CODE('وين موقع البتراء؟', 'موقع: a location');
+NOT_CODE('what is terminal velocity?');
+NOT_CODE('what is the margin of error in a poll?');
+NOT_CODE('explain a chemical reaction', 'react inside reaction');
+NOT_CODE('how should I react to criticism?', 'react, the verb');
+NOT_CODE('how do I express my feelings?', 'express, the verb');
+NOT_CODE('شو هي العدالة الاجتماعية؟', 'دالة inside العدالة');
+NOT_CODE('شو أسباب الركود الاقتصادي؟', 'كود inside الركود');
+NOT_CODE('مين هو الخوارزمي؟', 'the mathematician, not an algorithm');
+NOT_CODE('what is angular momentum?');
+NOT_CODE('how do I remove rust from my car?');
+NOT_CODE('compile a list of books about history');
+NOT_CODE('اكتبلي سكربت فيديو عن السفر', 'a video script');
+CODE('write a function that reverses a string');
+CODE('build a react app with hooks');
+CODE('fix this error in my code');
+CODE('create a class in Java');
+CODE('def reverse(s): return s[::-1]', 'a definition is code');
+for (const [text, want] of [['what are you doing tonight?', 'general/general'], ['شو أكبر منطقة بالأردن؟', 'general/general'], ['اشرح الحرب العالمية الثانية', 'general/general'], ['I read it in the newspaper', 'general/general']]) {
+  routes(after(text), want, `${text} (doi in doing, منطق in منطقة, نية in الثانية, paper in newspaper)`);
+}
+
+console.log('\nMath in English:');
+for (const text of ['solve the integral of x*sin(x) dx', 'integrate x*sin(x)', 'differentiate x ln x', 'simplify (a+b)(a-b)', 'solve 2x + 3 = 7', 'what is the derivative of x^3?', 'explain the quadratic equation']) {
+  const route = classifyQjoRequest({ messages: after(text), mode: 'flash', routingDecision: routeUserRequestDeterministic(after(text)) });
+  route.mathIntent ? pass++ : fail++;
+  console.log(`  ${route.mathIntent ? '✅' : '❌'} ${text} is math`);
+}
+for (const text of ['how do I integrate into a new team?', 'simplify this paragraph for me', 'differentiate between empathy and sympathy', 'بالنسبة لي شو رأيك بالسفر؟']) {
+  const route = classifyQjoRequest({ messages: after(text), mode: 'flash', routingDecision: routeUserRequestDeterministic(after(text)) });
+  !route.mathIntent ? pass++ : fail++;
+  console.log(`  ${!route.mathIntent ? '✅' : '❌'} ${text} is not math`);
+}
+
+console.log('\nThe continuity lock is for edits of the last answer, not new questions:');
+for (const [text, lock] of [
+  ['what is the capital of Japan? give me more information', false], ['حدثني حول تاريخ مصر قبل الإسلام', false],
+  ['اكتب مقال حول مستقبل الطاقة', false], ['كم معدل البطالة بالأردن هذا العام؟', false], ['شو معدل الفائدة على هذا القرض؟', false],
+  ["update this table with today's prices", false], ['حدّث هذا الجدول بأسعار اليوم', false], // an edit that needs fresh data searches
+  ['حوله لجدول', true], ['make it a table', true], ['لخص اللي فوق', true], ['translate this', true], ['اختصر الرد السابق بنقاط', true], ['رتّبها بنقاط', true]
+]) {
+  const good = isContextualTransformRequest(text) === lock;
+  good ? pass++ : fail++;
+  console.log(`  ${good ? '✅' : '❌'} ${text} — ${lock ? 'locked' : 'free'}`);
+}
+
+// ── Which pipeline answers, through the real engine ──
+// OpenRouter's code slot opens the code pipeline and Cerebras opens Flash's,
+// so the first provider asked says which one the engine chose. The provider
+// call is the stub, nothing above it.
+const { createRoutingEngine } = require('../src/agents/RoutingEngine');
+const dispatched = [];
+const engine = createRoutingEngine({
+  llmService: { dispatch: async (provider, params) => { dispatched.push({ provider, model: params.model, effort: params.reasoning_effort }); return { ok: true, answer: 'ok', provider, model: params.model, finish_reason: 'stop' }; } },
+  keys: { openrouter: 1, cerebras: 1 },
+  models: { openrouterCode: 'or-code', openrouterText: 'or-text', openrouterFlash: 'or-flash', cerebrasFlash: 'cb-flash', cerebrasText: 'cb-text' }
+});
+async function answeredBy(messages) {
+  dispatched.length = 0;
+  await engine.callAgent({ mode: 'flash', messages: [{ role: 'system', content: 'You are Qjo.' }, ...messages], routingDecision: routeUserRequestDeterministic(messages), useTools: false });
+  return `${dispatched[0].model}/${dispatched[0].effort || 'default'}`;
+}
+async function pipeline(messages, want, label) {
+  const got = await answeredBy(messages);
+  const good = got === want;
+  good ? pass++ : fail++;
+  console.log(`  ${good ? '✅' : '❌'} ${label}`);
+  if (!good) console.log(`     wanted ${want}, got ${got}`);
+}
+
+(async () => {
+  console.log('\nThe pipeline and the reasoning, through the engine:');
+  await pipeline(after(PY), 'or-code/default', 'control: the coding question is answered by the code pipeline, thinking');
+  await pipeline(after(PY, 'make it shorter'), 'or-code/default', 'and so is a follow-up to it');
+  for (const text of ['شو عاصمة اليابان؟', 'أنا متوتر من الامتحان بكرا']) await pipeline(after(PY, text), 'cb-flash/low', `${text} after it: Flash, thinking lightly`);
+  await pipeline(after('ارسملي الدالة y = x^2'), 'cb-flash/low', 'ارسملي الدالة y = x^2: Flash');
+  await pipeline(after('solve the integral of x*sin(x) dx'), 'cb-flash/default', 'English math: Flash, thinking');
+
+  console.log('\n========================================');
+  console.log(`${pass} passed, ${fail} failed`);
+  process.exit(fail ? 1 : 0);
+})().catch((e) => { console.error(e); process.exit(1); });

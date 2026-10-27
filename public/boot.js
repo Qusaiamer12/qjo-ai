@@ -51,6 +51,7 @@
     ['editing a message', () => window.QjoUI && window.QjoUI.createMessageEditor],
     ['own words', () => window.QjoDomain && window.QjoDomain.ownWords],
     ['site requests', () => window.QjoDomain && window.QjoDomain.siteRequest],
+    ['topic words', () => window.QjoDomain && window.QjoDomain.topicWords],
     ['reading chart and quiz blocks', () => window.QjoDomain && window.QjoDomain.relaxedJson],
     ['math plot descriptions', () => window.QjoDomain && window.QjoDomain.mathPlot],
     ['math plots', () => window.QjoUI && window.QjoUI.createMathPlots],
