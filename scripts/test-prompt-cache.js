@@ -262,8 +262,8 @@ const system = (body) => body.messages.filter((m) => m.role === 'system').map((m
   const sentFor = async (messages) => { const got = await chat(messages, { mode: 'normal', model: 'openai/gpt-oss-20b' }); return got[got.length - 1].body; };
   const routerSaid = (body) => (textOf(lastUser(body).content).match(/Router decision: (\w+)/) || [])[1];
   const seen = (body) => JSON.stringify([routerSaid(body), body.reasoning_effort || 'default']);
-  await test('control: the coding question is code, thinking — and so is a follow-up to it: "خليها أقصر", "make it shorter"', async () => {
-    for (const messages of [PY.slice(0, 1), [...PY, { role: 'user', content: 'خليها أقصر' }], [...PY, { role: 'user', content: 'make it shorter' }]]) {
+  await test('control: the coding question is code, thinking — and so is a follow-up to it: "خليها أقصر", "make it shorter", "it gives an error"', async () => {
+    for (const messages of [PY.slice(0, 1), ...['خليها أقصر', 'make it shorter', 'it gives an error', 'طلعلي خطأ'].map((content) => [...PY, { role: 'user', content }])]) {
       assert.strictEqual(seen(await sentFor(messages)), '["qcode","default"]', textOf(messages[messages.length - 1].content));
     }
   });
@@ -292,7 +292,7 @@ const system = (body) => body.messages.filter((m) => m.role === 'system').map((m
     const before = [{ role: 'user', content: 'شو أهم صادرات اليابان؟' }, { role: 'assistant', content: 'السيارات والإلكترونيات.' }];
     const locked = (body) => /Context continuity lock/.test(textOf(lastUser(body).content));
     for (const content of ['حوله لجدول', 'make it a table']) assert.ok(locked(await sentFor([...before, { role: 'user', content }])), `${content} was not locked`);
-    for (const content of ['what is the capital of Japan? give me more information', 'اكتب مقال حول مستقبل الطاقة', 'كم معدل البطالة بالأردن هذا العام؟']) {
+    for (const content of ['what is the capital of Japan? give me more information', 'اكتب مقال حول مستقبل الطاقة', 'كم معدل البطالة بالأردن هذا العام؟', 'مين غيره فاز بجائزة نوبل؟']) {
       assert.ok(!locked(await sentFor([...before, { role: 'user', content }])), `${content} was locked to the last answer`);
     }
   });

@@ -7,12 +7,15 @@
  * "app" in "apply"; on the server "عدل" in "معدل" and "قبل" in "مستقبل" read
  * new questions as edits of the last answer.
  *
- * A Latin term is a word between non-letters, plural allowed. An Arabic term
- * is a word between non-Arabic letters, with what Arabic writes onto it: و ف
- * ب ل ك ال هال before, a pronoun (ـه ـها ـي ـلي ـني), a plural ـات or a ة that
- * becomes ت after. A term ending in `*` is a stem (برمج* is برمجة, برمجيات);
- * one ending in `=` takes nothing after it (حساب, not حسابي, "my account").
- * Hamza on an alif, harakat and the tatweel are ignored in both.
+ * A Latin term is a word between non-letters, a plural or a version number
+ * allowed (python3, HTML5). An Arabic term is a word between non-Arabic
+ * letters, with what Arabic writes onto it: و ف ب ل ك ال هال before, a
+ * pronoun (ـه ـها ـي ـلي ـني), a plural ـات or a ة that becomes ت after, or
+ * is written ه. A word of three letters takes ب ل ك only with ال: نية is not
+ * in "بنية الذرة" (structure). A term ending in `*` is a stem (برمج* is
+ * برمجة, برمجيات); one ending in `=` takes nothing after it (حساب, not
+ * حسابي, "my account"; منطق, not منطقه, a region). Hamza on an alif, harakat
+ * and the tatweel are ignored in both.
  *
  * Pure: text and terms in, true or false out.
  */
@@ -22,6 +25,7 @@
   const AR = '\\u0621-\\u063F\\u0641-\\u064A\\u0671-\\u06D3\\u06FA-\\u06FF';
   const AR_LETTER = new RegExp(`[${AR}]`);
   const PROCLITIC = '[وف]?(?:[بلك]|لل)?(?:ال|هال)?';
+  const PROCLITIC_SHORT = '[وف]?(?:[بك]?ال|لل|هال)?';
   const AR_SUFFIX = '(?:ات)?(?:ل[يى]|لنا|له|لها|لهم|لك)?(?:ني|ه|ها|هم|هن|ي|ك|كم|نا|و)?';
   const LATIN = 'a-z0-9_';
 
@@ -42,12 +46,13 @@
     let body = term.split(/\s+/).map(escape).join('\\s+');
     if (arEnd) {
       const open = stem ? `[${AR}]*` : (exact ? '' : AR_SUFFIX);
-      if (!stem && !exact && body.endsWith('ة')) body = `${body.slice(0, -1)}(?:ة|ات|ت${AR_SUFFIX})`;
+      if (!stem && !exact && body.endsWith('ة')) body = `${body.slice(0, -1)}(?:ة|ه|ات|ت${AR_SUFFIX})`;
       else body += open;
     } else {
-      body += stem ? `[${LATIN}]*` : (exact ? '' : '(?:s|es)?');
+      body += stem ? `[${LATIN}]*` : (exact ? '' : '(?:s|es|\\d+(?:\\.\\d+)*)?');
     }
-    const before = arStart ? `(?<![${AR}])${PROCLITIC}` : `(?<![${LATIN}])`;
+    const short = term.split(/\s+/)[0].length <= 3;
+    const before = arStart ? `(?<![${AR}])${short ? PROCLITIC_SHORT : PROCLITIC}` : `(?<![${LATIN}])`;
     const after = arEnd ? `(?![${AR}])` : `(?![${LATIN}])`;
     return before + body + after;
   }
@@ -75,9 +80,9 @@
   // page and a math figure are decided elsewhere, before these.
   const PAGE_TOPICS = {
     code: ['code', 'coding', 'codebase', 'كود', 'برمج*', 'مبرمج*', 'debug*', 'bug', 'api', 'html', 'css', 'javascript', 'typescript', 'python', 'react', 'reactjs', 'react.js', 'node', 'تطبيق', 'موقع ويب', 'موقع الكتروني', 'لعبة', 'app', 'website', 'game'],
-    codeBudget: ['code', 'coding', 'codebase', 'كود', 'برمج*', 'مبرمج*', 'دالة', 'debug*', 'bug', 'api', 'html', 'css', 'javascript', 'typescript', 'python', 'react', 'reactjs', 'react.js', 'node', 'sql', 'تطبيق', 'موقع ويب', 'موقع الكتروني', 'سكربت', 'script', 'function', 'class'],
+    codeBudget: ['code', 'coding', 'codebase', 'كود', 'برمج*', 'مبرمج*', 'دالة', 'debug*', 'bug', 'api', 'html', 'css', 'javascript', 'typescript', 'python', 'react', 'reactjs', 'react.js', 'node', 'sql', 'mysql', 'postgres*', 'nosql', 'sqlite', 'تطبيق', 'موقع ويب', 'موقع الكتروني', 'سكربت', 'script', 'function', 'class'],
     neural: ['neural', 'شبكة عصبية', 'شبكات عصبية', 'transformer', 'cnn', 'rnn', 'gnn', 'attention', 'architecture', 'معمارية', 'نموذج تعلم عميق', 'deep learning'],
-    research: ['بحث', 'paper', 'دراسة', 'منهجية', 'فرضية', 'literature', 'review', 'academic', 'اكاديمي', 'اكاديمية', 'مصادر', 'توثيق'],
+    research: ['بحث', 'بحثي', 'بحثية', 'paper', 'دراسة', 'منهجية', 'فرضية', 'literature', 'review', 'academic', 'اكاديمي', 'اكاديمية', 'مصادر', 'توثيق'],
     tutoring: ['اشرح', 'علمني', 'ادرس', 'طالب', 'طالبة', 'امتحان', 'quiz', 'quizzes', 'اختبار', 'مذاكرة', 'لخص', 'تلخيص', 'افهم', 'شرح'],
     math: ['احسب', 'رياضيات', 'معادلة', 'برهان', 'احتمال', 'احتمالية', 'احصاء', 'جبر', 'تفاضل', 'تكامل', 'algorithm', 'خوارزمية', 'equation', 'integral', 'derivative', 'calculus', 'algebra', 'probability', 'statistics', 'theorem'],
     file: ['pdf', 'ملف', 'وثيقة', 'صورة', 'مرفق', 'مرفقة', 'csv', 'json']

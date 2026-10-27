@@ -580,7 +580,7 @@ function instructionRegion(text) {
 function routeUserRequestDeterministic(messagesOrText) {
   const latest = lastUserText(messagesOrText);
   const recent = typeof messagesOrText === 'string' ? latest : intentMessages(messagesOrText).join('\n\n').slice(-12000);
-  const q = `${recent}\n${latest}`.toLowerCase();
+  const q = `${recent}\n${latest}`; // case kept: "IndexError", "what is React?"
 
   const explicitQcode = /(qcode|q-code|code lab|كيو\s*كود|كيوكود)/i.test(q);
 
@@ -591,7 +591,7 @@ function routeUserRequestDeterministic(messagesOrText) {
   // became a coding request at 90% confidence: it happened to contain
   // "الموقع: عمان" (a location field, not a website), "Git / VS Code" (a
   // listed skill) and the name of the clinical database a device trained on.
-  const qIntent = `${instructionRegion(recent)}\n${instructionRegion(latest)}`.toLowerCase();
+  const qIntent = `${instructionRegion(recent)}\n${instructionRegion(latest)}`;
 
   // Code wherever it appears (a fenced block, a stack trace); a tool, a
   // language or a code noun only inside the instruction region, because

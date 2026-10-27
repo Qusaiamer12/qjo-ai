@@ -1148,6 +1148,21 @@ lines\`,
       assert.ok(topicWords.pageTopic(text, /** @type {any} */ (topic)), `${text} is not ${topic}`);
     }
   });
+  test('a version number is part of the name: python3, HTML5, CSS3; and SQL by any of its names', () => {
+    for (const [text, topic] of [['install python3', 'code'], ['an HTML5 canvas', 'code'], ['CSS3 grid', 'codeBudget'], ['MySQL index', 'codeBudget'], ['PostgreSQL vs SQLite', 'codeBudget'], ['NoSQL databases', 'codeBudget']]) {
+      assert.ok(topicWords.pageTopic(text, /** @type {any} */ (topic)), `${text} is not ${topic}`);
+    }
+  });
+  test('a word of three letters takes ب ل ك only with ال: نية is not in بنية (structure)', () => {
+    assert.ok(!topicWords.hasWord('بنية الذرة', ['نية']) && !topicWords.hasWord('بنيته قوية', ['نية']), 'بنية read as نية');
+    assert.ok(topicWords.hasWord('بالنية', ['نية']) && topicWords.hasWord('النية', ['نية']) && topicWords.hasWord('نيته', ['نية']), 'control: نية as itself');
+    assert.ok(topicWords.hasWord('صححلي بالكود', ['كود']) && topicWords.hasWord('اكتبلي بكودك', ['كودك']) && topicWords.hasWord('ملفاتي', ['ملف']));
+  });
+  test('a ة written ه is still the word; a stem marked = does not take ه', () => {
+    assert.ok(topicWords.hasWord('حل المعادله', ['معادلة']) && topicWords.hasWord('اوراق بحثيه', ['بحثية']));
+    assert.ok(!topicWords.hasWord('اكبر منطقه', ['منطق=']) && topicWords.hasWord('المنطق', ['منطق=']));
+    assert.ok(topicWords.pageTopic('اوراق بحثية عن المناخ', 'research'), 'بحثية');
+  });
   test('a term marked = takes nothing after it; one marked * takes anything', () => {
     assert.ok(topicWords.hasWord('الحساب', ['حساب=']) && !topicWords.hasWord('حسابي', ['حساب=']));
     assert.ok(topicWords.hasWord('برمجيات', ['برمج*']) && !topicWords.hasWord('برمجيات', ['برمج=']));

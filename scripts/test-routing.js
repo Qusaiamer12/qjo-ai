@@ -109,12 +109,31 @@ routes(after(PY, 'شو عاصمة اليابان؟'), 'general/general', 'شو �
 routes(after(PY, 'أنا متوتر من الامتحان بكرا'), 'general/general', 'أنا متوتر من الامتحان بكرا');
 routes(after(PY, 'why is the sky blue?'), 'general/general', 'why is the sky blue?');
 routes(after(PY, 'شو عاصمة اليابان؟', 'make it shorter'), 'general/general', 'a follow-up to the new question follows the new question, not the code before it');
+// A connective opens a follow-up only when little follows it (followUp.js).
+for (const text of ['طيب شو عاصمة اليابان؟', 'و شو عاصمة اليابان؟', 'ok what is the capital of Japan?', 'so why is the sky blue?', 'مين الرئيس السابق لأمريكا؟']) {
+  routes(after(PY, text), 'general/general', `${text} — a new question that opens with a connective`);
+}
 
 console.log('\nA follow-up still carries the request it follows:');
 routes(after(PY, 'خليها أقصر'), 'qcode/code', 'خليها أقصر');
 routes(after(PY, 'make it shorter'), 'qcode/code', 'make it shorter');
 routes(after(PY, 'make it shorter', 'and add comments'), 'qcode/code', 'a chain of follow-ups reaches back to the request');
 routes(after('what is 17 * 23?', 'and why?'), 'general/math', 'math carries over to a follow-up too');
+
+// After code, a short message about an error, a failure or the code itself
+// works on that code although it names no language.
+for (const text of ['it gives an error', 'ما زبطت معي', 'طلعلي خطأ', 'IndexError: string index out of range', 'can you add type hints', 'شو بتعمل هاي الدالة؟']) {
+  routes(after(PY, text), 'qcode/code', `after code: ${text}`);
+}
+routes(after(PY, 'it gives an error', 'طلعلي خطأ'), 'qcode/code', 'two messages about the code reach back to it');
+routes(after('شو عاصمة اليابان؟', 'it gives an error'), 'general/general', 'control: after a question that is not code, "it gives an error" is not code');
+routes(after(PY, 'شو عاصمة اليابان؟', 'ما زبطت معي'), 'general/general', 'control: a question between them ends the code');
+routes(after('احسب 5+3', 'it gives an error'), 'general/general', 'control: after a sum, "it gives an error" does not take the sum with it');
+
+// The window: a request and five follow-ups to it; a sixth leaves the request.
+const FOLLOW = ['make it shorter', 'make it longer', 'make it simpler', 'again', 'one more'];
+routes(after(PY, ...FOLLOW), 'qcode/code', 'five follow-ups still reach the request');
+routes(after(PY, ...FOLLOW, 'make it clearer'), 'general/general', 'a sixth is past the window');
 {
   // The page writes its own notes after the person's words; a follow-up is
   // read on the words (ownWords.js), however long the note.
@@ -126,9 +145,11 @@ routes(after('what is 17 * 23?', 'and why?'), 'general/math', 'math carries over
 
 console.log('\nWords, not letters — and code only where it is code:');
 NOT_CODE('ارسملي الدالة y = x^2', 'دالة: a function in math');
-NOT_CODE('وين موقع البتراء؟', 'موقع: a location');
-NOT_CODE('what is terminal velocity?');
-NOT_CODE('what is the margin of error in a poll?');
+// The router never read these as code; the classifier did, from "موقع",
+// "terminal" and "error" by themselves.
+routes(after('وين موقع البتراء؟'), 'general/general', 'موقع: a location');
+routes(after('what is terminal velocity?'), 'general/general', 'what is terminal velocity?');
+routes(after('what is the margin of error in a poll?'), 'general/general', 'what is the margin of error in a poll?');
 NOT_CODE('explain a chemical reaction', 'react inside reaction');
 NOT_CODE('how should I react to criticism?', 'react, the verb');
 NOT_CODE('how do I express my feelings?', 'express, the verb');
@@ -144,8 +165,26 @@ CODE('build a react app with hooks');
 CODE('fix this error in my code');
 CODE('create a class in Java');
 CODE('def reverse(s): return s[::-1]', 'a definition is code');
-for (const [text, want] of [['what are you doing tonight?', 'general/general'], ['شو أكبر منطقة بالأردن؟', 'general/general'], ['اشرح الحرب العالمية الثانية', 'general/general'], ['I read it in the newspaper', 'general/general']]) {
-  routes(after(text), want, `${text} (doi in doing, منطق in منطقة, نية in الثانية, paper in newspaper)`);
+// Code without a language's name: an exception, a failing program, tests.
+for (const text of ['ModuleNotFoundError: No module named numpy', 'IndexError: list index out of range', 'KeyError: name', 'my program throws an exception',
+  'undefined is not a function', 'CORS error when calling fetch', 'write unit tests for this function', 'عندي error بالبرنامج']) {
+  routes(after(text), 'qcode/code', text);
+}
+// A framework by its name: capitalised inside a sentence, set up, or "في".
+for (const text of ['what is React?', 'كيف اعمل useState في React', 'كيف اعمل routing في react', 'how do I set up express', 'rust ownership explained', 'رتب هاي المصفوفة', 'install python3 on ubuntu']) {
+  routes(after(text), 'qcode/code', text);
+}
+for (const text of ['React to the news calmly, he said.', 'Express your feelings honestly', 'is Taylor Swift touring?', 'Rust is forming on my bike',
+  'the terror of the night', 'Java island in Indonesia', 'write a program for the conference', 'use express delivery for the parcel']) {
+  routes(after(text), 'general/general', `not code: ${text}`);
+}
+for (const [text, want] of [['what are you doing tonight?', 'general/general'], ['شو أكبر منطقة بالأردن؟', 'general/general'], ['اشرح الحرب العالمية الثانية', 'general/general'], ['I read it in the newspaper', 'general/general'],
+  ['شو أكبر منطقه بالأردن؟', 'general/general'], ['اشرحلي بنية الذرة', 'general/general'], ['قديش بنيته قوية؟', 'general/general']]) {
+  routes(after(text), want, `${text} (doi in doing, منطق in منطقة/منطقه, نية in الثانية/بنية, paper in newspaper)`);
+}
+// The other side: the words themselves still count.
+for (const [text, want] of [['هاد سؤال منطقي ولا لأ؟ لغز', 'general/reasoning'], ['شو النية من كلامه؟', 'general/social'], ['بدي اوراق بحثية عن المناخ', 'qspark/research']]) {
+  routes(after(text), want, text);
 }
 
 console.log('\nMath in English:');
@@ -165,11 +204,36 @@ for (const [text, lock] of [
   ['what is the capital of Japan? give me more information', false], ['حدثني حول تاريخ مصر قبل الإسلام', false],
   ['اكتب مقال حول مستقبل الطاقة', false], ['كم معدل البطالة بالأردن هذا العام؟', false], ['شو معدل الفائدة على هذا القرض؟', false],
   ["update this table with today's prices", false], ['حدّث هذا الجدول بأسعار اليوم', false], // an edit that needs fresh data searches
-  ['حوله لجدول', true], ['make it a table', true], ['لخص اللي فوق', true], ['translate this', true], ['اختصر الرد السابق بنقاط', true], ['رتّبها بنقاط', true]
+  ['مين غيره فاز بجائزة نوبل؟', false], ['اكتب عن أينشتاين ونيوتن وغيرهم', false], ['شو في دول غيرها بتحكي عربي؟', false],
+  ['شو الكواكب اللي حوله؟', false], ['ما هي الأقمار حولها', false], ['حدثني عن عدله', false], // who else, around it, his justice
+  ['حوله لجدول', true], ['make it a table', true], ['لخص اللي فوق', true], ['translate this', true], ['اختصر الرد السابق بنقاط', true], ['رتّبها بنقاط', true],
+  ['خليه أقصر', true], ['غيره لأسلوب رسمي', true], ['طيب ترجمها للإنجليزي', true]
 ]) {
   const good = isContextualTransformRequest(text) === lock;
   good ? pass++ : fail++;
   console.log(`  ${good ? '✅' : '❌'} ${text} — ${lock ? 'locked' : 'free'}`);
+}
+
+// ── Time: a long message must not hold the event loop ──
+// "function (" repeated made the code check backtrack: 7.6 s over 200,000
+// characters, with every other request waiting. Linear now.
+{
+  const { hardCodeSignal, codeAsked, mathAsked } = require('../src/agents/requestSignals');
+  const N = 200000;
+  const worst = [];
+  for (const unit of ['function (', '(a+', 'error code ', 'class a ', 'const ', 'in react ', 'رتب ال', 'بالرياكت ', 'aError ']) {
+    const text = unit.repeat(Math.ceil(N / unit.length)).slice(0, N);
+    let started = Date.now();
+    hardCodeSignal(text);
+    const hard = Date.now() - started;
+    started = Date.now();
+    codeAsked(text); mathAsked(text);
+    worst.push({ unit, hard, rest: Date.now() - started });
+  }
+  const slowHard = worst.filter((w) => w.hard >= 50), slowRest = worst.filter((w) => w.rest >= 400);
+  const good = !slowHard.length && !slowRest.length;
+  good ? pass++ : fail++;
+  console.log(`\n  ${good ? '✅' : '❌'} 200,000 characters: the code check under 50 ms, the rest under 400 ms (worst ${JSON.stringify(worst.reduce((a, b) => (b.hard + b.rest > a.hard + a.rest ? b : a)))})`);
 }
 
 // ── Which pipeline answers, through the real engine ──

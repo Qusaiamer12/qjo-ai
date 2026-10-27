@@ -28,16 +28,19 @@ const changesIt = matcher(['نسق', 'رتب', 'اختصر', 'لخص', 'صيغه
   'format', 'reformat', 'summarize', 'summarise', 'make it', 'turn it', 'table', 'bullets', 'bullet points', 'translate', 'continue', 'fix', 'rewrite', 'improve']);
 const asksFresh = matcher(['ابحث', 'بحث جديد', 'مصادر جديدة', 'آخر', 'اليوم', 'حالي', 'حاليا', 'الآن', 'اونلاين', 'أونلاين', 'هذا العام', 'هذه السنة', 'هالسنة', 'العام الحالي',
   'search', 'latest', 'current', 'today', 'online', 'new sources', 'this year']);
-// A verb with the answer as its object points back by itself: حوّله، رتبها،
-// خليه، اعمله، ترجمها. Bare "حول" is "about", so alone "حوّل" needs its shadda.
+// An order with the answer as its object, opening the message, points back
+// by itself: "حوله لجدول"، "رتبها بنقاط"، "خليه أقصر"، "غيره لأسلوب رسمي".
+// Anywhere else the same letters are other words: "مين غيره فاز" (who
+// else), "الكواكب اللي حوله" (around it), "عن عدله" (his justice).
+// Bare "حول" is "about", so alone "حوّل" needs its shadda.
 const AR_LETTER = '[\\u0621-\\u063F\\u0641-\\u064A]';
-const VERB_ON_IT = new RegExp(`(?<!${AR_LETTER})[وف]?(?:حول|خلي|اعمل|نسق|رتب|اختصر|لخص|ترجم|وضح|كمل|صحح|حسن|عدل|صيغ|غير)(?:ل[يى])?(?:ه|ها|هم|و)(?!${AR_LETTER})`);
+const ORDER_ON_IT = new RegExp(`^(?:[وف]\\s*)?(?:(?:طيب|طب|بس|ممكن|هلق|يلا|لو سمحت)\\s+)?[وف]?(?:حول|خلي|اعمل|نسق|رتب|اختصر|لخص|ترجم|وضح|كمل|صحح|حسن|عدل|صيغ|غير)(?:ل[يى])?(?:ه|ها|هم|و)(?!${AR_LETTER})`);
 
 function isContextualTransformRequest(text) {
   const q = String(text || '').trim();
   if (!q || q.length > 700) return false;
-  const onIt = VERB_ON_IT.test(normalize(q));
-  return (onIt || pointsBack(q)) && (onIt || changesIt(q) || /حوّل/.test(q)) && !asksFresh(q);
+  const onIt = ORDER_ON_IT.test(normalize(q));
+  return (onIt || (pointsBack(q) && (changesIt(q) || /حوّل/.test(q)))) && !asksFresh(q);
 }
 
 function buildContextContinuityHint(text) {
