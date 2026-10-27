@@ -127,7 +127,7 @@ const looks = (frame) => frame.evaluate(() => {
   try {
     // ── Tailwind only where it is wanted ──
     {
-      const { ctx, page, errors, preview } = await openApp(browser, { viewport: { width: 1280, height: 860 } });
+      const { ctx, errors, preview } = await openApp(browser, { viewport: { width: 1280, height: 860 } });
       await ctx.route('https://cdn.tailwindcss.com/**', (r) => r.fulfill({ status: 200, contentType: 'application/javascript', body: TAILWIND }));
       await ctx.route('https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css', (r) => r.fulfill({ status: 200, contentType: 'text/css', headers: { 'access-control-allow-origin': '*' }, body: BOOTSTRAP_CSS }));
 

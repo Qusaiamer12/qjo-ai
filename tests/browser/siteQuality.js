@@ -135,7 +135,8 @@ async function checkNavigation(frame, problems, facts) {
       const atEnd = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2;
       return { url: location.href, top: el ? el.getBoundingClientRect().top : null, atEnd, half: window.innerHeight / 2 };
     }, href);
-    if (after.url !== 'about:srcdoc') { problems.push(`"${href}" left the page (${after.url})`); return; }
+    // A section link gives the preview its hash, as it gives a page its own: "about:srcdoc#menu" is still the page.
+    if (!/^about:srcdoc(?:#|$)/.test(after.url)) { problems.push(`"${href}" left the page (${after.url})`); return; }
     // At its top, give or take a sticky header — or as near as the end of the page allows.
     const inView = after.top !== null && after.top > -160 && (after.top < 160 || (after.atEnd && after.top < after.half));
     if (!inView) problems.push(`"${href}" did not bring its section into view (top ${after.top})`);
