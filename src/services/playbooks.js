@@ -24,10 +24,10 @@ const { asksForPlot, answerHasPlot } = require('../../public/domain/mathPlot');
 
 // The quantities a worked problem is about. Arabic words are whole words, with
 // or without "ال"/"بال"/"لل": "بطاقة" is a card and "بسرعة" is "quickly".
-const AR_WORD = (words) => new RegExp(`(?<![\\u0600-\\u06FF])(?:و?(?:ال|بال|لل))?(?:${words})(?![\\u0600-\\u06FF])`);
+const AR_WORD = (words) => new RegExp(`(?<![\\u0621-\\u065F\\u0671-\\u06D3])(?:و?(?:ال|بال|لل))?(?:${words})(?![\\u0621-\\u065F\\u0671-\\u06D3])`);
 const PROBLEM_SUBJECT_EN = /\b(?:velocity|speed|acceleration|force|momentum|energy|power|voltage|current|resistance|circuit|pressure|stress|strain|torque|beam|moles?|molarity|concentration|titration|enthalpy|half-life|ph|dose|dosage|mg\/kg|infusion|drip rate|clearance|bmi|interest rate|elasticity)\b/i;
 const PROBLEM_SUBJECT_AR = AR_WORD('سرعة|سرعتها|سرعته|تسارع|قوة|زخم|طاقة|قدرة|جهد|تيار|مقاومة|دارة|ضغط|إجهاد|اجهاد|عزم|مولارية|تركيز|معايرة|عمر النصف|جرعة|جرعه|تسريب|معدل التنقيط|كتلة الجسم');
-const PROBLEM_ASK = /\b(?:find|calculate|compute|solve|determine|how (?:much|many|long|fast))\b|(?<![\u0600-\u06FF])(?:احسب|أوجد|اوجد)|(?<![\u0600-\u06FF])(?:جد|حل|كم)(?![\u0600-\u06FF])/i;
+const PROBLEM_ASK = /\b(?:find|calculate|compute|solve|determine|how (?:much|many|long|fast))\b|(?<![\u0621-\u065F\u0671-\u06D3])(?:احسب|أوجد|اوجد)|(?<![\u0621-\u065F\u0671-\u06D3])(?:جد|حل|كم)(?![\u0621-\u065F\u0671-\u06D3])/i;
 
 const PLAYBOOKS = {
   writing: {
@@ -89,7 +89,7 @@ LITERARY CRAFTSMANSHIP, GRAMMAR & TEXT RESTRUCTURING
   • After the code, at most three short lines: what the page has, and what to ask for next.`
   },
   charts: {
-    match: /\b(plot|graph|chart|curve|diagram|visuali[sz]e)\b|(?<![\u0600-\u06FF])(?:ال)?(?:رسم|ارسم|رسمة|رسوم)(?:ة|ه|لي)?(?![\u0600-\u06FF])|منحنى|منحني|مخطط|بياني/i,
+    match: /\b(plot|graph|chart|curve|diagram|visuali[sz]e)\b|(?<![\u0621-\u065F\u0671-\u06D3])(?:ال)?(?:رسم|ارسم|رسمة|رسوم)(?:ة|ه|لي)?(?![\u0621-\u065F\u0671-\u06D3])|منحنى|منحني|مخطط|بياني/i,
     en: `
 - INTERACTIVE CHARTS & FUNCTION PLOTTING:
   • When asked to draw, plot, or graph any mathematical function, curve, or numerical comparison ("plot e^-t", "graph this function"):
@@ -171,7 +171,7 @@ LITERARY CRAFTSMANSHIP, GRAMMAR & TEXT RESTRUCTURING
   • Explicitly list practical substitutes for common missing ingredients.`
   },
   venting: {
-    match: /\b(sad|depress|anxious|anxiety|stressed|burn ?out|lonely|upset|heartbroken|crying|grief)\w*|\bvent(?:ing)?\b|زعلان|حزين|مضايق|مكتئب|اكتئاب|قلقان|متوتر|تعبان|مخنوق|طفشان|(?<![\u0600-\u06FF])وحيدة?(?![\u0600-\u06FF])|ابكي|أبكي|فضفض|مقهور|محبط|خذلني|انفصلنا|ضغط نفسي/i,
+    match: /\b(sad|depress|anxious|anxiety|stressed|burn ?out|lonely|upset|heartbroken|crying|grief)\w*|\bvent(?:ing)?\b|زعلان|حزين|مضايق|مكتئب|اكتئاب|قلقان|متوتر|تعبان|مخنوق|طفشان|(?<![\u0621-\u065F\u0671-\u06D3])وحيدة?(?![\u0621-\u065F\u0671-\u06D3])|ابكي|أبكي|فضفض|مقهور|محبط|خذلني|انفصلنا|ضغط نفسي/i,
     en: `
 - VENTING & COGNITIVE EMPATHY:
   • Practice Cognitive Empathy: Recognize emotional weight (burnout, sadness, grief, relationship distress).
@@ -230,8 +230,8 @@ LITERARY CRAFTSMANSHIP, GRAMMAR & TEXT RESTRUCTURING
     // Explaining a topic or preparing for an exam — not "explain this error",
     // which the code rules answer.
     match: {
-      test: (t) => /\b(?:explain|teach me|lesson|lecture|revise|revision|study|studying|exam|midterm|quiz me|help me understand)\b|اشرح|شرح|فهمني|فهّمني|وضح|وضّح|(?<![\u0600-\u06FF])(?:ا?درس|دروس|راجع)(?:لي|ني)?(?![\u0600-\u06FF])|مراجعة|امتحان|اختبار|محاضرة/i.test(t)
-        && !/\b(?:error|bug|exception|traceback|stack trace|crash(?:es|ed)?)\b|(?<![\u0600-\u06FF])(?:ها|هال|ال|بال|لل)?(?:خطأ|غلط)(?![\u0600-\u06FF])|ايرور|إيرور/i.test(t)
+      test: (t) => /\b(?:explain|teach me|lesson|lecture|revise|revision|study|studying|exam|midterm|quiz me|help me understand)\b|اشرح|شرح|فهمني|فهّمني|وضح|وضّح|(?<![\u0621-\u065F\u0671-\u06D3])(?:ا?درس|دروس|راجع)(?:لي|ني)?(?![\u0621-\u065F\u0671-\u06D3])|مراجعة|امتحان|اختبار|محاضرة/i.test(t)
+        && !/\b(?:error|bug|exception|traceback|stack trace|crash(?:es|ed)?)\b|(?<![\u0621-\u065F\u0671-\u06D3])(?:ها|هال|ال|بال|لل)?(?:خطأ|غلط)(?![\u0621-\u065F\u0671-\u06D3])|ايرور|إيرور/i.test(t)
     },
     en: `
 - TEACHING A TOPIC (explanations, lessons, revision):
@@ -245,7 +245,7 @@ LITERARY CRAFTSMANSHIP, GRAMMAR & TEXT RESTRUCTURING
   • For study or exam preparation, end with a \`\`\`quiz block of three questions: [{"question": "…", "options": ["…", "…", "…", "…"], "answer": "the correct option, word for word", "explanation": "…"}].`
   },
   medical: {
-    match: /symptom|\bpain(?:s|ful)?\b|doctor|medicin|headache|fever|\bsick\b|dizz|pregnan|\bpills?\b|\bdose|blood pressure|وجع|ألم|دكتور|طبيب|مرض|مريض|أعراض|اعراض|دواء|صداع|(?:حرارتي|حرارته|حرارتها|حرارة (?:عالية|مرتفعة|عندي))|سخونة|دوخة|حامل|جرعة|كحة|(?<![\u0600-\u06FF])(?:ال)?رشح(?![\u0600-\u06FF])|ضغط الدم|سكري/i,
+    match: /symptom|\bpain(?:s|ful)?\b|doctor|medicin|headache|fever|\bsick\b|dizz|pregnan|\bpills?\b|\bdose|blood pressure|وجع|ألم|دكتور|طبيب|مرض|مريض|أعراض|اعراض|دواء|صداع|(?:حرارتي|حرارته|حرارتها|حرارة (?:عالية|مرتفعة|عندي))|سخونة|دوخة|حامل|جرعة|كحة|(?<![\u0621-\u065F\u0671-\u06D3])(?:ال)?رشح(?![\u0621-\u065F\u0671-\u06D3])|ضغط الدم|سكري/i,
     en: `
 - FLEXIBLE MEDICAL & HEALTH GUARDRAILS:
   • Never issue a cold, abrupt robotic refusal ("I am an AI and cannot give medical advice").
@@ -261,7 +261,7 @@ LITERARY CRAFTSMANSHIP, GRAMMAR & TEXT RESTRUCTURING
 // no cache holds them. A plain greeting's warmth is the core prompt's (TONE).
 const BANTER = /فنان|وحش|كفو|يسعد|بحبك|بنحبك|أحبك|احبك|الهمة|الأخبار|الاخبار|أفضل|افضل|أحسن|احسن|رأيك|رايك|بتتوقع|يفوز/;
 const SOCIAL = ['apology', 'subtext', 'excuses'];
-const QUESTION_START = /^(?:what|who|whom|whose|where|when|why|how|which|is|are|was|were|do|does|did|can|could|should|would|will|tell me|explain)\b|^(?:شو|ايش|إيش|وش|مين|من هو|من هي|وين|أين|اين|متى|امتى|إمتى|ليش|لماذا|ليه|كيف|كيفك|قديش|كم|هل|ما هو|ما هي|ماذا|اشرح|احكيلي|خبرني)(?![\u0600-\u06FF])/i;
+const QUESTION_START = /^(?:what|who|whom|whose|where|when|why|how|which|is|are|was|were|do|does|did|can|could|should|would|will|tell me|explain)\b|^(?:شو|ايش|إيش|وش|مين|من هو|من هي|وين|أين|اين|متى|امتى|إمتى|ليش|لماذا|ليه|كيف|كيفك|قديش|كم|هل|ما هو|ما هي|ماذا|اشرح|احكيلي|خبرني)(?![\u0621-\u065F\u0671-\u06D3])/i;
 const CODE_WORDS = /```|\bfunction\b|\bconst\b|\bclass\b|\bimport\b|stack trace|traceback|compile|debug|refactor|npm |yarn |pip |docker|regex|api\b|sdk\b|react|node\.js|typescript|javascript|python|java\b|sql\b|كود|بايثون|برمج|برمجة|دالة|كلاس|مكتبة|خطأ برمجي|صحح الكود|اكتب لي برنامج|تطبيق ويب/i;
 // An attached file the page names (app.js's attachment context) that is code.
 const CODE_FILE = /^Attachment Index \d+: .+\.(?:[cm]?jsx?|tsx?|py|ipynb|java|kt|swift|c|cc|cpp|h|hpp|cs|go|rb|php|rs|dart|sql|sh|ps1|html?|css|scss|vue|svelte)$/im;

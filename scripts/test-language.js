@@ -375,6 +375,12 @@ test('a follow-up is told from a new question', () => {
   for (const text of ['make it shorter', 'add comments', 'add a title', 'خليه أحمر', 'زيد عليه العنوان بالعربي', 'كبر المجال لـ 10', 'make it a line chart', 'add March 7', 'more formal', 'خليها أقصر', 'ترجمها للإنجليزي', 'اختصره', 'translate it to Arabic', 'بدون باذنجان', 'وإذا ما راح؟', 'now in km/h', 'بس بدي فضفض', 'طيب شو أعمل؟', 'and in Python?', 'what about the second one?', 'كمان مثال', 'with less sugar']) {
     assert.ok(isFollowUp(text), `a follow-up taken for a new question: ${text}`);
   }
+  // A connective opens a follow-up only when little follows it; a new question
+  // after "طيب" or "ok" is still new (found by review). And "؟" ends a word.
+  for (const text of ['طيب شو عاصمة اليابان؟', 'و شو عاصمة اليابان؟', 'بس أنا متوتر من الامتحان', 'يعني شو أحسن أكلة بالأردن؟', 'ok what is the capital of Japan?', 'so why is the sky blue?', 'now tell me about the French revolution', 'مين الرئيس السابق لأمريكا؟', 'I love it', 'tell me about it']) {
+    assert.ok(!isFollowUp(text), `a new question after a connective taken for a follow-up: ${text}`);
+  }
+  for (const text of ['خليه؟', 'ترجمه؟', 'و كيف؟', 'وشو بعدين؟']) assert.ok(isFollowUp(text), `"؟" read as part of the word: ${text}`);
   for (const text of ['شو عاصمة اليابان؟', 'what is the capital of Japan?', 'اشرحلي نظرية فيثاغورس', 'كيف استخدم الذكاء الاصطناعي بالدراسة؟', 'وين موقع البتراء؟', 'متى توفي صلاح الدين؟', 'why is the sky blue?', 'I feel so sad today', 'اكتبلي قصيدة عن البحر', 'write a javascript function that sorts an array', 'كيفك؟']) {
     assert.ok(!isFollowUp(text), `a new question taken for a follow-up: ${text}`);
   }
