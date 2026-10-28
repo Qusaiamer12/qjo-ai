@@ -34,3 +34,6 @@ tests/browser/.pyodide-cache/
 
 # Claude Code agent worktrees
 .claude/worktrees/
+# Also as symlinks (an agent worktree links them in)
+node_modules
+tests/browser/.pyodide-cache
