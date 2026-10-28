@@ -39,11 +39,10 @@
   // A preview is an about:srcdoc document, and its links resolve against the
   // app's address: a site's "#about" pointed at the app, and one click turned
   // the preview into Qjo's own sign-in page. A form's submit did the same.
-  // Now a link to a section scrolls to it in the page — not by setting
-  // location.hash, which in a srcdoc document is itself a navigation to the
-  // app's address (measured in Chromium); a link to
-  // another file of the answer asks the app to show it; a link out opens in a
-  // new tab; a form shows that it works, and sends nothing.
+  // Now a link to a section changes the frame's hash and scrolls to it in the
+  // page; a link to another file of the answer asks the app to show it (at
+  // its section, for "page.html#id"); a link out opens in a new tab; a form
+  // shows that it works, and sends nothing.
   const LINK_GUARD = `(function () {
   var S = __STRINGS__;
   function note(text) {
@@ -87,6 +86,33 @@
         set: function (v) { var pair = String(v).split(';')[0]; var at = pair.indexOf('='); if (at > 0) jar.setItem(pair.slice(0, at).trim(), pair.slice(at + 1).trim()); } });
     } catch (_) {}
   }
+  // The frame's own address with another hash. history.replaceState with the
+  // whole "about:srcdoc#id" never navigates; with "#id" alone it resolves
+  // against the app and throws (both measured in Chromium).
+  function hashTo(id) {
+    var before = location.href, next = before.split('#')[0] + '#' + id;
+    if (next === before) return null;
+    try { history.replaceState(history.state, '', next); } catch (_) { return null; }
+    return { oldURL: before, newURL: location.href };
+  }
+  // "#id" as a browser follows it: the hash changes, the section is scrolled
+  // to, then popstate and hashchange — a page that shows one view at a time
+  // reads location.hash on hashchange, and never got one.
+  function follow(id) {
+    var change = hashTo(id);
+    var el = section(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    else if (id === 'top') window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (!change) return;
+    try { window.dispatchEvent(new PopStateEvent('popstate', { state: history.state })); } catch (_) {}
+    try { window.dispatchEvent(new HashChangeEvent('hashchange', change)); } catch (_) {}
+  }
+  // Opened as "page.html#id" from another page of the answer: the hash is the
+  // page's before its own code runs. The browser then scrolls to that section
+  // as the page loads, as it does for any address with a hash (measured in
+  // Chromium: a scroll of the guard's own here changed nothing).
+  var START = __START__;
+  if (START) hashTo(START);
   document.addEventListener('click', function (e) {
     var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
     if (!a || e.defaultPrevented) return;
@@ -96,14 +122,19 @@
     if (href.charAt(0) === '#') {
       var id = href.slice(1);
       if (!id) return; // href="#" is a button's: its own handler acts
-      if (id === 'top') { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
-      var el = section(id);
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Followed after the page's own handlers, as a browser follows a link:
+      // a phone menu closes on the tap first, and the section is measured
+      // where it then is — measured with the menu open, it landed the menu's
+      // height past it. A handler that cancels the click handles it itself.
+      var own = false;
+      try { e.preventDefault = function () { own = true; Event.prototype.preventDefault.call(e); }; } catch (_) {}
+      setTimeout(function () { if (!own) follow(id); }, 0);
       return;
     }
     if (/^(?:[a-z][a-z0-9+.-]*:|[\\/]{2})/i.test(href)) { window.open(a.href, '_blank', 'noopener'); return; }
     var name = href.split(/[?#]/)[0].split('/').pop();
-    if (name) window.parent.postMessage({ qjoPreview: 'open', name: name }, '*');
+    var at = href.indexOf('#');
+    if (name) window.parent.postMessage({ qjoPreview: 'open', name: name, hash: at >= 0 ? href.slice(at + 1) : '' }, '*');
   }, true);
   // After the page's own handlers, so a form it handles itself shows its own
   // message; one it left alone is held here. The check is put on the form as
@@ -116,7 +147,8 @@
   // What every preview frame may do — in the answer, the studio and a tab of
   // its own. Never allow-same-origin: the page's code must not reach the app.
   const SANDBOX = 'allow-scripts allow-modals allow-forms allow-popups allow-popups-to-escape-sandbox';
-  const guardScript = (strings) => `<script>${LINK_GUARD.replace('__STRINGS__', () => jsonForScript({ ...DEFAULT_STRINGS, ...(strings || {}) }))}</script>\n`;
+  // One pass over the guard, so a hash that reads "__STRINGS__" is not filled in again.
+  const guardScript = (strings, hash) => `<script>${LINK_GUARD.replace(/__(STRINGS|START)__/g, (_, key) => jsonForScript(key === 'START' ? String(hash || '').slice(0, 200) : { ...DEFAULT_STRINGS, ...(strings || {}) }))}</script>\n`;
 
   const ARABIC = /[\u0600-\u06FF]/;
   // Server code: a page must not run it, and it is not the page's script.
@@ -234,13 +266,65 @@
   const scriptTag = (js) => `<script${/^\s*(?:import\s[^(]|export\s)/m.test(js) ? ' type="module"' : ''}>\n${js.replace(/<\/script/gi, '<\\/script')}\n</script>\n`;
   const jsonForScript = (value) => JSON.stringify(value).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
 
-  function head(rtl, extra, strings, guard) {
+  // Tailwind goes into a page written in it that does not load it — and into
+  // no other. Its reset and its own classes are a framework: in a Bootstrap
+  // page ".collapse { visibility: collapse }" hid the navbar and ".container"
+  // made it wider than the screen; in a page with CSS of its own it shrank
+  // every heading and took the bullets off the lists and the borders off the
+  // inputs. A page "written in it" uses utilities that nothing of its own
+  // defines: a variant (md:flex), an arbitrary value (w-[42px]), or three of
+  // the common ones. A fragment, which has no head to load anything from,
+  // keeps Tailwind unless it brings CSS or another framework of its own.
+  const OTHER_FRAMEWORK = /(?:<(?:link|script)\b[^>]*\b(?:href|src)\s*=\s*["'][^"']*|@import\s+(?:url\()?\s*["']?[^"';)]*)(?:bootstrap(?!-icons)|bootswatch|bulma|foundation(?!-icons)|materialize|semantic-ui|fomantic|uikit|purecss|pure-min|milligram|picocss|w3\.css|w3css|tachyons|spectre|mdb-ui-kit|halfmoon)/i;
+  const VARIANT = /^(?:[a-z0-9-]+:)+!?-?[a-z]/;
+  const ARBITRARY = /^-?[a-z][a-z-]*-\[[^\]\s]+\]$/;
+  const UTILITY = new RegExp(`^-?(?:${[
+    '[pm][xytblrse]?-(?:\\d+(?:\\.5)?|px|auto)', '(?:gap|gap-x|gap-y|space-x|space-y)-\\d+(?:\\.5)?',
+    '(?:w|h|size|min-w|min-h|max-w|max-h)-(?:\\d+(?:\\.5)?|\\d+\\/\\d+|px|full|screen|auto|min|max|fit|xs|sm|md|lg|xl|[2-7]xl|prose)',
+    '(?:top|right|bottom|left|inset|inset-x|inset-y|z|translate-x|translate-y|rotate|scale|duration|delay|opacity|leading|tracking)-[\\w./]+',
+    '(?:bg|text|border|from|via|to|ring|fill|stroke|divide|placeholder|accent|decoration|outline|shadow)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\\d{2,3}(?:\\/\\d+)?',
+    'text-(?:xs|sm|base|lg|[2-9]?xl)', 'font-(?:thin|extralight|light|normal|medium|semibold|bold|extrabold|black)', 'rounded-(?:sm|md|lg|xl|[23]xl|full)',
+    'shadow-(?:sm|md|lg|xl|2xl|inner)', 'grid-cols-\\d+', 'col-span-(?:\\d+|full)', 'flex-(?:row|col|wrap|1|none|auto)', 'items-(?:start|center|end|stretch|baseline)',
+    'justify-(?:start|center|end|between|around|evenly)', 'inline-flex', 'min-h-screen', 'object-(?:cover|contain)', 'aspect-(?:video|square)', 'backdrop-blur(?:-\\w+)?',
+    'bg-gradient-to-[trbl]{1,2}', 'bg-clip-text', 'text-transparent', 'transition-(?:all|colors|opacity|transform|shadow)', 'ease-(?:in|out|in-out|linear)', 'cursor-pointer', 'antialiased', 'sr-only',
+    'flex', 'grid', 'relative', 'absolute', 'uppercase', 'truncate'
+  ].join('|')})$`);
+  const LOADS_TAILWIND = /<(?:script|link)\b[^>]*\b(?:src|href)\s*=\s*["'][^"']*tailwind|\btailwind\.config\s*=|@tailwind\b/i;
+  const CLASS_LISTS =/\bclass(?:Name)?\s*=\s*(?:\{\s*)?(["'`])([^"'`]*)\1/g;
+  const STYLE_BLOCKS = /<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi;
+  /**
+   * @param {string} markup the page, or a fragment of one
+   * @param {string} css the answer's CSS that goes with it
+   * @param {boolean} fragment
+   */
+  function wantsTailwind(markup, css, fragment) {
+    // It loads Tailwind itself, or sets it up. A word in its text or a comment
+    // ("<!-- Tailwind card -->") does not.
+    if (LOADS_TAILWIND.test(markup) || /@tailwind\b/.test(css)) return false;
+    const own = [...String(markup).matchAll(STYLE_BLOCKS)].map((m) => m[1]).join('\n') + '\n' + css;
+    if (OTHER_FRAMEWORK.test(markup + '\n' + css)) return false;
+    const defined = new Set([...own.matchAll(/\.(-?[A-Za-z_][\w-]*)/g)].map((m) => m[1]));
+    const tokens = new Set([...String(markup).matchAll(CLASS_LISTS)].flatMap((m) => m[2].split(/\s+/)).filter((t) => t && !defined.has(t)));
+    let common = 0;
+    for (const token of tokens) {
+      if (VARIANT.test(token) || ARBITRARY.test(token)) return true;
+      if (UTILITY.test(token) && ++common >= 3) return true;
+    }
+    return fragment && !own.trim();
+  }
+
+  /**
+   * @param {boolean} rtl
+   * @param {string} extra
+   * @param {{strings?: object, guard: boolean, hash?: string, tailwind: boolean}} page
+   */
+  function head(rtl, extra, page) {
     const font = rtl ? "'Cairo', 'Inter'" : "'Inter', 'Cairo'";
     return `<meta charset="utf-8">
-  ${guard ? guardScript(strings) : ''}
+  ${page.guard ? guardScript(page.strings, page.hash) : ''}
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="${FONTS}" rel="stylesheet">
-  <script src="${LIBS.tailwind}"></script>
+  ${page.tailwind ? `<script src="${LIBS.tailwind}"></script>` : ''}
   <style>
     body { font-family: ${font}, -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; padding: 16px; background-color: #ffffff; color: #0f172a; min-height: 100vh; box-sizing: border-box; }
     * { box-sizing: border-box; }
@@ -261,36 +345,62 @@
   // in it ("unpkg.com/lucide@latest", as Lucide's own docs write it) names the
   // browser build on unpkg and the CommonJS build on jsdelivr, which stops a
   // page's script at its first line.
+  //
+  // The libraries of other hosts go to jsdelivr's copy of the same npm
+  // release, at the same version. Each pair below was fetched from both hosts
+  // (2026-10-26) and is the same file byte for byte, so a tag's integrity
+  // still holds; use.fontawesome.com's all.css is npm's all.min.css. A version
+  // npm has no such file for (jQuery UI before 1.13.2, d3 before 5, Bootstrap
+  // 3.0) is not found there — as blocked as it was here.
+  // kit.fontawesome.com is left alone: a kit is a script made per account.
+  const HOST = '(?:https?:)?\\/\\/';
+  const JSDELIVR = 'https://cdn.jsdelivr.net/npm/';
   /** @type {Array<[RegExp, string]>} */
   const CDN_REWRITES = [
     [/https?:\/\/unpkg\.com\/([^\s"'`)?]+)\?module\b/g, 'https://cdn.jsdelivr.net/npm/$1/+esm'],
     [/https?:\/\/(?:cdn\.)?skypack\.dev\/([^\s"'`)?]+)/g, 'https://cdn.jsdelivr.net/npm/$1/+esm'],
     [/https?:\/\/esm\.sh\/([^\s"'`)?]+)/g, 'https://cdn.jsdelivr.net/npm/$1/+esm'],
-    [/https?:\/\/code\.jquery\.com\/jquery-(\d[\d.]*)((?:\.slim)?(?:\.min)?)\.js/g, 'https://cdn.jsdelivr.net/npm/jquery@$1/dist/jquery$2.js']
+    [/https?:\/\/code\.jquery\.com\/jquery-(\d[\d.]*)((?:\.slim)?(?:\.min)?)\.js/g, 'https://cdn.jsdelivr.net/npm/jquery@$1/dist/jquery$2.js'],
+    [new RegExp(`${HOST}ajax\\.googleapis\\.com\\/ajax\\/libs\\/jquery\\/(\\d[\\d.]*)\\/jquery((?:\\.slim)?(?:\\.min)?)\\.js`, 'g'), `${JSDELIVR}jquery@$1/dist/jquery$2.js`],
+    [new RegExp(`${HOST}ajax\\.googleapis\\.com\\/ajax\\/libs\\/jqueryui\\/(1\\.1[3-9][\\d.]*)\\/(jquery-ui(?:\\.min)?\\.js|themes\\/[\\w-]+\\/jquery-ui(?:\\.min)?\\.css)`, 'g'), `${JSDELIVR}jquery-ui@$1/dist/$2`],
+    [new RegExp(`${HOST}ajax\\.googleapis\\.com\\/ajax\\/libs\\/angularjs\\/(1\\.[\\d.]+)\\/(angular(?:\\.min)?\\.js)`, 'g'), `${JSDELIVR}angular@$1/$2`],
+    [new RegExp(`${HOST}ajax\\.googleapis\\.com\\/ajax\\/libs\\/d3js\\/([5-9]\\.[\\d.]+)\\/(d3(?:\\.min)?\\.js)`, 'g'), `${JSDELIVR}d3@$1/dist/$2`],
+    [new RegExp(`${HOST}(?:stackpath|maxcdn|netdna)\\.bootstrapcdn\\.com\\/bootstrap\\/(\\d[\\w.-]*)\\/(css|js)\\/([\\w.-]+\\.(?:css|js))`, 'g'), `${JSDELIVR}bootstrap@$1/dist/$2/$3`],
+    [new RegExp(`${HOST}(?:stackpath|maxcdn|netdna)\\.bootstrapcdn\\.com\\/bootswatch\\/([4-9][\\w.-]*)\\/([\\w-]+)\\/(bootstrap(?:\\.min)?\\.css)`, 'g'), `${JSDELIVR}bootswatch@$1/dist/$2/$3`],
+    [new RegExp(`${HOST}(?:stackpath|maxcdn|netdna)\\.bootstrapcdn\\.com\\/font-awesome\\/(4[\\d.]*)\\/css\\/(font-awesome(?:\\.min)?\\.css)`, 'g'), `${JSDELIVR}font-awesome@$1/css/$2`],
+    [new RegExp(`${HOST}use\\.fontawesome\\.com\\/releases\\/v(\\d[\\d.]*)\\/(css|js)\\/([\\w-]+?)(?:\\.min)?\\.(css|js)`, 'g'), `${JSDELIVR}@fortawesome/fontawesome-free@$1/$2/$3.min.$4`]
   ];
   function onAllowedCdns(code) {
     return CDN_REWRITES.reduce((text, [pattern, to]) => text.replace(pattern, to), String(code));
   }
 
-  function htmlDocument(files, strings, guard) {
+  /**
+   * @param {Array<{role: string, code: string}>} files
+   * @param {{strings?: object, guard: boolean, hash?: string}} page
+   */
+  function htmlDocument(files, page) {
     const main = files.find((f) => f.role === 'main');
     let doc = onAllowedCdns(String(main.code).trim());
     for (const ref of localReferences(doc)) doc = doc.replace(ref.tag, () => '');
-    const styles = files.filter((f) => f.role === 'style').map((f) => styleTag(onAllowedCdns(f.code))).join('');
+    const css = files.filter((f) => f.role === 'style').map((f) => onAllowedCdns(f.code));
+    const styles = css.map(styleTag).join('');
     const scripts = files.filter((f) => f.role === 'script').map((f) => scriptTag(onAllowedCdns(f.code))).join('');
+    const whole = /<!doctype\s+html/i.test(doc) || /<html\b/i.test(doc);
+    // Classes a script of the answer puts on the page count as the page's.
+    const tailwind = wantsTailwind(doc + '\n' + scripts, css.join('\n'), !whole);
 
-    if (/<!doctype\s+html/i.test(doc) || /<html\b/i.test(doc)) {
-      const tailwind = /tailwind/i.test(doc) ? '' : `<script src="${LIBS.tailwind}"></script>\n`;
+    if (whole) {
+      const tailwindTag = tailwind ? `<script src="${LIBS.tailwind}"></script>\n` : '';
       // No </head>: straight after <html>, or after the doctype — never
       // before it, which would put the page in quirks mode.
-      doc = insertBefore(doc, /<\/head\s*>/gi, tailwind + styles, (d) => {
+      doc = insertBefore(doc, /<\/head\s*>/gi, tailwindTag + styles, (d) => {
         const open = /<html\b[^>]*>/i.exec(d) || /<!doctype[^>]*>/i.exec(d);
         return open ? open.index + open[0].length : 0;
       }, 'first');
       // The guard before anything of the page's own: straight after <head>,
       // else after <html>, else after the doctype.
       const at = /<head\b[^>]*>/i.exec(doc) || /<html\b[^>]*>/i.exec(doc) || /<!doctype[^>]*>/i.exec(doc);
-      const first = guard ? guardScript(strings) : '';
+      const first = page.guard ? guardScript(page.strings, page.hash) : '';
       doc = at ? doc.slice(0, at.index + at[0].length) + first + doc.slice(at.index + at[0].length) : first + doc;
       return insertBefore(doc, /<\/body\s*>/gi, scripts, (d) => d.length);
     }
@@ -298,7 +408,7 @@
     return `<!DOCTYPE html>
 <html lang="${rtl ? 'ar' : 'en'}" dir="${rtl ? 'rtl' : 'ltr'}">
 <head>
-  ${head(rtl, styles ? '\n' + styles : '', strings, guard)}
+  ${head(rtl, styles ? '\n' + styles : '', { ...page, tailwind })}
 </head>
 <body>
 ${doc}
@@ -361,7 +471,7 @@ ${scripts}</body>
   } catch (err) { fail((err && err.message) || err); }
 })();`;
 
-  function reactDocument(files, strings, guard) {
+  function reactDocument(files, page) {
     const main = files.find((f) => f.role === 'main');
     let source = String(main.code);
     // Top-level components, so an answer that never exports one still shows.
@@ -382,12 +492,12 @@ ${scripts}</body>
       candidates: [...new Set(candidates)],
       selfRenders,
       libs: { lucideReact: LIBS.lucideReact },
-      strings: { ...DEFAULT_STRINGS, ...(strings || {}) }
+      strings: { ...DEFAULT_STRINGS, ...(page.strings || {}) }
     };
     return `<!DOCTYPE html>
 <html lang="${rtl ? 'ar' : 'en'}" dir="${rtl ? 'rtl' : 'ltr'}">
 <head>
-  ${head(rtl, styles ? '\n' + styles : '', strings, guard)}
+  ${head(rtl, styles ? '\n' + styles : '', { ...page, tailwind: true })}
   <script src="${LIBS.react}" crossorigin="anonymous"></script>
   <script src="${LIBS.reactDom}" crossorigin="anonymous"></script>
   <script src="${LIBS.babel}" crossorigin="anonymous"></script>
@@ -422,7 +532,8 @@ ${containers.map((id) => `<div id="${id}"></div>`).join('\n')}
    * guard that keeps a preview's links and forms inside the preview.
    * @param {{kind: string, files: Array<{name: string, lang: string, role: string, code: string}>} | null} project
    * @param {Partial<typeof DEFAULT_STRINGS>} [strings] messages shown inside the preview, in the page's language
-   * @param {{guard?: boolean}} [options]
+   * @param {{guard?: boolean, hash?: string}} [options] hash: the section to open
+   *   at, for a link such as "index.html#menu" from another page of the answer
    * @returns {string}
    */
   // Photos that show the page's subject. picsum's are random whatever the seed
@@ -468,14 +579,26 @@ ${containers.map((id) => `<div id="${id}"></div>`).join('\n')}
 
   function buildDocument(project, strings, options) {
     if (!project || !project.files || !project.files.length) return '';
-    const guard = !(options && options.guard === false);
+    const page = { strings, guard: !(options && options.guard === false), hash: String((options && options.hash) || '') };
     if (project.kind === 'svg') return svgDocument(project.files[0].code);
     const main = project.files.find((f) => f.role === 'main') || project.files[0];
     const heading = /<h1\b[^>]*>([\s\S]{1,200}?)<\/h1>/i.exec(String(main.code));
     const pageText = [titleOf(project), heading ? heading[1].replace(/<[^>]+>/g, ' ') : ''].join(' ');
     const files = project.files.map((f) => ({ ...f, code: subjectPhotos(f.code, pageText) }));
-    if (project.kind === 'react') return reactDocument(files, strings, guard);
-    return htmlDocument(files, strings, guard);
+    if (project.kind === 'react') return reactDocument(files, page);
+    return htmlDocument(files, page);
+  }
+
+  // A title is text in HTML: "Olive &amp; Thyme" is called "Olive & Thyme".
+  // Once, as the browser reads it, and only to characters: what comes out is
+  // set as text, never parsed again.
+  const NAMED = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: '\u00a0', ndash: '\u2013', mdash: '\u2014', hellip: '\u2026', copy: '\u00a9', reg: '\u00ae', trade: '\u2122', middot: '\u00b7', bull: '\u2022', laquo: '\u00ab', raquo: '\u00bb' };
+  function decodeEntities(text) {
+    return String(text).replace(/&(?:#(\d{1,7})|#[xX]([0-9a-fA-F]{1,6})|([A-Za-z]+));/g, (whole, dec, hex, name) => {
+      if (name) return Object.prototype.hasOwnProperty.call(NAMED, name) ? NAMED[name] : whole; // own key: never "constructor"
+      const code = dec ? parseInt(dec, 10) : parseInt(hex, 16);
+      return code > 0 && code <= 0x10FFFF && !(code >= 0xD800 && code <= 0xDFFF) ? String.fromCodePoint(code) : '\uFFFD';
+    });
   }
 
   /**
@@ -486,10 +609,10 @@ ${containers.map((id) => `<div id="${id}"></div>`).join('\n')}
     const main = project && project.files ? project.files.find((f) => f.role === 'main') || project.files[0] : null;
     if (!main) return '';
     const own = /<title[^>]*>([^<]{1,120})<\/title>/i.exec(String(main.code));
-    return (own ? own[1] : main.name || '').replace(/\s+/g, ' ').trim();
+    return (own ? decodeEntities(own[1]) : main.name || '').replace(/\s+/g, ' ').trim();
   }
 
-  const api = { LIBS, SANDBOX, kindOf, isReactSource, projectFor, buildDocument, pageNamed, onAllowedCdns, titleOf };
+  const api = { LIBS, SANDBOX, kindOf, isReactSource, projectFor, buildDocument, pageNamed, onAllowedCdns, titleOf, wantsTailwind };
   global.QjoDomain = global.QjoDomain || {};
   global.QjoDomain.codeProject = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

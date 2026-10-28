@@ -280,13 +280,13 @@ app.use(helmet({
         "https://accounts.google.com"
       ],
 
-      // OAuth redirect/popup frames
+      // OAuth redirect/popup frames; video players, for a code preview (an about:srcdoc frame runs under this policy)
       "frame-src": [
-        "'self'",
-        "https://accounts.google.com",
+        "'self'", "https://accounts.google.com",
         "https://*.firebaseapp.com",
-        "https://*.google.com"
+        "https://*.google.com", "https://www.youtube.com", "https://www.youtube-nocookie.com", "https://player.vimeo.com"
       ],
+      "media-src": ["'self'", "https:", "data:", "blob:"], // a preview's video; media does not run, and img-src already reaches any https host
 
       "object-src": ["'none'"],
       "base-uri": ["'self'"],

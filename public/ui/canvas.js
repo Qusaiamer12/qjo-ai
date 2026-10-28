@@ -86,9 +86,9 @@
       return codeProject().projectFor(blocks, wrappers.indexOf(wrapper));
     }
 
-    // A link in a preview to another page of the answer ("about.html") asks
-    // for it here (the guard in codeProject.js); the preview shows that page,
-    // or says the answer has no such file.
+    // A link in a preview to another page of the answer ("about.html", "index.html#menu")
+    // asks for it here (the guard in codeProject.js); the preview shows that page, at
+    // its section, or says the answer has no such file.
     function openPage(event) {
       const data = event.data;
       if (!data || data.qjoPreview !== 'open' || typeof data.name !== 'string') return;
@@ -100,16 +100,18 @@
       const index = codeProject().pageNamed(blocks, data.name);
       const project = index >= 0 ? codeProject().projectFor(blocks, index) : null;
       if (!project) { event.source.postMessage({ qjoPreview: 'missing', name: data.name.slice(0, 80) }, '*'); return; }
+      const hash = typeof data.hash === 'string' ? data.hash : '';
       if (inCanvas) {
         canvas.project = { kind: project.kind, files: project.files.map((f) => ({ ...f })) };
         selectFile(0);
         label(); // the download is now this page's file
-        refresh();
-      } else frame.srcdoc = documentFor(project);
+        refresh(hash);
+      } else frame.srcdoc = documentFor(project, hash);
     }
     global.addEventListener('message', openPage);
 
-    const documentFor = (project) => codeProject().buildDocument(project, previewStrings());
+    /** @type {(project: any, hash?: string) => string} the page, opened at a section when a link named one */
+    const documentFor = (project, hash) => codeProject().buildDocument(project, previewStrings(), { hash: hash || '' });
 
     // Drawn in the button's own colour: "↗" and "⬇" are emoji on some phones.
     const svg = (path) => `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`; // named by the button
@@ -352,8 +354,9 @@
       canvas.root.querySelector('.qjo-canvas-code').hidden = view !== 'code';
     }
 
-    function refresh() {
-      if (canvas && canvas.project) canvas.frame.srcdoc = documentFor(canvas.project);
+    /** @param {string} [hash] */
+    function refresh(hash) {
+      if (canvas && canvas.project) canvas.frame.srcdoc = documentFor(canvas.project, typeof hash === 'string' ? hash : '');
     }
 
     function isOpen() { return Boolean(canvas && !canvas.root.hidden); }

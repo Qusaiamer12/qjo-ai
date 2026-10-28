@@ -16,14 +16,15 @@
   const KEY = 'qjo-preview-tab';
   const codeProject = window.QjoDomain && window.QjoDomain.codeProject;
   const wait = document.getElementById('qjo-tab-wait');
-  /** @type {null | {project: any, blocks: any[], strings: any, lang?: string}} */
+  /** @type {null | {project: any, blocks: any[], strings: any, lang?: string, hash?: string}} */
   let shown = null;
   /** @type {HTMLIFrameElement | null} */
   let frame = null;
 
   function show(payload) {
     if (!codeProject || !payload || !payload.project || !Array.isArray(payload.project.files)) return;
-    shown = { project: payload.project, blocks: Array.isArray(payload.blocks) ? payload.blocks : [], strings: payload.strings || {}, lang: String(payload.lang || '') };
+    shown = { project: payload.project, blocks: Array.isArray(payload.blocks) ? payload.blocks : [], strings: payload.strings || {}, lang: String(payload.lang || ''),
+      hash: typeof payload.hash === 'string' ? payload.hash : '' };
     try { sessionStorage.setItem(KEY, JSON.stringify(shown)); } catch (_) { /* too large to keep: shown, not kept */ }
     document.title = codeProject.titleOf(shown.project) || 'Qjo';
     if (/^[a-z]{2}(?:-[A-Za-z]{2})?$/.test(shown.lang)) document.documentElement.lang = shown.lang;
@@ -35,18 +36,18 @@
     }
     frame.title = document.title;
     if (wait) wait.hidden = true;
-    frame.srcdoc = codeProject.buildDocument(shown.project, shown.strings);
+    frame.srcdoc = codeProject.buildDocument(shown.project, shown.strings, { hash: shown.hash });
   }
 
   window.addEventListener('message', (event) => {
     const data = event.data;
     if (!data || typeof data !== 'object') return;
-    // The page in the frame asks for another page of the answer.
+    // The page in the frame asks for another page of the answer, and maybe a section of it.
     if (frame && event.source === frame.contentWindow) {
       if (data.qjoPreview !== 'open' || typeof data.name !== 'string' || !shown) return;
       const index = codeProject.pageNamed(shown.blocks, data.name);
       const project = index >= 0 ? codeProject.projectFor(shown.blocks, index) : null;
-      if (project) show({ ...shown, project });
+      if (project) show({ ...shown, project, hash: typeof data.hash === 'string' ? data.hash : '' });
       else frame.contentWindow.postMessage({ qjoPreview: 'missing', name: data.name.slice(0, 80) }, '*');
       return;
     }

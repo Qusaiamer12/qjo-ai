@@ -68,6 +68,13 @@ function streamText(res, text, headers = {}, finish = 'stop') {
 // in — what the owner's preview showed as half a page above raw HTML.
 const PAGE_START = 'Here is your cafe site:\n\n```html\n<!DOCTYPE html>\n<html>\n<body>\n' + '<section class="menu"><h3>Mint tea</h3><p>Fresh mint and green tea.</p></section>\n'.repeat(90) + '<ul>\n<li>one</li>\n<li>tw';
 const PAGE_REST = '```html\n<li>two</li>\n</ul>\n</body>\n</html>\n```\n\nOpen it in the preview.';
+// The other ways a model opens the block again: a bare fence, and a sentence
+// before the fence — which the old join kept, and the page showed half a site.
+const REOPENED_AS = {
+  bare: PAGE_REST.replace(/^```html/, '```'),
+  said: 'Here is the rest of the code:\n\n' + PAGE_REST,
+  saidBare: 'إليك تكملة الكود:\n\n' + PAGE_REST.replace(/^```html/, '```')
+};
 let groqCutsPage = false;
 
 const server = http.createServer((req, res) => {
@@ -106,7 +113,7 @@ const server = http.createServer((req, res) => {
         const last = (body.messages || [])[body.messages.length - 1] || {};
         const continuing = /^Continue the code/.test(String(last.content));
         if (continuing && groqCutsPage === 'twice' && !/PART TWO/.test(JSON.stringify(body.messages))) return streamText(res, '<li>tw</li>\n<!-- PART TWO -->\n<li>three', {}, 'length');
-        return continuing ? streamText(res, PAGE_REST) : streamText(res, PAGE_START, {}, 'length');
+        return continuing ? streamText(res, REOPENED_AS[groqCutsPage] || PAGE_REST) : streamText(res, PAGE_START, {}, 'length');
       }
       if (groqSearchesFirst && body.tools && !(body.messages || []).some((m) => m.role === 'tool')) {
         res.writeHead(200, { 'content-type': 'text/event-stream' });
@@ -382,6 +389,30 @@ async function main() {
     const blocks = (lightMarkdown(done.answer).match(/<div class="code-block-wrapper\b/g) || []).length;
     ok(blocks === 1 && !/```html[\s\S]*```html/.test(done.answer) && done.answer.includes('<li>one</li>\n<li>two</li>\n</ul>'), `one block of code, the cut line written once (${blocks} block(s))`, done.answer.slice(-200));
     ok(shown.join('') === done.answer, 'the page is sent exactly the stored answer', { shown: shown.join('').slice(-120), stored: done.answer.slice(-120) });
+  });
+
+  await scenario('A page reopened with a bare fence, or after a sentence, is still one block', 60000, async (ok) => {
+    const { lightMarkdown } = require('../public/domain/markdown.js');
+    const { newPart } = require('../src/agents/continuation');
+    llm7 = { headerDelayMs: 0, dead: true };
+    for (const way of Object.keys(REOPENED_AS)) {
+      groqCutsPage = way;
+      const messages = [{ role: 'system', content: buildChatSystemPrompt({ mode: 'flash', arabic: false, runtimeLine: 'today' }) }, { role: 'user', content: 'Build the full cafe website in one HTML file.' }];
+      const shown = [];
+      const engine4 = buildEngine(baseUrl);
+      const ai = await engine4.callAgent({ mode: 'flash', messages, max_tokens: 2000, useTools: false, onChunk: (t) => shown.push(t) });
+      const done = await engine4.completeIfTruncated({ ai, messages, temperature: 0.2, max_tokens: 2000, useTools: false, onChunk: (t) => shown.push(t) });
+      const answer = done.answer || '';
+      const html = lightMarkdown(answer);
+      const blocks = (html.match(/<div class="code-block-wrapper\b/g) || []).length;
+      ok(ai.finish_reason === 'length' && blocks === 1 && answer.includes('<li>one</li>\n<li>two</li>\n</ul>\n</body>\n</html>\n```\n\nOpen it in the preview.'),
+        `${way}: one block of code, the whole page in it (${blocks} block(s))`, answer.slice(-220));
+      ok(!/rest of the code|تكملة الكود/.test(answer) && shown.join('') === answer, `${way}: what the model said before the fence is not in the page, and the page is sent what is stored`, answer.slice(-220));
+    }
+    groqCutsPage = false;
+    // The control: a bare fence followed by prose closes the block, and is kept.
+    const closed = '```html\n<p>done</p>\n</html>\n';
+    ok(newPart(closed, '```\n\nThat is the whole page.') === '```\n\nThat is the whole page.', 'control: a bare fence that closes the block is kept');
   });
 
   await scenario('A page that needs two more answers gets them, still one block', 60000, async (ok) => {
