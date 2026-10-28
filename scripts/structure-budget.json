@@ -14,7 +14,7 @@
   "public/domain/fileRequest.js": 85,
   "public/ui/answerExports.js": 191,
   "public/domain/sourceTier.js": 113,
-  "public/ui/sourceStrip.js": 468,
+  "public/ui/sourceStrip.js": 471,
   "public/domain/imagePlan.js": 76,
   "public/ui/imagePrep.js": 78,
   "src/agents/visionPipeline.js": 188,
