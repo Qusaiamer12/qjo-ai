@@ -254,6 +254,20 @@ floor([['عندي error بالبرنامج'], ['البرنامج بيعطيني 
   ['write me a program'], ['write tests for my function'], ['عندي مشكلة بكودي'], ['صلحلي بكودي'], ['شو رأيك بكودي؟'], ['ساعدني بكود']], true, 'code');
 routes(after('عطيني بلغز'), 'general/reasoning', 'عطيني بلغز: لغز after ب');
 
+// "برنامج" is a plan as often as a program: a workout, a diet, a trip, a
+// study timetable. "اكتبلي برنامج" sent every one of them to the code
+// pipeline. It is code with what makes it software (a language, a verb of
+// computing), not by the verb that asks for it. Java the island and the
+// coffee are the same mistake with a different word.
+console.log('\nA plan is not a program:');
+floor([['اكتبلي برنامج تمارين'], ['اكتبلي برنامج غذائي'], ['اعمللي برنامج رحلة لتركيا'], ['سويلي برنامج دراسة'], ['اكتب لي برنامج للدراسة'], ['اكتبلي برنامج الحمية'],
+  ['اعمل لنا برنامج لخسارة الوزن'], ['اكتبلي برنامج يومي لتنظيم وقتي'], ['سويلي برنامج لرحلة الى دبي'], ['اعملي برنامج أسبوعي للرياضة'],
+  ['برنامج غذائي'], ['برنامج رحلة لتركيا'], ['java coffee'], ['I drink java every morning'], ['a cup of java with milk'],
+  ['write me a program for losing weight'], ['write me a program for building muscle']], false, 'not code');
+floor([['اكتبلي برنامج بايثون'], ['اكتبلي برنامج'], ['اكتبلي برنامج يحسب مساحة الدائرة'], ['اكتبلي برنامج لترتيب الأرقام'], ['اكتبلي برنامج يحسب وزن الشخص المثالي'],
+  ['سويلي برنامج بالجافا'], ['اعمللي برنامج يطبع الأعداد الأولية'], ['write a program to sort numbers'], ['write me a program for sorting numbers'], ['java 8 streams'], ['install java17'],
+  ['اكتبلي برنامج غذائي بلغة بايثون']], true, 'code');
+
 // ── Time: a long message must not hold the event loop ──
 // Patterns that backtracked held every other request: "function" and 48,000
 // spaces took 2.5 s in the router, "hi", spaces and "React" 4.4 s in the
@@ -273,6 +287,7 @@ routes(after('عطيني بلغز'), 'general/reasoning', 'عطيني بلغز: 
   const attacks = (n) => ({
     spaces: ' '.repeat(n), 'function, spaces': 'function' + ' '.repeat(n), 'function, newlines': 'function' + '\n'.repeat(n),
     'hi, spaces, React': 'hi' + ' '.repeat(n) + 'React', 'رتب repeated': 'رتب'.repeat(Math.ceil(n / 3)),
+    'برنامج repeated': 'برنامج '.repeat(Math.ceil(n / 8)), 'اكتبلي برنامج, spaces': 'اكتبلي برنامج' + ' '.repeat(n), 'اكتبلي برنامج repeated': 'اكتبلي برنامج '.repeat(Math.ceil(n / 14)),
     'function (': 'function ('.repeat(n / 10), '(a+': '(a+'.repeat(Math.ceil(n / 3)), 'aError ': 'aError '.repeat(Math.ceil(n / 7))
   });
   for (const read of Object.values(reads)) read('warm up: write a python function, React hooks, رتب المصفوفة');

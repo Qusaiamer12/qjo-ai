@@ -25,6 +25,7 @@
 const { languageOfText } = require('../../public/domain/language');
 const { ownWords } = require('../../public/domain/ownWords');
 const { siteInConversation } = require('../../public/domain/siteRequest');
+const { questionsAsked } = require('../agents/requestSignals');
 
 const CAPSULES = /(?:^|\n+)Task-specific skill capsules:\n[\s\S]*?(?=\n\n|$)/;
 // The page and the server both build this note; the server's is the one kept.
@@ -137,8 +138,7 @@ function thinkingNeed(messages) {
   if (text.length < 12) return { needs: false, hard: false, why: [] };
   const why = Object.keys(THOUGHT).filter((k) => THOUGHT[k].test(text));
   if ((text.match(/[\d٠-٩]+(?:[.,][\d٠-٩]+)?/g) || []).length >= 2) why.push('numbers');
-  const lines = text.split('\n').filter((l) => l.trim()).length;
-  if (text.length >= 300 || lines >= 4 || (text.match(/[?؟]/g) || []).length >= 2) why.push('long');
+  if (text.length >= 300 || text.split('\n').filter((l) => l.trim()).length >= 4 || questionsAsked(text) >= 2) why.push('long');
   return { needs: why.length > 0, hard: why.includes('puzzle') || text.length >= 600 || why.length >= 2, why };
 }
 

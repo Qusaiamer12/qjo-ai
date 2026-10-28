@@ -119,6 +119,15 @@ const FRAMEWORK = new RegExp([
 ].join('|'), 'i');
 const FRAMEWORK_ASKED = /(?:\b[Ww]hat(?:\s+is|'s|\s+are)|\b[Ee]xplain|شو\s(?:هو|هي|يعني)|ما\s(?:هو|هي)|ايش\s(?:هو|هي)|اشرح(?:لي)?)\s{1,3}(?:React|Vue|Svelte|Angular|Django|Flask|Rust|Swift)\b/;
 
+// "برنامج" is a plan as often as a program, so asking for one is not asking
+// for software: a workout, a diet, a trip, a study timetable. What it is a
+// plan for is the first word after it ("برنامج تمارين", "برنامج للدراسة",
+// "برنامج الرحلة"); code says what it does or in what language, and the
+// language is a code word on its own.
+const PLAN_OF = '(?:لل|ل|ب)?(?:ال)?(?:تمر[يى]ن|تمارين|رياض(?:ة|ه|ي(?![اأ]ت))|[اأإ]سبوع|يوم[يى]|شهر[يى]|غذ[اائ]|حم[يى]|دايت|لياق|تخس[يى]س|تنح[يى]ف|وزن|دراس|مذاكر|رحل|سفر|سياح|زيار|عطل|وجبات|[اأإ]كل|طعام|نوم|علاج|صح[يى]|حفل|زفاف|مؤتمر|رمضان|عمرة|ترفيه|تلفزيون)';
+// Asking for a program: the verbs, unless a plan's noun comes straight after.
+const ASK_PROGRAM = `(?:اكتب|سوي|اعمل)(?:لي|لنا)?\\s+برنامج(?!\\s{1,3}${PLAN_OF}[ء-ي]{0,3}(?![ء-ي]))`;
+
 // Words that are also something else, with what makes them code: Express as
 // a server; a compiler, not "compile a list"; code that is someone's, not a
 // dress code; Java the language, not the island; an error in a program, not
@@ -136,9 +145,10 @@ const CODE_PHRASE = new RegExp([
   /\byarn\s+(?:add|install|run|build|dev|start)\b/,
   /(?<!lymph\s)\bnode\b/,
   /\b(?:my|this|the|your|that|of|some)\s+code\b(?!\s+of\b)|\bwrite\s+(?:me\s+)?(?:a\s+|an\s+|the\s+|some\s+)?(?:function|class|code)\b/,
-  /\bwrite\s+(?:me\s+)?(?:a\s+)?programs?(?=\s{0,3}(?:$|[.!?]|(?:that|which|using)\b|in\s+\w|to\s+(?:sort|calculate|compute|find|print|read|convert|check|count|reverse|generate|parse|add|solve|simulate|download|scrape)\b|for\s+\w{1,30}ing\b))/,
+  /\bwrite\s+(?:me\s+)?(?:a\s+)?programs?(?=\s{0,3}(?:$|[.!?]|(?:that|which|using)\b|in\s+\w|to\s+(?:sort|calculate|compute|find|print|read|convert|check|count|reverse|generate|parse|add|solve|simulate|download|scrape)\b|for\s+(?!(?:losing|gaining|cutting)\s+weight|(?:building|gaining)\s+(?:muscle|strength)|(?:getting|staying)\s+(?:fit|in\s+shape))\w{1,30}ing\b))/,
   /\bwrite\s+(?:me\s+)?(?:some\s+)?(?:unit\s+)?tests?\s+for\s+(?:my|this|the|a)\s+(?:function|code|class|method|module|component|api|app)\b/,
-  /اكتب(?:لي|لنا)?\s+(?:دالة|كلاس|برنامج|كود)|سوي(?:لي|لنا)?\s+(?:دالة|كود|برنامج)|اعمل(?:لي|لنا)?\s+(?:دالة|كود|برنامج|تطبيق)/
+  /اكتب(?:لي|لنا)?\s+(?:دالة|كلاس|كود)|سوي(?:لي|لنا)?\s+(?:دالة|كود)|اعمل(?:لي|لنا)?\s+(?:دالة|كود|تطبيق)/,
+  new RegExp(ASK_PROGRAM)
 ].map((re) => re.source).join('|'), 'i');
 
 // A script is code unless it is for a video, a reel, an ad or a scene.
@@ -189,6 +199,43 @@ function mathAsked(text) {
   return mathVerb(t) && EXPRESSION.test(t);
 }
 
+// ── Questions ──
+// Small talk: what people ask to open a conversation, and nothing after it.
+// A segment is one only when all of it is — "how are you able to solve
+// integrals so fast" is a question — with a greeting before it, and a name,
+// "today" or "يا صديقي" after.
+const CHAT_OPEN = '(?:(?:hi|hello|hey|hiya|yo|so|well|and|ok|okay|مرحبا|اهلا|اهلين|هلا|هلو|هاي|سلام|اهلا وسهلا|طيب|يلا|و)[\\s,!.،]*)*';
+const CHAT_CORE = [
+  'how are you(?: doing| feeling)?', 'how(?:\'?s| is) it going', 'how(?:\'?s| is| are) (?:everything|things|life)', 'how have you been', 'how(?:\'?s| is| was) your (?:day|night|morning|evening|week)',
+  'what(?:\'?s| is) (?:up|new|going on|happening)', 'what are you (?:up to|doing)', 'what you up to', 'wyd', 'sup', 'are you (?:there|ok|okay|busy|free|awake|real)', 'you there', 'anyone(?: there| here)?', 'is anyone (?:there|here)',
+  'can you hear me', 'who are you', 'what(?:\'?s| is) your name', 'how old are you',
+  'كيفك', 'كيفكم', 'كيف حالك', 'كيف حالكم', 'كيف الحال', 'كيف الاحوال', 'كيف احوالك', 'كيف يومك', 'كيف كان يومك', 'كيف صحتك', 'كيف الصحه', 'كيف امورك', 'كيف الامور', 'شلونك', 'شلونكم', 'شخبارك', 'شخباركم',
+  '(?:شو|ايش|وش|شنو) (?:اخبارك|اخباركم|الاخبار|اخبار|الجديد|الوضع|الاحوال|الامور|احوالك|عامل|عم تعمل|بتعمل|تسوي|مسوي|تعمل)', 'ازيك', 'ازيكم', 'عامل ايه', 'عاملين ايه', 'اخبارك', 'اخباركم', 'وينك', 'وينكم', 'وين رحت', 'وين غبت',
+  '(?:انت|انتي) (?:موجود|موجوده|هنا|معي|معنا|شغال)', 'موجود', 'هل انت (?:هنا|موجود)', 'مين انت', 'من انت', '(?:شو|ما|وش) اسمك', 'كم عمرك', 'شو اخبار يومك'
+].join('|');
+const CHAT_CLOSE = '(?:[\\s,!.،]*(?:today|now|tonight|there|buddy|man|bro|dude|mate|friend|my friend|qjo|اليوم|هلق|الان|يا \\S{1,12}|صديقي|حبيبي|اخي|أخي))*';
+const SMALL_TALK = new RegExp(`^${CHAT_OPEN}(?:${CHAT_CORE})${CHAT_CLOSE}[\\s,!.،]*$`, 'i');
+const SMALL_TALK_MAX = 60;
+const arabicPlain = (t) => t.replace(/[\u064B-\u065F\u0670\u0640]/g, '').replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه');
+
+/**
+ * How many questions a message asks: those of three words or more that are
+ * not small talk. "كيفك؟ شو أخبارك؟" asks none; two real questions ask two.
+ * @param {string} text
+ * @returns {number}
+ */
+function questionsAsked(text) {
+  const parts = text.split(/[?؟]/);
+  parts.pop(); // what follows the last mark is not a question
+  return parts.filter((part) => {
+    const said = part.trim();
+    // The segment starts after the last sentence end: "hello! how are you" asks "how are you".
+    const asked = said.split(/[.!۔]+\s+/).pop();
+    // Small talk is short: whatever is longer is a question, and is not matched.
+    return asked.split(/\s+/).filter(Boolean).length >= 3 && (asked.length > SMALL_TALK_MAX || !SMALL_TALK.test(arabicPlain(asked.toLowerCase())));
+  }).length;
+}
+
 // ── The classifier's other intents, as words ──
 const words = {
   table: matcher(['جدول', 'جدولة', 'markdown table', 'table format']),
@@ -204,4 +251,4 @@ const words = {
   current: matcher(['اليوم', 'الآن', 'حالي', 'حاليا', 'آخر', 'سعر', 'نتيجة', 'نتائج', 'مباراة', 'طقس', 'خبر', 'أخبار', 'exchange', 'latest', 'current', 'today', 'price', 'score', 'weather', 'news'])
 };
 
-module.exports = { intentWindow, hardCodeSignal, codeAsked, mathAsked, words };
+module.exports = { intentWindow, hardCodeSignal, codeAsked, mathAsked, questionsAsked, words };

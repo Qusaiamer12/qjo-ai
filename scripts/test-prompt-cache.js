@@ -327,6 +327,28 @@ const system = (body) => body.messages.filter((m) => m.role === 'system').map((m
       assert.ok(!('reasoning_effort' in body), `"${content}" was answered at ${body.reasoning_effort}`);
     }
   });
+  // Two question marks made a message "long", so a greeting with two small
+  // questions — "كيفك؟ شو أخبارك؟" — thought at the provider's default, and
+  // every "hi, how are you? what are you up to?" cost a reasoning budget.
+  // A question counts when it is a question: three words or more, and not
+  // the small talk everyone opens with.
+  await test('small talk with several question marks stays light; real multi-part questions keep thinking', async () => {
+    const { thinkingNeed } = require('../src/services/promptLayout');
+    const needs = (content) => thinkingNeed([{ role: 'user', content }]);
+    for (const content of ['كيفك؟ شو أخبارك؟', 'مرحبا! كيف حالك؟ شو عم تعمل؟', 'هلا والله، شلونك؟ شخبارك؟', 'how are you? what are you up to?', 'hey, how are you doing today? what\'s up?',
+      'hello there? anyone? hi?', 'what\'s new? how was your day?', 'اهلين؟ كيفك؟ شو الأخبار؟']) {
+      assert.deepStrictEqual(needs(content), { needs: false, hard: false, why: [] }, `"${content}" was made to think`);
+      assert.strictEqual((await flash(content)).reasoning_effort, 'low', `"${content}" was answered at the provider's default`);
+    }
+    for (const content of ['ليش السما زرقا؟ وكيف بتتغير وقت الغروب؟', 'compare X and Y: which is cheaper? which is faster?', 'is it safe to eat eggs after the date on the box? how long do they last in the fridge?',
+      'شو أحسن لابتوب للبرمجة بميزانية صغيرة؟ وكم رام بحتاج؟', 'hi, how are you? can you explain how a mortgage works? what is the interest based on?']) {
+      assert.ok(needs(content).needs, `"${content}" was not given thought`);
+      assert.ok(!('reasoning_effort' in await flash(content)), `"${content}" was answered at low`);
+    }
+    // Control: the same two question marks, each a real question, do count.
+    assert.deepStrictEqual(needs('كيفك؟ شو أخبارك؟').why, []);
+    assert.deepStrictEqual(needs('كيف بعمل حساب بنكي؟ شو الأوراق المطلوبة؟').why, ['long']);
+  });
   await test('what decides is the person\'s words, not a file they attached', async () => {
     const attached = 'استخرج معلوماتي\n\nUser attached or previously indexed files with retrieved evidence. Use them.\nAttachment Index 1: cv.txt\nOrigin: pending\nWhy I left: the new role was better than the old one? Which is better? 2019 2021 2023';
     assert.ok(require('../src/services/promptLayout').thinkingNeed([{ role: 'user', content: attached.split('\n\n')[1] }]).needs, 'control: the attached text alone would call for thought');
