@@ -11,11 +11,15 @@
  * allowed (python3, HTML5). An Arabic term is a word between non-Arabic
  * letters, with what Arabic writes onto it: و ف ب ل ك ال هال before, a
  * pronoun (ـه ـها ـي ـلي ـني), a plural ـات or a ة that becomes ت after, or
- * is written ه. A word of three letters takes ب ل ك only with ال: نية is not
- * in "بنية الذرة" (structure). A term ending in `*` is a stem (برمج* is
- * برمجة, برمجيات); one ending in `=` takes nothing after it (حساب, not
+ * is written ه. A term starting with `^` takes only و ف and ال before it
+ * (^نية: not "بنية الذرة", a structure); one ending in `*` is a stem (برمج*
+ * is برمجة, برمجيات); one ending in `=` takes nothing after it (حساب, not
  * حسابي, "my account"; منطق, not منطقه, a region). Hamza on an alif, harakat
  * and the tatweel are ignored in both.
+ *
+ * A message is read as its first 2,000 and last 500 characters (bounded):
+ * where a request is, and where a pasted body ends. Whatever the patterns,
+ * a 200,000-character paste costs what 2,500 characters do.
  *
  * Pure: text and terms in, true or false out.
  */
@@ -25,9 +29,16 @@
   const AR = '\\u0621-\\u063F\\u0641-\\u064A\\u0671-\\u06D3\\u06FA-\\u06FF';
   const AR_LETTER = new RegExp(`[${AR}]`);
   const PROCLITIC = '[وف]?(?:[بلك]|لل)?(?:ال|هال)?';
-  const PROCLITIC_SHORT = '[وف]?(?:[بك]?ال|لل|هال)?';
+  const PROCLITIC_BARE = '[وف]?(?:ال)?';
   const AR_SUFFIX = '(?:ات)?(?:ل[يى]|لنا|له|لها|لهم|لك)?(?:ني|ه|ها|هم|هن|ي|ك|كم|نا|و)?';
   const LATIN = 'a-z0-9_';
+
+  const HEAD = 2000, TAIL = 500;
+  /** The part of a message a classifier reads. @param {string} text */
+  function bounded(text) {
+    const value = String(text || '');
+    return value.length <= HEAD + TAIL ? value : `${value.slice(0, HEAD)}\n${value.slice(-TAIL)}`;
+  }
 
   /** @param {string} text */
   function normalize(text) {
@@ -40,8 +51,8 @@
 
   /** @param {string} raw */
   function termSource(raw) {
-    const stem = raw.endsWith('*'), exact = raw.endsWith('=');
-    const term = normalize(stem || exact ? raw.slice(0, -1) : raw).trim();
+    const stem = raw.endsWith('*'), exact = raw.endsWith('='), bare = raw.startsWith('^');
+    const term = normalize(raw.slice(bare ? 1 : 0, stem || exact ? -1 : undefined)).trim();
     const arStart = AR_LETTER.test(term[0]), arEnd = AR_LETTER.test(term[term.length - 1]);
     let body = term.split(/\s+/).map(escape).join('\\s+');
     if (arEnd) {
@@ -51,8 +62,7 @@
     } else {
       body += stem ? `[${LATIN}]*` : (exact ? '' : '(?:s|es|\\d+(?:\\.\\d+)*)?');
     }
-    const short = term.split(/\s+/)[0].length <= 3;
-    const before = arStart ? `(?<![${AR}])${short ? PROCLITIC_SHORT : PROCLITIC}` : `(?<![${LATIN}])`;
+    const before = arStart ? `(?<![${AR}])${bare ? PROCLITIC_BARE : PROCLITIC}` : `(?<![${LATIN}])`;
     const after = arEnd ? `(?![${AR}])` : `(?![${LATIN}])`;
     return before + body + after;
   }
@@ -64,7 +74,7 @@
    */
   function matcher(terms) {
     const re = new RegExp(terms.map(termSource).join('|'), 'u');
-    return (text) => re.test(normalize(text));
+    return (text) => re.test(normalize(bounded(text)));
   }
 
   const cache = new Map();
@@ -91,7 +101,7 @@
   /** @param {string} text @param {keyof typeof PAGE_TOPICS} topic */
   const pageTopic = (text, topic) => hasWord(text, PAGE_TOPICS[topic]);
 
-  const api = { normalize, matcher, hasWord, PAGE_TOPICS, pageTopic };
+  const api = { bounded, normalize, matcher, hasWord, PAGE_TOPICS, pageTopic };
   if (typeof window !== 'undefined') {
     const host = /** @type {any} */ (window);
     host.QjoDomain = host.QjoDomain || {};

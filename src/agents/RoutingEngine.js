@@ -9,6 +9,7 @@ const { shrinkMessages, fitToAllowance, prefitToAllowance } = require('../servic
 const { withTurnContext, reasoningEffort, thinkingNeed, largerModelFirst, siteRequested } = require('../services/promptLayout');
 const { z } = require('zod');
 const { ownWords } = require('../../public/domain/ownWords');
+const { bounded } = require('../../public/domain/topicWords'); // a message as a classifier reads it: 2,000 + 500 characters
 const { intentWindow, hardCodeSignal, codeAsked, mathAsked, words } = require('./requestSignals');
 
 // ── Zod Schema ──
@@ -108,7 +109,7 @@ function validateRoutingDecision(raw) {
 function classifyQjoRequest({ messages, mode, routingDecision }) {
   const asked = intentMessages(messages, ownWords);
   const text = asked.join('\n\n').slice(-90000);
-  const own = asked.map(ownWords).join('\n\n'); // not the files or sources the page attached
+  const own = asked.map((m) => bounded(ownWords(m))).join('\n\n'); // not the files or sources the page attached
   const systemText = String(messages?.[0]?.content || '').toLowerCase();
   const hasSearchContext = /source pack|connected search|connected deep search|web search note|search query used|url:\s*https?:\/\//i.test(text);
   const hasFileContext = /user attached files|pdf pages processed|ocr text extracted|extracted characters|extraction method|uploaded file|المرفقات/i.test(text);
@@ -578,8 +579,8 @@ function instructionRegion(text) {
 
 // ── Deterministic Router (used by client-side routing) ──
 function routeUserRequestDeterministic(messagesOrText) {
-  const latest = lastUserText(messagesOrText);
-  const recent = typeof messagesOrText === 'string' ? latest : intentMessages(messagesOrText).join('\n\n').slice(-12000);
+  const latest = bounded(lastUserText(messagesOrText));
+  const recent = typeof messagesOrText === 'string' ? latest : intentMessages(messagesOrText).map(bounded).join('\n\n');
   const q = `${recent}\n${latest}`; // case kept: "IndexError", "what is React?"
 
   const explicitQcode = /(qcode|q-code|code lab|كيو\s*كود|كيوكود)/i.test(q);

@@ -1153,10 +1153,22 @@ lines\`,
       assert.ok(topicWords.pageTopic(text, /** @type {any} */ (topic)), `${text} is not ${topic}`);
     }
   });
-  test('a word of three letters takes ب ل ك only with ال: نية is not in بنية (structure)', () => {
-    assert.ok(!topicWords.hasWord('بنية الذرة', ['نية']) && !topicWords.hasWord('بنيته قوية', ['نية']), 'بنية read as نية');
-    assert.ok(topicWords.hasWord('بالنية', ['نية']) && topicWords.hasWord('النية', ['نية']) && topicWords.hasWord('نيته', ['نية']), 'control: نية as itself');
-    assert.ok(topicWords.hasWord('صححلي بالكود', ['كود']) && topicWords.hasWord('اكتبلي بكودك', ['كودك']) && topicWords.hasWord('ملفاتي', ['ملف']));
+  test('a three-letter word takes ب ل ك as any word does: بكودي، بلغز، بملف، لملفي', () => {
+    for (const [text, term] of [['عندي مشكلة بكودي', 'كود'], ['ساعدني بكود', 'كود'], ['عطيني بلغز', 'لغز'], ['شو في بملف', 'ملف'], ['عطيني ملخص لملفي', 'ملف'], ['صححلي بالكود', 'كود']]) {
+      assert.ok(topicWords.hasWord(text, [term]), `${text} has no ${term}`);
+    }
+    assert.ok(topicWords.pageTopic('عندي مشكلة بكودي', 'code') && topicWords.pageTopic('لخصلي اللي بملفي', 'file'), 'the page reads them too');
+  });
+  test('a term marked ^ takes only و ف ال before it: ^نية is not in بنية (structure)', () => {
+    assert.ok(!topicWords.hasWord('بنية الذرة', ['^نية']) && !topicWords.hasWord('بنيته قوية', ['^نية']), 'بنية read as نية');
+    assert.ok(topicWords.hasWord('شو النية؟', ['^نية']) && topicWords.hasWord('نيته طيبة', ['^نية']) && topicWords.hasWord('ونيتي', ['^نية']), 'control: نية as itself');
+    assert.ok(topicWords.hasWord('بنية الذرة', ['نية']), 'control: without ^ it takes ب');
+  });
+  test('a message is read as its first 2,000 and last 500 characters', () => {
+    const filler = 'x '.repeat(3000);
+    assert.strictEqual(topicWords.bounded('short'), 'short');
+    assert.strictEqual(topicWords.bounded(filler + 'end').length, 2501);
+    assert.ok(!topicWords.pageTopic(filler + ' python ' + filler, 'code') && topicWords.pageTopic('python ' + filler + filler, 'code') && topicWords.pageTopic(filler + filler + ' python', 'code'));
   });
   test('a ة written ه is still the word; a stem marked = does not take ه', () => {
     assert.ok(topicWords.hasWord('حل المعادله', ['معادلة']) && topicWords.hasWord('اوراق بحثيه', ['بحثية']));

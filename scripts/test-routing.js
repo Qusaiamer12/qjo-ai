@@ -207,33 +207,100 @@ for (const [text, lock] of [
   ['مين غيره فاز بجائزة نوبل؟', false], ['اكتب عن أينشتاين ونيوتن وغيرهم', false], ['شو في دول غيرها بتحكي عربي؟', false],
   ['شو الكواكب اللي حوله؟', false], ['ما هي الأقمار حولها', false], ['حدثني عن عدله', false], // who else, around it, his justice
   ['حوله لجدول', true], ['make it a table', true], ['لخص اللي فوق', true], ['translate this', true], ['اختصر الرد السابق بنقاط', true], ['رتّبها بنقاط', true],
-  ['خليه أقصر', true], ['غيره لأسلوب رسمي', true], ['طيب ترجمها للإنجليزي', true]
+  ['خليه أقصر', true], ['غيره لأسلوب رسمي', true], ['طيب ترجمها للإنجليزي', true],
+  ['تمام، حوله لجدول', true], ['حلو، خليه أقصر', true], ['شكرا! هلق ترجمه', true], ['okay حوله لجدول', true], ['«حوله لجدول»', true], ['عدله شوي', true], ['لخصه', true], // a courtesy first
+  ['غيره مين؟', false], ['حوله شو في؟', false], ['خليه يجي بكرا', false], ['خليها تروح', false] // a question word or a verb after it
 ]) {
   const good = isContextualTransformRequest(text) === lock;
   good ? pass++ : fail++;
   console.log(`  ${good ? '✅' : '❌'} ${text} — ${lock ? 'locked' : 'free'}`);
 }
 
+// ── The base router is the floor for ordinary messages ──
+// A rule that sends ordinary messages to code is narrowed until it does not;
+// missing a rare code case is the cheaper mistake.
+const isCodeRoute = (messages) => {
+  const decision = routeUserRequestDeterministic(messages);
+  return decision.targetAgent === 'qcode' || classifyQjoRequest({ messages, mode: 'flash', routingDecision: decision }).intent === 'code';
+};
+function floor(list, wantCode, label) {
+  for (const texts of list) {
+    const got = isCodeRoute(after(...texts));
+    const good = got === wantCode;
+    good ? pass++ : fail++;
+    console.log(`  ${good ? '✅' : '❌'} ${label}: ${texts[texts.length - 1]}`);
+  }
+}
+console.log('\nAfter code, an ordinary message is not about the code:');
+floor(['I have a test tomorrow and I\'m stressed', 'what was Saudi oil output last year?', 'I failed my driving test', 'check my email for errors: Dear sir, I am writting to you',
+  'any comments on my essay?', 'what does null hypothesis mean?', 'my car shows a warning light', 'شو الغلط بهالجملة: انا ذهبت الى المدرسه', 'عندي اختبارات بكرا وخايف',
+  'the program at my university got cancelled, what should I do?', 'why did the Titanic fail?', 'my phone won\'t work after the update', 'شو بتعمل لما تزهق؟',
+  'how do I optimize my sleep?', 'ما زبطت معي الطبخة'].map((t) => [PY, t]), false, 'not code');
+floor(['TypeError: unsupported operand', 'line 3 says invalid syntax', 'طلع عندي ايرور بالسطر 5', 'the output is wrong', 'doesn\'t work', 'مش شغال', 'ما اشتغل', 'add docstrings', 'what about edge cases?']
+  .map((t) => [PY, t]), true, 'about the code');
+floor([[PY, 'it gives an error', 'still an error', 'still not working', 'another error']], true, 'a run of short failures stays with the code');
+
+console.log('\nA name is not a framework; a framework beside what makes it one is:');
+floor([['what did Jonathan Swift write?'], ['who wrote Gulliver\'s Travels, was it Swift?'], ['tell me about the Rust shooting on the film set'], ['have you watched Django Unchained?'],
+  ['I took the Orient Express to Venice'], ['is American Express accepted in Japan?'], ['I met Rust yesterday'], ['my friend Swift is coming'], ['how do I use angular momentum conservation here?'],
+  ['I love Vue cinema'], ['عندي React بسيط تجاه الضوء'], ['the American Express app keeps logging me out'], ['a Jonathan Swift tutorial for my essay'], ['the Orient Express route map'], ['Jakarta is on Java'], ['I visited Java last year'], ['the island of Java'], ['best Java coffee beans']], false, 'not code');
+floor([['how to use React hooks'], ['Vue vs React'], ['Django or Flask?'], ['learn Svelte'], ['كيف استخدم react'], ['شو هو React؟'], ['how do I install flask'], ['express middleware'],
+  ['rust borrow checker'], ['is Rust better than Go?'], ['what is Swift?'], ['Ok Swift question: how do optionals work?'], ['install java17'], ['java 8 streams']], true, 'code');
+
+console.log('\nAn error beside a code word, and a program written to do something:');
+floor([['my dishwasher shows error code E24'], ['what is the error function erf(x)?'], ['خطأ في برنامج الرحلة'], ['في غلط ببرنامج الامتحانات'], ['the law raises an important exception'],
+  ['write a program for my wedding'], ['write a program for the conference']], false, 'not code');
+floor([['عندي error بالبرنامج'], ['البرنامج بيعطيني خطأ'], ['write a program in C'], ['write a program that sorts numbers'], ['write a program to sort numbers'], ['write a program for sorting numbers'],
+  ['write me a program'], ['write tests for my function'], ['عندي مشكلة بكودي'], ['صلحلي بكودي'], ['شو رأيك بكودي؟'], ['ساعدني بكود']], true, 'code');
+routes(after('عطيني بلغز'), 'general/reasoning', 'عطيني بلغز: لغز after ب');
+
 // ── Time: a long message must not hold the event loop ──
-// "function (" repeated made the code check backtrack: 7.6 s over 200,000
-// characters, with every other request waiting. Linear now.
+// Patterns that backtracked held every other request: "function" and 48,000
+// spaces took 2.5 s in the router, "hi", spaces and "React" 4.4 s in the
+// classifier, "رتب" repeated 2.2 s — 38 to 73 s at 200,000 characters. Every
+// classifier now reads a message's first 2,000 and last 500 characters
+// (topicWords.bounded), and the patterns are linear besides. Warmed first,
+// so what is timed is the reading, not compiling the patterns.
 {
   const { hardCodeSignal, codeAsked, mathAsked } = require('../src/agents/requestSignals');
-  const N = 200000;
-  const worst = [];
-  for (const unit of ['function (', '(a+', 'error code ', 'class a ', 'const ', 'in react ', 'رتب ال', 'بالرياكت ', 'aError ']) {
-    const text = unit.repeat(Math.ceil(N / unit.length)).slice(0, N);
-    let started = Date.now();
-    hardCodeSignal(text);
-    const hard = Date.now() - started;
-    started = Date.now();
-    codeAsked(text); mathAsked(text);
-    worst.push({ unit, hard, rest: Date.now() - started });
+  const { pageTopic } = require('../public/domain/topicWords');
+  const reads = {
+    route: (t) => routeUserRequestDeterministic([{ role: 'user', content: t }]),
+    classify: (t) => classifyQjoRequest({ messages: [{ role: 'user', content: t }], mode: 'flash' }),
+    lock: (t) => isContextualTransformRequest(t), page: (t) => pageTopic(t, 'codeBudget'),
+    hard: (t) => hardCodeSignal(t), asked: (t) => codeAsked(t), math: (t) => mathAsked(t)
+  };
+  const attacks = (n) => ({
+    spaces: ' '.repeat(n), 'function, spaces': 'function' + ' '.repeat(n), 'function, newlines': 'function' + '\n'.repeat(n),
+    'hi, spaces, React': 'hi' + ' '.repeat(n) + 'React', 'رتب repeated': 'رتب'.repeat(Math.ceil(n / 3)),
+    'function (': 'function ('.repeat(n / 10), '(a+': '(a+'.repeat(Math.ceil(n / 3)), 'aError ': 'aError '.repeat(Math.ceil(n / 7))
+  });
+  for (const read of Object.values(reads)) read('warm up: write a python function, React hooks, رتب المصفوفة');
+  const LIMIT_MS = 15;
+  let slowest = { ms: 0 };
+  for (const n of [48000, 200000]) {
+    for (const [attack, text] of Object.entries(attacks(n))) {
+      for (const [name, read] of Object.entries(reads)) {
+        const started = process.hrtime.bigint();
+        read(text);
+        const ms = Number(process.hrtime.bigint() - started) / 1e6;
+        if (ms > slowest.ms) slowest = { ms: Math.round(ms * 10) / 10, n, attack, name };
+      }
+    }
+    if (slowest.ms >= LIMIT_MS) break; // already red: the 200,000 run would take minutes
   }
-  const slowHard = worst.filter((w) => w.hard >= 50), slowRest = worst.filter((w) => w.rest >= 400);
-  const good = !slowHard.length && !slowRest.length;
+  const good = slowest.ms < LIMIT_MS;
   good ? pass++ : fail++;
-  console.log(`\n  ${good ? '✅' : '❌'} 200,000 characters: the code check under 50 ms, the rest under 400 ms (worst ${JSON.stringify(worst.reduce((a, b) => (b.hard + b.rest > a.hard + a.rest ? b : a)))})`);
+  console.log(`\n  ${good ? '✅' : '❌'} 48,000 and 200,000 characters of each attack: every read under ${LIMIT_MS} ms (slowest ${JSON.stringify(slowest)})`);
+
+  // The bound is what is read: code past the first 2,000 characters and
+  // before the last 500 is not seen; at either end it is.
+  const filler = 'lorem ipsum dolor sit amet '.repeat(200);
+  const fence = '\n```js\nconst a = 1;\n```\n';
+  const seen = [filler + fence + filler, fence + filler + filler, filler + filler + fence].map((t) => routeUserRequestDeterministic(t).targetAgent);
+  const bound = seen.join() === 'general,qcode,qcode';
+  bound ? pass++ : fail++;
+  console.log(`  ${bound ? '✅' : '❌'} a fenced block in the middle of a 10,000-character message is past the bound; at its start or end it is read (${seen.join()})`);
 }
 
 // ── Which pipeline answers, through the real engine ──

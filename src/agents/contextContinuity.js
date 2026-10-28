@@ -33,8 +33,13 @@ const asksFresh = matcher(['ابحث', 'بحث جديد', 'مصادر جديدة
 // Anywhere else the same letters are other words: "مين غيره فاز" (who
 // else), "الكواكب اللي حوله" (around it), "عن عدله" (his justice).
 // Bare "حول" is "about", so alone "حوّل" needs its shadda.
+// A courtesy may come first ("تمام، حوله لجدول", "شكرا! هلق ترجمه", "okay
+// حوله لجدول"); a question word or another verb after it is not an order
+// on the answer ("غيره مين؟", "حوله شو في؟", "خليه يجي بكرا").
 const AR_LETTER = '[\\u0621-\\u063F\\u0641-\\u064A]';
-const ORDER_ON_IT = new RegExp(`^(?:[وف]\\s*)?(?:(?:طيب|طب|بس|ممكن|هلق|يلا|لو سمحت)\\s+)?[وف]?(?:حول|خلي|اعمل|نسق|رتب|اختصر|لخص|ترجم|وضح|كمل|صحح|حسن|عدل|صيغ|غير)(?:ل[يى])?(?:ه|ها|هم|و)(?!${AR_LETTER})`);
+const COURTESY = '(?:(?:تمام|حلو|حلوة|ممتاز|شكرا|شكرًا|يسلمو|اوكي|ok|okay|thanks)[\\s،,!.]{0,4})?';
+const OPENER = '(?:[وف]\\s?)?(?:(?:طيب|طب|بس|ممكن|هلق|هلا|يلا|لو سمحت)\\s{1,3})?';
+const ORDER_ON_IT = new RegExp(`^[«"'(]?${COURTESY}${OPENER}[وف]?(?:حول|خلي|اعمل|نسق|رتب|اختصر|لخص|ترجم|وضح|كمل|صحح|حسن|عدل|صيغ|غير)(?:ل[يى])?(?:ه|ها|هم|و)(?!${AR_LETTER})(?![\\s،,]{1,3}(?:(?:مين|شو|ايش|وين|كيف|ليش|متى|قديش|هل|هي|هو)(?!${AR_LETTER})|[يت]${AR_LETTER}{2,}))`);
 
 function isContextualTransformRequest(text) {
   const q = String(text || '').trim();
