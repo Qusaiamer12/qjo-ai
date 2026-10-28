@@ -1,4 +1,9 @@
 const { launchBrowser, BASE_URL } = require('./harness');
+// What the page sent with one message: its answer room, its temperature, and
+// whether its system text carried the coding capsule.
+const shapeOf = (body = {}) => ({ room: body.max_tokens, temp: body.temperature, capsule: JSON.stringify(body.messages || []).includes('Coding capsule') });
+const isCode = (s) => s.room >= 4200 && s.temp === 0.14 && s.capsule;
+const isEveryday = (s) => s.room === 2000 && s.temp === 0.22 && !s.capsule;
 (async () => {
   const b = await launchBrowser();
   const p = await (await b.newContext()).newPage();
@@ -71,6 +76,17 @@ const { launchBrowser, BASE_URL } = require('./harness');
   sent = [];
   await ask('اكتبلي دالة جافاسكريبت للترتيب');
   check(sent[0]?.max_tokens >= 4200, `code question gets a code-sized budget (${sent[0]?.max_tokens})`);
+
+  // ── Words, not letters: "api" is not in "capital", "class" in "classic",
+  // "script" in "description" or "app" in "apply" (domain/topicWords.js) ──
+  sent = [];
+  await ask('fix this bug in my python code');
+  check(isCode(shapeOf(sent[0])), `control: a code question gets code room, a code temperature and the coding capsule (${JSON.stringify(shapeOf(sent[0]))})`);
+  for (const q of ['what is the capital of Japan?', 'recommend a classic novel', 'give me a description', 'how do I apply for a passport?']) {
+    sent = [];
+    await ask(q);
+    check(isEveryday(shapeOf(sent[0])), `"${q}" is an everyday question: no code room or capsule (${JSON.stringify(shapeOf(sent[0]))})`);
+  }
 
   // ── Not while an answer is being written: the request went with the old ones ──
   let release;

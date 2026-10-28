@@ -51,6 +51,7 @@ const WATCHED = [
   'public/ui/keyboardWatch.js',
   'public/domain/ownWords.js',
   'public/domain/siteRequest.js',
+  'public/domain/topicWords.js',
   'public/ui/previewTab.js',
   'public/domain/pythonRun.js',
   'public/domain/xlsxText.js',

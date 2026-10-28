@@ -1149,6 +1149,68 @@ lines\`,
     assert.strictEqual(relaxed.parse(/** @type {any} */ (null)), null);
   });
 
+  console.log('\nWords, not letters (topicWords.js):');
+  const topicWords = require('../public/domain/topicWords.js');
+  const topicsOf = (text) => Object.keys(topicWords.PAGE_TOPICS).filter((k) => topicWords.pageTopic(text, k));
+
+  test('a word inside another word is not that word: capital, classic, description, apply', () => {
+    for (const text of ['what is the capital of Japan?', 'recommend a classic novel', 'give me a description', 'how do I apply for a passport?', 'وين موقع البتراء؟', 'شو أسباب الركود؟', 'العدالة الاجتماعية',
+      'how do I back up WhatsApp?', 'scan the barcode', 'a transcript of the speech', 'my washer has a malfunction']) {
+      assert.deepStrictEqual(topicsOf(text), [], text);
+    }
+  });
+  test('control: each of those words, as a word, is still found', () => {
+    for (const [text, topic] of [['call the api', 'code'], ['a class in Java', 'codeBudget'], ['write a script', 'codeBudget'], ['build me an app', 'code'], ['ابنيلي موقع ويب', 'code'], ['صححلي الكود', 'code'], ['اكتبلي دالة', 'codeBudget']]) {
+      assert.ok(topicWords.pageTopic(text, /** @type {any} */ (topic)), `${text} is not ${topic}`);
+    }
+  });
+  test('Arabic as it is written: و ف ب ل ك ال هال before, a pronoun, a plural or a ة after', () => {
+    for (const [text, topic] of [['بالكود', 'code'], ['وللبرمجة', 'code'], ['برمجلي لعبة', 'code'], ['التطبيقات', 'code'], ['كودي ما بشتغل', 'code'], ['اشرحلي الدرس', 'tutoring'], ['الامتحانات بكرا', 'tutoring'],
+      ['حل المعادلات', 'math'], ['معادلتي', 'math'], ['هالملف', 'file'], ['ملفاتي', 'file'], ['الصورة المرفقة', 'file'], ['إحصاء', 'math'], ['احصاء', 'math'], ['شرّح', 'tutoring']]) {
+      assert.ok(topicWords.pageTopic(text, /** @type {any} */ (topic)), `${text} is not ${topic}`);
+    }
+  });
+  test('English as it is written: plurals, a stem, punctuation and Node.js', () => {
+    for (const [text, topic] of [['there are bugs', 'code'], ['APIs to use', 'code'], ['debugging it', 'code'], ['my node.js server', 'code'], ['Python?', 'code'], ['(React)', 'code'], ['solve this equation', 'math'], ['quizzes', 'tutoring']]) {
+      assert.ok(topicWords.pageTopic(text, /** @type {any} */ (topic)), `${text} is not ${topic}`);
+    }
+  });
+  test('a version number is part of the name: python3, HTML5, CSS3; and SQL by any of its names', () => {
+    for (const [text, topic] of [['install python3', 'code'], ['an HTML5 canvas', 'code'], ['CSS3 grid', 'codeBudget'], ['MySQL index', 'codeBudget'], ['PostgreSQL vs SQLite', 'codeBudget'], ['NoSQL databases', 'codeBudget']]) {
+      assert.ok(topicWords.pageTopic(text, /** @type {any} */ (topic)), `${text} is not ${topic}`);
+    }
+  });
+  test('a three-letter word takes ب ل ك as any word does: بكودي، بلغز، بملف، لملفي', () => {
+    for (const [text, term] of [['عندي مشكلة بكودي', 'كود'], ['ساعدني بكود', 'كود'], ['عطيني بلغز', 'لغز'], ['شو في بملف', 'ملف'], ['عطيني ملخص لملفي', 'ملف'], ['صححلي بالكود', 'كود']]) {
+      assert.ok(topicWords.hasWord(text, [term]), `${text} has no ${term}`);
+    }
+    assert.ok(topicWords.pageTopic('عندي مشكلة بكودي', 'code') && topicWords.pageTopic('لخصلي اللي بملفي', 'file'), 'the page reads them too');
+  });
+  test('a term marked ^ takes only و ف ال before it: ^نية is not in بنية (structure)', () => {
+    assert.ok(!topicWords.hasWord('بنية الذرة', ['^نية']) && !topicWords.hasWord('بنيته قوية', ['^نية']), 'بنية read as نية');
+    assert.ok(topicWords.hasWord('شو النية؟', ['^نية']) && topicWords.hasWord('نيته طيبة', ['^نية']) && topicWords.hasWord('ونيتي', ['^نية']), 'control: نية as itself');
+    assert.ok(topicWords.hasWord('بنية الذرة', ['نية']), 'control: without ^ it takes ب');
+  });
+  test('a message is read as its first 2,000 and last 500 characters', () => {
+    const filler = 'x '.repeat(3000);
+    assert.strictEqual(topicWords.bounded('short'), 'short');
+    assert.strictEqual(topicWords.bounded(filler + 'end').length, 2501);
+    assert.ok(!topicWords.pageTopic(filler + ' python ' + filler, 'code') && topicWords.pageTopic('python ' + filler + filler, 'code') && topicWords.pageTopic(filler + filler + ' python', 'code'));
+  });
+  test('a ة written ه is still the word; a stem marked = does not take ه', () => {
+    assert.ok(topicWords.hasWord('حل المعادله', ['معادلة']) && topicWords.hasWord('اوراق بحثيه', ['بحثية']));
+    assert.ok(!topicWords.hasWord('اكبر منطقه', ['منطق=']) && topicWords.hasWord('المنطق', ['منطق=']));
+    assert.ok(topicWords.pageTopic('اوراق بحثية عن المناخ', 'research'), 'بحثية');
+  });
+  test('a term marked = takes nothing after it; one marked * takes anything', () => {
+    assert.ok(topicWords.hasWord('الحساب', ['حساب=']) && !topicWords.hasWord('حسابي', ['حساب=']));
+    assert.ok(topicWords.hasWord('برمجيات', ['برمج*']) && !topicWords.hasWord('برمجيات', ['برمج=']));
+  });
+  test('the page reads its capsules and its code room from these lists, not its own', () => {
+    const app = require('fs').readFileSync(require('path').join(__dirname, '../public/app.js'), 'utf8');
+    assert.ok(/QjoDomain\.topicWords\.pageTopic/.test(app) && !/\.includes\(String\(w\)/.test(app), 'app.js matches words by itself');
+  });
+
   console.log('\n========================================');
   console.log(`${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
