@@ -454,7 +454,10 @@ ${HI} a.qjo-cite:hover, ${HI} a.qjo-cite:focus-visible, ${HI} a.qjo-cite[aria-ex
         follow = 0;
         if (!popFor) return;
         const r = popFor.getBoundingClientRect();
-        if (!popFor.isConnected || r.bottom < 0 || r.top > global.innerHeight) hide(); else position(pop, popFor);
+        // A focused citation is being scrolled to (smoothly, so it starts
+        // off screen): its card waits for it rather than closing on the way.
+        const away = r.bottom < 0 || r.top > global.innerHeight;
+        if (!popFor.isConnected || (away && popFor !== doc.activeElement)) hide(); else position(pop, popFor);
       });
     }, { capture: true, passive: true });
     global.addEventListener('resize', () => { if (popFor) hide(); }, { passive: true });

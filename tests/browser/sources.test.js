@@ -115,12 +115,19 @@ async function stripAndCitations() {
   const inCode = await page.$eval(`${last} .qjo-streamed-content`, (el) => [...el.querySelectorAll('code')].map((c) => c.textContent).join(' '));
   ok(/\[4\]/.test(inCode), 'a link written inside code is not turned into a citation');
 
-  // Hover shows what the source says
+  // Hover shows what the source says. After the 1.5 s in which the page still
+  // follows an answer's last growth (scrollFollow.js, tested in phone-ux):
+  // here the page moves only by the scroll this suite makes.
+  await page.waitForTimeout(1700);
   await page.hover(`${last} a.qjo-cite >> nth=0`);
   await page.waitForTimeout(250);
   const pop = await page.$eval('.qjo-cite-pop', (p) => ({ hidden: p.hidden, text: p.innerText, link: (p.querySelector('a') || {}).href || '' })).catch(() => null);
   ok(pop && !pop.hidden && /830 million/.test(pop.text) && /Diabetes fact sheet/.test(pop.text) && pop.link === WHO, 'hovering a citation shows the source\'s title and what it says', pop);
   // The page scrolls itself while an answer settles: the card follows.
+  // Measured against the citation itself: the page may also follow the
+  // answer's last growth (scrollFollow.js), so the distance is not fixed.
+  const citeTop = () => page.$eval(`${last} a.qjo-cite >> nth=0`, (a) => a.getBoundingClientRect().top);
+  const citeBefore = await citeTop();
   const before = await page.$eval('.qjo-cite-pop', (p) => p.getBoundingClientRect().top);
   await page.$eval('#messages', (m) => {
     const room = document.createElement('span'); // not a div: .msg:last-of-type counts divs
@@ -129,15 +136,28 @@ async function stripAndCitations() {
     m.querySelector('#messagesInner').appendChild(room);
     m.scrollTo({ top: m.scrollTop + 40, behavior: 'instant' }); // the list scrolls smoothly otherwise
   });
-  await page.waitForTimeout(150);
-  const after = await page.$eval('.qjo-cite-pop', (p) => ({ hidden: p.hidden, top: p.getBoundingClientRect().top }));
-  ok(!after.hidden && Math.abs(before - after.top - 40) < 3, `a scroll moves the card with its citation instead of closing it (${Math.round(before)} → ${Math.round(after.top)})`, after);
+  // Once the page has stopped moving: a smooth scroll is measured where it ends.
+  let settledAt = await citeTop();
+  for (let i = 0; i < 20; i++) { await page.waitForTimeout(100); const now = await citeTop(); if (Math.abs(now - settledAt) < 0.5) break; settledAt = now; }
+  await page.waitForTimeout(50);
+  const after = await page.$eval('.qjo-cite-pop', (p) => { const r = p.getBoundingClientRect(); return { hidden: p.hidden, top: r.top, bottom: r.bottom }; });
+  const cite = await page.$eval(`${last} a.qjo-cite >> nth=0`, (a) => { const r = a.getBoundingClientRect(); return { top: r.top, bottom: r.bottom }; });
+  const moved = citeBefore - cite.top;
+  // Still beside its citation: below it, or above it when there is no room below.
+  const attached = Math.abs(after.top - (cite.bottom + 6)) < 3 || Math.abs(after.bottom - (cite.top - 6)) < 3;
+  ok(!after.hidden && moved >= 39 && attached, `a scroll moves the card with its citation instead of closing it (card ${Math.round(before)} → ${Math.round(after.top)}, citation moved ${Math.round(moved)})`, { after, cite });
   await page.mouse.move(5, 5);
   await page.waitForTimeout(450);
   ok(await page.$eval('.qjo-cite-pop', (p) => p.hidden), 'moving away hides it');
 
-  // Keyboard
+  // Keyboard, from the end of the conversation: the citation is off screen,
+  // and the list scrolls to it smoothly — its card used to close on the way.
+  await page.$eval('#messages', (m) => m.scrollTo({ top: m.scrollHeight, behavior: 'instant' }));
+  const offScreen = await page.$eval(`${last} a.qjo-cite >> nth=1`, (a) => a.getBoundingClientRect().bottom < 0);
+  ok(offScreen, 'control: before focus the citation is off screen');
   await page.focus(`${last} a.qjo-cite >> nth=1`);
+  // A scroll arrives while it is still off screen (the list moving to it).
+  await page.$eval('#messages', (m) => m.dispatchEvent(new Event('scroll')));
   await page.waitForTimeout(100);
   const focused = await page.$eval('.qjo-cite-pop', (p) => ({ hidden: p.hidden, text: p.innerText }));
   ok(!focused.hidden && /blood glucose/.test(focused.text), 'focusing a citation shows it too');
