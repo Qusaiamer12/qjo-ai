@@ -14,11 +14,11 @@ Order inside each role: anything red or broken first, then what students
 
 | # | Role | Item | Why |
 |---|---|---|---|
-| 1 | frontend | "Download my chats" in settings | the quality baseline needs the owner's chats (running) |
+| 1 | frontend | ~~"Download my chats" in settings~~ done (e91a58c) | the quality baseline needs the owner's chats |
 | 2 | frontend | A saved chat's reasoning card still says "Thought for" in Arabic (`renderReasoningCardHtml`, app.js) | the live card was fixed, the saved path was not |
 | 3 | data-quality | "اكتبلي برنامج يومي يطبع التاريخ" routes as a plan, not code | known trade-off of the follow-up change |
 | 4 | data-quality | A fixed eval set of 60 invented questions, 10 per group (students by field, employees, technical, business, general, Arabic dialect), checked with no key: which playbooks, which route, request size (`measure-request.js`) | the baseline must not wait on the owner's file |
-| 5 | data-quality | Score the owner's exported answers against the rubric (README) | waits on item 1 and the owner's upload |
+| 5 | data-quality | Score the owner's exported answers against the rubric (README) | waits on the owner's upload |
 
 ## Standing hunts (when a role has nothing open)
 
