@@ -35,7 +35,26 @@ const FACES = [
   { family: 'Noto Sans Math', weight: 400, file: 'noto-sans-math-latin-400-normal.woff', range: MATH_RANGE }
 ];
 
+// The serif the document templates (academic, book, elegant, the compact CV)
+// are set in. Kept apart from FACES: the default export carries none of it,
+// so a plain PDF is the file it always was.
+const SERIF_FACES = [
+  { family: 'Noto Serif', weight: 400, style: 'normal', file: 'noto-serif-latin-400-normal.woff', range: LATIN_RANGE },
+  { family: 'Noto Serif', weight: 700, style: 'normal', file: 'noto-serif-latin-700-normal.woff', range: LATIN_RANGE },
+  { family: 'Noto Serif', weight: 400, style: 'italic', file: 'noto-serif-latin-400-italic.woff', range: LATIN_RANGE }
+];
+
 const fontPath = (file) => path.join(DIR, file);
+
+let serifCache = null;
+/** @font-face rules for the serif, inline, for a template's HTML. */
+function serifFaceCss() {
+  if (serifCache === null) {
+    serifCache = SERIF_FACES.map((face) => `@font-face{font-family:'${face.family}';font-style:${face.style};font-weight:${face.weight};font-display:block;`
+      + `src:url(data:font/woff;base64,${fs.readFileSync(fontPath(face.file)).toString('base64')}) format('woff');unicode-range:${face.range};}`).join('\n');
+  }
+  return serifCache;
+}
 
 let cssCache = null;
 /** @font-face rules with each font inline, for the HTML the PDF is printed from. */
@@ -64,4 +83,4 @@ function footerFontCss() {
   return footerCache;
 }
 
-module.exports = { FACES, fontPath, fontFaceCss, footerFontCss };
+module.exports = { FACES, SERIF_FACES, fontPath, fontFaceCss, serifFaceCss, footerFontCss };

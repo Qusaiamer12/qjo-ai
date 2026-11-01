@@ -6,25 +6,16 @@ const { isMostlyRtl } = require('./export/markdownModel');
 const { buildDocx } = require('./export/docx');
 const { buildXlsx } = require('./export/xlsx');
 const { buildPptx } = require('./export/pptx');
-const { fontFaceCss, footerFontCss } = require('./export/fonts');
+const { fontFaceCss, serifFaceCss, footerFontCss } = require('./export/fonts');
 const { buildPdfFallback } = require('./export/pdfFallback');
+const templates = require('./export/templates');
 const { assertUrlIsFetchable } = require('../tools/fetchPageTool');
 const { acceptImages, placeImages, IMAGE_DATA_URL } = require('./export/attachedImages');
 
-function stripMarkdown(input) {
-  return String(input || '')
-    .replace(/```[\s\S]*?```/g, (m) => m.replace(/```\w*\n?|```/g, ''))
-    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '$1 ($2)')
-    .replace(/^#{1,6}\s+/gm, '')
-    .replace(/\*\*([^*]+)\*\*/g, '$1')
-    .replace(/`([^`]+)`/g, '$1')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
-
 function safeExportPayload(req) {
   const title = String(req.body.title || 'Qjo Export').slice(0, 120);
-  const content = String(req.body.content || '').slice(0, 120000);
+  // The template asked for (a fixed list; none keeps today's file), and the text without its directive line.
+  const { template, content } = templates.resolveTemplate(req.body, String(req.body.content || '').slice(0, 120000));
   if (!content.trim()) {
     const err = new Error('No content provided.');
     err.statusCode = 400;
@@ -34,84 +25,13 @@ function safeExportPayload(req) {
   // own letters decide (more Arabic than Latin), not any one Arabic letter.
   const rtl = typeof req.body.rtl === 'boolean' ? req.body.rtl : isMostlyRtl(title + ' ' + content);
   // The person's own images, where the answer refers to them (attachedImages.js).
-  return { title, content: placeImages(content, acceptImages(req.body.images)), rtl };
+  return { title, content: placeImages(content, acceptImages(req.body.images)), rtl, template };
 }
 
 // A request without content is the caller's fault: 400, never 500.
 function sendExportError(res, error, fallback) {
   const status = error && error.statusCode >= 400 && error.statusCode < 500 ? error.statusCode : 500;
   res.status(status).json({ error: (error && error.message) || fallback });
-}
-
-function parseMarkdownSections(content, fallbackTitle = 'Qjo') {
-  const lines = String(content || '').split(/\r?\n/);
-  const sections = [];
-  let current = { title: fallbackTitle, lines: [] };
-
-  for (const line of lines) {
-    const heading = line.match(/^#{1,3}\s+(.+)/);
-    if (heading) {
-      if (current.lines.join('\n').trim()) sections.push(current);
-      current = { title: stripMarkdown(heading[1]).slice(0, 90), lines: [] };
-    } else {
-      current.lines.push(line);
-    }
-  }
-  if (current.lines.join('\n').trim()) sections.push(current);
-  if (!sections.length) sections.push({ title: fallbackTitle, lines: [content] });
-  return sections;
-}
-
-function normalizeBullet(line) {
-  return stripMarkdown(String(line || '').replace(/^[-*]\s+/, '').replace(/^\d+[.)]\s+/, '')).trim();
-}
-
-function sectionToBullets(section, maxBullets = 6) {
-  const bullets = [];
-  for (const line of section.lines) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    if (/^[-*]\s+/.test(trimmed) || /^\d+[.)]\s+/.test(trimmed)) {
-      const b = normalizeBullet(trimmed);
-      if (b) bullets.push(b);
-    }
-  }
-
-  if (!bullets.length) {
-    const plain = stripMarkdown(section.lines.join(' '));
-    const sentences = plain.split(/(?<=[.!؟])\s+/).map(s => s.trim()).filter(Boolean);
-    bullets.push(...sentences.slice(0, maxBullets));
-  }
-
-  return bullets
-    .map(b => b.replace(/\s+/g, ' ').trim())
-    .filter(Boolean)
-    .slice(0, maxBullets)
-    .map(b => b.length > 170 ? b.slice(0, 167) + '...' : b);
-}
-
-function _mixedDirectionNote(rtl) {
-  return rtl ? 'Arabic / English mixed content' : 'English / mixed content';
-}
-
-function _splitSlidesFromMarkdown(title, content) {
-  const sections = parseMarkdownSections(content, title);
-  const slides = [];
-
-  for (const section of sections) {
-    const bullets = sectionToBullets(section, 6);
-    if (!bullets.length) continue;
-
-    if (bullets.join(' ').length > 650) {
-      for (let i = 0; i < bullets.length; i += 4) {
-        slides.push({ title: i === 0 ? section.title : `${section.title} (${Math.floor(i / 4) + 1})`, bullets: bullets.slice(i, i + 4) });
-      }
-    } else {
-      slides.push({ title: section.title, bullets });
-    }
-  }
-
-  return slides.slice(0, 20);
 }
 
 function escapeHtmlExport(value) {
@@ -604,7 +524,6 @@ async function renderHtmlPdfWithPuppeteer(payload) {
   const puppeteer = require('puppeteer');
   const executablePath = chromiumPath(puppeteer);
   if (!executablePath) throw new Error('Chromium is not installed (npx puppeteer browsers install chrome)');
-  const html = buildExportHtmlDocument(payload);
   const browser = await puppeteer.launch({ executablePath, headless: true, args: ['--no-sandbox','--disable-setuid-sandbox','--font-render-hinting=medium'] });
   try {
     const page = await browser.newPage();
@@ -626,16 +545,20 @@ async function renderHtmlPdfWithPuppeteer(payload) {
     // DOMContentLoaded. Waiting for 'load' also waited for every image: one
     // slow image host held the export for the full 20 s and then dropped it
     // to the plain renderer. Images get a bounded wait of their own instead.
-    await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 20000 });
-    // The callbacks below are serialized and executed inside the page, where
-    // `document` exists; the linter only knows this file's Node globals.
-    /* eslint-disable no-undef */
-    await page.evaluate(() => Promise.race([
-      Promise.all(Array.from(document.images).filter(i => !i.complete).map(i => new Promise(r => { i.onload = i.onerror = r; }))),
-      new Promise(r => setTimeout(r, 5000))
-    ])).catch(() => {});
-    await page.evaluate(() => document.fonts.ready).catch(() => {});
-    /* eslint-enable no-undef */
+    const load = async (html) => {
+      await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 20000 });
+      // The callbacks below are serialized and executed inside the page, where
+      // `document` exists; the linter only knows this file's Node globals.
+      /* eslint-disable no-undef */
+      await page.evaluate(() => Promise.race([
+        Promise.all(Array.from(document.images).filter(i => !i.complete).map(i => new Promise(r => { i.onload = i.onerror = r; }))),
+        new Promise(r => setTimeout(r, 5000))
+      ])).catch(() => {});
+      await page.evaluate(() => document.fonts.ready).catch(() => {});
+      /* eslint-enable no-undef */
+    };
+    if (payload.template) return await templates.printTemplatePdf({ page, input: payload, load, deps: templateDeps });
+    await load(buildExportHtmlDocument(payload));
     await page.emulateMediaType('screen');
     const rtl = Boolean(payload.rtl);
     const footer = `<style>${footerFontCss()}</style><div style="width:100%;font-size:8px;color:#94a3b8;padding:0 16mm;display:flex;justify-content:space-between;font-family:'Noto Sans',sans-serif;direction:${rtl ? 'rtl' : 'ltr'}">`
@@ -651,6 +574,12 @@ async function renderHtmlPdfWithPuppeteer(payload) {
     });
   } finally { await browser.close(); }
 }
+
+// What a template's HTML is built from: the same rendering of the answer, fonts and stylesheets as above.
+const templateDeps = {
+  renderMarkdown: markdownToExportHtml, katexCss: katexStylesheet, fontCss: fontFaceCss, serifCss: serifFaceCss,
+  fontStack: UI_FONT_STACK, monoStack: MONO_FONT_STACK, escape: escapeHtmlExport
+};
 
 // Which engine printed the last PDF and why the other was not used: shown in
 // /api/status, so "the PDF looks wrong" can be checked against the server.
@@ -670,7 +599,7 @@ async function exportPdf(req, res) {
     const engine = pdf ? 'chromium' : 'fallback';
     if (!pdf) {
       console.warn('HTML PDF render unavailable, using the built-in renderer:', reason || 'puppeteer not installed');
-      pdf = await buildPdfFallback(payload);
+      pdf = payload.template ? await templates.buildPdfFallback(payload) : await buildPdfFallback(payload);
     }
     Object.assign(lastPdf, { engine, at: new Date().toISOString(), fallbackReason: pdf && engine === 'fallback' ? String(reason || 'puppeteer not installed').slice(0, 300) : null });
     res.setHeader('Content-Type', 'application/pdf');
@@ -741,8 +670,8 @@ async function exportPptx(req, res) {
 
 async function exportDocx(req, res) {
   try {
-    const { title, content, rtl } = safeExportPayload(req);
-    const buffer = await buildDocx({ title, content, rtl });
+    const { title, content, rtl, template } = safeExportPayload(req);
+    const buffer = template ? await templates.buildDocx({ title, content, rtl, template }) : await buildDocx({ title, content, rtl });
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(title)}.docx"; filename*=UTF-8''${encodeURIComponent(title)}.docx`);
     res.send(buffer);

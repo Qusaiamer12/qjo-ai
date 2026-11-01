@@ -79,6 +79,8 @@ ARABIC INTERFACES
 - Labels in a plot and in printed results in Arabic (the page draws Arabic correctly); a file's name exactly as attached, Arabic letters and all.`,
   video: `
 - Video scripts: the two columns are | الصوت / النص المنطوق (Audio & Dialogue) | المشهد البصري والتوجيه الإخراجي (Visual Scene & Directing) |.`,
+  cv: `
+- CV in Arabic (سيرة ذاتية): the same shape with these headings exactly — ## الملخص المهني، ## الخبرات العملية، ## التعليم، ## المهارات، ## اللغات — and the name, job title and details in the person's own language.`,
   job: `
 - Cover letters — Avoid: "يسعدني التقدم لوظيفتكم الموقرة وأنا شخص مجتهد وطموح ولدي شغف كبير..." (Vague, hollow fluff). Adopt: "خلال قيادتي لتطوير الأنظمة السحابية، حققت خفضاً في زمن الاستجابة بنسبة 35%، وهو ما يلبي بدقة متطلبات توسيع بنيتكم التحتية المستهدفة."`,
   naming: `

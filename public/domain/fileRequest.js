@@ -77,7 +77,43 @@
     return text.length >= 420 || /```|^#{1,4}\s|\n\s*[-*]\s/m.test(text) || hasTable(text);
   }
 
-  const api = { requestedFormat, hasTable, worthExporting };
+  // A CV is the one answer with a fixed shape (the CV playbook writes it): a
+  // name, then Summary, Experience, Education, Skills, Languages. The export
+  // menu offers CV templates for it and document templates for anything else,
+  // and the server reads the same headings to lay a CV out. Headings are
+  // matched in English and Arabic, as words, so "Work Experience" and
+  // "الخبرات العملية" are Experience; "Programming Languages" is Skills.
+  const WORD = (alternatives) => new RegExp(`(?<![\\p{L}])(?:${alternatives})(?![\\p{L}])`, 'u');
+  /** @type {Array<[string, RegExp]>} */
+  const CV_HEADINGS = [
+    ['languages', /^(?:(?:spoken|foreign|human) )?languages?(?: skills)?$|^(?:ال)?لغات$|^اللغة$|^المهارات اللغوية$/u],
+    ['summary', WORD('summary|profile|objective|about me|personal statement|ملخص|الملخص|نبذة|الهدف|عني')],
+    ['skills', WORD('skills?|programming languages|competenc(?:y|ies)|expertise|proficienc(?:y|ies)|tools|technologies|المهارات|مهارات|الكفاءات')],
+    ['experience', WORD('experience|employment|work history|career history|الخبرات?|خبرات?|الخبرة|التجارب|التجربة|الوظائف')],
+    ['education', WORD('education|academic|qualifications?|degrees?|studies|التعليم|المؤهلات?|الدراسة|التحصيل|الأكاديمي|الاكاديمي')]
+  ];
+  const CV_CORE = CV_HEADINGS.map(([key]) => key);
+
+  /** Which CV section a heading names (summary, experience, education, skills, languages), or null. */
+  function cvSection(heading) {
+    const text = String(heading || '').replace(/[*_`#:：]/g, ' ').replace(/[\u064B-\u065F]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+    if (!text || text.length > 60) return null;
+    const hit = CV_HEADINGS.find(([, pattern]) => pattern.test(text));
+    return hit ? hit[0] : null;
+  }
+
+  /** Whether an answer is a CV: three of the five CV sections as headings. */
+  function isCv(content) {
+    const found = new Set();
+    for (const line of String(content || '').split('\n')) {
+      const m = /^#{1,3}\s+(.+?)\s*#*\s*$/.exec(line);
+      const key = m && cvSection(m[1]);
+      if (key && CV_CORE.includes(key)) found.add(key);
+    }
+    return found.size >= 3;
+  }
+
+  const api = { requestedFormat, hasTable, worthExporting, cvSection, isCv };
   global.QjoDomain = global.QjoDomain || {};
   global.QjoDomain.fileRequest = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

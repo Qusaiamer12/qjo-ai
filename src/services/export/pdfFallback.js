@@ -400,4 +400,5 @@ function buildPdfFallback({ title, content, rtl: requestedRtl, date = new Date()
   return done;
 }
 
-module.exports = { buildPdfFallback, visualOrder, fontPieces, FACES, CHAINS };
+// The pieces the template layouts draw with (templates/pdfKitTemplates.js).
+module.exports = { buildPdfFallback, visualOrder, fontPieces, FACES, CHAINS, createWriter, drawBlock, PAGE, WIDTH, COLOR, ARABIC, LATIN };

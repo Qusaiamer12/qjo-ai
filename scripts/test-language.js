@@ -180,6 +180,7 @@ const SAMPLES = {
   python: ['write python to sort a list', 'اعطيني كود بايثون يرتب قائمة'],
   video: ['a TikTok script for my cafe', 'سكريبت فيديو ريلز لمطعمي'],
   job: ['write me a cover letter for a developer job', 'اكتبلي رسالة تغطية لوظيفة مطور'],
+  cv: ['write my CV for a nursing job', 'put my photo in my resume and make a PDF', 'بدي اعمل سيرة ذاتية لمهندس', 'اكتبلي سي في لوظيفة محاسب'],
   naming: ['brand name ideas for my app', 'اقترحلي اسم لمشروعي'],
   recipe: ['a quick recipe with eggs and tomatoes', 'وصفة سريعة بالبيض والبندورة'],
   venting: ['I feel so sad and lonely today', 'انا زعلان ومخنوق اليوم'],
@@ -388,7 +389,7 @@ test('a follow-up is told from a new question', () => {
   assert.ok(recipe.includes('recipe'), `a recipe's follow-up keeps the recipe: [${recipe}]`);
   // An instruction with no subject of its own continues the task (image-chat.test.js).
   const cv = detectNeeds([user('بدي اعمل سيرة ذاتية'), { role: 'assistant', content: 'تمام' }, user('استخرج معلوماتي')]).playbooks;
-  assert.ok(cv.includes('job'), `a CV's next instruction keeps the CV: [${cv}]`);
+  assert.ok(cv.includes('cv'), `a CV's next instruction keeps the CV: [${cv}]`);
   const joke = detectNeeds([user('بدي موقع html لمطعم'), { role: 'assistant', content: '```html\n<!DOCTYPE html><html></html>\n```' }, user('اعطيني نكتة')]);
   assert.ok(!joke.site && !joke.playbooks.includes('ui'), `the website playbook never rides along without a site: [${joke.playbooks}]`);
 });
@@ -406,6 +407,30 @@ test('a playbook is chosen by what a message asks, not by a word inside another'
   for (const [q, key] of Object.entries(keeps)) assert.ok(detectNeeds([user(q)]).playbooks.includes(key), `${q} lost ${key}`);
   const fn = detectNeeds([user('اكتبلي دالة بايثون بتعكس نص')]).playbooks;
   assert.ok(!fn.includes('charts') && !fn.includes('writing'), `a function to write is neither a chart nor prose: [${fn}]`);
+});
+
+// A CV is asked for, not merely mentioned. The playbook writes the shape the
+// export templates read (fileRequest.cvSection), so the headings it names are
+// held to the parser, English and Arabic.
+test('the CV playbook is chosen for a CV asked for, and not for one that is only mentioned', () => {
+  for (const q of ['write my CV for a nursing job', 'put my photo in my CV and make a PDF', 'improve my resume', 'cv template for designers', 'بدي اعمل سيرة ذاتية', 'حسنلي سيرتي الذاتية', 'اكتبلي سي في لوظيفة محاسب']) {
+    const chosen = detectNeeds([user(q)]).playbooks;
+    assert.ok(chosen.includes('cv'), `"${q}" did not bring the CV playbook: [${chosen}]`);
+  }
+  for (const q of ['write a cover letter based on my CV', 'how do I answer interview questions about my CV', 'what is a CV', 'my resume is attached, summarise it', 'اكتبلي رسالة تغطية بناء على سيرتي الذاتية']) {
+    const chosen = detectNeeds([user(q)]).playbooks;
+    assert.ok(!chosen.includes('cv'), `"${q}" brought the CV playbook: [${chosen}]`);
+  }
+  assert.ok(!/cover letter/i.test(PLAYBOOKS.cv.en), 'the CV playbook is not the cover-letter one');
+});
+
+test('the CV playbook names headings the export reads: all five, in English and in Arabic', () => {
+  const { cvSection, isCv } = require('../public/domain/fileRequest.js');
+  const headings = (text) => [...text.matchAll(/^\s*##\s+([^\n(—]+?)\s*(?:\(|—|$)/gm)].map((m) => cvSection(m[1]));
+  assert.deepStrictEqual(headings(PLAYBOOKS.cv.en), ['summary', 'experience', 'education', 'skills', 'languages']);
+  const arabic = [...ARABIC_PLAYBOOK_NOTES.cv.matchAll(/##\s+([ء-ي]+(?: [ء-ي]+)?)/g)].map((m) => cvSection(m[1]));
+  assert.deepStrictEqual(arabic, ['summary', 'experience', 'education', 'skills', 'languages']);
+  assert.ok(isCv(`# Name\n${PLAYBOOKS.cv.en.match(/^\s*##.*$/gm).map((l) => l.trim()).join('\n')}`), 'the shape it asks for is a CV to the page');
 });
 
 // After a figure or Python, a new question is not a figure or Python; a
