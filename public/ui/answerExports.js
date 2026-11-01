@@ -84,7 +84,7 @@
     async function download(format, content, button, template) {
       if (button) { button.disabled = true; button.classList.add('exporting'); }
       const named = template && (format === 'docx' || format === 'pdf');
-      const ok = await downloadExport(format, titleOf(content), named ? `<!-- qjo:template=${template} -->\n${content}` : content, named ? { template } : undefined);
+      const ok = await downloadExport(format, titleOf(content), content, named ? { template } : undefined);
       if (button) { button.disabled = false; button.classList.remove('exporting'); }
       if (!ok) toast(t('exportFailed'));
       return ok;

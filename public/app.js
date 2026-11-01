@@ -772,11 +772,11 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       xlsx: '/api/export/xlsx'
     };
 
-    async function downloadExport(format, title, content) {
+    async function downloadExport(format, title, content, options) {
       const endpoint = EXPORT_ENDPOINTS[format];
       if (!endpoint) return false;
       const safeName = String(title || 'qjo-export').replace(/[\\/:*?"<>|]+/g, '-').slice(0, 60) || 'qjo-export';
-      return postForDownload(endpoint, { title, content, rtl: QjoDomain.language.documentLanguage(content) === 'ar', images: attachmentShelf.imagesFor(content) }, `${safeName}.${format}`);
+      return postForDownload(endpoint, { title, content, rtl: QjoDomain.language.documentLanguage(content) === 'ar', images: attachmentShelf.imagesFor(content), template: (options && options.template) || undefined }, `${safeName}.${format}`);
     }
 
     // Shows a small "the model itself searched/calculated" note whenever
