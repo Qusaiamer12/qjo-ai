@@ -2759,7 +2759,8 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         escapeHtml,
         renderMarkdown: lightMarkdown,
         requestSmoothScroll,
-        getLanguage: () => qjoLanguage
+        getLanguage: () => qjoLanguage,
+        t
       });
 
       let lastMetadata = {};
@@ -2773,11 +2774,9 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       const streamReasoningText = (delta) => view.streamReasoning(delta);
       const finishReasoning = () => view.finishReasoning();
       const appendContentChunk = (text) => view.appendAnswer(text);
-      const ensureReasoningWidget = () => view.ensureReasoningCard();
 
-      // Launch Reasoning Card INSTANTLY upon sending message!
-      ensureReasoningWidget();
-      appendReasoningStep(qjoLanguage === 'ar' ? 'بدء التفكير واستحضار السياق...' : 'Analyzing request and context...');
+      // The card comes with the first reasoning text or search step, not on
+      // send: that one was 85px of "Thought for 0.0s" over most answers.
       requestSmoothScroll();
 
       try {
@@ -2882,7 +2881,6 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
               for (const action of routed.actions) {
                 if (action.type === 'content') appendContentChunk(action.text);
                 else if (action.type === 'reasoning') streamReasoningText(action.text);
-                else if (action.type === 'beginThinking') ensureReasoningWidget();
                 else if (action.type === 'endThinking') finishReasoning();
                 else if (action.type === 'endThinkingIfActive' && view.reasoningActive) finishReasoning();
               }
@@ -2976,8 +2974,9 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         // streamed is left alone: re-asking would spend a second generation.
         //
         // The test for that is the answer text, not view.started — `started`
-        // only means the bubble exists, and the reasoning line creates it
-        // before the request is even sent, so it is true for every failure.
+        // only means the bubble exists, and the line below creates it, so it
+        // is true for every failure.
+        view.ensureElements(); // the failure is written in the answer's bubble, which nothing else may have made yet
         const nothingDelivered = !String(view.answer || '').trim();
         // Once: a second silent retry only delays the reason (and the Retry button) by seconds.
         if (looksTransient && nothingDelivered && !options.autoRetried) {

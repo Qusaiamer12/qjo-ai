@@ -2424,6 +2424,14 @@ body.dark .assistant .bubble .md-table {
   background: #ffffff !important;
 }
 
+/* The card is white, so what draws itself in the page's accent (links, the
+   citation chips) gets the light-mode accent: #5b8cff on white is 3:1. */
+body.dark .md-table-wrap {
+  --ds-accent: #1d4ed8;
+  --ds-accent-soft: rgba(29, 78, 216, .08);
+  --ds-accent-line: rgba(29, 78, 216, .22);
+}
+
 body.dark .md-table th,
 body.dark .assistant .bubble .md-table th,
 body.dark .md-table th * {
@@ -2604,7 +2612,7 @@ body.dark .export-table-csv-btn:hover svg {
   body.dark .composer,
   body:not(.dark) .composer,
   body.qjo-input-focused .composer,
-  body.qjo-keyboard-open .composer,
+  body:is(.qjo-keyboard-open, .qjo-keyboard-resized) .composer,
   .composer {
     display: flex !important;
     flex-direction: row !important;

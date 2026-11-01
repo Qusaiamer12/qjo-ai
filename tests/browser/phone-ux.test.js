@@ -284,6 +284,44 @@ async function keyboard(browser) {
   await ctx.close();
 }
 
+// ── 5b. The composer's open-keyboard styling applies on Android too ─────────
+// styles.css tightens the composer (smaller padding, a shorter box) under
+// `qjo-keyboard-open`, which app.js sets only when the visual viewport is
+// shorter than the window — iOS. With interactive-widget=resizes-content,
+// Android shrinks the window itself and keyboardWatch.js sets
+// `qjo-keyboard-resized` instead, so that styling never applied.
+async function keyboardComposer(browser) {
+  const { ctx, page } = await open(browser);
+  await ask(page, 'How does binary search work?');
+  const look = () => page.evaluate(() => {
+    const pick = (sel, props) => { const cs = getComputedStyle(document.querySelector(sel)); return props.map((p) => cs[p]).join(' '); };
+    return [
+      pick('.composer-wrap', ['paddingTop']), pick('.composer', ['paddingTop', 'paddingLeft']), pick('textarea#input', ['maxHeight']),
+      getComputedStyle(document.querySelector('.mobile-tools-notch') || document.body).display
+    ].join(' | ');
+  });
+  const closed = await look();
+  await page.evaluate(() => document.body.classList.add('qjo-keyboard-open'));
+  await page.waitForTimeout(150);
+  const ios = await look();
+  await page.evaluate(() => document.body.classList.remove('qjo-keyboard-open'));
+  ok(closed !== ios, `control: the open-keyboard styling changes the composer (closed ${closed}; open ${ios})`);
+  // A real shrink, as in the Android check above — not a class set by hand.
+  await page.tap('#input');
+  await page.waitForTimeout(300);
+  await page.setViewportSize({ width: PHONE.viewport.width, height: PHONE.viewport.height - 291 });
+  await page.waitForTimeout(500);
+  const marked = await page.evaluate(() => ({ resized: document.body.classList.contains('qjo-keyboard-resized'), open: document.body.classList.contains('qjo-keyboard-open') }));
+  ok(marked.resized && !marked.open, 'control: with the screen shrunk, the page marks the keyboard resized and not open (app.js sees no viewport gap)', marked);
+  const android = await look();
+  ok(android === ios, `Android: the composer takes the open-keyboard look (${android}; iOS ${ios})`);
+  await page.evaluate(() => document.activeElement.blur());
+  await page.setViewportSize(PHONE.viewport);
+  await page.waitForTimeout(500);
+  ok(await look() === closed, 'keyboard closed again: the composer is as it was');
+  await ctx.close();
+}
+
 // ── 9. The scroll-to-bottom button sits inside the screen ───────────────────
 async function scrollButton(browser, lang) {
   const { ctx, page } = await open(browser, { lang });
@@ -444,7 +482,7 @@ async function follow(browser, how) {
   try {
     // Each scenario on its own: one that stops early is a failure, named, and the rest still run.
     const scenarios = [['edit', () => editTap(browser)], ['bottom en', () => bottomOfAnswer(browser, 'en')], ['bottom ar', () => bottomOfAnswer(browser, 'ar')],
-      ['composer dark', () => composerDark(browser)], ['retry', () => retryTarget(browser)], ['keyboard', () => keyboard(browser)], ['scroll button en', () => scrollButton(browser, 'en')],
+      ['composer dark', () => composerDark(browser)], ['retry', () => retryTarget(browser)], ['keyboard', () => keyboard(browser)], ['keyboard composer', () => keyboardComposer(browser)], ['scroll button en', () => scrollButton(browser, 'en')],
       ['scroll button ar', () => scrollButton(browser, 'ar')], ['menus', () => menusClose(browser)], ['follow', () => follow(browser, '')],
       ['scrolled back by finger', () => follow(browser, 'finger')], ['scrolled back by wheel', () => follow(browser, 'wheel')]];
     // `node phone-ux.test.js follow` runs the scenarios whose names hold a word given.

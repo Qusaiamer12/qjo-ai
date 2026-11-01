@@ -38,7 +38,9 @@ const ANSWER = [
   '',
   '| النوع | السبب |',
   '|---|---|',
-  '| الأول | مناعي |',
+  // A link and a citation inside cells: the table is a white card in dark mode
+  // too, and these two drew their own light colours onto it (1.7:1 and 2.7:1).
+  `| الأول | مناعي [1](${SOURCES[0].url}) و[رابط الجدول](https://example.org/table) |`,
   '| الثاني | مقاومة الأنسولين |',
   '',
   '```html',
@@ -102,7 +104,12 @@ async function everyWord(page, where) {
     return seen && seen[0];
   }, measure.toString());
   ok(Array.isArray(found) && found.length >= 30 && found.some((f) => f.text.includes('مزمن')), `${where}: the measure reads the answer (${found && found.length} pieces of text)`);
+  // Control: the link and the citation inside the table's cells are among what was measured.
+  ok(found && found.some((f) => f.text.includes('رابط الجدول') && !f.unmeasurable) && found.some((f) => f.cls === 'qjo-cite-n' && !f.unmeasurable) && (await page.$$('.msg.assistant:last-of-type td a.qjo-cite, .msg.assistant:last-of-type td a:not(.qjo-cite)')).length === 2, `${where}: control — a link and a citation inside the table's cells are measured too`);
   ok(control && control.ratio < 1.5, `${where}: control — a word painted dark on the code header is caught (${control && control.ratio}:1)`, control);
+  // A link in a cell is still a link: its colour is not the cell's ink.
+  const cellLink = await page.$eval('.msg.assistant:last-of-type td a:not(.qjo-cite)', (a) => ({ link: getComputedStyle(a).webkitTextFillColor, cell: getComputedStyle(a.closest('td')).webkitTextFillColor })).catch(() => null);
+  ok(cellLink && cellLink.link !== cellLink.cell, `${where}: a link in a table cell is drawn as a link, not in the cell's ink (${cellLink && cellLink.link} against ${cellLink && cellLink.cell})`, cellLink);
   const unreadable = (found || []).filter((f) => !f.unmeasurable && f.ratio < f.need);
   ok(unreadable.length === 0, `${where}: every piece of text in the answer can be read (${unreadable.length} below WCAG AA)`, unreadable.slice(0, 8));
 }
