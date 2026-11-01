@@ -319,7 +319,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     const imagePrep = QjoUI.createImagePrep();
     const attachmentShelf = QjoUI.createAttachmentShelf({ maxImages: QjoDomain.imagePlan.LIMITS.maxImages, replyLanguage: (text) => QjoDomain.language.replyLanguage(text, qjoLanguage), t });
     const quiz = QjoUI.createQuiz({ t, parse: (raw) => safeParseRelaxedJson(raw) });
-    const mathPlots = QjoUI.createMathPlots({ t, isDark: () => qjoTheme === 'dark' });
+    const mathPlots = QjoUI.createMathPlots({ t, isDark: () => qjoTheme === 'dark' }); const imageBlocks = QjoUI.createImageBlocks({ t, toast: (m) => showMicroToast(m) });
     const sendStop = QjoUI.createSendStop({ button: sendBtn, t });
     const answerReading = QjoUI.createAnswerReading({ t, copy: (text) => copyTextToClipboard(text) });
     const messageEditor = QjoUI.createMessageEditor({ t, canEdit: () => !busy, rewind: () => rewindHistoryToLastQuestion(), composer: inputEl, composerChanged: () => { autoResize(); saveDraft(); } });
@@ -347,7 +347,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         ['charts', () => initializeChartsInElement(bubble)],
         ['code blocks', () => initializeCodeBlockCopyButtons(bubble)],
         ['quizzes', () => quiz.initialize(bubble)],
-        ['math plots', () => mathPlots.initialize(bubble)],
+        ['math plots', () => mathPlots.initialize(bubble)], ['pictures', () => imageBlocks.initialize(bubble)],
         ['citations', () => sourceStrip.decorate(bubble)],
         ['diagrams', () => {
           if (typeof mermaid !== 'undefined') mermaid.init(undefined, bubble.querySelectorAll('.mermaid'));

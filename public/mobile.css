@@ -214,8 +214,8 @@
      its header was dark on dark (1.03:1). */
   body:not(.dark) .assistant .bubble p,
   body:not(.dark) .assistant .bubble li,
-  body:not(.dark) .assistant .bubble span:not(.qjo-typing-cursor):not(.tool-check):where(:not(.code-block-wrapper *, .math-plot-card *)),
-  body:not(.dark) .assistant .bubble div:not(.qjo-reasoning-pulse):where(:not(.code-block-wrapper, .code-block-wrapper *, .math-plot-card *)) {
+  body:not(.dark) .assistant .bubble span:not(.qjo-typing-cursor):not(.tool-check):where(:not(.code-block-wrapper *, .math-plot-card *, .qjo-image-card *)),
+  body:not(.dark) .assistant .bubble div:not(.qjo-reasoning-pulse):where(:not(.code-block-wrapper, .code-block-wrapper *, .math-plot-card *, .qjo-image-card *)) {
     color: #0f172a !important;
     -webkit-text-fill-color: #0f172a !important;
   }
@@ -261,8 +261,8 @@
 
   body.dark .assistant .bubble p,
   body.dark .assistant .bubble li,
-  body.dark .assistant .bubble span:not(.qjo-typing-cursor):not(.tool-check):where(:not(.code-block-wrapper *, .math-plot-card *)),
-  body.dark .assistant .bubble div:not(.qjo-reasoning-pulse):where(:not(.code-block-wrapper, .code-block-wrapper *, .math-plot-card *)) {
+  body.dark .assistant .bubble span:not(.qjo-typing-cursor):not(.tool-check):where(:not(.code-block-wrapper *, .math-plot-card *, .qjo-image-card *)),
+  body.dark .assistant .bubble div:not(.qjo-reasoning-pulse):where(:not(.code-block-wrapper, .code-block-wrapper *, .math-plot-card *, .qjo-image-card *)) {
     color: #f8fafc !important;
     -webkit-text-fill-color: #f8fafc !important;
   }

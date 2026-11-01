@@ -1211,6 +1211,179 @@ lines\`,
     assert.ok(/QjoDomain\.topicWords\.pageTopic/.test(app) && !/\.includes\(String\(w\)/.test(app), 'app.js matches words by itself');
   });
 
+  console.log('\nPictures in an answer: the block, the address, the SVG stand-in (imageBlock.js):');
+  const imageBlock = require('../public/domain/imageBlock.js');
+  const FENCE = '```';
+  test('a block is read as data: relaxed JSON, a plain description, sizes held to the service\'s range', () => {
+    const relaxed = imageBlock.parse("{prompt: 'a cat sitting on the moon', title: 'قطة على القمر', width: '800px', height: 9999, style: 'watercolor',}");
+    assert.ok(relaxed.ok && relaxed.spec.prompt === 'a cat sitting on the moon' && relaxed.spec.title === 'قطة على القمر' && relaxed.spec.alt === 'قطة على القمر');
+    assert.deepStrictEqual([relaxed.spec.width, relaxed.spec.height, relaxed.spec.style], [800, 1536, 'watercolor']);
+    assert.strictEqual(imageBlock.parse('{"prompt": "a red bicycle"}').spec.width, 1024, 'no width: the default');
+    assert.strictEqual(imageBlock.parse('{"prompt": "a red bicycle", "width": 12}').spec.width, 256);
+    assert.strictEqual(imageBlock.parse('{"prompt": "a red bicycle", "height": "abc"}').spec.height, 1024);
+    assert.strictEqual(imageBlock.parse('a lighthouse at dawn, soft light').spec.prompt, 'a lighthouse at dawn, soft light');
+    const long = imageBlock.parse(JSON.stringify({ prompt: 'a castle on a hill '.repeat(100) }));
+    assert.ok(long.ok && long.spec.prompt.length <= imageBlock.LIMITS.prompt, `${long.spec.prompt.length} characters`);
+  });
+  test('a block is never run: code in a field stays text, and a prototype name is not a field', () => {
+    globalThis.__imagePwned = undefined;
+    const r = imageBlock.parse('{"prompt": (globalThis.__imagePwned = 1, "a dog in a hat")}');
+    assert.strictEqual(globalThis.__imagePwned, undefined, 'a block ran code');
+    assert.ok(!r.ok, 'a prompt written as code was taken as a description');
+    const proto = imageBlock.parse('{"__proto__": {"prompt": "a dog in a hat"}, "constructor": "x"}');
+    assert.ok(!proto.ok && proto.error.code === 'noPrompt', JSON.stringify(proto));
+  });
+  test('a description that is not English is refused by name, not sent (measured: Arabic draws the wrong thing)', () => {
+    assert.strictEqual(imageBlock.parse('{"prompt": "قطة جالسة على القمر"}').error.code, 'notEnglish');
+    assert.strictEqual(imageBlock.parse('{"prompt": "قطة جالسة على القمر cat"}').error.code, 'notEnglish');
+    assert.ok(imageBlock.parse('{"prompt": "a bakery sign that reads \'مخبز\' in warm light"}').ok, 'a word of Arabic inside an English description is allowed');
+    assert.strictEqual(imageBlock.parse('{"prompt": "a cat", "style": "ألوان مائية"}').spec.style, '', 'a style in Arabic is left out');
+    for (const [raw, code] of [['', 'empty'], ['   ', 'empty'], ['{"title": "x"}', 'noPrompt'], ['{"prompt": "12 34"}', 'noPrompt'], ['{"prompt": ', 'unreadable'], ['[1, 2]', 'unreadable']]) {
+      const r = imageBlock.parse(raw);
+      assert.ok(!r.ok && r.error.code === code, `${JSON.stringify(raw)}: ${JSON.stringify(r)}`);
+    }
+    assert.strictEqual(imageBlock.explain({ code: 'notEnglish' }, (k) => `<${k}>`), '<imageWhyNotEnglish>');
+  });
+  test('the address carries the English description, encoded whole, and the size, the seed and no logo', () => {
+    const spec = imageBlock.parse('{"prompt": "a cat? on/the moon #1 & more", "style": "flat vector", "width": 640, "height": 480}').spec;
+    const url = imageBlock.buildUrl(spec, 42);
+    const parsed = new URL(url);
+    assert.strictEqual(parsed.origin, 'https://image.pollinations.ai');
+    assert.ok(parsed.pathname.startsWith('/prompt/'));
+    assert.strictEqual(decodeURIComponent(parsed.pathname.slice('/prompt/'.length)), 'a cat? on/the moon #1 & more, flat vector style');
+    assert.strictEqual(parsed.hash, '', 'a # in the description became a fragment');
+    assert.deepStrictEqual([...parsed.searchParams.keys()], ['width', 'height', 'nologo', 'seed']);
+    assert.deepStrictEqual([parsed.searchParams.get('width'), parsed.searchParams.get('height'), parsed.searchParams.get('nologo'), parsed.searchParams.get('seed')], ['640', '480', 'true', '42']);
+    assert.ok(/^https:\/\/image\.pollinations\.ai\/prompt\/[A-Za-z0-9%._~!*'()-]+\?/.test(url), url);
+    assert.strictEqual(new URL(imageBlock.buildUrl(spec, 'x; drop')).searchParams.get('seed'), '0', 'a seed is a number');
+  });
+  test('the first seed is the block\'s own, the same every time; "another version" is never the one shown', () => {
+    const spec = imageBlock.parse('{"prompt": "a lighthouse at dawn"}').spec;
+    assert.strictEqual(imageBlock.seedFor(spec), imageBlock.seedFor({ ...spec }));
+    assert.notStrictEqual(imageBlock.seedFor(spec), imageBlock.seedFor({ ...spec, prompt: 'a lighthouse at dusk' }));
+    const seed = imageBlock.seedFor(spec);
+    assert.notStrictEqual(imageBlock.anotherSeed(seed), seed);
+    assert.notStrictEqual(imageBlock.anotherSeed(seed, () => (seed - 1) / 999999), seed, 'a generator that keeps answering the same');
+    assert.notStrictEqual(imageBlock.anotherSeed(999999, () => 0.999999999), 999999);
+  });
+
+  const asks = [
+    'ارسملي قطة على القمر', 'ارسم لي وردة', 'draw a logo for my bakery', 'Draw me a cat wearing a space helmet', 'generate an image of a sunset over the sea',
+    'create a logo with a blue circle', 'I want a picture of a dragon', 'design a poster for my concert', 'صمم لي شعار لمخبزي', 'سويلي صورة قطة', 'بدي صورة لقطة', 'سويلي لوغو لمحل قهوة'
+  ];
+  const doesNotAsk = [
+    'draw a bar chart of sales', 'plot e^-t', 'draw conclusions from this text', 'create a docker image for my node app', 'write python code that draws a cat', 'make the image smaller',
+    'I want to analyze a picture', 'what is in this photo?', 'ideas to paint my bedroom', 'illustrate the concept with an example', 'sketch a plan for the quarter', 'draw a circle', 'draw a flowchart of the login',
+    'ارسملي مخطط المبيعات', 'ارسم دالة y = x^2', 'ارسم دائرة', 'اعمل تحليل لهذه الصورة', 'اكتبلي شعار لمشروعي', 'كيفك', ''
+  ];
+  test('which messages ask for a picture: a thing to see, not a chart, a figure, a diagram or code', () => {
+    for (const text of asks) assert.ok(imageBlock.asksForPicture(text), `missed: ${text}`);
+    for (const text of doesNotAsk) assert.ok(!imageBlock.asksForPicture(text), `taken for a picture: ${text}`);
+    assert.ok(imageBlock.pictureMessage('ارسملي قطة\n\nUser attached files: draw a chart', (t) => t.split('\n')[0]), 'judged on the person\'s own words');
+    assert.ok(!imageBlock.pictureMessage('hello\n\nارسملي قطة (a note the page wrote)', (t) => t.split('\n')[0]));
+    assert.ok(imageBlock.answerHasPicture(`here:\n${FENCE}image\n{}\n${FENCE}`) && !imageBlock.answerHasPicture(`${FENCE}images\n${FENCE}`) && !imageBlock.answerHasPicture('a picture'));
+  });
+
+  // The SVG a block may carry. Read again here by its tags (the sanitiser
+  // writes every one itself), never by searching for a word.
+  const tagsOf = (svg) => [...svg.matchAll(/<(\/?)([A-Za-z][\w:-]*)((?:\s+[^\s=>]+="[^"]*")*)\s*\/?>/g)].map((m) => ({ closing: Boolean(m[1]), name: m[2], attrs: [...m[3].matchAll(/([^\s=]+)="([^"]*)"/g)].map((a) => [a[1], a[2]]) }));
+  const SAFE_TAGS = new Set(['svg', 'g', 'defs', 'linearGradient', 'radialGradient', 'stop', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'path', 'text', 'tspan', 'title', 'desc', 'clipPath', 'mask']);
+  const assertSafe = (svg, label) => {
+    const tags = tagsOf(svg);
+    assert.ok(tags.length, `${label}: nothing came back to look at`);
+    assert.strictEqual(svg.replace(/<\/?[A-Za-z][^>]*>/g, '').match(/[<>]/g), null, `${label}: a stray bracket outside any tag`);
+    for (const tag of tags) {
+      assert.ok(SAFE_TAGS.has(tag.name), `${label}: <${tag.name}> survived`);
+      for (const [name, value] of tag.attrs) {
+        assert.ok(!/^on/i.test(name) && name !== 'style' && !/href/i.test(name), `${label}: ${name} survived`);
+        assert.ok(name !== 'xmlns' || value === 'http://www.w3.org/2000/svg', `${label}: xmlns ${value}`);
+        if (name !== 'xmlns') assert.ok(!/https?:|javascript:|data:|\/\//i.test(value), `${label}: ${name}="${value}"`);
+        for (const ref of value.match(/url\([^)]*\)?/gi) || []) assert.ok(/^url\(#[A-Za-z][\w-]*\)$/.test(ref), `${label}: ${ref}`);
+      }
+    }
+  };
+  const BENIGN = '<svg viewBox="0 0 100 100" width="200"><defs><linearGradient id="g"><stop offset="0" stop-color="#f00"/><stop offset="1" stop-color="#00f"/></linearGradient></defs><rect x="5" y="5" width="90" height="90" fill="url(#g)"/><circle cx="50" cy="50" r="20" fill="#fff" opacity="0.5"/><text x="10" y="95" font-size="8">Fish &amp; chips</text></svg>';
+  const ATTACKS = {
+    'script element': '<svg viewBox="0 0 10 10"><script>window.__pwned=1</script><rect width="5" height="5"/></svg>',
+    'script in capitals': '<svg viewBox="0 0 10 10"><SCRIPT>window.__pwned=1</SCRIPT><rect width="5" height="5"/></svg>',
+    'script holding a bracket': '<svg viewBox="0 0 10 10"><g><script>if (a<b) { window.__pwned=1 }</script><rect width="5" height="5"/></g></svg>',
+    'handler on the root': '<svg viewBox="0 0 10 10" onload="window.__pwned=1"><rect width="5" height="5"/></svg>',
+    'handler in capitals': '<svg viewBox="0 0 10 10"><rect width="5" height="5" ONCLICK="window.__pwned=1" OnMouseOver=window.__pwned=1 /></svg>',
+    'style with an address': '<svg viewBox="0 0 10 10"><rect width="5" height="5" style="fill:url(http://evil.example/x.svg#a);background:url(//evil.example/y)"/></svg>',
+    'style element': '<svg viewBox="0 0 10 10"><style>@import url(//evil.example/x.css); rect{fill:url(http://evil.example/p)}</style><rect width="5" height="5"/></svg>',
+    'foreignObject with a frame': '<svg viewBox="0 0 10 10"><foreignObject width="9" height="9"><iframe src="javascript:window.__pwned=1"></iframe><body xmlns="http://www.w3.org/1999/xhtml" onload="window.__pwned=1"/></foreignObject><rect width="5" height="5"/></svg>',
+    'a link': '<svg viewBox="0 0 10 10"><a xlink:href="javascript:window.__pwned=1" href="javascript:window.__pwned=2"><rect width="5" height="5"/></a><rect width="2" height="2"/></svg>',
+    'use of another file': '<svg viewBox="0 0 10 10"><use href="http://evil.example/s.svg#x"/><use xlink:href="//evil.example/s.svg#x"/><rect width="5" height="5"/></svg>',
+    'image from outside': '<svg viewBox="0 0 10 10"><image href="https://evil.example/p.png" width="5" height="5"/><image href="data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=" width="5" height="5"/><rect width="5" height="5"/></svg>',
+    'a gradient fetched from outside': '<svg viewBox="0 0 10 10"><rect width="5" height="5" fill="url(http://evil.example/x.svg#a)" stroke="url( #a )"/><circle r="2" fill="url(#ok) red"/></svg>',
+    'a scheme written as character references': '<svg viewBox="0 0 10 10"><rect width="5" height="5" fill="&#106;avascript:window.__pwned=1" stroke="&#x6A;avascript&colon;x"/><circle r="2" fill="red"/></svg>',
+    'animation that sets a link': '<svg viewBox="0 0 10 10"><a><set attributeName="href" to="javascript:window.__pwned=1"/></a><animate attributeName="fill" onbegin="window.__pwned=1"/><animateTransform onend="window.__pwned=1"/><rect width="5" height="5"><animate attributeName="width" to="9" onbegin="window.__pwned=1"/></rect></svg>',
+    'text that looks like markup': '<svg viewBox="0 0 10 10"><text x="1" y="5">&lt;script&gt;window.__pwned=1&lt;/script&gt; <![CDATA[<script>window.__pwned=1</script>]]></text></svg>',
+    'a script inside a title': '<svg viewBox="0 0 10 10"><title><script>window.__pwned=1</script>Cat</title><rect width="5" height="5"/></svg>',
+    'a second svg inside': '<svg viewBox="0 0 10 10"><svg onload="window.__pwned=1" width="5"><rect width="5" height="5"/></svg></svg>',
+    'a namespace of its own': '<svg xmlns="http://evil.example/ns" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 10 10"><rect width="5" height="5"/></svg>',
+    'an id that is not one': '<svg viewBox="0 0 10 10"><rect id="a&quot; onload=&quot;window.__pwned=1" width="5" height="5"/><rect id="x" width="2" height="2"/></svg>',
+    'a doctype with an entity': '<?xml version="1.0"?><!DOCTYPE svg [ <!ENTITY x "&#60;script&#62;window.__pwned=1&#60;/script&#62;"> ]><svg viewBox="0 0 10 10"><text>&x;</text><rect width="5" height="5"/></svg>'
+  };
+  test('an SVG is rebuilt from an allowlist: a benign drawing keeps its shapes, colours, gradient and text', () => {
+    const out = imageBlock.sanitizeSvg(BENIGN);
+    assertSafe(out, 'benign');
+    assert.deepStrictEqual(tagsOf(out).filter((t) => !t.closing).map((t) => t.name), ['svg', 'defs', 'linearGradient', 'stop', 'stop', 'rect', 'circle', 'text']);
+    assert.ok(out.startsWith('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">'), 'the box is a viewBox the page sizes: ' + out.slice(0, 120));
+    assert.ok(out.includes('fill="url(#g)"') && out.includes('stop-color="#f00"') && out.includes('>Fish &amp; chips</text>'), out);
+    assert.ok(imageBlock.sanitizeSvg('<svg width="200" height="100"><rect width="9" height="9"/></svg>').includes('viewBox="0 0 200 100"'), 'a size becomes a viewBox');
+    assert.ok(imageBlock.sanitizeSvg('<svg><rect width="9" height="9"/></svg>').includes('viewBox="0 0 512 512"'));
+    assert.ok(imageBlock.svgDataUrl(out).startsWith('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns') && !/[<>"]/.test(imageBlock.svgDataUrl(out)));
+  });
+  for (const [label, payload] of Object.entries(ATTACKS)) {
+    test(`an SVG attack stays out: ${label}`, () => {
+      const out = imageBlock.sanitizeSvg(payload);
+      // Either the drawing is refused whole, or what is left is only allowlisted shapes.
+      if (out) assertSafe(out, label);
+      assert.ok(!/__pwned/.test(out.replace(/>[^<]*</g, '><')), `${label}: the payload is still in a tag`);
+    });
+  }
+  test('the attacks that leave a drawing leave the harmless shape beside them (the probe sees real output)', () => {
+    assert.ok(/<rect[^>]*width="5"/.test(imageBlock.sanitizeSvg(ATTACKS['script element'])), 'control: the rect next to the script survives');
+    assert.ok(/<circle[^>]*fill="red"/.test(imageBlock.sanitizeSvg(ATTACKS['a scheme written as character references'])), 'control: the clean circle survives');
+    assert.ok(/<text[^>]*>[^<]*&lt;script&gt;[^<]*<\/text>/.test(imageBlock.sanitizeSvg(ATTACKS['text that looks like markup'])), 'markup written as text stays text, escaped');
+    assert.strictEqual(imageBlock.sanitizeSvg(ATTACKS['a doctype with an entity']), '', 'entities are refused whole');
+  });
+  test('an SVG that cannot be read is refused whole, not guessed at; one with nothing to draw is no fallback', () => {
+    for (const bad of ['', '   ', 'not svg', '<div>hi</div>', '<svg/onload=alert(1)>', '<svg viewBox="0 0 1 1"><g><rect width="1" height="1"/></svg>', '<svg viewBox="0 0 1 1"><rect width="1" height="1"></g></svg>',
+      '<svg viewBox="0 0 1 1"></svg>', '<svg viewBox="0 0 1 1"><g/></svg>', '<svg viewBox="0 0 1 1"><rect width="1" height="1"/></svg><svg><rect/></svg>', '<script>1</script><svg><rect width="1" height="1"/></svg>']) {
+      assert.strictEqual(imageBlock.sanitizeSvg(bad), '', JSON.stringify(bad));
+    }
+    assert.strictEqual(imageBlock.sanitizeSvg(`<svg viewBox="0 0 9 9">${'<rect width="1" height="1"/>'.repeat(500)}</svg>`), '', 'too many elements');
+    assert.strictEqual(imageBlock.sanitizeSvg(`<svg viewBox="0 0 9 9">${'<g>'.repeat(40)}<rect width="1" height="1"/>${'</g>'.repeat(40)}</svg>`), '', 'too deep');
+    assert.strictEqual(imageBlock.sanitizeSvg(`<svg viewBox="0 0 9 9"><path d="${'M0 0 '.repeat(8000)}"/></svg>`), '', 'too long');
+    const started = Date.now();
+    imageBlock.sanitizeSvg(`<svg viewBox="0 0 9 9"><rect ${'a="1" '.repeat(3000)} ${'b '.repeat(3000)}/>` + '<'.repeat(5000));
+    assert.ok(Date.now() - started < 1000, 'a hostile text held the page');
+  });
+  test('the block\'s SVG is sanitised when the block is read, so nothing else sees the original', () => {
+    const r = imageBlock.parse(JSON.stringify({ prompt: 'a red apple', svg: ATTACKS['script element'] }));
+    assert.ok(r.ok && /<rect/.test(r.spec.svg) && !/script/i.test(r.spec.svg), r.spec.svg);
+    assert.strictEqual(imageBlock.parse(JSON.stringify({ prompt: 'a red apple', svg: '<svg onload="x"/>' })).spec.svg, '');
+    assert.strictEqual(imageBlock.parse(JSON.stringify({ prompt: 'a red apple', svg: 42 })).spec.svg, '');
+  });
+  test('the renderer turns an image block into a card the page fills in, its text encoded so nothing can close the attribute', () => {
+    const hostile = '{"prompt": "a cat\\" onmouseover=\\"x\\"><img src=x onerror=alert(1)>"}';
+    const html = markdown.lightMarkdown(`hello\n\n${FENCE}image\n${hostile}\n${FENCE}\n\nbye`);
+    assert.ok(/<div class="qjo-image-card" data-image-spec="[A-Za-z0-9%._~!*'()-]+"><\/div>/.test(html), html.slice(0, 300));
+    assert.ok(!/<img/i.test(html) && !/onerror\s*=/.test(html.replace(/data-image-spec="[^"]*"/, '')), 'the block\'s text reached the page as markup');
+    assert.strictEqual(decodeURIComponent(/data-image-spec="([^"]*)"/.exec(html)[1]), hostile);
+    assert.ok(/class="math-plot-card" data-plot-spec=/.test(markdown.lightMarkdown(`${FENCE}mathplot\n{}\n${FENCE}`)), 'control: a figure block is still a figure card');
+    assert.ok(!/qjo-image-card/.test(markdown.lightMarkdown(`${FENCE}python\nprint(1)\n${FENCE}`)), 'control: another block is not a picture');
+  });
+  test('the page wires pictures through its own modules: loaded, checked by boot, drawn after an answer', () => {
+    const read = (f) => require('fs').readFileSync(require('path').join(__dirname, '..', f), 'utf8');
+    assert.ok(/domain\/imageBlock\.js[^>]*defer/.test(read('public/index.html')) && /ui\/imageBlock\.js[^>]*defer/.test(read('public/index.html')));
+    assert.ok(/QjoUI\.createImageBlocks/.test(read('public/boot.js')) && /QjoDomain\.imageBlock/.test(read('public/boot.js')));
+    assert.ok(/imageBlocks\.initialize\(bubble\)/.test(read('public/app.js')));
+    assert.ok(/image\.pollinations\.ai/.test(read('server.js')), 'the page saves a picture by fetching it: connect-src');
+  });
+
   console.log('\n========================================');
   console.log(`${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);

@@ -57,6 +57,8 @@
     ['reading chart and quiz blocks', () => window.QjoDomain && window.QjoDomain.relaxedJson],
     ['math plot descriptions', () => window.QjoDomain && window.QjoDomain.mathPlot],
     ['math plots', () => window.QjoUI && window.QjoUI.createMathPlots],
+    ['picture descriptions', () => window.QjoDomain && window.QjoDomain.imageBlock],
+    ['pictures', () => window.QjoUI && window.QjoUI.createImageBlocks],
     ['python runs', () => window.QjoDomain && window.QjoDomain.pythonRun],
     ['excel reading', () => window.QjoDomain && window.QjoDomain.xlsxText],
     ['python under answers', () => window.QjoUI && window.QjoUI.createPythonRunner],

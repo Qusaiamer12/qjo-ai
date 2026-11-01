@@ -1385,6 +1385,107 @@ body.dark .math-plot-source summary { color: #cbd5e1 !important; }
 }
 body.dark .math-plot-source pre { background: #1e293b !important; color: #e2e8f0 !important; }
 
+/* ===== Pictures (public/ui/imageBlock.js) ===== */
+.qjo-image-card {
+  margin: 16px 0 20px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.25) !important;
+  background: #ffffff !important;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.06), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+body.dark .qjo-image-card { background: #0f172a !important; border-color: rgba(255, 255, 255, 0.1) !important; }
+/* Like the figure card: the answer's repaint rules leave its insides alone. */
+.qjo-image-card * { -webkit-text-fill-color: currentColor !important; }
+.qjo-image-card:not([data-ready]) { min-height: 240px; animation: math-plot-wait 1.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .qjo-image-card:not([data-ready]) { animation: none; } }
+.qjo-image-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px 8px 14px;
+  background: #f8fafc !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+}
+body.dark .qjo-image-header { background: #1e293b !important; border-bottom-color: rgba(255, 255, 255, 0.08); }
+.qjo-image-icon { font-size: 15px; line-height: 1; }
+.qjo-image-title { flex: 1 1 8em; min-width: 0; font-size: 13px; font-weight: 700; color: #0f172a !important; overflow-wrap: anywhere; }
+body.dark .qjo-image-title { color: #f8fafc !important; }
+.qjo-image-save, .qjo-image-again {
+  flex: none;
+  min-height: 34px;
+  padding: 6px 12px;
+  border-radius: 9px;
+  border: 1px solid rgba(100, 116, 139, 0.45);
+  background: #ffffff !important;
+  color: #0f172a !important;
+  font: 600 12px/1.2 inherit;
+  cursor: pointer;
+}
+.qjo-image-save[hidden] { display: none; }
+.qjo-image-save:hover, .qjo-image-again:hover, .qjo-image-save:focus-visible, .qjo-image-again:focus-visible { border-color: #0891b2; outline: none; box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.18); }
+.qjo-image-again:disabled { opacity: 0.75; cursor: progress; }
+body.dark .qjo-image-save, body.dark .qjo-image-again { background: #0f172a !important; color: #f8fafc !important; border-color: rgba(255, 255, 255, 0.22); }
+.qjo-image-stage {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  max-height: 70vh;
+  margin: 0 auto;
+  background: #f1f5f9 !important;
+}
+body.dark .qjo-image-stage { background: #1e293b !important; }
+.qjo-image-card[data-state="error"] .qjo-image-stage { display: none; }
+.qjo-image-img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.qjo-image-wait {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #334155 !important;
+}
+body.dark .qjo-image-wait { color: #cbd5e1 !important; }
+.qjo-image-spinner {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 3px solid rgba(8, 145, 178, 0.25);
+  border-top-color: #0891b2;
+  animation: qjo-image-spin 0.9s linear infinite;
+}
+@keyframes qjo-image-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .qjo-image-spinner { animation: none; } }
+.qjo-image-status { margin: 0; padding: 8px 14px 0; font-size: 13px; line-height: 1.5; color: #475569 !important; }
+.qjo-image-status:empty { display: none; }
+body.dark .qjo-image-status { color: #cbd5e1 !important; }
+.qjo-image-status.is-error { padding: 12px 14px 4px; color: #b91c1c !important; }
+body.dark .qjo-image-status.is-error { color: #fca5a5 !important; }
+.qjo-image-privacy { margin: 0; padding: 6px 14px 10px; font-size: 12px; line-height: 1.5; color: #475569 !important; }
+body.dark .qjo-image-privacy { color: #cbd5e1 !important; }
+.qjo-image-source { padding: 0 14px 12px; font-size: 12px; }
+.qjo-image-source summary { cursor: pointer; color: #334155 !important; }
+body.dark .qjo-image-source summary { color: #cbd5e1 !important; }
+.qjo-image-source pre {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  direction: ltr;
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+body.dark .qjo-image-source pre { background: #1e293b !important; color: #e2e8f0 !important; }
+
 .interactive-chart-container canvas {
   display: block !important;
   width: 100% !important;
