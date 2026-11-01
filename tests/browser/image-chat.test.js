@@ -240,8 +240,8 @@ async function staleVisionModel(photo) {
     const seen = first.find((c) => c.images && c.status === 200) || first[0] || { body: {} };
     ok(times(seen.body, CV_LINE) === 1, `the photo's text goes once — not once as an overview and three times as its only section (${times(seen.body, CV_LINE)})`);
     const said = JSON.stringify(seen.body);
-    ok(/COVER LETTERS/.test(said) && !/ACTIVE MODE: CODE|WORKED PROBLEMS|INTERFACES \(pages/.test(said),
-      'the playbooks are the ones the person asked for (a CV: job applications), not what the photo says: a CV listing JavaScript is not a request for code');
+    ok(/CV \/ RESUME/.test(said) && !/ACTIVE MODE: CODE|WORKED PROBLEMS|INTERFACES \(pages/.test(said),
+      'the playbooks are the ones the person asked for (a CV: the CV playbook), not what the photo says: a CV listing JavaScript is not a request for code');
     ok(!/t:code-review/.test(said), 'nor is the house guidance on reviewing code (it was, from the CV\'s words)');
     ok(!/Coding capsule/.test(said), 'nor the page\'s own coding capsule');
     ok(!first.some((c) => /Transcribe the attached image/.test(JSON.stringify(c.body))), 'and a CV is read in one pass, not taken for an exercise to solve');

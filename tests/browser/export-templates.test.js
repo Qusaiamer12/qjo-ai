@@ -151,7 +151,8 @@ const sample = (id, lang) => {
     await page.click(`${LAST} .qjo-export-item[data-export="docx"]`);
     await page.waitForTimeout(600);
     const sent = asked.find((a) => /\/docx$/.test(a.url));
-    ok(sent && /^<!-- qjo:template=modern -->\n# Sami Khaled Nasser/.test(sent.body.content), 'the Word request carries the choice', sent && sent.body.content.slice(0, 80));
+    // As its own field (app.js downloadExport), not a line inside the answer.
+    ok(sent && sent.body.template === 'modern' && /^# Sami Khaled Nasser/.test(sent.body.content), 'the Word request carries the choice', sent && { template: sent.body.template, start: sent.body.content.slice(0, 60) });
     const file = await post('docx', sent.body);
     const zip = await JSZip.loadAsync(file.body);
     const xml = await zip.file('word/document.xml').async('string');
