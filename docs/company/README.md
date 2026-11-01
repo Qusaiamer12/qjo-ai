@@ -49,6 +49,7 @@ owner's readings calibrate them:
 | 2026-11-01 | 14% | 14% | first reading; 5-hour resets Mon 00:10, weekly Wed 23:00 |
 | 2026-11-01 | 22% | 15% | before four employees ran at once |
 | 2026-11-01 | 75% | 22% | after them: about 1.2M employee tokens plus the manager's took 53 points of the session (over the 60% stop). About 25k tokens per 1% of a session, and 7 points of the week |
+| 2026-11-02 | 5% | 23% | new session (00:10–05:10), one employee (frontend) running |
 
 **Lesson from the overrun:** no reading was taken between start and finish.
 Four employees at once spent the session's share in one go. From now on, at
