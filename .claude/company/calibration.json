@@ -1,17 +1,17 @@
 {
-  "note": "Price units: per million tokens, model weight x (input + 1.25 cache write + 0.1 cache read + 5 output). Points per unit come from the owner's readings on 2026-11-01 (14->22% session for 6.8 units, 22->75% for 37.4; weekly 14->15 and 15->22). Update when the owner gives a reading.",
+  "note": "Price units: per million tokens, model weight x (input + 1.25 cache write + 0.1 cache read + 5 output). Fitted to the owner's readings: session 14->22% for 6.8 units, 22->75% for 37.4, 5->15% for 6.2 (0.85, 0.71, 0.62 units a point; 0.65 is taken, toward the high side of the estimate); weekly 9 points for 50.4 units (5.6 a point; 5.3 taken). Each reading the owner volunteers goes in lastReading and the history in docs/company/README.md.",
   "modelWeight": {
     "opus": 5,
     "sonnet": 3,
     "haiku": 1
   },
-  "unitsPerSessionPoint": 0.75,
+  "unitsPerSessionPoint": 0.65,
   "unitsPerWeeklyPoint": 5.3,
   "weeklyReset": "Wednesday 23:00 Asia/Amman (20:00 UTC)",
   "lastReading": {
-    "at": "2026-11-01T21:13:28Z",
-    "session": 5,
-    "weekly": 23,
+    "at": "2026-11-01T21:30:00Z",
+    "session": 15,
+    "weekly": 24,
     "sessionResets": "2026-11-02T02:10:00Z"
   },
   "stopAt": {

@@ -50,6 +50,7 @@ owner's readings calibrated them once:
 | 2026-11-01 | 22% | 15% | before four employees ran at once |
 | 2026-11-01 | 75% | 22% | after them: about 1.2M employee tokens plus the manager's took 53 points of the session (over the 60% stop). About 25k tokens per 1% of a session, and 7 points of the week |
 | 2026-11-02 | 5% | 23% | new session (00:10–05:10), one employee (frontend) running |
+| 2026-11-02 | 15% | 24% | volunteered. The meter had said 13% / 24%: 6.2 units moved the session 10 points, so 0.65 units a point from here (it leans high) |
 
 **Lesson from the overrun:** no reading was taken between start and finish.
 Four employees at once spent the session's share in one go. From now on, at
