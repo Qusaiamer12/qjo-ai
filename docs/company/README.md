@@ -116,3 +116,23 @@ Beginner → Practised → Professional → Expert → Legend.
 The office page (an artifact) shows each desk, its lamp (working, idle,
 blocked), level, last delivery and rating, and tokens spent today; the owner
 approves or refuses requests there.
+
+## Next: measuring answer quality (decided 2026-11-01)
+
+The owner wants Qjo at a very high level for every group: university students,
+employees, technical people, business owners and everyone else. The order:
+measure, then capacity, then reliability, then features per group, then
+launch. The first step, approved, **with no key of any kind given to the
+company**:
+1. **"Download my chats"** in Qjo's settings: the owner exports their own
+   chats and uploads the file to a session. Only the questions are extracted,
+   with names, numbers, emails and anything personal removed; nothing personal
+   is committed.
+2. **Measuring without a key:** the exported chats carry Qjo's own answers,
+   and the manager scores them against a fixed rubric (correct, complete,
+   useful, in the person's language) to give a baseline per group. Fresh
+   answers after a change need the owner's Render address allowed in the
+   environment's network settings (not a key). Until then, the measure is
+   the next export.
+Scoring is done by Claude and comes out of the token budget, so it runs in
+small batches within the limits.
