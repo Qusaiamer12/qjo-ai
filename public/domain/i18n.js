@@ -291,7 +291,9 @@
     startersCharts: 'Chart six months of sales\nCompare three laptops in a table\nDraw a flowchart for signing up a new user\nA comparison table of renewable energy types, as an Excel file\nA pie chart of a monthly budget',
     startersWrite: 'Write a formal email asking for a day off\nA cover letter for a graphic designer job\nA LinkedIn post about my first day at a new job\nA two-minute YouTube script about marketing\nA short children\'s story about friendship',
     startersPlan: 'A four-week workout plan for beginners\nPlan my day: 8 hours of work, study and the gym\nA plan to launch a small online coffee business\nA week of healthy meals on a tight budget\nA five-day trip to Istanbul',
-    dropFiles: 'Drop files to attach'
+    dropFiles: 'Drop files to attach',
+    reasoningSeconds: '{n}s',
+    reasoningThoughtFor: 'Thought for {time}'
   });
   Object.assign(CATALOG.ar, {
     menuLabel: "القائمة",
@@ -524,7 +526,9 @@
     startersCharts: 'اعملي رسم بياني لمبيعات 6 شهور\nقارنلي بين 3 لابتوبات بجدول\nارسملي مخطط تدفق لتسجيل مستخدم جديد\nجدول مقارنة بين أنواع الطاقة المتجددة واعمله ملف إكسل\nرسم بياني دائري لتوزيع ميزانية شهرية',
     startersWrite: 'اكتبلي إيميل رسمي أطلب فيه إجازة\nرسالة تغطية لوظيفة مصمم جرافيك\nبوست لينكدإن عن أول يوم بشغلي الجديد\nسكربت فيديو يوتيوب مدته دقيقتين عن التسويق\nقصة قصيرة للأطفال عن الصداقة',
     startersPlan: 'خطة تمارين لأربعة أسابيع للمبتدئين\nرتّبلي يومي: شغل 8 ساعات ودراسة ونادي\nخطة لإطلاق مشروع صغير لبيع القهوة أونلاين\nجدول وجبات صحية لأسبوع بميزانية محدودة\nخطة سفر 5 أيام إلى إسطنبول',
-    dropFiles: 'أفلت الملفات هنا لإرفاقها'
+    dropFiles: 'أفلت الملفات هنا لإرفاقها',
+    reasoningSeconds: '{n} ث',
+    reasoningThoughtFor: 'تم التفكير في {time}'
   });
 
   /**

@@ -1399,3 +1399,14 @@
     -webkit-text-fill-color: #7dd3fc !important;
   }
 }
+
+/* A table is a white card in dark mode too, so a link inside one needs the
+   light-mode blue, not the dark page's #7dd3fc (1.67:1 on white), and on a
+   desktop the cell's ink painted it like the text around it. The extra class
+   outranks the dark rule above; citations take their colour from --ds-accent,
+   set for the card in premium-ui.css. */
+body:not(#_) .msg.assistant .bubble .md-table a:not(.qjo-source):not(.qjo-cite),
+body:not(#_) .msg.assistant .bubble .md-table a:not(.qjo-source):not(.qjo-cite) * {
+  color: #1d4ed8 !important;
+  -webkit-text-fill-color: #1d4ed8 !important;
+}

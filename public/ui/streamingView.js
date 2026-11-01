@@ -21,10 +21,11 @@
    * @param {(text: string) => string} deps.renderMarkdown
    * @param {() => void} deps.requestSmoothScroll
    * @param {() => string} deps.getLanguage Read at render time, not captured.
+   * @param {(key: string, vars?: Record<string, string | number>) => string} deps.t The page's translator (i18n.js).
    * @param {number} [deps.renderIntervalMs]
    */
   function createStreamingView(deps) {
-    const { addMessage, escapeHtml, renderMarkdown, requestSmoothScroll, getLanguage } = deps;
+    const { addMessage, escapeHtml, renderMarkdown, requestSmoothScroll, getLanguage, t } = deps;
 
     // Re-rendering faster than the eye can read buys nothing. This used to
     // re-parse the whole accumulated answer on every animation frame and then
@@ -46,7 +47,7 @@
     let reasoningActive = false;
     let reasoningRaw = '';
     let reasoningStartTime = null;
-    let reasoningElapsed = '0.0s';
+    let reasoningElapsed = '';
     let reasoningTimerInterval = null;
     let currentActiveStep = null;
 
@@ -60,6 +61,8 @@
     let renderRafId = null;
 
     const isArabic = () => getLanguage() === 'ar';
+    /** A duration in the page's language: 3.2s, or 3.2 ث. */
+    const seconds = (ms) => t('reasoningSeconds', { n: (ms / 1000).toFixed(1) });
 
     function ensureElements() {
       if (started) return;
@@ -82,7 +85,7 @@
               <div class="qjo-reasoning-title">
                 <span class="qjo-reasoning-pulse"></span>
                 <span class="qjo-reasoning-label">${isArabic() ? 'التفكير...' : 'Reasoning...'}</span>
-                <span class="qjo-reasoning-timer">0.1s</span>
+                <span class="qjo-reasoning-timer">${seconds(100)}</span>
               </div>
               <button type="button" class="qjo-reasoning-toggle" aria-label="Toggle Reasoning">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
@@ -101,7 +104,7 @@
 
       reasoningTimerInterval = setInterval(() => {
         if (!reasoningStartTime) return;
-        reasoningElapsed = ((Date.now() - reasoningStartTime) / 1000).toFixed(1) + 's';
+        reasoningElapsed = seconds(Date.now() - reasoningStartTime);
         if (reasoningTimerEl) reasoningTimerEl.textContent = reasoningElapsed;
       }, 100);
 
@@ -176,9 +179,11 @@
 
     /** Reasoning text as it streams. The transcript records every delta. */
     function streamReasoning(delta) {
-      ensureReasoningCard();
       reasoningRaw += delta;
+      // Only words make the card: an empty <think></think>, or a delta of
+      // nothing but whitespace, is not reasoning.
       if (!delta.trim()) return;
+      ensureReasoningCard();
       reasoningBuffer += delta;
       if (!reasoningFlushTimer) {
         reasoningFlushTimer = setTimeout(flushReasoningBuffer, RENDER_INTERVAL_MS);
@@ -190,9 +195,7 @@
       if (!reasoningActive) return;
       reasoningActive = false;
       if (reasoningTimerInterval) { clearInterval(reasoningTimerInterval); reasoningTimerInterval = null; }
-      if (reasoningStartTime) {
-        reasoningElapsed = ((Date.now() - reasoningStartTime) / 1000).toFixed(1) + 's';
-      }
+      if (reasoningStartTime) reasoningElapsed = seconds(Date.now() - reasoningStartTime);
       if (reasoningCard) {
         const pulse = reasoningCard.querySelector('.qjo-reasoning-pulse');
         if (pulse) pulse.remove();
@@ -201,9 +204,9 @@
         reasoningLabelEl.textContent = isArabic() ? 'مسار التفكير' : 'Reasoning';
       }
       if (reasoningTimerEl) {
-        reasoningTimerEl.textContent = isArabic()
-          ? `تم التفكير في ${reasoningElapsed}`
-          : `Thought for ${reasoningElapsed}`;
+        // A card of search steps alone shows how long it took, not that anything
+        // was thought: "Thought for 0.2s" over a list of searches is untrue.
+        reasoningTimerEl.textContent = reasoningRaw.trim() ? t('reasoningThoughtFor', { time: reasoningElapsed }) : reasoningElapsed;
       }
       if (!reasoningDivider) {
         reasoningDivider = document.createElement('div');

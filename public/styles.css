@@ -5599,18 +5599,21 @@ body.dark .memory-item { background: rgba(255,255,255,.05); }
     display: none !important;
   }
 
-  body.qjo-keyboard-open .composer-wrap {
+  /* Both marks: qjo-keyboard-open (app.js, iOS: the visual viewport shrinks) and
+     qjo-keyboard-resized (keyboardWatch.js, Android: the window itself does).
+     :is() takes the weight of one class, as the single class did. */
+  body:is(.qjo-keyboard-open, .qjo-keyboard-resized) .composer-wrap {
     padding-top: 6px !important;
     padding-bottom: calc(7px + env(safe-area-inset-bottom)) !important;
     background: linear-gradient(to top, rgba(2,4,10,.99), rgba(7,16,31,.96), rgba(7,16,31,.20)) !important;
   }
 
-  body.qjo-keyboard-open .composer {
+  body:is(.qjo-keyboard-open, .qjo-keyboard-resized) .composer {
     padding: 7px !important;
   }
 
-  body.qjo-keyboard-open textarea#input,
-  body.qjo-keyboard-open .composer textarea {
+  body:is(.qjo-keyboard-open, .qjo-keyboard-resized) textarea#input,
+  body:is(.qjo-keyboard-open, .qjo-keyboard-resized) .composer textarea {
     min-height: 42px !important;
     max-height: 96px !important;
   }
