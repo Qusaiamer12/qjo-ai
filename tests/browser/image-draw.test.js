@@ -376,7 +376,10 @@ async function looks(browser) {
     const { page, state } = await open(browser, options);
     state.mode = 'png';
     await send(page, state, [block(CAT), block({ prompt: 'a lighthouse at dawn', title: 'منارة' })].join('\n\n'));
-    ok(await settle(page, 'loaded', 0) && await settle(page, 'loaded', 1), `${label}: both pictures arrive`);
+    // Each is asked for once it stays in view (imageBlock.js): the page follows
+    // the answer to its end, so the first is brought back into view, as a reader would.
+    const arrives = async (n) => { await page.evaluate((i) => [...document.querySelectorAll('.qjo-image-card')].at(i)?.scrollIntoView({ block: 'center', behavior: 'instant' }), n); return settle(page, 'loaded', n); };
+    ok(await arrives(1) && await arrives(0), `${label}: both pictures arrive`);
     await readable(page, `${label}, drawn`, 8);
     state.mode = 'fail';
     await send(page, state, [block({ prompt: 'a red apple on a table', title: 'تفاحة', svg: APPLE_SVG }), block({ prompt: 'a lighthouse at dusk', title: 'منارة' }), block({ prompt: 'ظ' })].join('\n\n'), 'ارسملي تفاحة');

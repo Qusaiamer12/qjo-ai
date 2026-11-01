@@ -180,15 +180,23 @@
       }
     }
 
+    const DWELL_MS = 350;
     const watcher = typeof global.IntersectionObserver === 'function'
       ? new global.IntersectionObserver((entries) => {
+        // Asked for once it stays near the screen, not as the page scrolls
+        // past it: following an answer to its end passed every picture in it.
         for (const entry of entries) {
           const card = /** @type {HTMLElement} */ (entry.target);
           const held = cards.get(card);
-          if (!entry.isIntersecting || !held || held.started) continue;
-          held.started = true;
-          watcher.unobserve(card);
-          load(card);
+          if (!held || held.started) continue;
+          global.clearTimeout(held.dwell);
+          if (!entry.isIntersecting) continue;
+          held.dwell = global.setTimeout(() => {
+            if (held.started) return;
+            held.started = true;
+            watcher.unobserve(card);
+            load(card);
+          }, DWELL_MS);
         }
       }, { rootMargin: '300px 0px' })
       : null;

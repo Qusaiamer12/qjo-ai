@@ -44,6 +44,8 @@
   "public/domain/relaxedJson.js": 195,
   "public/domain/mathPlot.js": 710,
   "public/ui/mathPlot.js": 325,
+  "public/domain/imageBlock.js": 377,
+  "public/ui/imageBlock.js": 242,
   "src/services/retiredModels.js": 57,
   "public/ui/composerControls.js": 304,
   "src/services/export/attachedImages.js": 84,
@@ -72,7 +74,5 @@
   "src/search/providers.js": 397,
   "src/search/searchCore.js": 360,
   "src/services/systemPrompt.js": 255,
-  "src/services/knowledgeBase.js": 448,
-  "public/domain/imageBlock.js": 377,
-  "public/ui/imageBlock.js": 234
+  "src/services/knowledgeBase.js": 448
 }
