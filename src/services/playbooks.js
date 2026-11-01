@@ -26,6 +26,19 @@ const { asksForPicture, answerHasPicture } = require('../../public/domain/imageB
 // The quantities a worked problem is about. Arabic words are whole words, with
 // or without "ال"/"بال"/"لل": "بطاقة" is a card and "بسرعة" is "quickly".
 const AR_WORD = (words) => new RegExp(`(?<![\\u0621-\\u065F\\u0671-\\u06D3])(?:و?(?:ال|بال|لل))?(?:${words})(?![\\u0621-\\u065F\\u0671-\\u06D3])`);
+// A CV asked for: a verb that makes or improves one near the word, or the word
+// followed by what it is for. Arabic words start where no Arabic letter precedes.
+const CV_NOUN = 'cv|resume|résumé|curriculum vitae';
+// Between the verb and the noun: not a letter, and not "based on my CV" — a
+// cover letter that cites the CV is the job playbook's.
+const CV_GAP_EN = '(?:(?!cover letter|\\bletter\\b|based on|\\bfrom\\b|\\busing\\b)[^.?!\\n]){0,50}';
+const CV_GAP_AR = '(?:(?!رسالة|تغطية|بناء على|بناءً على|حسب|من خلال)[^.?!؟\\n]){0,50}';
+const CV_REQUEST = new RegExp(
+  `\\b(?:write|make|create|build|draft|prepare|generate|design|redo|rewrite|improve|update|polish|format|turn|convert|put|add|need|want|give me|help me)\\b${CV_GAP_EN}\\b(?:${CV_NOUN})\\b|\\b(?:${CV_NOUN})\\s+(?:for|template|builder|design)\\b`
+  + `|(?<![\\u0621-\\u064A])و?(?:اعمل|اعملي|اكتب|اكتبي|اكتبلي|سوي|سويلي|جهز|جهزلي|صمم|صممي|صمملي|حسن|حسني|عدل|عدلي|بدي|ابغى|أبغى|أريد|اريد|ضع|حط|حطلي|رتب|اعطيني|عطيني)${CV_GAP_AR}(?:سيرة ذاتية|سيرتي الذاتية|سيرتي|سي ?في)`,
+  'i'
+);
+
 const PROBLEM_SUBJECT_EN = /\b(?:velocity|speed|acceleration|force|momentum|energy|power|voltage|current|resistance|circuit|pressure|stress|strain|torque|beam|moles?|molarity|concentration|titration|enthalpy|half-life|ph|dose|dosage|mg\/kg|infusion|drip rate|clearance|bmi|interest rate|elasticity)\b/i;
 const PROBLEM_SUBJECT_AR = AR_WORD('سرعة|سرعتها|سرعته|تسارع|قوة|زخم|طاقة|قدرة|جهد|تيار|مقاومة|دارة|ضغط|إجهاد|اجهاد|عزم|مولارية|تركيز|معايرة|عمر النصف|جرعة|جرعه|تسريب|معدل التنقيط|كتلة الجسم');
 const PROBLEM_ASK = /\b(?:find|calculate|compute|solve|determine|how (?:much|many|long|fast))\b|(?<![\u0621-\u065F\u0671-\u06D3])(?:احسب|أوجد|اوجد)|(?<![\u0621-\u065F\u0671-\u06D3])(?:جد|حل|كم)(?![\u0621-\u065F\u0671-\u06D3])/i;
@@ -160,8 +173,25 @@ LITERARY CRAFTSMANSHIP, GRAMMAR & TEXT RESTRUCTURING
   • Structure the script as a 2-column Markdown table:
     | Audio & Dialogue | Visual Scene & Directing |`
   },
+  cv: {
+    // Asked for, not merely mentioned: "write my CV", "put my photo in my CV",
+    // "بدي اعمل سيرة ذاتية". A cover letter that cites the CV is the job playbook's.
+    match: CV_REQUEST,
+    en: `
+- CV / RESUME — write it in exactly this shape; the page turns it into a designed PDF or Word file (the person picks the template):
+  # Full Name
+  **Job title** (one bold line)
+  City · phone · email · link (one line, separated by " · ")
+  ## Summary (2-3 lines)
+  ## Experience — per job "### Role — Company" with the dates on the next line in italics, then 2-4 bullets: a strong verb, what changed, a number when the person gave one
+  ## Education — "### Degree — Institution", years in italics
+  ## Skills (one bullet per group: "**Group:** a, b, c")
+  ## Languages ("Language — level" bullets)
+  • Use only what the person gave. Never invent an employer, a date, a number or a contact detail: write [add here] or ask.
+  • Only these headings, in this order; one or two pages; no tables, no emoji. A photo they attached goes alone on the line under the name, as ![photo](attachment:ID).`
+  },
   job: {
-    match: /cover letter|\bjob\b|resume|\bcv\b|interview|linkedin|hiring|(?:على|عن|ل|بدي)\s*وظيفة|وظيفتي|وظايف|سيرة ذاتية|سي ?في|تقديم على|مقابلة|رسالة تغطية|لينكد|توظيف/i,
+    match: /cover letter|\bjob\b|interview|linkedin|hiring|(?:على|عن|ل|بدي)\s*وظيفة|وظيفتي|وظايف|تقديم على|مقابلة|رسالة تغطية|لينكد|توظيف/i,
     en: `
 - JOB APPLICATIONS & COVER LETTERS (Few-Shot Precision):
   • Deeply align the candidate's actual qualifications and tangible impact with the target job posting.

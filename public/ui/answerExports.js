@@ -42,12 +42,20 @@
 .qjo-export-item:hover, .qjo-export-item:focus-visible { background: var(--ds-panel-2, #f2f3f6); outline: none; }
 .qjo-export-item small { margin-inline-start: auto; color: var(--ds-ink-2, #3f4149); font-size: 12px; }
 .qjo-export-item:disabled { opacity: .6; cursor: progress; }
+.qjo-template-row { margin-top: 4px; padding: 8px 6px 2px; border-top: 1px solid var(--ds-line, #e6e7ec); }
+.qjo-template-row > span { display: block; margin: 0 4px 6px; color: var(--ds-ink-2, #3f4149); font-size: 12px; }
+.qjo-template-option { margin: 0 4px 4px 0; padding: 6px 10px; border: 1px solid var(--ds-line-2, #d7d9e0); border-radius: 999px; background: transparent;
+  color: var(--ds-ink, #0b0b0d); font: 500 12.5px/1 var(--ds-sans, system-ui, sans-serif); cursor: pointer; min-height: 32px; }
+.qjo-template-option[aria-checked="true"] { background: var(--ds-accent, #1d4ed8); border-color: var(--ds-accent, #1d4ed8); color: #fff; }
 `;
+  // The templates Word and PDF offer: a CV's, or a document's. The ids are the server's list.
+  const TEMPLATES = { cv: ['modern', 'classic', 'compact'], doc: ['report', 'academic', 'story', 'elegant'] };
+  const templateKey = (id) => `template${id[0].toUpperCase()}${id.slice(1)}`;
   const TITLE_KEYS = { pdf: 'exportPdf', pptx: 'exportSlides', docx: 'exportWord', xlsx: 'exportExcel' };
 
   /**
    * @param {object} deps
-   * @param {(format: string, title: string, content: string) => Promise<boolean>} deps.downloadExport
+   * @param {(format: string, title: string, content: string, options?: {template?: string}) => Promise<boolean>} deps.downloadExport
    * @param {(key: string, vars?: Record<string, string | number>) => string} deps.t
    * @param {(message: string) => void} deps.toast
    * @param {Document} [deps.document]
@@ -69,9 +77,14 @@
       return firstLine.replace(/^#{1,6}\s*/, '').replace(/[*_`>|]/g, '').trim().slice(0, 60) || 'Qjo';
     }
 
-    async function download(format, content, button) {
+    // The page's download function sends the title and the text, so the choice
+    // also rides as the text's first line, which the server reads and strips
+    // (src/services/export/templates); `options.template` is the same choice
+    // for a download function that forwards it.
+    async function download(format, content, button, template) {
       if (button) { button.disabled = true; button.classList.add('exporting'); }
-      const ok = await downloadExport(format, titleOf(content), content);
+      const named = template && (format === 'docx' || format === 'pdf');
+      const ok = await downloadExport(format, titleOf(content), named ? `<!-- qjo:template=${template} -->\n${content}` : content, named ? { template } : undefined);
       if (button) { button.disabled = false; button.classList.remove('exporting'); }
       if (!ok) toast(t('exportFailed'));
       return ok;
@@ -105,6 +118,7 @@
       toggle.append(t('exportMenu'));
       toggle.setAttribute('aria-haspopup', 'menu');
       toggle.setAttribute('aria-expanded', 'false');
+      let template = null;
       const items = formats.map((format) => {
         const item = doc.createElement('button');
         item.type = 'button';
@@ -117,10 +131,32 @@
         ext.textContent = `.${format}`;
         ext.dir = 'ltr';
         item.append(LABELS[format], ext);
-        item.addEventListener('click', async () => { await download(format, content, item); open(false); });
+        item.addEventListener('click', async () => { await download(format, content, item, template); open(false); });
         return item;
       });
       menu.append(...items);
+      if (formats.includes('docx') || formats.includes('pdf')) {
+        const row = doc.createElement('div');
+        row.className = 'qjo-template-row';
+        row.setAttribute('role', 'group');
+        const label = doc.createElement('span');
+        label.textContent = t('exportTemplate');
+        row.append(label);
+        const options = [null, ...TEMPLATES[files().isCv(content) ? 'cv' : 'doc']].map((id) => {
+          const option = doc.createElement('button');
+          option.type = 'button';
+          option.className = 'qjo-template-option';
+          option.setAttribute('role', 'menuitemradio');
+          option.dataset.template = id || '';
+          option.textContent = t(id ? templateKey(id) : 'templateDefault');
+          if (id) option.title = t(`${templateKey(id)}Hint`);
+          option.addEventListener('click', () => { template = id; options.forEach((o) => o.setAttribute('aria-checked', String(o === option))); });
+          option.setAttribute('aria-checked', String(!id));
+          return option;
+        });
+        row.append(...options);
+        menu.append(row);
+      }
       // Closes on a click elsewhere or Escape; the arrows move between formats.
       const outside = (event) => { if (event.isTrusted && !holder.contains(/** @type {Node} */ (event.target))) open(false); }; // trusted: the page's own download link is a click outside too
       function open(on) {

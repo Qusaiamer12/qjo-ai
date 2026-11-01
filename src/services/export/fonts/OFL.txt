@@ -1,5 +1,5 @@
 Noto Naskh Arabic: Copyright 2022 The Noto Project Authors (https://github.com/notofonts/arabic)
-Noto Sans, Noto Sans Mono: Copyright 2022 The Noto Project Authors (https://github.com/notofonts/latin-greek-cyrillic)
+Noto Sans, Noto Sans Mono, Noto Serif: Copyright 2022 The Noto Project Authors (https://github.com/notofonts/latin-greek-cyrillic)
 Noto Sans Math: Copyright 2022 The Noto Project Authors (https://github.com/notofonts/math)
 Files from the @fontsource packages (version 5.3.0), unmodified.
 

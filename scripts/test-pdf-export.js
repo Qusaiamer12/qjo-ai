@@ -127,6 +127,96 @@ check(rtlDoc.includes('orphans') && rtlDoc.includes('widows'), 'widow/orphan con
 check(rtlDoc.includes('break-inside'), 'tables, code and figures resist page splits');
 check(buildExportHtmlDocument({ title: '<script>x</script>', content: '', rtl: false }).includes('&lt;script&gt;'), 'the title is escaped');
 
+// ── Templates ────────────────────────────────────────────────────────────────
+console.log('\nTemplates');
+const crypto = require('crypto');
+const samples = require('./fixtures/exportSamples');
+const templates = require('../src/services/export/templates');
+const { destinationPages } = require('../src/services/export/templates/pageNumbers');
+const { buildTemplatePdfKit } = require('../src/services/export/templates/pdfKitTemplates');
+const { fontFaceCss, serifFaceCss } = require('../src/services/export/fonts');
+const isCvId = (id) => ['modern', 'classic', 'compact'].includes(id);
+const sampleFor = (id, lang) => {
+  const rtl = lang === 'ar';
+  return { template: id, rtl, title: isCvId(id) ? (rtl ? 'سامي خالد ناصر' : 'Sami Khaled Nasser') : samples.docTitle[lang],
+    content: isCvId(id) ? (rtl ? samples.CV_AR : samples.CV_EN) : id === 'story' ? (rtl ? samples.STORY_AR : samples.STORY_EN) : (rtl ? samples.DOC_AR : samples.DOC_EN) };
+};
+const deps = {
+  renderMarkdown: markdownToExportHtml, katexCss: katexStylesheet, fontCss: fontFaceCss, serifCss: serifFaceCss,
+  fontStack: "'Noto Naskh Arabic','Noto Sans'", monoStack: "'Noto Sans Mono'", escape: (v) => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+};
+const pages = (raw) => (raw.match(/\/Type \/Page\b(?!s)/g) || []).length;
+
+check(!buildExportHtmlDocument({ title: 'x', content: '# x', rtl: false }).includes('Noto Serif'), 'the default document carries no serif');
+{
+  // Without a template the document is the one it was: its hash, with the clock stopped, is the one recorded before templates existed.
+  const golden = require('./fixtures/export-default-output.json');
+  const RealDate = Date;
+  const frozen = new RealDate('2026-03-04T10:20:30Z').getTime();
+  global.Date = class extends RealDate { constructor(...a) { if (a.length) super(...a); else super(frozen); } static now() { return frozen; } };
+  try {
+    const cases = {
+      arabic: { title: 'تقرير المبيعات', rtl: true, content: '# تقرير المبيعات\n\nمقدمة فيها **غامق** و*مائل* و English words.\n\n## الجدول\n\n| المنتج | الكمية |\n| --- | --- |\n| قهوة | 120 |\n\n- بند\n  - فرعي\n\n```python\n# تعليق\nx = 1\n```\n\n> اقتباس\n\n$$E = mc^2$$' },
+      english: { title: 'Quarterly report', rtl: false, content: '# Quarterly report\n\nIntro with **bold**.\n\n## Table\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\n1. one\n2. two\n\n---\n\n[link](https://example.com)' }
+    };
+    for (const [name, input] of Object.entries(cases)) {
+      check(crypto.createHash('sha256').update(buildExportHtmlDocument(input)).digest('hex') === golden[`html:${name}`], `without a template the ${name} PDF document is unchanged`);
+    }
+  } finally { global.Date = RealDate; }
+}
+
+for (const id of templates.TEMPLATE_IDS) {
+  for (const lang of ['en', 'ar']) {
+    const input = sampleFor(id, lang);
+    const { html, hasToc } = templates.buildTemplateHtml(input, deps, { pages: new Map([['qjo-h-1', 3]]) });
+    const where = `${id}/${lang}`;
+    check(html.includes(`dir="${lang === 'ar' ? 'rtl' : 'ltr'}"`) && html.includes(`lang="${lang}"`), `${where}: direction and language`);
+    check(!/<script|onerror=|onload=/i.test(html), `${where}: nothing executable`);
+    check(html.includes('Noto Serif') === ['compact', 'academic', 'story', 'elegant'].includes(id), `${where}: the serif is embedded only where it is used`);
+    if (isCvId(id)) {
+      check(!hasToc && html.includes(`<h1 class="name" dir="auto">${input.title}</h1>`), `${where}: a CV has its name and no contents list`);
+      check(id === 'modern' ? html.includes('<aside>') && html.includes('class="band"') : !html.includes('<aside>'), `${where}: a side column only in the modern one`);
+      check(!/<table/.test(html), `${where}: no table for layout`);
+      for (const section of lang === 'ar' ? ['الملخص المهني', 'الخبرات العملية', 'التعليم', 'المهارات', 'اللغات'] : ['Summary', 'Experience', 'Education', 'Skills', 'Languages']) check(html.includes(`>${section}</h2>`), `${where}: the ${section} section`);
+    } else {
+      const ids = [...html.matchAll(/<h[1-6] id="(qjo-h-\d+)"/g)].map((m) => m[1]);
+      const links = [...html.matchAll(/<a href="#(qjo-h-\d+)"/g)].map((m) => m[1]);
+      check(hasToc && html.includes('<section class="cover">') && html.includes('<nav class="toc">'), `${where}: a cover and a contents list`);
+      check(links.length >= 10 && links.every((l) => ids.includes(l)), `${where}: every contents entry links to a heading that has its id (${links.length})`);
+      check(!html.includes(`<h1 id="qjo-h-0" dir="auto">${input.title}`), `${where}: the title heading is not repeated after the cover`);
+      check(/@page cover\{margin:0/.test(html) && /counter\(page\)/.test(html), `${where}: a cover with no margin, page numbers in the margin`);
+      check(html.includes('<span class="pg">3</span>'), `${where}: the page numbers handed in reach the list`);
+      if (id === 'story') check(lang === 'en' ? html.includes('class="dropcap"') : html.includes('class="lead"'), `${where}: a drop cap (a lead-in in Arabic)`);
+      if (id === 'academic') check(html.includes('<span class="num">1.1</span>'), `${where}: numbered sections`);
+    }
+  }
+}
+{
+  // The page of each heading is read from a PDF's named destinations; a synthetic one is the positive control.
+  const fake = '%PDF-1.4\n1 0 obj\n<</Type /Catalog\n/Pages 2 0 R\n/Dests 5 0 R>>\nendobj\n2 0 obj\n<</Type /Pages\n/Count 3\n/Kids [3 0 R 4 0 R 6 0 R]>>\nendobj\n3 0 obj\n<</Type /Page>>\nendobj\n4 0 obj\n<</Type /Page>>\nendobj\n6 0 obj\n<</Type /Page>>\nendobj\n5 0 obj\n<</qjo-h-0 [4 0 R /XYZ 6 800 0]\n/qjo-h-1 [6 0 R /XYZ 6 700 0]>>\nendobj\n';
+  const read = destinationPages(Buffer.from(fake));
+  check(read && read.get('qjo-h-0') === 2 && read.get('qjo-h-1') === 3, 'heading pages are read from the destinations and the page order', read && [...read]);
+  check(destinationPages(Buffer.from('%PDF-1.4\nnothing\n')) === null && destinationPages(Buffer.from('not a pdf')) === null, 'a PDF without destinations gives none, not wrong ones');
+}
+(async () => {
+  for (const id of templates.TEMPLATE_IDS) {
+    for (const lang of ['en', 'ar']) {
+      const input = sampleFor(id, lang);
+      const raw = (await buildTemplatePdfKit(input)).toString('latin1');
+      const where = `${id}/${lang} (plain renderer)`;
+      check(raw.startsWith('%PDF-'), `${where}: a PDF`);
+      check(pages(raw) >= (isCvId(id) ? 1 : 4), `${where}: ${pages(raw)} pages`);
+      check(/NotoSans-Regular/.test(raw) && /NotoNaskhArabic/.test(raw) === (lang === 'ar') && !/Helvetica/.test(raw), `${where}: its fonts are inside it, the Arabic one only for Arabic`);
+    }
+  }
+  const noToc = await buildTemplatePdfKit(sampleFor('report', 'en'));
+  const longer = await buildTemplatePdfKit({ ...sampleFor('report', 'en'), content: '# The Rooftop Bee Project\n\nA short text.' });
+  check(pages(noToc.toString('latin1')) > pages(longer.toString('latin1')), 'a document with no headings has no contents page: fewer pages than one with');
+  check(templates.resolveTemplate({ template: 'modern' }, 'x').template === 'modern' && (() => { try { templates.resolveTemplate({ template: 'constructor' }, 'x'); return false; } catch (e) { return e.statusCode === 400; } })(), 'a template is one of the list: "constructor" is refused with 400');
+  finish();
+})().catch((e) => { console.error(e); process.exit(1); });
+function finish() {
 console.log(`\n${'='.repeat(40)}`);
 console.log(`${passed} passed, ${failed} failed\n`);
 process.exit(failed ? 1 : 0);
+}

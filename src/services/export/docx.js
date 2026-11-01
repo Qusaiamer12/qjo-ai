@@ -83,14 +83,14 @@ function textParagraph(runs, rtl, options = {}) {
   return new Paragraph({ bidirectional: rtl, children: inlineChildren(runs, rtl, style), ...rest });
 }
 
-function tableBlock(block) {
+function tableBlock(block, accent = COLOR.accent) {
   // The column alignment the Markdown asked for (":---:", "---:"). Left and
   // right are kept as written only in a left-to-right table; in a
   // right-to-left one a column keeps its start, which is what was meant.
   const alignOf = (k) => (block.align[k] === 'center' ? AlignmentType.CENTER
     : !block.rtl && block.align[k] === 'right' ? AlignmentType.RIGHT : undefined);
   const cell = (runs, header, zebra, k) => new TableCell({
-    shading: header ? { type: ShadingType.CLEAR, fill: COLOR.accent, color: 'auto' } : zebra ? { type: ShadingType.CLEAR, fill: COLOR.zebra, color: 'auto' } : undefined,
+    shading: header ? { type: ShadingType.CLEAR, fill: accent, color: 'auto' } : zebra ? { type: ShadingType.CLEAR, fill: COLOR.zebra, color: 'auto' } : undefined,
     margins: { top: 60, bottom: 60, left: 100, right: 100 },
     children: [textParagraph(runs, block.rtl, { alignment: alignOf(k), spacing: { before: 0, after: 0 }, style: header ? { bold: true, color: COLOR.white } : {} })]
   });
@@ -136,7 +136,7 @@ function imageBlock(block) {
 }
 
 /** @param {import('./markdownModel').Block} block */
-function blockToWord(block, lists) {
+function blockToWord(block, lists, accent = COLOR.accent) {
   switch (block.type) {
     case 'image':
       return imageBlock(block);
@@ -150,7 +150,7 @@ function blockToWord(block, lists) {
         indent: { left: 360, right: 360 },
         // A paragraph border's sides are physical (indentation's are not):
         // the bar goes where the quote starts.
-        border: { [block.rtl ? 'right' : 'left']: { style: BorderStyle.SINGLE, size: 18, color: COLOR.accent, space: 8 } }
+        border: { [block.rtl ? 'right' : 'left']: { style: BorderStyle.SINGLE, size: 18, color: accent, space: 8 } }
       })];
     case 'list': {
       // Each list numbers from 1 of its own.
@@ -161,7 +161,7 @@ function blockToWord(block, lists) {
       }));
     }
     case 'table':
-      return [tableBlock(block), new Paragraph({ spacing: { after: 120 }, children: [] })];
+      return [tableBlock(block, accent), new Paragraph({ spacing: { after: 120 }, children: [] })];
     case 'code':
       return codeBlock(block);
     case 'math':
@@ -230,4 +230,5 @@ async function buildDocx({ title, content, rtl: requestedRtl, date = new Date() 
   return withSectionDirection(await Packer.toBuffer(doc), rtl);
 }
 
-module.exports = { buildDocx, directionRuns };
+// The pieces the export templates build on (templates/docxTemplates.js).
+module.exports = { buildDocx, directionRuns, blockToWord, inlineChildren, textParagraph, numberingLevels, withSectionDirection, COLOR, CODE_FONT };

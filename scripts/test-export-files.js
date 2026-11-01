@@ -423,6 +423,97 @@ function call(handler, body) {
     assert.ok(good.includes(`<figure><img src="${PNG}"`), 'control: a real image is still drawn');
   });
 
+  console.log('\nTemplates (Word): every one, in both languages, read back:');
+  const samples = require('./fixtures/exportSamples');
+  const templates = require('../src/services/export/templates');
+  const { buildTemplateDocx } = require('../src/services/export/templates/docxTemplates');
+  // A tag stack: every element closed by its own name, one root, attributes quoted.
+  const wellFormed = (xml) => {
+    const stack = [];
+    let roots = 0;
+    for (const m of xml.replace(/<\?[\s\S]*?\?>|<!--[\s\S]*?-->/g, '').matchAll(/<(\/?)([\w:.-]+)((?:\s+[\w:.-]+="[^"]*")*)\s*(\/?)>|<[^>]*>/g)) {
+      if (!m[2]) throw new Error(`malformed tag ${m[0].slice(0, 60)}`);
+      if (m[4]) { if (!stack.length) roots++; continue; }
+      if (m[1]) { if (stack.pop() !== m[2]) throw new Error(`</${m[2]}> closes the wrong element`); } else { if (!stack.length) roots++; stack.push(m[2]); }
+    }
+    if (stack.length || roots !== 1) throw new Error(`unclosed ${stack.join('>')} / ${roots} roots`);
+    return true;
+  };
+  const isCvId = (id) => ['modern', 'classic', 'compact'].includes(id);
+  const sample = (id, lang) => {
+    const rtl = lang === 'ar';
+    return { template: id, rtl, title: isCvId(id) ? (rtl ? 'سامي خالد ناصر' : 'Sami Khaled Nasser') : samples.docTitle[lang],
+      content: isCvId(id) ? (rtl ? samples.CV_AR : samples.CV_EN).replace(/\n\n\*\*/, `\n\n![photo](${samples.PHOTO})\n\n**`) : id === 'story' ? (rtl ? samples.STORY_AR : samples.STORY_EN) : (rtl ? samples.DOC_AR : samples.DOC_EN) };
+  };
+  for (const id of templates.TEMPLATE_IDS) {
+    for (const lang of ['en', 'ar']) {
+      await test(`${id} in ${lang}: well-formed XML, direction, structure`, async () => {
+        const input = sample(id, lang);
+        const zip = await JSZip.loadAsync(await buildTemplateDocx(input));
+        for (const part of Object.keys(zip.files).filter((f) => /\.xml$/.test(f))) wellFormed(await zip.file(part).async('string'));
+        const xml = await zip.file('word/document.xml').async('string');
+        const sections = count(xml, /<w:sectPr[\s>]/g);
+        assert.strictEqual(count(xml, /<w:sectPr[^>]*>(?:(?!<\/w:sectPr>)[\s\S])*<w:bidi\/>/g), input.rtl ? sections : 0, `bidi on ${sections} section(s)`);
+        assert.ok(input.rtl ? count(xml, /<w:bidi\/>/g) > sections : !/<w:bidi\/>/.test(xml), 'paragraphs follow the language');
+        assert.ok(!/@@QJO|undefined|\[object/.test(xml), 'no marker or placeholder left in the file');
+        const body = xml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+        if (isCvId(id)) {
+          assert.ok(body.includes(input.title), 'the name');
+          assert.strictEqual(/<w:tbl>/.test(xml), id !== 'classic', `${id}: tables only where the layout is a table`);
+          assert.strictEqual(/<pic:pic/.test(xml), id !== 'classic', 'the photo is in every template but the ATS one');
+          for (const heading of lang === 'ar' ? ['الخبرات العملية', 'التعليم', 'المهارات'] : ['Experience', 'Education', 'Skills']) assert.ok(body.includes(heading), heading);
+        } else {
+          assert.ok(/<w:instrText[^>]*> TOC \\o "1-\d" \\h \\z \\u <\/w:instrText>/.test(xml), 'a TOC field');
+          const anchors = [...xml.matchAll(/<w:hyperlink [^>]*w:anchor="([^"]+)"/g)].map((m) => m[1]);
+          assert.ok(anchors.length >= 10, `${anchors.length} entries`);
+          for (const a of anchors) assert.ok(xml.includes(`w:name="${a}"`), `entry ${a} has its heading bookmarked`);
+          assert.ok(body.includes(lang === 'ar' ? 'المحتويات' : 'Contents'), 'contents title');
+          assert.strictEqual(sections, 2, 'cover and text are sections of their own');
+          assert.ok(body.includes(input.title), 'the cover carries the title');
+          assert.ok(/PAGEREF/.test(xml) && /w:updateFields/.test(await zip.file('word/settings.xml').async('string')), 'page numbers are fields Word fills');
+          const footer = Object.keys(zip.files).find((f) => /word\/footer\d*\.xml/.test(f));
+          assert.ok(footer && /PAGE/.test(await zip.file(footer).async('string')), 'a page number in the footer');
+          assert.ok(count(xml, /w:val="Heading[1-6]"/g) > 5, 'real heading styles');
+          if (id === 'story') assert.ok(lang === 'en' ? /w:dropCap="drop"/.test(xml) : /<w:b\/>/.test(xml), lang === 'en' ? 'a drop cap' : 'an Arabic lead-in');
+          if (id === 'academic') assert.ok(/1\.1/.test(body), 'numbered sections');
+          assert.strictEqual(count(xml, new RegExp(`>${input.title}<`, 'g')), 1, 'the title heading is the cover, not repeated under it');
+        }
+      });
+    }
+  }
+  await test('every Word template is a real file from the real handler, and its request is checked', async () => {
+    for (const id of templates.TEMPLATE_IDS) {
+      const input = sample(id, 'en');
+      const res = await call(exportDocx, { title: input.title, content: input.content, rtl: false, template: id });
+      assert.ok(Buffer.isBuffer(res.body) && res.body.slice(0, 2).toString() === 'PK', `${id}: a Buffer that starts as a zip`);
+    }
+    for (const bad of ['constructor', '__proto__', 'toString', 'Modern', 'modern ', 'x', 5, {}, ['modern']]) {
+      const res = await call(exportDocx, { title: 't', content: 'x', template: bad });
+      assert.strictEqual(res.code, 400, `${JSON.stringify(bad)} is not a template`);
+    }
+    const plain = await call(exportDocx, { title: 't', content: 'x', template: '' });
+    assert.ok(plain.body && plain.code === 200, 'an empty template is none');
+  });
+  await test('without a template the Word file is what it was', async () => {
+    const golden = require('./fixtures/export-default-output.json');
+    const crypto = require('crypto');
+    const at = new Date('2026-03-04T10:20:30Z');
+    const cases = { arabic: ['تقرير المبيعات', true, '# تقرير المبيعات\n\nمقدمة فيها **غامق** و*مائل* و English words.\n\n## الجدول\n\n| المنتج | الكمية |\n| --- | --- |\n| قهوة | 120 |\n\n- بند\n  - فرعي\n\n```python\n# تعليق\nx = 1\n```\n\n> اقتباس\n\n$$E = mc^2$$'],
+      english: ['Quarterly report', false, '# Quarterly report\n\nIntro with **bold**.\n\n## Table\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\n1. one\n2. two\n\n---\n\n[link](https://example.com)'] };
+    const sha = (x) => crypto.createHash('sha256').update(x).digest('hex');
+    for (const [name, [title, rtl, content]] of Object.entries(cases)) {
+      const zip = await JSZip.loadAsync(await buildDocx({ title, content, rtl, date: at }));
+      assert.strictEqual(sha((await zip.file('word/document.xml').async('string')).replace(/r:id="[^"]+"/g, 'r:id="R"')), golden[`docx:${name}`], `${name}: document.xml`);
+      assert.strictEqual(sha(await zip.file('word/styles.xml').async('string')), golden[`docx-styles:${name}`], `${name}: styles.xml`);
+    }
+  });
+  await test('the template named in the first line of the text is read and taken out; the field wins', () => {
+    assert.deepStrictEqual(templates.resolveTemplate({}, '<!-- qjo:template=modern -->\n# Hi'), { template: 'modern', content: '# Hi' });
+    assert.deepStrictEqual(templates.resolveTemplate({ template: 'report' }, '<!-- qjo:template=modern -->\n# Hi'), { template: 'report', content: '# Hi' });
+    assert.deepStrictEqual(templates.resolveTemplate({}, '<!-- qjo:template=nope -->\n# Hi'), { template: null, content: '# Hi' });
+    assert.deepStrictEqual(templates.resolveTemplate({}, '# Hi\n<!-- qjo:template=modern -->'), { template: null, content: '# Hi\n<!-- qjo:template=modern -->' });
+  });
+
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 })();
