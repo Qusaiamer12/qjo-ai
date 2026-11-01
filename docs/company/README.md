@@ -104,6 +104,31 @@ manager", so the owner can see it and overrule it.
 - **Never committed:** symlinks (node_modules, the Pyodide cache), secrets,
   personal data.
 
+## Like a clock: shifts and the backlog (decided 2026-11-02)
+
+The owner wants the team never idle: when there are no tasks, they improve
+Qjo's answers or hunt for the defect nobody has found yet.
+
+- **The backlog** (`backlog.md`) holds the open items per role, and each
+  role's standing hunt for when it has none. What a hunt finds becomes an item.
+- **Shifts** run on their own, Saturday to Thursday, as fresh sessions (a
+  fresh context is far cheaper than the manager's long one): a night shift
+  at 02:13 Amman, while the owner sleeps and their 5-hour window is unused,
+  and a day shift at 11:41. Each shift:
+  1. the token officer reads the meter with the ledger; over the stop line,
+     or over the shift's share (half the day's weekly share, about 5
+     points), the shift ends there;
+  2. the manager gives the top open item to each of at most two employees,
+     or their role's hunt;
+  3. reviews the diff, runs the suites, merges and pushes what is green,
+     sends back what is not (status `called`);
+  4. writes the shift's spend to the ledger (`meta/ledger` in the office's
+     database: `token-meter.js --record`), the statuses to the office, and the
+     findings to the backlog.
+- **The token officer stays at its desk** most of the time: the meter before
+  every employee, and between readings it looks for ways to spend less
+  (`token-savings.md`), each one measured before it is adopted.
+
 ## Sunday meeting, 08:52 Amman
 
 Every mistake and red CI run of the week, the cause of each, the plan for the
