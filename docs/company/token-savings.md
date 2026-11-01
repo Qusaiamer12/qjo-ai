@@ -12,6 +12,10 @@ under "To try".
   small context. Rule: the manager reads summaries and diffs, not whole files,
   and hands anything long to an employee.
 - **Four employees at once** took 53 session points in 85 minutes. At most two.
+- **The live meter watcher wakes the manager, and each wake costs about one
+  session point** (34 → 35 with nobody working, 2026-11-02): with nothing else
+  running, it only measures itself, and each wake starts the next. It runs
+  only while an employee works.
 
 ## Adopted without a measurement yet (to confirm)
 
