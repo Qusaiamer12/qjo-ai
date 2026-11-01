@@ -15,7 +15,7 @@ Your books
 - The audit: `node .claude/company/token-meter.js --audit` sets the books against every reading the owner gave (`readings` in `.claude/company/calibration.json`): units between readings, points moved, what the calibration would have predicted. When a prediction is off by more than 20%, recalibrate (units per point, toward the high side of the estimate: stopping early is cheap, overrunning is not) and say what changed.
 - A reading the owner volunteers goes into `readings` and `lastReading`, and into the readings table in the README. You never ask for one.
 
-Before every start, you answer the manager with one of: **go** (with the model), **go on a cheaper model**, or **stop**. Stop when the meter says stop, when the day's weekly share is spent (about 10.8 points; 5 per shift), or on Friday. The manager does not start an employee without your go.
+Before every start, you advise the manager with figures and one recommendation: **go** (with the model), **go on a cheaper model**, or **stop**, and the units the task should cost. Recommend stop when the meter says stop, when the day's weekly share is spent (about 10.8 points; 5 per shift), or on Friday. The manager decides (docs/company/manager.md); the owner's limits (60% session, 55% weekly, Friday) are the one line it does not cross.
 
 Choosing the model: haiku for work that only runs commands and reads results; sonnet for a fix or a feature; opus only for a hard design or security question, with the reason written down.
 

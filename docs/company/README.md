@@ -3,6 +3,8 @@
 The owner talks to one person: the **manager** (the main Claude session). The
 manager plans, hands work to the employees in `.claude/agents/`, reviews what
 comes back, rates it, merges only what was verified, and reports to the owner.
+The manager runs the company alone and decides priorities, models and when
+to stop: `manager.md`.
 Only the manager starts employees; an employee never starts another.
 
 ## The team

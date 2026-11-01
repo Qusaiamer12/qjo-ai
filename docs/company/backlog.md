@@ -7,18 +7,18 @@ role has nothing open, the employee runs its **standing hunt** below: work
 that finds the next defect or makes Qjo's answers better. Whatever a hunt
 finds becomes a new item here.
 
-Order inside each role: anything red or broken first, then what students
-(the first segment) meet, then the rest.
+Order: by score (`manager.md`: reach × severity × confidence ÷ cost); main red
+or the site down always first.
 
 ## Open
 
-| # | Role | Item | Why |
-|---|---|---|---|
-| 1 | frontend | ~~"Download my chats" in settings~~ done (e91a58c) | the quality baseline needs the owner's chats |
-| 2 | frontend | A saved chat's reasoning card still says "Thought for" in Arabic (`renderReasoningCardHtml`, app.js) | the live card was fixed, the saved path was not |
-| 3 | data-quality | "اكتبلي برنامج يومي يطبع التاريخ" routes as a plan, not code | known trade-off of the follow-up change |
-| 4 | data-quality | A fixed eval set of 60 invented questions, 10 per group (students by field, employees, technical, business, general, Arabic dialect), checked with no key: which playbooks, which route, request size (`measure-request.js`) | the baseline must not wait on the owner's file |
-| 5 | data-quality | Score the owner's exported answers against the rubric (README) | waits on the owner's upload |
+| # | Role | Item | Why | Score |
+|---|---|---|---|---|
+| 1 | frontend | ~~"Download my chats" in settings~~ done (e91a58c) | the quality baseline needs the owner's chats | — |
+| 2 | frontend | A saved chat's reasoning card still says "Thought for" in Arabic (`renderReasoningCardHtml`, app.js) | the live card was fixed, the saved path was not | 3×2×1.0÷1 = 6 |
+| 3 | data-quality | "اكتبلي برنامج يومي يطبع التاريخ" routes as a plan, not code | known trade-off of the follow-up change | 2×4×0.8÷1 = 6.4 |
+| 4 | data-quality | A fixed eval set of 60 invented questions, 10 per group (students by field, employees, technical, business, general, Arabic dialect), checked with no key: which playbooks, which route, request size (`measure-request.js`) | the baseline must not wait on the owner's file | 5×3×1.0÷3 = 5 |
+| 5 | data-quality | Score the owner's exported answers against the rubric (README) | waits on the owner's upload | running |
 
 ## Standing hunts (when a role has nothing open)
 
