@@ -63,6 +63,8 @@ const WATCHED = [
   'public/ui/imageBlock.js',
   'src/services/retiredModels.js',
   'public/ui/composerControls.js',
+  'public/domain/chatArchive.js',
+  'public/ui/chatExport.js',
   'src/services/export/attachedImages.js',
   'src/services/promptLayout.js',
   'src/services/export/markdownModel.js',

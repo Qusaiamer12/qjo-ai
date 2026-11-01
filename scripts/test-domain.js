@@ -1384,6 +1384,68 @@ lines\`,
     assert.ok(/image\.pollinations\.ai/.test(read('server.js')), 'the page saves a picture by fetching it: connect-src');
   });
 
+  console.log('\nThe chats file (chatArchive.js):');
+  const chatArchive = require('../public/domain/chatArchive.js');
+  const stamp = (ms) => ({ toMillis: () => ms, seconds: Math.floor(ms / 1000) });
+  const AT = new Date('2026-11-01T10:00:00Z');
+  test('the file has one stable shape, with every field named', () => {
+    const file = chatArchive.buildArchive([{ id: 'c1', title: 'Hi', createdAt: stamp(1700000000000), messages: [{ role: 'user', content: 'a', createdAt: stamp(1700000001000) }, { role: 'assistant', content: 'b' }] }], { exportedAt: AT });
+    assert.deepStrictEqual(file, {
+      app: 'Qjo', version: 1, exportedAt: '2026-11-01T10:00:00.000Z',
+      chats: [{ id: 'c1', title: 'Hi', createdAt: '2023-11-14T22:13:20.000Z', messages: [{ role: 'user', content: 'a', createdAt: '2023-11-14T22:13:21.000Z' }, { role: 'assistant', content: 'b' }] }]
+    });
+    assert.deepStrictEqual(Object.keys(file), ['app', 'version', 'exportedAt', 'chats']);
+    assert.deepStrictEqual(Object.keys(file.chats[0]), ['id', 'title', 'createdAt', 'messages']);
+    assert.ok(!('createdAt' in file.chats[0].messages[1]), 'a message with no time must not carry an empty createdAt');
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(file)), file, 'survives a round trip through JSON');
+  });
+  test('messages keep their order and both roles; chats keep theirs', () => {
+    const messages = ['q1', 'a1', 'q2', 'a2', 'q3'].map((content, i) => ({ role: i % 2 ? 'assistant' : 'user', content }));
+    const file = chatArchive.buildArchive([{ id: 'b', messages }, { id: 'a', messages: [{ role: 'user', content: 'x' }] }], { exportedAt: AT });
+    assert.deepStrictEqual(file.chats.map((c) => c.id), ['b', 'a']);
+    assert.deepStrictEqual(file.chats[0].messages.map((m) => `${m.role}:${m.content}`), ['user:q1', 'assistant:a1', 'user:q2', 'assistant:a2', 'user:q3']);
+  });
+  test('empty entries are left out: blank text, no text, unknown roles, holes, and a chat with nothing left', () => {
+    const file = chatArchive.buildArchive([
+      { id: 'c', messages: [{ role: 'user', content: '' }, { role: 'user', content: '  \n ' }, { role: 'user' }, { role: 'user', content: 5 }, null, undefined, { role: 'system', content: 'secret' }, { role: 'user', content: 'kept' }, { role: 'assistant', content: 'also kept' }] },
+      { id: 'empty', messages: [{ role: 'user', content: '' }] },
+      { id: 'none' }, null
+    ], { exportedAt: AT });
+    assert.deepStrictEqual(file.chats.map((c) => c.id), ['c']);
+    assert.deepStrictEqual(file.chats[0].messages.map((m) => m.content), ['kept', 'also kept']);
+  });
+  test('nothing is stripped or changed: text, whitespace and anything that looks personal stay as written', () => {
+    const content = '  اسمي سامي وبريدي sami@example.com\n\nSOURCE PACK: x  ';
+    const file = chatArchive.buildArchive([{ id: 'c', title: 'سامي <b>', messages: [{ role: 'user', content }] }], { exportedAt: AT });
+    assert.strictEqual(file.chats[0].messages[0].content, content);
+    assert.strictEqual(file.chats[0].title, 'سامي <b>');
+  });
+  test('times are read from every shape storage uses, and a bad one is null, not a crash', () => {
+    const iso = '2023-11-14T22:13:20.000Z';
+    for (const v of [new Date(1700000000000), 1700000000000, iso, stamp(1700000000000), { seconds: 1700000000, nanoseconds: 0 }]) assert.strictEqual(chatArchive.toIso(v), iso, JSON.stringify(v));
+    for (const v of [null, undefined, 'nope', {}, NaN, Infinity]) assert.strictEqual(chatArchive.toIso(v), null, String(v));
+    assert.strictEqual(chatArchive.buildArchive([], {}).exportedAt, null);
+  });
+  test('anything that is not a list of chats gives an empty file, never a throw', () => {
+    for (const v of [undefined, null, 'x', {}, 5]) assert.deepStrictEqual(chatArchive.buildArchive(v, { exportedAt: AT }).chats, []);
+  });
+  test('the file is named for the day, in the person\'s own calendar', () => {
+    assert.strictEqual(chatArchive.fileName(new Date(2026, 10, 1, 23, 59)), 'qjo-chats-2026-11-01.json');
+    assert.strictEqual(chatArchive.fileName(new Date(2026, 0, 5)), 'qjo-chats-2026-01-05.json');
+  });
+  test('the page wires it: loaded, checked by boot, started by the shell, strings in both languages', () => {
+    const read = (f) => require('fs').readFileSync(require('path').join(__dirname, '..', f), 'utf8');
+    const html = read('public/index.html');
+    assert.ok(/domain\/chatArchive\.js[^>]*defer/.test(html) && /ui\/chatExport\.js[^>]*defer/.test(html));
+    assert.ok(html.indexOf('/domain/chatArchive.js') < html.indexOf('/ui/chatExport.js') && html.indexOf('/ui/chatExport.js') < html.indexOf('/app.js'));
+    assert.ok(/QjoDomain\.chatArchive/.test(read('public/boot.js')) && /QjoUI\.createChatExport/.test(read('public/boot.js')));
+    assert.ok(/QjoUI\.createChatExport\(/.test(read('public/app.js')) && /id="exportChatsBtn"/.test(html));
+    const { CATALOG } = require('../public/domain/i18n.js');
+    for (const key of ['exportChatsTitle', 'exportChatsDesc', 'exportChatsBtn', 'exportChatsProgress', 'exportChatsDone', 'exportChatsFailed', 'exportChatsSignIn', 'exportChatsNone']) {
+      assert.ok(CATALOG.ar[key] && CATALOG.en[key], `${key} is missing in a language`);
+    }
+  });
+
   console.log('\n========================================');
   console.log(`${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);

@@ -4618,7 +4618,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
     sprinkleWelcomeConfetti();
     installTypingSparkle();
     installFunctionToggles();
-    QjoUI.createStarters({ t, input: inputEl, pickFile: () => fileInput.click() });
+    QjoUI.createStarters({ t, input: inputEl, pickFile: () => fileInput.click() }); QjoUI.createChatExport({ t, button: el('exportChatsBtn'), status: el('exportChatsStatus'), getDb: () => db, getUser: () => currentUser });
 
     // --- Function toggles (Search / Deep / Reason) ---
     // ── Composer function toggles ────────────────────────────────────────

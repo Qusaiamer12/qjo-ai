@@ -562,6 +562,15 @@
 
         <div class="settings-row">
           <div>
+            <div class="settings-row-title" data-i18n="exportChatsTitle">Download my chats</div>
+            <div class="settings-row-desc" data-i18n="exportChatsDesc">Save every chat in your account as one JSON file.</div>
+            <div class="settings-row-desc" id="exportChatsStatus" role="status" aria-live="polite"></div>
+          </div>
+          <button class="plain-btn" id="exportChatsBtn" type="button" data-i18n="exportChatsBtn">Download</button>
+        </div>
+
+        <div class="settings-row">
+          <div>
             <div class="settings-row-title" data-i18n="accountTitle">Account</div>
             <div class="settings-row-desc" id="settingsAccountEmail">Not signed in</div>
           </div>
@@ -714,6 +723,8 @@ In advanced mode it gives steps and examples." data-i18n-placeholder="trainingPl
   <script src="/ui/answerReading.js?v=qjo-v67-office" defer></script>
   <script src="/ui/messageEditor.js?v=qjo-v67-office" defer></script>
   <script src="/ui/composerControls.js?v=qjo-v67-office" defer></script>
+  <script src="/domain/chatArchive.js?v=qjo-v67-office" defer></script>
+  <script src="/ui/chatExport.js?v=qjo-v67-office" defer></script>
   <script src="/boot.js?v=qjo-v67-office" defer></script>
   <script src="/app.js?v=qjo-v67-office" defer></script>
 </body>
