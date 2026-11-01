@@ -122,7 +122,7 @@
       });
       menu.append(...items);
       // Closes on a click elsewhere or Escape; the arrows move between formats.
-      const outside = (event) => { if (!holder.contains(/** @type {Node} */ (event.target))) open(false); };
+      const outside = (event) => { if (event.isTrusted && !holder.contains(/** @type {Node} */ (event.target))) open(false); }; // trusted: the page's own download link is a click outside too
       function open(on) {
         menu.hidden = !on;
         toggle.setAttribute('aria-expanded', String(on));
