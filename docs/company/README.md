@@ -10,7 +10,7 @@ Only the manager starts employees; an employee never starts another.
 | Employee | File | Model | Owns |
 |---|---|---|---|
 | Manager | (main session) | sonnet; opus only for big decisions | plan, hand-off, review, rating, merge, reports |
-| Token officer | `token-officer.md` | haiku | budget, model choice, stopping at the limit |
+| Accountant and finance officer | `token-officer.md` | sonnet | the token books (meter, ledger, audit against the owner's readings), go/stop before every start, model choice, measured savings; the most sensitive desk |
 | Backend | `backend.md` | sonnet | server, providers, search, exports |
 | Frontend | `frontend.md` | sonnet | the page, preview, ui/domain modules |
 | UX | `ux.md` | sonnet | measured phone and desktop experience |

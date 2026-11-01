@@ -17,5 +17,33 @@
   "stopAt": {
     "session": 60,
     "weekly": 55
-  }
+  },
+  "readings": [
+    {
+      "at": "2026-11-01T19:01:38Z",
+      "session": 14,
+      "weekly": 14
+    },
+    {
+      "at": "2026-11-01T19:28:37Z",
+      "session": 22,
+      "weekly": 15
+    },
+    {
+      "at": "2026-11-01T20:54:16Z",
+      "session": 75,
+      "weekly": 22
+    },
+    {
+      "at": "2026-11-01T21:13:28Z",
+      "session": 5,
+      "weekly": 23,
+      "newWindow": true
+    },
+    {
+      "at": "2026-11-01T21:30:00Z",
+      "session": 15,
+      "weekly": 24
+    }
+  ]
 }

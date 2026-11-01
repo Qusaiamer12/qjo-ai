@@ -5,6 +5,7 @@
 // Usage: node .claude/company/token-meter.js [--since ISO] [--until ISO] [--images]
 //        node .claude/company/token-meter.js --estimate [--ledger file.json]
 //        node .claude/company/token-meter.js --record      (this container's spend)
+//        node .claude/company/token-meter.js --audit       (the books against the owner's readings)
 // The ledger (the office's meta/ledger, one entry per session: {session, at,
 // units}) carries spend across containers: a fresh container's transcripts
 // hold only its own session. Entries for a session whose transcript is here
@@ -72,6 +73,24 @@ if (args.includes('--record')) {
     e.units += c.units;
   }
   console.log(JSON.stringify(Object.values(bySession).map((e) => ({ ...e, at: new Date(e.at).toISOString(), units: Number(e.units.toFixed(3)) })), null, 2));
+  process.exit(0);
+}
+if (args.includes('--audit')) {
+  // Between each two readings of the owner: the units the transcripts show,
+  // the points the owner saw, units a point, and what the calibration would
+  // have predicted. A reading that opens a new window has no "before".
+  const rs = cal.readings || [];
+  const rows = [];
+  for (let k = 1; k < rs.length; k++) {
+    const a = rs[k - 1], b = rs[k];
+    const u = calls.filter((c) => c.at >= Date.parse(a.at) && c.at < Date.parse(b.at)).reduce((n, c) => n + c.units, 0);
+    const ds = b.newWindow ? null : b.session - a.session, dw = b.weekly - a.weekly;
+    rows.push({ from: a.at, to: b.at, units: Number(u.toFixed(2)),
+      sessionPoints: ds, unitsPerSessionPoint: ds ? Number((u / ds).toFixed(2)) : null,
+      sessionPredicted: ds === null ? null : Number((u / cal.unitsPerSessionPoint).toFixed(1)),
+      weeklyPoints: dw, weeklyPredicted: Number((u / cal.unitsPerWeeklyPoint).toFixed(1)) });
+  }
+  console.log(JSON.stringify(rows, null, 2));
   process.exit(0);
 }
 if (args.includes('--estimate')) {
