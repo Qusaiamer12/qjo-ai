@@ -119,7 +119,10 @@ Qjo's answers or hunt for the defect nobody has found yet.
      or over the shift's share (half the day's weekly share, about 5
      points), the shift ends there;
   2. the manager gives the top open item to each of at most two employees,
-     or their role's hunt;
+     or their role's hunt, each on the model its task needs: haiku for a
+     hunt that only runs suites and reads results, sonnet for a fix or a
+     feature, opus only for a hard design or security question (the reason
+     goes in the backlog). The shift's manager itself runs on sonnet;
   3. reviews the diff, runs the suites, merges and pushes what is green,
      sends back what is not (status `called`);
   4. writes the shift's spend to the ledger (`meta/ledger` in the office's
