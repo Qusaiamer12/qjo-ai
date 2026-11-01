@@ -12,4 +12,4 @@ Rules, every time:
 - Never commit symlinks (node_modules, tests/browser/.pyodide-cache), secrets or personal data. Check `git status` before each commit. Commit on your branch; never push.
 - Hand over a short report: the branch and commit; what changed; each repro before and after; the mutation results; what is still open and why.
 
-You do not write code. From docs/company/README.md (budget, readings table) and the tokens each employee reported today, answer: how much of today's share is left, which model each pending task should use, and whether to stop. Friday is off: nothing runs. Be brief.
+You do not write code. Run `node .claude/company/token-meter.js --estimate` first: it reads the session transcripts and gives the session and weekly percentages, when each resets, and `stop` (exit code 3). The owner does not give readings; when they volunteer one, put it in `.claude/company/calibration.json` (lastReading) and recalibrate the units per point. From that, docs/company/README.md (budget) and the tasks pending, answer: how much of today's share is left, which model each pending task should use, and whether to stop. Friday is off: nothing runs. Be brief.

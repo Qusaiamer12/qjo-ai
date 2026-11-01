@@ -42,7 +42,7 @@ The owner keeps part of every limit for their own use.
 
 Claude cannot see the owner's usage meter, and Pro's limits are not published
 in tokens. The company counts the tokens each employee reports back, and the
-owner's readings calibrate them:
+owner's readings calibrated them once:
 
 | Date (Amman) | 5-hour | Weekly | Note |
 |---|---|---|---|
@@ -53,12 +53,24 @@ owner's readings calibrate them:
 
 **Lesson from the overrun:** no reading was taken between start and finish.
 Four employees at once spent the session's share in one go. From now on, at
-most two employees run at a time, and the manager asks for a reading before
-starting each one.
+most two employees run at a time, and the token officer takes a reading
+before starting each one.
 
-Every morning report ends with one line asking for the two percentages. Two
-readings and the tokens spent between them give tokens per 1%; the budget is
-re-estimated from each new reading.
+**The token officer reads the meter itself** (decided 2026-11-02: the owner
+does not give readings). `node .claude/company/token-meter.js --estimate`
+counts every API response in the session transcripts once, weighs it by
+model and by kind (input, cache write, cache read at a tenth, output at five
+times), and turns it into percentages with `.claude/company/calibration.json`.
+The calibration came from the readings above: 6.8 and 37.4 units moved the
+session 8 and 53 points (about 0.75 units a point) and the week 1 and 7
+(about 5.3). It exits 3 at the stop line. It sees only this container: the
+owner's own use elsewhere is not in it, which is what the margin is for. A
+reading the owner volunteers recalibrates it; none is asked for.
+
+What the meter showed: the manager's own long context costs the most. Each
+of its calls re-reads the whole conversation (cache reads of 600k tokens a
+call before the last compaction). Keeping the manager's context short saves
+more than choosing cheaper employees.
 
 ## Who approves what
 
@@ -79,7 +91,7 @@ manager", so the owner can see it and overrule it.
 - **Morning report, 08:45 Amman, Saturday to Thursday**, by phone notification
   and email: what was done yesterday, what is needed from the owner today
   (approvals, keys, decisions), who is blocked and why, tokens spent against
-  the budget, and the request for the two percentages.
+  the budget as the token officer measured it (no reading is asked for).
 - **Work:** each employee works in its own worktree, red-green, and
   mutation-tests what it changes (CLAUDE.md's loop). It hands over a branch
   and a short report. The manager checks the diff, not the report; risky work
