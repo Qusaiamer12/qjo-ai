@@ -116,12 +116,13 @@ Qjo's answers or hunt for the defect nobody has found yet.
 - **The backlog** (`backlog.md`) holds the open items per role, and each
   role's standing hunt for when it has none. What a hunt finds becomes an item.
 - **Shifts** run on their own, Saturday to Thursday, as fresh sessions (a
-  fresh context is far cheaper than the manager's long one): a night shift
-  at 02:13 Amman, while the owner sleeps and their 5-hour window is unused,
-  and a day shift at 11:41. Each shift:
+  fresh context is far cheaper than the manager's long one), four a day:
+  02:07, 07:07, 12:07 and 21:07 Amman. Nobody has to say "start": the office
+  shows the clock, the shift at work, and how long until the next one
+  (`meta/schedule`). Each shift:
   1. the token officer reads the meter with the ledger; over the stop line,
-     or over the shift's share (half the day's weekly share, about 5
-     points), the shift ends there;
+     or over the shift's share (the day's weekly share, about 10.8
+     points, split over the shifts left today), the shift ends there;
   2. the manager gives the top open item to each of at most two employees,
      or their role's hunt, each on the model its task needs: haiku for a
      hunt that only runs suites and reads results, sonnet for a fix or a

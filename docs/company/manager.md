@@ -57,3 +57,9 @@ When the backlog is empty for a role, its standing hunt runs. When the
 budget is nearly spent, the manager keeps the last of it for the item with
 the highest score and lets the rest wait. When nothing is worth the cost,
 the manager stops the shift early and says why in the office.
+
+Nobody tells the manager to start. The shifts start on the clock; between
+them, a manager talking with the owner hands out the top item as soon as
+there is budget and an employee free, and never answers "the next shift
+will do it" when it could start now. The one exception is an item a shift
+is already working on (its employee shows working in the office).
