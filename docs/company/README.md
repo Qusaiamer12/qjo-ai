@@ -76,6 +76,11 @@ manager", so the owner can see it and overrule it.
   mutation-tests what it changes (CLAUDE.md's loop). It hands over a branch
   and a short report. The manager checks the diff, not the report; risky work
   goes to the reviewer. Then merge, push, and wait for CI to be green.
+- **Hand over and go back:** an employee hands its branch and report to the
+  manager and returns to its own room (status `handover`). The manager
+  reviews; work that passes is merged and the employee goes idle. Work that
+  needs fixing gets the employee called back (status `called`) with the
+  findings, then the same loop again.
 - **Never committed:** symlinks (node_modules, the Pyodide cache), secrets,
   personal data.
 
