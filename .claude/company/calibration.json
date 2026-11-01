@@ -1,17 +1,17 @@
 {
-  "note": "Price units: per million tokens, model weight x (input + 1.25 cache write + 0.1 cache read + 5 output). Fitted to the owner's readings: session 14->22% for 6.8 units, 22->75% for 37.4, 5->15% for 6.2 (0.85, 0.71, 0.62 units a point; 0.65 is taken, toward the high side of the estimate); weekly 9 points for 50.4 units (5.6 a point; 5.3 taken). Each reading the owner volunteers goes in lastReading and the history in docs/company/README.md.",
+  "note": "Price units: per million tokens, model weight x (input + 1.25 cache write + 0.1 cache read + 5 output). Fitted to the owner's readings (see readings; token-meter.js --audit). Session: 0.85, 0.71, 0.59, 0.58 units a point; the last two, with agents running, give 0.6. Weekly: 60.3 units over 12 points from 19:01 to 21:37 on 2026-11-01, 5.0 a point. Both taken toward the high side of the estimate.",
   "modelWeight": {
     "opus": 5,
     "sonnet": 3,
     "haiku": 1
   },
-  "unitsPerSessionPoint": 0.65,
-  "unitsPerWeeklyPoint": 5.3,
+  "unitsPerSessionPoint": 0.6,
+  "unitsPerWeeklyPoint": 5.0,
   "weeklyReset": "Wednesday 23:00 Asia/Amman (20:00 UTC)",
   "lastReading": {
-    "at": "2026-11-01T21:30:00Z",
-    "session": 15,
-    "weekly": 24,
+    "at": "2026-11-01T21:37:00Z",
+    "session": 24,
+    "weekly": 26,
     "sessionResets": "2026-11-02T02:10:00Z"
   },
   "stopAt": {
@@ -44,6 +44,11 @@
       "at": "2026-11-01T21:30:00Z",
       "session": 15,
       "weekly": 24
+    },
+    {
+      "at": "2026-11-01T21:37:00Z",
+      "session": 24,
+      "weekly": 26
     }
   ]
 }
