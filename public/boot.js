@@ -62,7 +62,9 @@
     ['python runs', () => window.QjoDomain && window.QjoDomain.pythonRun],
     ['excel reading', () => window.QjoDomain && window.QjoDomain.xlsxText],
     ['python under answers', () => window.QjoUI && window.QjoUI.createPythonRunner],
-    ['mode and tools buttons', () => window.QjoUI && window.QjoUI.createComposerControls]
+    ['mode and tools buttons', () => window.QjoUI && window.QjoUI.createComposerControls],
+    ['chat archive', () => window.QjoDomain && window.QjoDomain.chatArchive],
+    ['downloading chats', () => window.QjoUI && window.QjoUI.createChatExport]
   ];
 
   const RELOAD_FLAG = 'qjo_boot_reloaded';
