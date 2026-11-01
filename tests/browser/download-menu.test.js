@@ -119,10 +119,53 @@ async function check(browser, lang, phone) {
   await ctx.close();
 }
 
+// A file finishing while the menu is open. The page saves a file by clicking a
+// link of its own, and the menu closed on any click outside it, that one
+// included: someone who opened "Download as file" while the PDF from the card
+// was still being made saw the menu vanish under the pointer when it arrived,
+// and the click they were aiming at its Word item found nothing. In CI the
+// PDF is made slowly and cv-photo.test.js lost its Word click this way twice
+// ("the Word file has the photo in it (none)"). The PDF is held back here
+// until the menu is open, so the order does not depend on how fast anything is.
+async function fileArrivesWhileOpen(browser) {
+  const { ctx, page, errors, exports, ask } = await open(browser, { lang: 'ar', phone: false });
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  await page.route('**/api/export/pdf', async (route) => {
+    exports.push('pdf');
+    await gate;
+    await route.fulfill({ status: 200, contentType: 'application/pdf', body: 'file' });
+  });
+  await ask('اعملي ملف pdf للجدول', TABLE_ANSWER);
+  await page.click(`${LAST} .qjo-file-card button`);
+  await page.click(`${LAST} .qjo-export-toggle`);
+  let s = await state(page);
+  ok(exports.includes('pdf') && s.open, 'a PDF is being made and the menu is open', { exports, open: s.open });
+
+  const saved = page.waitForEvent('download', { timeout: 8000 }).then((d) => d.suggestedFilename(), () => null);
+  release();
+  const name = await saved;
+  ok(Boolean(name), `the page saved the PDF (${name}) — the click on its own link did happen`);
+  await page.waitForTimeout(300);
+  s = await state(page);
+  ok(s.open && s.expanded === 'true', 'the file arriving does not close the menu', s);
+  await page.click(`${LAST} .qjo-export-item[data-export="docx"]`, { timeout: 5000 }).catch((e) => ok(false, 'the Word item can be clicked', e.message.split('\n')[0]));
+  await page.waitForTimeout(400);
+  ok(exports.includes('docx'), `and choosing Word then asks for it (${exports.join(',')})`);
+
+  // Control: a click the person makes elsewhere still closes it.
+  await page.click(`${LAST} .qjo-export-toggle`);
+  await page.mouse.click(5, 5);
+  ok(!(await state(page)).open, 'control: a click of the person elsewhere still closes the menu');
+  ok(errors.length === 0, 'no JS errors', errors.slice(0, 2));
+  await ctx.close();
+}
+
 (async () => {
   const browser = await launchBrowser();
   try {
     for (const lang of ['ar', 'en']) for (const phone of [false, true]) await check(browser, lang, phone);
+    await fileArrivesWhileOpen(browser);
   } finally {
     await browser.close();
   }

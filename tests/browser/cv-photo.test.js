@@ -132,7 +132,12 @@ async function filesCarryThePhoto(page, exports, id, imagesIn) {
       const answered = await page.$$eval('.msg.assistant', (els) => els.length);
       await page.fill('#input', text);
       await page.click('#sendBtn');
-      await page.waitForFunction((n) => document.querySelectorAll('.msg.assistant').length > n && !document.querySelector('.qjo-typing-cursor'), answered, { timeout: 45000 }).catch(() => {});
+      // The bubble exists before the model has been asked, and no cursor shows
+      // before the first word: under load "a bubble and no cursor" was true at
+      // once and the calls were read before they were made. The fake Groq must
+      // have been asked, and the answer's toolbar drawn, which is the last step.
+      await page.waitForFunction((n) => document.querySelectorAll('.msg.assistant').length > n && !document.querySelector('.qjo-typing-cursor') && document.querySelector('.msg.assistant:last-of-type .msg-actions-toolbar'), answered, { timeout: 60000 }).catch(() => {});
+      for (let i = 0; i < 40 && groq.calls.length === before; i++) await page.waitForTimeout(250);
       await page.waitForTimeout(800);
       return groq.calls.slice(before);
     };
