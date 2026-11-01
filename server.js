@@ -262,7 +262,7 @@ app.use(helmet({
         "https://api.deepseek.com",
         "https://api.openai.com",
         "https://api.duckduckgo.com",
-        "https://cdn.jsdelivr.net",
+        "https://cdn.jsdelivr.net", "https://image.pollinations.ai", // a picture saved from an answer is fetched by the page
 
         "https://*.googleapis.com",
         "https://www.googleapis.com",

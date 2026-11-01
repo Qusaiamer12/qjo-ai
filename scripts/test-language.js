@@ -177,6 +177,7 @@ const SAMPLES = {
   ui: ['build me a landing page for my cafe', 'صمملي موقع شخصي لمصمم جرافيك'],
   charts: ['chart our monthly sales: Jan 120, Feb 150, Mar 135', 'ارسملي مخطط المبيعات الشهرية'],
   mathplot: ['plot e^-t', 'ارسملي منحنى الدالة e^-t', 'draw a sphere of radius 2 and a cone in 3D', 'ارسم سطح z = sin(x)cos(y) ثلاثي الأبعاد'],
+  picture: ['draw a logo for my bakery', 'ارسملي قطة على القمر', 'generate an image of a lighthouse at dawn', 'صمم لي شعار لمخبزي'],
   python: ['write python to sort a list', 'اعطيني كود بايثون يرتب قائمة'],
   video: ['a TikTok script for my cafe', 'سكريبت فيديو ريلز لمطعمي'],
   job: ['write me a cover letter for a developer job', 'اكتبلي رسالة تغطية لوظيفة مطور'],
@@ -262,6 +263,43 @@ test('a figure of mathematics carries the figure playbook: not a chart of made-u
   const after = (answer) => detectNeeds([user('ارسملي سطح z = x^2 + y^2'), { role: 'assistant', content: answer }, user('خليه أحمر')]).playbooks;
   assert.ok(after('هاي:\n```mathplot\n{}\n```').includes('mathplot'));
   assert.ok(!after('تمام').includes('mathplot'));
+});
+
+test('a picture carries the picture playbook alone: not a chart, not prose, not the code overlay, not a figure', () => {
+  // "ارسملي قطة على القمر" matched the charts playbook (it tells the model to
+  // draw with a chart block) and, in Arabic, the Arabic craft of nothing at all.
+  for (const text of SAMPLES.picture.concat('Draw me a cat wearing a space helmet', 'اعملي صورة لغروب على البحر', 'سويلي لوغو لمحل قهوة')) {
+    const needs = detectNeeds([user(text)]);
+    assert.ok(needs.picture && !needs.plot && !needs.code && !needs.site, `"${text}": picture ${needs.picture}, plot ${needs.plot}, code ${needs.code}`);
+    assert.deepStrictEqual(needs.playbooks, ['picture'], `"${text}": [${needs.playbooks}]`);
+  }
+  // Controls: each of these has a way of its own, and none of them is a picture.
+  for (const text of ['draw a bar chart of sales: Jan 120, Feb 150', 'plot e^-t', 'ارسملي مخطط المبيعات الشهرية', 'ارسم الدالة y = x^2', 'draw a flowchart of the login steps',
+    'draw conclusions from this text', 'create a docker image for my node app', 'write python code that draws a cat', 'make the image smaller', 'I want to analyze a picture', 'اعمل تحليل لهذه الصورة', 'ارسم دائرة', 'what is in this photo?', 'اكتبلي شعار لمشروعي']) {
+    const needs = detectNeeds([user(text)]);
+    assert.ok(!needs.picture && !needs.playbooks.includes('picture'), `"${text}" was taken for a picture: [${needs.playbooks}]`);
+  }
+  // A website with a logo is a website; a function is a figure; Python is Python.
+  assert.ok(detectNeeds([user('build me a landing page for my bakery with a logo')]).site && !detectNeeds([user('build me a landing page for my bakery with a logo')]).picture);
+  assert.ok(detectNeeds([user('ارسم سطح z = sin(x)cos(y)')]).plot && !detectNeeds([user('ارسم سطح z = sin(x)cos(y)')]).picture);
+  // A follow-up to an answer that drew one keeps the format; a new question, or an answer that drew nothing, does not.
+  const drew = [user('ارسملي قطة على القمر'), { role: 'assistant', content: 'تفضل:\n```image\n{"prompt": "a cat on the moon"}\n```' }];
+  assert.ok(detectNeeds([...drew, user('خليها برتقالية')]).picture);
+  assert.ok(!detectNeeds([...drew, user('شو عاصمة اليابان؟')]).picture);
+  assert.ok(!detectNeeds([user('ارسملي قطة'), { role: 'assistant', content: 'تمام' }, user('خليها برتقالية')]).picture);
+});
+
+test('the picture playbook asks for an English description, and the Arabic side says the same', () => {
+  const english = buildChatSystemPrompt({ mode: 'flash', needs: detectNeeds([user('draw a logo for my bakery')]) });
+  assert.ok(/```image block/.test(english) && /"prompt": ENGLISH only/.test(english) && /"svg" is optional/.test(english), 'the block and its English description are not asked for');
+  const arabic = buildChatSystemPrompt({ mode: 'flash', needs: detectNeeds([user('ارسملي قطة على القمر')]), arabic: true });
+  assert.ok(arabic.includes(ARABIC_PLAYBOOK_NOTES.picture.trim()) && /always in English/.test(arabic), 'the Arabic note did not reach the model');
+  // Nothing of it rides along with a message that does not ask: the always-on prompt did not grow by a playbook.
+  for (const text of ['hi', 'كيفك', 'plot e^-t', 'ارسملي مخطط المبيعات الشهرية']) {
+    const plain = buildChatSystemPrompt({ mode: 'flash', needs: detectNeeds([user(text)]), arabic: /[ء-ي]/.test(text) });
+    assert.ok(!plain.includes('PICTURES') && !plain.includes('"prompt": ENGLISH'), `"${text}" carried the picture playbook`);
+  }
+  assert.ok(buildChatSystemPrompt({ mode: 'flash', needs: detectNeeds([user('hi')]) }).includes('pictures, and runs Python'), 'the core does not say Qjo draws pictures');
 });
 
 test('the Arabic flash note no longer sends every plot to the chart block', () => {

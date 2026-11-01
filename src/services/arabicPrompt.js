@@ -74,6 +74,8 @@ ARABIC INTERFACES
 - Plotting (رسم الدوال والمنحنيات التفاعلية): requests (مثل "ارسملي e^-t"، "ارسم دالة"، "رسم بياني"، "plot", "graph") get a \`\`\`chart block, e.g. "title": "منحنى الدالة e^-t".`,
   mathplot: `
 - Plotting (رسم الدوال والمنحنيات التفاعلية): requests (مثل "ارسملي e^-t"، "ارسم دالة"، "رسم بياني"، "plot", "graph") of a function, curve, surface or solid get the \`\`\`mathplot block: "title" and "name" in Arabic (مثل "منحنى الدالة e^-t")، the keys and the expressions in Latin letters (x، sin، pi).`,
+  picture: `
+- Pictures (رسم الصور والشعارات): requests such as "ارسملي قطة على القمر" or "صمم لي شعار لمخبزي" get the \`\`\`image block: "prompt" always in English (never Arabic — it draws wrong), "title" and "alt" in Arabic, one friendly line before and one after.`,
   python: `
 - Python (تشغيل أكواد بايثون الحسابية والتفاعلية): print results so the person can click "تشغيل الكود" and see them.
 - Labels in a plot and in printed results in Arabic (the page draws Arabic correctly); a file's name exactly as attached, Arabic letters and all.`,

@@ -1,8 +1,8 @@
 {
   "public/app.js": 4954,
-  "public/boot.js": 140,
+  "public/boot.js": 142,
   "public/lang-boot.js": 26,
-  "public/domain/i18n.js": 553,
+  "public/domain/i18n.js": 585,
   "public/domain/language.js": 145,
   "public/domain/markdown.js": 581,
   "public/domain/requestFailure.js": 122,
@@ -61,16 +61,18 @@
   "src/agents/toolLoop.js": 208,
   "src/routes/chat.js": 448,
   "src/routes/sse.js": 71,
-  "src/services/arabicPrompt.js": 112,
+  "src/services/arabicPrompt.js": 114,
   "src/services/exportService.js": 794,
   "src/services/llmService.js": 252,
   "src/services/providerResponse.js": 348,
   "src/services/providerLimits.js": 246,
   "src/services/keyPool.js": 237,
-  "src/services/playbooks.js": 368,
+  "src/services/playbooks.js": 390,
   "src/services/searchService.js": 256,
   "src/search/providers.js": 397,
   "src/search/searchCore.js": 360,
   "src/services/systemPrompt.js": 255,
-  "src/services/knowledgeBase.js": 448
+  "src/services/knowledgeBase.js": 448,
+  "public/domain/imageBlock.js": 377,
+  "public/ui/imageBlock.js": 234
 }

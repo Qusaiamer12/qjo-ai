@@ -21,6 +21,7 @@ const { siteInConversation } = require('../../public/domain/siteRequest');
 const { isFollowUp } = require('./followUp');
 const { pythonInPage, DATA_FILE } = require('../../public/domain/pythonRun');
 const { asksForPlot, answerHasPlot } = require('../../public/domain/mathPlot');
+const { asksForPicture, answerHasPicture } = require('../../public/domain/imageBlock');
 
 // The quantities a worked problem is about. Arabic words are whole words, with
 // or without "ال"/"بال"/"لل": "بطاقة" is a card and "بسرعة" is "quickly".
@@ -124,6 +125,19 @@ LITERARY CRAFTSMANSHIP, GRAMMAR & TEXT RESTRUCTURING
   • Any part may have "name" (its legend, in the reply language), "color", "opacity".
   • Expressions: + - * / ^, 2x, sqrt, sin, cos, tan, asin, ln (natural), log (base 10), exp, abs, pi, e. Ranges are numbers or "2pi".
   • After the block, two or three lines on what the figure shows: roots, extremes, intersections, a volume.`
+  },
+  picture: {
+    // A picture, logo or illustration asked for (imageBlock.asksForPicture),
+    // chosen in detectNeeds: painted by an image service from the block's
+    // English description (public/ui/imageBlock.js).
+    match: null,
+    en: `
+- PICTURES — the page paints a picture from one \`\`\`image block of JSON; the person can download it or ask for another version. Never say you cannot draw; never Python, a chart block, Mermaid or ASCII art for a picture.
+  {"prompt": "…", "title": "…", "alt": "…", "width": 1024, "height": 1024, "style": "…", "svg": "…"}
+  • "prompt": ENGLISH only, even when the person writes Arabic — the service draws Arabic descriptions wrong. One or two precise sentences: the subject, what it is doing, the setting, composition, light, colours, mood. Describe what is seen; no living artists' names; words inside the picture only if asked, in Latin letters.
+  • "title" (a short caption) and "alt" (for screen readers) are in the reply language. "width" and "height" 256–1536 (default 1024 square; 1536×1024 landscape; 1024×1536 portrait; logos square). "style" is optional, in English: watercolor, flat vector, 3D render, pencil sketch, photo.
+  • "svg" is optional, a simple standalone SVG shown if the service is down: viewBox="0 0 512 512", shapes and paths only, no script, no links, no external images or fonts. Give one for a logo or a simple subject; leave it out for a scene.
+  • One friendly line before the block; after it one line offering a change (colour, style, mood). Do not describe the picture again.`
   },
   python: {
     match: /python|pandas|numpy|sympy|jupyter|pyodide|بايثون/i,
@@ -288,13 +302,16 @@ function selectPlaybooks(recent, { code = false } = {}) {
   return chosen;
 }
 
+const without = (keys, dropped) => keys.filter((k) => !dropped.includes(k));
+
 /**
  * What a chat request needs beyond the core: search and file overlays (from
  * what the page attached), the engineering overlay, a site, and playbooks.
  * @param {Array<{role: string, content: any}>} userMessages the conversation, the answers in it included
  */
 function detectNeeds(userMessages) {
-  const texts = (userMessages || []).filter((m) => m && m.role === 'user').map((m) => textOf(m.content));
+  const messages = userMessages || [];
+  const texts = messages.filter((m) => m && m.role === 'user').map((m) => textOf(m.content));
   const t = texts.join('\n');
   // What is asked for is judged on the person's own words, not on what the page
   // attached to them (ownWords.js): a CV's skills list is not a request for code.
@@ -303,7 +320,7 @@ function detectNeeds(userMessages) {
   // A site is one file for the preview (siteRequest.js): the interface playbook
   // alone, without the engineering overlay's file tree, terminal commands and
   // tests, or a playbook a word chose ("doctor" for a clinic's site).
-  const site = siteInConversation((userMessages || []).map((m) => ({ role: m && m.role, content: textOf(m && m.content) })), ownWords);
+  const site = siteInConversation(messages.map((m) => ({ role: m && m.role, content: textOf(m && m.content) })), ownWords);
   // A follow-up keeps what the request before it was about; a new question is
   // judged on its own words (followUp.js) — after a site, a figure or Python,
   // "شو عاصمة اليابان؟" was sent with their playbook and answered with them.
@@ -322,11 +339,15 @@ function detectNeeds(userMessages) {
   // A figure of mathematics is a block the page draws: not a chart of
   // made-up points, and not code ("دالة" is a function in both). A follow-up
   // to an answer that drew one ("make it red") keeps the format.
-  const answers = (userMessages || []).filter((m) => m && m.role === 'assistant');
-  const plot = !site && !python && (asksForPlot(newest) || (followUp && answerHasPlot(textOf(answers.length ? answers[answers.length - 1].content : ''))));
+  const answers = messages.filter((m) => m && m.role === 'assistant');
+  const lastAnswer = textOf((answers[answers.length - 1] || {}).content);
+  const plot = !site && !python && (asksForPlot(newest) || (followUp && answerHasPlot(lastAnswer)));
+  // A picture is a block the page paints from an English description: not a
+  // chart, not code. A follow-up to an answer that drew one keeps the format.
+  const picture = !site && !python && !plot && (asksForPicture(newest) || (followUp && answerHasPicture(lastAnswer)));
   // The interface playbook comes only with a site: a question about a page is
   // not a page to write.
-  const code = !site && !python && !plot && (CODE_WORDS.test(recent.join('\n')) || CODE_FILE.test(t));
+  const code = !site && !python && !plot && !picture && (CODE_WORDS.test(recent.join('\n')) || CODE_FILE.test(t));
   const chosen = (list) => list.filter((k) => (k !== 'ui' || selectPlaybooks(own.slice(-1)).includes('ui')) && !(k === 'writing' && code));
   return {
     search: /source pack|connected search|connected deep search|web search note|search query used/i.test(t),
@@ -339,7 +360,8 @@ function detectNeeds(userMessages) {
     site,
     python,
     plot,
-    playbooks: site ? ['ui'] : python ? ['python'] : plot ? [...selectPlaybooks(recent).filter((k) => !['charts', 'ui', 'code'].includes(k)), 'mathplot'] : chosen(selectPlaybooks(recent, { code }))
+    picture,
+    playbooks: site ? ['ui'] : python ? ['python'] : plot ? [...without(selectPlaybooks(recent), ['charts', 'ui', 'code']), 'mathplot'] : picture ? [...without(selectPlaybooks(recent), ['charts', 'ui', 'code', 'writing']), 'picture'] : chosen(selectPlaybooks(recent, { code }))
   };
 }
 

@@ -59,6 +59,8 @@ const WATCHED = [
   'public/domain/relaxedJson.js',
   'public/domain/mathPlot.js',
   'public/ui/mathPlot.js',
+  'public/domain/imageBlock.js',
+  'public/ui/imageBlock.js',
   'src/services/retiredModels.js',
   'public/ui/composerControls.js',
   'src/services/export/attachedImages.js',
