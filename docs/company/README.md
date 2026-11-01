@@ -52,6 +52,20 @@ Every morning report ends with one line asking for the two percentages. Two
 readings and the tokens spent between them give tokens per 1%; the budget is
 re-estimated from each new reading.
 
+## Who approves what
+
+The manager approves ordinary work: tasks, merges after review and green CI,
+schedules, budget within the limits. Only **sensitive** things wait for the
+owner, on the office page:
+- API keys, secrets, credentials, or anything in the environment settings;
+- installing third-party code or skills;
+- deleting or migrating user data (Firestore, saved chats);
+- loosening security (CSP, auth, sandbox, fetch_page guards);
+- paid services, or spending above the token budget;
+- anything public in the owner's name.
+Each decision the manager takes is recorded on the page as "approved by the
+manager", so the owner can see it and overrule it.
+
 ## The day
 
 - **Morning report, 08:45 Amman, Saturday to Thursday**, by phone notification
