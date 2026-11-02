@@ -263,7 +263,7 @@
   const styleTag = (css) => `<style>\n${css.replace(/<\/style/gi, '<\\/style')}\n</style>\n`;
   // A script written as a module (import/export at the top level) runs as one;
   // as a classic script it would stop at its first line.
-  const scriptTag = (js) => `<script${/^\s*(?:import\s[^(]|export\s)/m.test(js) ? ' type="module"' : ''}>\n${js.replace(/<\/script/gi, '<\\/script')}\n</script>\n`;
+  const scriptTag = (js) => `<script${/^[^\S\n]*(?:import\s[^(]|export\s)/m.test(js) ? ' type="module"' : ''}>\n${js.replace(/<\/script/gi, '<\\/script')}\n</script>\n`;
   const jsonForScript = (value) => JSON.stringify(value).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
 
   // Tailwind goes into a page written in it that does not load it — and into

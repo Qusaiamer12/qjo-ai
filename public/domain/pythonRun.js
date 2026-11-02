@@ -121,7 +121,7 @@
   }
 
   // Whether an answer's Python draws: it runs by itself once the answer is in.
-  const PLOTS = /^\s*(?:import\s+matplotlib|from\s+matplotlib\b|import\s+seaborn|from\s+seaborn\b)/m;
+  const PLOTS = /^[^\S\n]*(?:import\s+matplotlib|from\s+matplotlib\b|import\s+seaborn|from\s+seaborn\b)/m;
   const SHOWS = /\b(?:plt|pyplot|sns|ax\d*|fig)\.\w+\(|\.plot\(/;
   /** @param {string} code */
   function draws(code) {

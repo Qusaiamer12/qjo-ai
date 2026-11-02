@@ -74,7 +74,7 @@
   /** Whether an answer is substantial enough for the export buttons. */
   function worthExporting(content) {
     const text = String(content || '');
-    return text.length >= 420 || /```|^#{1,4}\s|\n\s*[-*]\s/m.test(text) || hasTable(text);
+    return text.length >= 420 || /```|^#{1,4}\s|\n[^\S\n]*[-*]\s/m.test(text) || hasTable(text);
   }
 
   // A CV is the one answer with a fixed shape (the CV playbook writes it): a

@@ -21,12 +21,20 @@ the files that matter and what each does, in at most 25 lines.)
 
 ## Weak spots I know of
 
-(Each with how it shows and how it was measured.)
+- `^\s*X` with the /m flag is quadratic on whitespace-heavy text: at each line start `\s*` swallows every later blank line. Found 3 (codeProject scriptTag, fileRequest worthExporting, pythonRun PLOTS): >3 s on 200k of " \t\n ". Fix: `[^\S\n]*` (same boolean result for .test).
+- Regexes built with `new RegExp(template)` inside functions that do not run at load (45 sites counted by parsing, 101 captured at load) have no pattern to time; only the ones built at load are covered.
+- Only 5 input shapes; a regex quadratic only on a specific shape (e.g. "a    b" runs, nested brackets) can pass.
 
 ## Measurements
 
-(Date, what was measured, the number. The next turn compares with it.)
+- 2026-11-02 `npm run test:regex-cost`: 414 distinct regexes in 27 files (355 literals, 45 pieced constructors), all timed on 5 x 200k inputs, 5.8 s total. Slowest after the fix: 42 ms (requestSignals Arabic-boundary regex, near-miss-solid), 31, 29, 27, 25 ms. Budget 200 ms. Control quadratic lookahead: cut off at 3 s (over, required); linear control 0.5 ms.
 
 ## Next improvements
 
-(Ranked. The manager reads this when the backlog has nothing for this role.)
+1. Cover regexes built inside functions: call the exported helpers on sample text under a wrapped RegExp so their patterns are captured too.
+2. Add input shapes: "a    b" runs, 200k of "(", of `<`, of "\n- ".
+3. Extend FILES to src/services/*.js, src/search/*.js (they read the model's text too).
+
+## Lesson
+
+A regex test needs the inputs the regex dislikes, not the ones the code usually sees: `^\s*` is fine on prose and quadratic on blank lines, and three of them sat in the code for weeks.
