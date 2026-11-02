@@ -167,6 +167,11 @@ jobs:
       - name: Streaming integrity suite
         run: npm run test:stream
 
+      # A provider can answer 200 and put its refusal in the stream; that is a
+      # failure, never an answer to show or save.
+      - name: Stream errors are failures
+        run: npm run test:stream-error
+
       # Asserts the HTML the PDF renderer is built from: math, images, lists,
       # bidi isolation and self-containment. Every export defect so far has
       # lived there and none of it is visible from an endpoint response.
