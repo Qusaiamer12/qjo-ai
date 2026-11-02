@@ -79,7 +79,8 @@ more than choosing cheaper employees.
 
 ## Who approves what
 
-The manager approves ordinary work: tasks, merges after review and green CI,
+The owner gave the manager full discretion over the company (2026-11-02,
+`manager.md`). The manager approves ordinary work: tasks, merges after review and green CI,
 schedules, budget within the limits. Only **sensitive** things wait for the
 owner, on the office page:
 - API keys, secrets, credentials, or anything in the environment settings;
