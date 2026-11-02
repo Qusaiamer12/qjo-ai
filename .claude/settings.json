@@ -1,4 +1,15 @@
 {
+  "permissions": {
+    "allow": [
+      "ArtifactData",
+      "Agent",
+      "Bash(git:*)",
+      "Bash(node:*)",
+      "Bash(npm:*)",
+      "Bash(npx:*)",
+      "Bash(python3:*)"
+    ]
+  },
   "hooks": {
     "SessionStart": [
       {
