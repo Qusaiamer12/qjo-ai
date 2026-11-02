@@ -20,13 +20,15 @@ or the site down always first.
 | 4 | data-quality | A fixed eval set of 60 invented questions, 10 per group (students by field, employees, technical, business, general, Arabic dialect), checked with no key: which playbooks, which route, request size (`measure-request.js`) | the baseline must not wait on the owner's file | 5×3×1.0÷3 = 5 |
 | 5 | data-quality | ~~Score the owner's exported answers~~ done: `quality-baseline.md` | the baseline | — |
 | 6 | backend | ~~Provider or server text is still shown as the answer (8 in October, 46 in September): a failure must reach the page as a failure, in the person's language, and never be stored as the answer; fix the causes the texts name~~ done (dfc4326): failure no longer saved as answer, in-stream provider errors fail over; the exported error texts are not in the repo, so other causes remain unmatched | quality baseline: the most common failure people see | 5×4×1.0÷2 = 10 |
-| 7 | backend | A blank reply, a raw tool-call tag or reasoning alone is stored and shown as the answer (13 in 7 chats): treat it as a failure and retry | quality baseline | 5×4×0.8÷2 = 8 |
+| 7 | backend | ~~A blank reply, a raw tool-call tag or reasoning alone is stored and shown as the answer (13 in 7 chats): treat it as a failure and retry | quality baseline | 5×4×0.8÷2 = 8 |
 | 8 | data-quality | Classify the 50 wrong answers by cause (fast model chosen, low reasoning, no search, playbook, the question misread) on invented copies of the questions, with no key: what decides the route each would get today | wrong answers did not fall from September to October; students 21 of them | 4×4×0.8÷2 = 6.4 |
 | 9 | backend | Check the retired-model 404 on pictures and files (8 in one session) is gone with `retiredModels.js`, and that a test fails if a setting names a retired id | quality baseline; may be fixed already | 3×4×0.3÷0.5 = 7.2 |
 | 10 | data-quality | Live facts (sport results, current office-holders, "latest", "next") answered without a search, or wrong (14 sport answers wrong) | quality baseline | 4×4×0.8÷3 = 4.3 |
 | 11 | data-quality | Asks questions instead of doing the task when the details are there (CV, diet plan, 3D plot: about 21) | quality baseline | 4×3×0.8÷2 = 4.8 |
 | 12 | data-quality | Explainer and health boilerplate appear in answers that did not ask for them (about 17) | quality baseline | 4×3×0.8÷2 = 4.8 |
 | 13 | backend | A photo of an exercise or a diagram ends with "unreadable, send a clearer one" (9; usefulness 1.9) | quality baseline | 3×4×0.8÷3 = 3.2 |
+
+| 14 | backend | Raw-tool-markup stripping cuts answers that quote those tags as code (`<tool_call>`, `<function=`) | found reviewing item 7 | 2×3×0.5÷1 = 3 |
 
 ## Standing hunts (when a role has nothing open)
 
