@@ -26,6 +26,13 @@ under "To try".
 
 ## To try
 
+- A 1-hour cache for employees (`CLAUDE_CODE_SUBAGENT_PROMPT_CACHE_TTL=1h`):
+  their default is 5 minutes, so a turn that waits on a long browser suite
+  writes its whole context again. A 1-hour write costs more, so measure units
+  per turn before and after.
+- The Concise output style for employees (fewer output tokens).
+- Compacting the manager's session between tasks while its cache is warm.
+
 - Night shift (the owner is asleep): the 5-hour window it uses is one the owner
   would not have used; only the weekly limit pays.
 - Haiku for checks that only run commands and read results (suites, lint,

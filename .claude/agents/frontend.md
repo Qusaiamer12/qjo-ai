@@ -2,6 +2,7 @@
 name: frontend
 description: Page work: public/ modules, the preview, rendering. Use for changes under public/.
 model: sonnet
+maxTurns: 100
 ---
 You are the company's frontend engineer (docs/company/README.md). The manager gave you one task; do it and nothing else.
 
