@@ -1,6 +1,6 @@
 {
   "note": "The shifts' window on the office. A shift cannot write the office's database (it needs a person to approve the tool, and nobody is there), so it writes here and pushes; the owner's session copies each change into the office within a minute or two. Only the fields a shift sets are copied.",
-  "updatedAt": "2026-11-02T11:39:58.789Z",
+  "updatedAt": "2026-11-02T11:52:01.965Z",
   "staff": {
     "backend": {
       "status": "idle",
@@ -11,7 +11,7 @@
         "commit": "30cad06",
         "at": "2026-11-02T06:42:09.487Z"
       },
-      "next": "البند 9: فحص النموذج المتقاعد للصور"
+      "next": "البند 18: workedProblem يحكم على آخر رسالة بس"
     },
     "frontend": {
       "status": "idle",
@@ -22,32 +22,46 @@
         "commit": "b6b99b8",
         "at": "2026-11-02T06:56:45Z"
       },
-      "next": "حفظ مدة التفكير وترجمة بقية النصوص المضمّنة"
+      "next": "البند 26: ثبات اختبار phone-ux"
     },
     "data-quality": {
-      "status": "called",
-      "task": "البند 16: رجع من المراجعة — بيبحث لرسائل طلاب عادية (امتحان بكرة)",
+      "status": "idle",
+      "task": "",
       "model": "sonnet",
       "lastDelivery": {
-        "item": 17,
-        "commit": "10d183b",
-        "at": "2026-11-02T11:22:33.579Z"
+        "item": 16,
+        "commit": "32480f4",
+        "at": "2026-11-02T11:52:01.965Z"
       },
-      "next": "البند 16: بحث إلزامي للمعلومات المتغيّرة",
+      "next": "البند 21: كلمة function بالرياضيات مش كود",
       "points": 0,
       "monthPoints": 0
     },
     "ux": {
       "status": "idle",
-      "next": "إكمال فحص رحلة الطالب (wip/ux)",
+      "next": "البند 24 و23: أزرار الكتابة 44 بكسل",
       "task": "",
-      "model": "sonnet"
+      "model": "sonnet",
+      "lastDelivery": {
+        "item": "student-flow hunt",
+        "commit": "d18fc22",
+        "at": "2026-11-02T11:52:01.965Z"
+      },
+      "points": 5,
+      "monthPoints": 5
     },
     "performance": {
-      "status": "working",
-      "next": "محاكاة جلسة كاملة بحدود Groq",
-      "task": "البند 22: فحص زمن كل regex على نص طويل",
-      "model": "sonnet"
+      "status": "idle",
+      "next": "البند 28: تغطية regex في src/services وsrc/search",
+      "task": "",
+      "model": "sonnet",
+      "lastDelivery": {
+        "item": 22,
+        "commit": "f4307e6",
+        "at": "2026-11-02T11:52:01.965Z"
+      },
+      "points": 5,
+      "monthPoints": 5
     },
     "reviewer": {
       "status": "idle",
@@ -61,19 +75,27 @@
       },
       "points": 4,
       "monthPoints": 4
+    },
+    "token-officer": {
+      "status": "idle",
+      "task": "",
+      "model": "haiku",
+      "next": "قراءة العداد قبل كل تشغيل",
+      "points": 1,
+      "monthPoints": 1
     }
   },
   "schedule": {
-    "running": true,
+    "running": false,
     "runningSince": "2026-11-02T11:13:33.474Z",
     "runningWho": "المناوبة",
-    "lastShiftEnded": "2026-11-02T06:56:45Z",
-    "lastShiftSummary": "أُغلقت البنود 2 و8 و15: بطاقة التفكير بالعربي، تصنيف الإجابات الخاطئة، والمسائل الحسابية للنموذج الأكبر؛ كله على main. ما شُغّلت مكاتب ux وperformance وreviewer لأن حصة الجلسة قربت من الحد."
+    "lastShiftEnded": "2026-11-02T11:52:01.965Z",
+    "lastShiftSummary": "راجعنا دمجات الصبح (12 تعديل متعمّد وكلهم وقّعوا الاختبار)، وسكّرنا البنود 16 و17 و22: بحث من السيرفر للأخبار والأسعار، الدالة بالرياضيات مش كود مع خطة الحمية، وفحص زمن لـ414 regex لقى وصلّح 3 بطيئين؛ وux قاس رحلة الطالب وصلّح تباين الشريط الجانبي. أول خطوة للمناوبة الجاية: البند 24 و23 (أزرار 44 بكسل) والبند 18."
   },
   "budget": {
-    "sessionPct": 42,
-    "weeklyPct": 34,
-    "readAt": "2026-11-02T06:56:45Z"
+    "sessionPct": 24,
+    "weeklyPct": 40,
+    "readAt": "2026-11-02T11:52:01.965Z"
   },
   "ledger": [
     {
@@ -90,6 +112,11 @@
       "session": "aba81800-2bd8-58be-87af-362bb41467b8",
       "at": "2026-11-02T06:56:45Z",
       "units": 4.931
+    },
+    {
+      "session": "4fd550cc-0fee-5a6b-8970-f3800a46256f",
+      "at": "2026-11-02T11:51:46.691Z",
+      "units": 14.537
     }
   ],
   "approvals": {

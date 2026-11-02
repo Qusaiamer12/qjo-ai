@@ -41,3 +41,5 @@ under "To try".
   every edit.
 - Keep CLAUDE.md's always-loaded text short: every call of every employee
   pays for it.
+
+- 2026-11-02 (11:13 shift, measured by the meter): the manager spent 6.59 units against 6 while employees left 2.3+ unused each; the manager ran every touched suite itself in review (16 suites, the browser four). Next shift: the reviewer desk runs the suite list on a handover, the manager reads its summary.
