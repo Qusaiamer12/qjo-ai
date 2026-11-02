@@ -9,10 +9,10 @@
   "unitsPerWeeklyPoint": 5.0,
   "weeklyReset": "Wednesday 23:00 Asia/Amman (20:00 UTC)",
   "lastReading": {
-    "at": "2026-11-02T06:47:00Z",
-    "session": 36,
-    "weekly": 33,
-    "sessionResets": "2026-11-02T08:59:00Z"
+    "at": "2026-11-02T08:19:00Z",
+    "session": 64,
+    "weekly": 37,
+    "sessionResets": "2026-11-02T09:00:00Z"
   },
   "stopAt": {
     "session": 60,
@@ -56,6 +56,11 @@
       "weekly": 33,
       "newWindow": true,
       "note": "shifts in other containers running; the meter said 20/30"
+    },
+    {
+      "at": "2026-11-02T08:19:00Z",
+      "session": 64,
+      "weekly": 37
     }
   ],
   "allowances": {
