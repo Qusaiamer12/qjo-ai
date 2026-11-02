@@ -30,7 +30,7 @@ or the site down always first.
 
 | 14 | backend | Raw-tool-markup stripping cuts answers that quote those tags as code (`<tool_call>`, `<function=`) | found reviewing item 7 | 2×3×0.5÷1 = 3 |
 
-| 15 | data-quality | Worked student problems (a sum, circuit, derivative, limit; playbook `problem` or intent math) go to the larger model first in Normal as a hard question does: 11 of 11 invented ones go to gpt-oss-20b today. Groq gives both models the same minute, so only latency costs. Test: `test:wrong-answers` expectation flips | students: 21 of the 50 wrong | 4×4×0.7÷1 = 11.2 |
+| 15 (closed, see log) | data-quality | Worked student problems (a sum, circuit, derivative, limit; playbook `problem` or intent math) go to the larger model first in Normal as a hard question does: 11 of 11 invented ones go to gpt-oss-20b today. Groq gives both models the same minute, so only latency costs. Test: `test:wrong-answers` expectation flips | students: 21 of the 50 wrong | 4×4×0.7÷1 = 11.2 |
 | 16 | data-quality | A message about a fact that changes (match, score, "now", "latest", office-holder) gets default reasoning effort, and a search the model must make (`tool_choice: required` for the first round, or the search run before the model answers); today it is 20b at low with `auto` | 14 sport wrong; Max is no better | 4×4×0.7÷2 = 5.6 |
 | 17 | data-quality | "الدالة" (the maths word) must not set the code playbook and overlay on a derivative or integral (3 of 4 calculus cases, +700 tokens, a code-shaped answer); keep "اكتب دالة" as code; add the diet-plan playbook (a plan with numbers in it is done, not asked about) | calculus rows of the table; item 11 | 3×3×0.8÷1 = 7.2 |
 
