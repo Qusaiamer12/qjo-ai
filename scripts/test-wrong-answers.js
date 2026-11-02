@@ -196,6 +196,14 @@ function assertClassification({ rows, max }) {
   check('a diet plan gets the diet playbook', () => assert.deepStrictEqual(rows.find((r) => r.id === 'do-2').playbooks, ['diet']));
   check('a diet plan with details in the message gets the diet playbook', () => assert.ok(needs('بدي خطة أكل أسبوعية 1800 سعرة، نباتي، 3 وجبات').playbooks.includes('diet')));
   check('calories alone call for it: 2000 سعرة على 4 وجبات', () => assert.ok(needs('وزعلي 2000 سعرة على 4 وجبات باليوم').playbooks.includes('diet')));
+  check('a long pasted text with no calorie word is judged in linear time (200k characters under 300 ms); a plan with calories at its end still chooses diet', () => {
+    const filler = 'a '.repeat(100000);
+    const start = Date.now();
+    needs(filler + ' summarise this');
+    const took = Date.now() - start;
+    assert.ok(took < 300, `took ${took} ms`);
+    assert.ok(needs(filler + ' بدي خطة 1800 سعرة').playbooks.includes('diet'), 'control: calories and a plan word at the end still choose diet');
+  });
   check('a calorie fact is not a plan: how many calories in a banana / كم سعرة في الموزة', () => assert.ok(!needs('how many calories in a banana').playbooks.includes('diet') && !needs('كم سعرة في الموزة').playbooks.includes('diet') && !needs('كم سعرات التمرة الوحدة؟').playbooks.includes('diet')));
   check('control: a question about a function or a chat gets no diet playbook', () => assert.ok(!needs('ما مجال الدالة ln(x-2)').playbooks.includes('diet') && !needs('كيفك اليوم؟').playbooks.includes('diet')));
   console.log(`\n${pass} passed, ${fail} failed`);
