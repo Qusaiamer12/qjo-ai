@@ -1446,6 +1446,34 @@ lines\`,
     }
   });
 
+  console.log('\nThe reasoning card of a saved chat (reasoningCard.js):');
+  {
+    const { renderReasoningCardHtml } = require('../public/domain/reasoningCard.js');
+    const { CATALOG, createTranslator } = require('../public/domain/i18n.js');
+    const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const card = (lang, o) => renderReasoningCardHtml({ ...o, t: createTranslator(() => lang), escapeHtml: esc });
+    const keys = ['reasoningLabel', 'reasoningLabelLive', 'reasoningCompleted', 'reasoningToggle', 'reasoningFallbackStep'];
+    test('every word of the card is in both languages, and Arabic differs from English', () => {
+      for (const k of keys) {
+        assert.ok(CATALOG.ar[k] && CATALOG.en[k], `${k} missing`);
+        assert.notStrictEqual(CATALOG.ar[k], CATALOG.en[k], `${k} is English in Arabic`);
+      }
+    });
+    test('a saved card in Arabic has no English word of its own', () => {
+      const html = card('ar', { text: 'خطوة', isDone: true });
+      const words = html.replace(/<[^>]*>/g, ' ').replace(/خطوة/g, '');
+      assert.ok(!/[A-Za-z]{2,}/.test(words), `English left: ${words.replace(/\s+/g, ' ')}`);
+      assert.ok(!/aria-label="[^"]*[A-Za-z]/.test(html), 'aria-label is English');
+      assert.ok(html.includes('اكتمل') && html.includes('مسار التفكير'));
+    });
+    test('English reads as before, a known duration says "Thought for", the model\'s text is escaped', () => {
+      const html = card('en', { text: '<img src=x onerror=1>', isDone: true, elapsed: '3.2s' });
+      assert.ok(html.includes('Thought for 3.2s') && html.includes('>Reasoning<'));
+      assert.ok(!/<img/.test(html) && html.includes('&lt;img'));
+      assert.ok(card('en', { text: '', isDone: true }).includes('Completed') && card('en', { text: '', isDone: false }).includes('Reasoning...'));
+    });
+  }
+
   console.log('\n========================================');
   console.log(`${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);

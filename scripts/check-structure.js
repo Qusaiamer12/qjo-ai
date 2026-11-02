@@ -36,6 +36,7 @@ const WATCHED = [
   'src/search/scholarly.js',
   'public/domain/streamBlocks.js',
   'public/domain/historyWindow.js',
+  'public/domain/reasoningCard.js',
   'public/domain/attachmentRefs.js',
   'public/ui/attachmentShelf.js',
   'public/domain/quiz.js',
