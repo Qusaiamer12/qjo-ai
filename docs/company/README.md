@@ -77,6 +77,25 @@ of its calls re-reads the whole conversation (cache reads of 600k tokens a
 call before the last compaction). Keeping the manager's context short saves
 more than choosing cheaper employees.
 
+### Allowances (decided 2026-11-02)
+
+Each employee has a fixed share of every 5-hour window and manages it: it
+plans the task to fit, and splits a long one over several windows (the
+finished part merged, the rest on `wip/<role>`, the next step in its desk
+notebook). `token-meter.js --by-agent` shows each one's spend against its
+share; `maxTurns` in its file is the hard stop.
+
+| Employee | Units a window | About | maxTurns |
+|---|---|---|---|
+| Manager (shifts) | 6 | 10 points | — |
+| Backend, frontend, data quality | 6 each | 10 points each | 60 |
+| UX, performance, reviewer | 3.6 each | 6 points each | 36 |
+| Accountant | 0.6 | 1 point | 10 |
+
+59 points in all, under the 60% stop. Measured the day they were set: the
+owner's long session with the manager in it spent 21.8 units (about 36
+points) in one window by itself; the employees' work is a fraction of that.
+
 ## Who approves what
 
 The owner gave the manager full discretion over the company (2026-11-02,

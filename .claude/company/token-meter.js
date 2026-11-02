@@ -6,6 +6,7 @@
 //        node .claude/company/token-meter.js --estimate [--ledger file.json]
 //        node .claude/company/token-meter.js --record      (this container's spend)
 //        node .claude/company/token-meter.js --audit       (the books against the owner's readings)
+//        node .claude/company/token-meter.js --by-agent [--since ISO]  (units per employee, from subagents/*.meta.json)
 // The ledger (the office's meta/ledger, one entry per session: {session, at,
 // units}) carries spend across containers: a fresh container's transcripts
 // hold only its own session. Entries for a session whose transcript is here
@@ -38,6 +39,11 @@ const weight = (model) => Object.entries(cal.modelWeight).find(([k]) => model.in
 const unitsOf = (model, u) => weight(model) * ((u.input_tokens || 0) + 1.25 * (u.cache_creation_input_tokens || 0)
   + 0.1 * (u.cache_read_input_tokens || 0) + 5 * (u.output_tokens || 0)) / 1e6;
 const sessionOf = (file) => path.relative(root, file).split(path.sep)[0].replace(/\.jsonl$/, '');
+// An employee's transcript sits beside a .meta.json naming its type.
+const agentOf = (file) => {
+  if (!file.includes(`${path.sep}subagents${path.sep}`)) return 'manager';
+  try { return JSON.parse(fs.readFileSync(file.replace(/\.jsonl$/, '.meta.json'), 'utf8')).agentType || 'other'; } catch { return 'other'; }
+};
 const seen = new Set();
 const calls = [];
 const byModel = {};
@@ -57,13 +63,24 @@ for (const file of files(root)) {
     seen.add(msg.id);
     const model = msg.model || 'unknown';
     const sum = byModel[model] || (byModel[model] = { calls: 0, input: 0, cacheWrite: 0, cacheRead: 0, output: 0 });
-    calls.push({ at, session: sessionOf(file), units: unitsOf(model, usage) });
+    calls.push({ at, session: sessionOf(file), agent: agentOf(file), units: unitsOf(model, usage) });
     sum.calls += 1;
     sum.input += usage.input_tokens || 0;
     sum.cacheWrite += usage.cache_creation_input_tokens || 0;
     sum.cacheRead += usage.cache_read_input_tokens || 0;
     sum.output += usage.output_tokens || 0;
   }
+}
+if (args.includes('--by-agent')) {
+  // Spend per employee (by agent type) since --since, against its allowance
+  // for one 5-hour window (calibration.json allowances, in units).
+  const by = {};
+  for (const c of calls) by[c.agent] = (by[c.agent] || 0) + c.units;
+  const allow = cal.allowances || {};
+  const rows = Object.keys({ ...allow, ...by }).filter((k) => !k.startsWith('_')).map((k) => ({ agent: k, units: Number((by[k] || 0).toFixed(2)),
+    allowance: allow[k] ?? null, left: allow[k] == null ? null : Number((allow[k] - (by[k] || 0)).toFixed(2)) }));
+  console.log(JSON.stringify(rows, null, 2));
+  process.exit(0);
 }
 if (args.includes('--record')) {
   const bySession = {};
