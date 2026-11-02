@@ -25,7 +25,7 @@
   --ds-ink: #0b0b0d;
   --ds-ink-2: #3f4149;
   --ds-muted: #71737d;
-  --ds-muted-2: #9a9ca6;
+  --ds-muted-2: #5f626c; /* small text on panels: was #9a9ca6, 2.5-2.7:1; 5.1:1 on the darkest panel */
 
   --ds-line: #e6e7ec;
   --ds-line-2: #d7d9e0;
@@ -62,7 +62,7 @@ body.dark {
   --ds-ink: #f4f5f7;
   --ds-ink-2: #c9ccd4;
   --ds-muted: #8b8f9b;
-  --ds-muted-2: #6b6f7b;
+  --ds-muted-2: #858995; /* was #6b6f7b, 3.2-3.7:1; 4.5:1 on the lightest dark panel */
 
   --ds-line: #212530;
   --ds-line-2: #2c313e;
