@@ -22,6 +22,7 @@
     "test:stream": "node scripts/test-streaming.js",
     "test:stream-error": "node scripts/test-stream-error.js",
     "test:routing": "node scripts/test-routing.js",
+    "test:wrong-answers": "node scripts/test-wrong-answers.js",
     "test:resilience": "node scripts/test-resilience.js",
     "test:agent": "node scripts/test-agent-loop.js",
     "test:fetch": "node scripts/test-fetch-tool.js",

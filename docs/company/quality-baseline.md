@@ -52,3 +52,25 @@ wrong language 7 · file ignored 3 · refused 2 · too long 2.
 
 The next measure is the next export, scored the same way, against these
 numbers.
+
+## Why the wrong answers are wrong (measured 2026-11-02, no key)
+
+`npm run test:wrong-answers` (scripts/test-wrong-answers.js) sends 24 invented
+questions of the baseline's kinds through the real chat route, routing engine
+and llmService, against a fake Groq, as the page's default Normal mode does,
+and Max for the first two rows. It records what each is given today. Sizes are
+characters / 3.5, so Arabic is under-counted; `measure-request.js` gives true
+tokens from the page. `--table` prints every row.
+
+| Kind (of the 50 wrong) | Model, effort | Search | Playbooks | Est. tokens | Cause |
+|---|---|---|---|---|---|
+| Physics, circuits, calculus (11 cases; students, 21) | 20b, default effort (Max: 120b) | offered | problem or math | 3.6–4.6k | **Fast model**: 11 of 11 go to gpt-oss-20b; only a puzzle, 600+ characters or two "why/compare" cues earn the larger one |
+| Calculus that says "الدالة" (3 of 4) | as above | offered | math **+ code** | 4.6k (+700) | **Playbook wrong**: the usual Arabic word for f(x) sets the code playbook and engineering overlay on a derivative |
+| Plot a function or a surface (3) | 20b, default | offered | mathplot | 4.0–4.3k | none found in what is sent (control) |
+| Sport, office-holders, "latest" (6; sport 14) | 20b, **low** | offered, `tool_choice: auto` | none | 3.6k | **Low reasoning and no search forced**: the rule "call web_search" is in the core prompt; a 20b at low effort may skip it. Max does not change it |
+| Diet plan with its numbers in the message | 20b, default | offered | **none** | 3.6k | **Playbook missing** (a CV gets writing+cv) |
+| Chat, explanation | 20b, low | offered | teach/banter | 3.9–4.2k | none (control) |
+
+Not decidable without a key: whether a given 20b answer is wrong, and how often
+it skips a search it was told to make. The first needs the eval set run once
+with a key; the fixes below are ranked on what routing sends, not on that rate.

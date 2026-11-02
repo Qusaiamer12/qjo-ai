@@ -16,17 +16,45 @@ The share of good answers (41% at the baseline) goes up with every export, stude
 
 ## How it works (keep short; correct it when the code changes)
 
-(To be written at the first turn: the path a request takes through my part,
-the files that matter and what each does, in at most 25 lines.)
+A chat message takes this path (src/routes/chat.js is the caller):
+1. `detectNeeds` (playbooks.js) reads the person's `ownWords` (not attached files) and returns the
+   overlays: search/files, code, site, python, plot, picture and `playbooks`. `selectPlaybooks`
+   matches regexes on the newest message (plus the one before when `isFollowUp`, followUp.js).
+2. `buildChatPromptParts` (systemPrompt.js): the core (stable, cacheable, under the ceiling in
+   test-language.js) goes first; what the message needs (overlays, playbooks, date) rides with the
+   message as turn text (promptLayout.js `layoutChatRequest`). Arabic notes (arabicPrompt.js) join
+   when Arabic is in play.
+3. `routeUserRequestDeterministic` gives an agent hint; `classifyQjoRequest` an intent
+   (math, code, research, reasoning, ...), both in RoutingEngine.js.
+4. `callAgent` picks the pipeline: code intent -> code; Max or `largerModelFirst` (thinkingNeed
+   hard: a puzzle, 600+ chars, two of why/compare/decide/numbers/long, or a site) -> larger models;
+   else flash. The page's Normal sends gpt-oss-20b as the explicit model, kept unless the question
+   is hard. Greetings take the lite track.
+5. `reasoningEffort` (promptLayout.js): Normal is `low` unless math intent, a thinking intent
+   (code, math, reasoning, research, file) or thinkingNeed; Max keeps the default (medium).
+6. Tools: calculate always, web_search + fetch_page whenever no source pack came with the message
+   (the model decides; `tool_choice` is always `auto`). The core prompt tells it to search changing facts.
+Reproduce what a message gets, with no key: `npm run test:wrong-answers` (real route, fake Groq);
+true tokens: `node tests/browser/measure-request.js`.
 
 ## Weak spots I know of
 
-(Each with how it shows and how it was measured.)
+- Worked student problems go to the 20b in Normal (11 of 11 invented): only "hard" earns the 120b.
+- Facts that change run on 20b at low effort with search left to the model (6 of 6 invented).
+- "الدالة" sets the code playbook and overlay on calculus (3 of 4; +700 tokens). No diet playbook.
+- Circuits are intent `general`, not math (mathAsked misses them); they rely on the `problem` playbook.
+- Every answer's wrongness is unknown without a key: routing is measured, answers are not.
 
 ## Measurements
 
-(Date, what was measured, the number. The next turn compares with it.)
+- 2026-11-02, test:wrong-answers, 24 invented questions: Normal sends 24 of 24 to gpt-oss-20b; effort
+  default on 15, low on 9 (facts that change, CV, chat); web_search offered on 24; request
+  3.6k (plain) to 4.6k (calculus with code playbook) estimated tokens (chars/3.5, Arabic under-counted).
+  Mutations: `largerModelFirst` always true -> 2 red; "دالة" removed from CODE_WORDS -> 2 red.
 
 ## Next improvements
 
-(Ranked. The manager reads this when the backlog has nothing for this role.)
+1. Backlog 15: worked problems to the larger model (students, 21 of 50 wrong).
+2. Backlog 16: facts that change get default effort and a forced first search (sport, 14).
+3. Backlog 17: "الدالة" is not code; diet-plan playbook.
+4. Run the 24 questions once with a key and score them: how often 20b is actually wrong.
