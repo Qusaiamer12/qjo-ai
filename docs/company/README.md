@@ -12,7 +12,7 @@ Only the manager starts employees; an employee never starts another.
 | Employee | File | Model | Owns |
 |---|---|---|---|
 | Manager | (main session) | sonnet; opus only for big decisions | plan, hand-off, review, rating, merge, reports |
-| Accountant and finance officer | `token-officer.md` | sonnet | the token books (meter, ledger, audit against the owner's readings), go/stop before every start, model choice, measured savings; the most sensitive desk |
+| Accountant and finance officer | `token-officer.md` | haiku | the token books (meter, ledger, audit against the owner's readings), go/stop before every start, model choice, measured savings; the most sensitive desk |
 | Backend | `backend.md` | sonnet | server, providers, search, exports |
 | Frontend | `frontend.md` | sonnet | the page, preview, ui/domain modules |
 | UX | `ux.md` | sonnet | measured phone and desktop experience |
@@ -90,7 +90,7 @@ share; `maxTurns` in its file is the hard stop.
 | Manager (shifts, on Opus) | 6 | 10 points | — |
 | Backend, frontend, data quality | 6 each | 10 points each | 60 |
 | UX, performance, reviewer | 3.6 each | 6 points each | 36 |
-| Accountant | 0.6 | 1 point | 10 |
+| Accountant | 0.6 | 1 point | 15 |
 
 59 points in all, under the 60% stop. Measured the day they were set: the
 owner's long session with the manager in it spent 21.8 units (about 36

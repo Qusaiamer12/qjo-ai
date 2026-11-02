@@ -1,7 +1,7 @@
 # Performance review: the monthly league
 
-The six desks (backend, frontend, ux, data quality, performance, reviewer)
-compete every month on numbers, not impressions. The manager keeps the
+The seven employees (backend, frontend, ux, data quality, performance,
+reviewer, and the accountant) compete every month on numbers, not impressions. The manager keeps the
 score, coaches every desk, and at the end of the month the last desk is put
 on notice; a desk last two months running is replaced.
 
@@ -26,6 +26,25 @@ on notice; a desk last two months running is replaced.
 
 `monthPoints` in the office is the month's total; `points` is the career
 total that sets the level. The office shows each desk's rank.
+
+## The accountant's points
+
+The accountant is the busiest employee and the cheapest: it works at every
+shift, on haiku, and is scored on what the money did.
+
+| Earned | Points |
+|---|---|
+| A saving adopted, measured before and after (`token-savings.md`), per 10% less spend on that kind of work | +4 |
+| A day the company stayed under every limit, with its readings taken before each start | +1 |
+| An audit within 15% of the owner's reading | +2 |
+| A cost it flagged before it happened (an employee stopped or moved to a cheaper model in time) | +2 |
+
+| Lost | Points |
+|---|---|
+| The company crossed a stop line | −5 |
+| An audit off by more than 30% | −2 |
+| A start it let through without a reading | −2 |
+| Its own spend over its allowance (0.6 units a window) | −2 |
 
 ## Comparing with the best
 
