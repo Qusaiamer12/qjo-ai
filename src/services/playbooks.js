@@ -215,7 +215,8 @@ LITERARY CRAFTSMANSHIP, GRAMMAR & TEXT RESTRUCTURING
   • Explicitly list practical substitutes for common missing ingredients.`
   },
   diet: {
-    match: /\bdiet\b|meal plan|calorie|kcal|نظام غذائي|نظام الأكل|نظام الاكل|خطة (?:أكل|اكل|غذائية|وجبات)|رجيم|دايت|سعرة|سعرات|سعر حراري/i,
+    // Calories alone are a fact ("how many calories in a banana"); they call for a plan only with a plan word.
+    match: /\bdiet\b|meal plan|نظام غذائي|نظام الأكل|نظام الاكل|خطة (?:أكل|اكل|غذائية|وجبات)|رجيم|دايت|(?=[\s\S]*(?:calorie|kcal|سعرة|سعرات|سعر حراري))(?=[\s\S]*(?:\bplan|\bweek|\bmeals\b|\bschedule|خطة|نظام|جدول|برنامج|وزع|وجبات|اسبوع|أسبوع))/i,
     en: `
 - DIET & MEAL PLANS:
   • A plan with numbers in it (calories, meals a day, a week, weight, diet type) is DONE, not asked about: when the person gave the details, write the plan itself in this answer. Never reply with questions only.
