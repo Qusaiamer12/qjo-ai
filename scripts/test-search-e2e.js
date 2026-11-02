@@ -153,7 +153,9 @@ function buildEngine({ baseUrl, keys = ['key-a'], search = async () => SEARCH_RE
   });
 }
 
-const QUESTION = 'مين هداف ريال مدريد هذا الموسم؟';
+// Not a fact that changes by liveFacts.js's reading, so the model decides to search (these scenarios
+// test that path); the server-side first search has its own scenario below.
+const QUESTION = 'شو أبرز الدراسات الحديثة عن الذكاء الاصطناعي في التعليم؟';
 
 async function ask(engine, { budgetMs, question = QUESTION, history = [] } = {}) {
   const chunks = [];
@@ -453,7 +455,7 @@ async function main() {
       { role: 'user', content: 'متى مباراة ريال مدريد القادمة' }, { role: 'assistant', content: '...' },
       { role: 'user', content: 'طيب مين هداف الدوري الاسباني حاليا؟' }, { role: 'assistant', content: '...' }
     ];
-    const { res } = await ask(buildEngine({ baseUrl, searchService: realSearchService(baseUrl) }), { budgetMs: 20000, question: 'طب اسم مين هداف ريال مدريد الحالي', history });
+    const { res } = await ask(buildEngine({ baseUrl, searchService: realSearchService(baseUrl) }), { budgetMs: 20000, question: 'طب مين مدرب ريال مدريد السابق', history });
     ok(searched[0] === 'current top scorer Real Madrid 2026', `the model's query reaches the provider first, as written (${JSON.stringify(searched)})`);
     ok(!searched.some((q) => /next match|fixture|مباراة/i.test(q)), 'no earlier topic and no fixture padding reach the provider', searched);
     ok(!/No web results found/.test(toolOutput) && /espn\.com/.test(toolOutput), 'the model receives the sources, not "no results"', toolOutput.slice(0, 200));
@@ -461,6 +463,29 @@ async function main() {
     ok(searchUse && searchUse.resultCount === 4, `every page the provider found is kept (${searchUse && searchUse.resultCount} of 4)`);
     ok(searchUse && (searchUse.sources || []).some((s) => s.url === 'https://www.espn.com/soccer/story/mbappe-goals'), 'and the page gets them as source cards', searchUse);
     ok(res.ok && /espn\.com/.test(res.answer || ''), 'the answer cites them', (res.answer || '').slice(0, 160));
+  });
+
+  // Backlog 16: a fact that changes is searched by the server, before the first model call.
+  await scenario('A fact that changes: the search is made before the model is asked', 20000, async (ok) => {
+    const searched = [];
+    tavilyHandler = (body) => {
+      searched.push(body.query);
+      return { results: [{ title: 'Real Madrid 2-1 Barcelona', url: 'https://www.espn.com/soccer/match/clasico', content: 'Real Madrid beat Barcelona 2-1 last night.', score: 0.9, published_date: '2026-11-01' }] };
+    };
+    handler = (body, res) => reply.text(res, body, 'فاز ريال مدريد 2-1 [1](https://www.espn.com/soccer/match/clasico).');
+    const { res, toolEvents } = await ask(buildEngine({ baseUrl, searchService: realSearchService(baseUrl) }), { budgetMs: 15000, question: 'مين فاز امبارح بين ريال مدريد وبرشلونة؟' });
+    ok(res.ok && /espn\.com/.test(res.answer || ''), 'the answer cites the result', res.answer);
+    ok(searched.length >= 1 && /ريال مدريد/.test(searched[0]), `the provider was searched with the person's words (${JSON.stringify(searched)})`);
+    ok(calls.length === 1 && hasToolResults(calls[0].body), `the first and only model call already carries the search result (${calls.length} calls)`, calls.map((c) => hasToolResults(c.body)));
+    ok(/espn\.com/.test(evidenceText(calls[0].body)), 'and it is the provider\'s result, not a placeholder');
+    ok(toolEvents.some((e) => e.tool === 'web_search' && e.status === 'running') && toolEvents.some((e) => e.tool === 'web_search' && e.status === 'done'), 'the page is told about the search', toolEvents);
+    ok((res.toolsUsed || []).some((t) => t.tool === 'web_search' && t.resultCount === 1), 'and its sources are kept for the page', res.toolsUsed);
+  });
+
+  await scenario('A definition is not searched first', 15000, async (ok) => {
+    handler = (body, res) => reply.text(res, body, 'الرئيس هو رأس الدولة.');
+    const { res } = await ask(buildEngine({ baseUrl, searchService: realSearchService(baseUrl) }), { budgetMs: 10000, question: 'what is a president' });
+    ok(res.ok && calls.length === 1 && !hasToolResults(calls[0].body), 'the first model call carries no search result', calls.map((c) => hasToolResults(c.body)));
   });
 
   provider.close();

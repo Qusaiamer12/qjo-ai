@@ -60,7 +60,7 @@
   "src/services/export/pdfFallback.js": 405,
   "src/services/export/fonts.js": 87,
   "server.js": 772,
-  "src/agents/RoutingEngine.js": 669,
+  "src/agents/RoutingEngine.js": 667,
   "src/agents/TaskRunner.js": 310,
   "src/agents/toolAnswer.js": 202,
   "src/agents/toolLoop.js": 208,
