@@ -161,6 +161,12 @@ jobs:
       - name: Routing classification suite
         run: npm run test:routing
 
+      # The baseline's 50 wrong answers, as invented copies of their kinds:
+      # which model, effort, search and playbooks each is given today, and the
+      # cause that follows (fast model, a code playbook on a sum, no forced search).
+      - name: Wrong-answer causes
+        run: npm run test:wrong-answers
+
       # Streaming assembles the answer from fragments, so a sanitizer that is
       # correct for a whole message can still be wrong for a chunk — that is how
       # every word in every answer shipped glued to the next one.
