@@ -9,10 +9,10 @@
   "unitsPerWeeklyPoint": 5.0,
   "weeklyReset": "Wednesday 23:00 Asia/Amman (20:00 UTC)",
   "lastReading": {
-    "at": "2026-11-02T14:07:00Z",
-    "session": 65,
-    "weekly": 46,
-    "sessionResets": "2026-11-02T14:10:00Z"
+    "at": "2026-11-02T16:22:00Z",
+    "session": 76,
+    "weekly": 58,
+    "sessionResets": "2026-11-02T19:10:00Z"
   },
   "stopAt": {
     "session": 60,
@@ -66,6 +66,11 @@
       "at": "2026-11-02T14:07:00Z",
       "session": 65,
       "weekly": 46
+    },
+    {
+      "at": "2026-11-02T16:22:00Z",
+      "session": 76,
+      "weekly": 58
     }
   ],
   "allowances": {

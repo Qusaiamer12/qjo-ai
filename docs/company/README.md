@@ -57,6 +57,7 @@ owner's readings calibrated them once:
 | 2026-11-02 | 36% | 33% | volunteered, 09:47, with two shifts running in their own containers. The meter said 20% / 30%: it sees a shift's spend only when the shift writes the ledger at its end. A running shift is the gap; the stop line's margin covers it, and each reading resets the baseline |
 | 2026-11-02 | 64% | 37% | volunteered, 11:19: **over the 60% stop**, crossed by the manager's own conversation with the owner while setting the company up (its context had reached 461k tokens). No employee ran. Lesson: the manager's session counts against the stop like everyone else's; past 50% it answers in a line and starts nothing |
 | 2026-11-02 | 65% | 46% | volunteered after the 14:13 shift (Opus manager, four employees): the session over the stop again, and the week up 9 points in one shift, against a day's share of about 7 until Wednesday's reset. Rule until then: at most 3 weekly points a shift |
+| 2026-11-02 | 76% | 58% | volunteered, evening. **The weekly stop (55%) crossed**, by the manager's conversation with the owner alone (no shift ran after 14:52): 11 weekly points in about two hours of an Opus session with a 460k-token context. The company stops until the weekly reset except one watched shift capped at 3 points |
 
 **Lesson from the overrun:** no reading was taken between start and finish.
 Four employees at once spent the session's share in one go. From now on, at
