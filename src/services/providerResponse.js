@@ -155,13 +155,18 @@ async function consumeStream(response, onChunk, signal, onReasoning, onActivity)
 
   let sawDone = false;
   let progress = 0;
+  // A provider can answer 200 and then put its refusal in the stream as
+  // data: {"error":...}. That is a failure, not a chunk to skip.
+  let streamError = '';
   function feedLine(cleanedLine) {
     if (cleanedLine === 'data: [DONE]') { sawDone = true; return; }
     if (!cleanedLine || !cleanedLine.startsWith('data: ')) return;
     let data;
     try { data = JSON.parse(cleanedLine.slice(6)); } catch (_) { return; }
+    if (data?.error) { streamError = String(data.error.message || data.error.code || data.error); return; }
     const choice = data?.choices?.[0] || {};
     const delta = choice.delta || {};
+    if (choice.finish_reason === 'error') streamError = streamError || 'finish_reason error';
     if (data?.usage || data?.x_groq?.usage) usage = data.usage || data.x_groq.usage;
 
     const reasoningChunk = delta.reasoning_content || delta.reasoning;
@@ -208,6 +213,10 @@ async function consumeStream(response, onChunk, signal, onReasoning, onActivity)
     }
     if (buffer.trim()) feedLine(buffer.trim());
     processContentBuffer(true);
+    // Nothing delivered: fail, so the next key or provider is tried. Words
+    // delivered: keep them but say the answer was cut, so the page offers Continue.
+    if (streamError && !chunksDelivered) throw new Error(`stream error: ${streamError}`);
+    if (streamError) return { fullText, toolCalls: [], finishReason: 'length', chunksDelivered, usage };
   } catch (streamErr) {
     // If we already started delivering tokens to the user, return what we have
     // rather than failing the response or duplicating output.

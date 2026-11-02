@@ -58,7 +58,8 @@ const screen = (page) => page.$$eval('#messages .msg.user > .bubble, #messages .
     failures = 2;
     await send('السؤال الثاني');
     await page.waitForSelector('.retry-row button', { timeout: 15000 }).catch(() => {});
-    ok((await saved(page)).some((m) => m.startsWith('3:assistant:') && !/الجواب/.test(m)), 'control: a failure is saved as it happened', await saved(page));
+    ok(await page.$('.msg.assistant.error') !== null, 'control: the failure is on screen as a failure');
+    ok(JSON.stringify(await saved(page)) === JSON.stringify(['0:user:السؤال الأول', '1:assistant:الجواب 2', '2:user:السؤال الثاني']), 'a failure is never saved as the assistant answer', await saved(page));
     await page.click('.retry-row button');
     await settle();
     ok(JSON.stringify(await saved(page)) === JSON.stringify(['0:user:السؤال الأول', '1:assistant:الجواب 2', '2:user:السؤال الثاني', '3:assistant:الجواب 3']), 'after Retry the failure is no longer saved', await saved(page));

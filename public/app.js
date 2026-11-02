@@ -2992,10 +2992,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
         } else {
           addMessage('assistant', failMessage, 'error');
         }
-        // Saved as it happened, so a chat opened again shows it; Retry replaces it (saved-chat.test.js).
-        const failStoredMessage = { role: 'assistant', content: failMessage };
-        history.push(failStoredMessage);
-        await safePersistMessage(failStoredMessage);
+        // A failure is not an answer: not in history (the model would read it as its own words) and not saved (saved-chat.test.js).
         showRetryAction();
       } finally {
         activeRequestController = null;

@@ -20,6 +20,7 @@
     "test:pdf": "node scripts/test-pdf-export.js",
     "test:export-files": "node scripts/test-export-files.js",
     "test:stream": "node scripts/test-streaming.js",
+    "test:stream-error": "node scripts/test-stream-error.js",
     "test:routing": "node scripts/test-routing.js",
     "test:resilience": "node scripts/test-resilience.js",
     "test:agent": "node scripts/test-agent-loop.js",
