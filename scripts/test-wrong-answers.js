@@ -51,7 +51,7 @@ const CASES = [
   ['phys-1', 'think', 'قذفت كرة للأعلى بسرعة ابتدائية 20 م/ث، احسب أقصى ارتفاع تصله والزمن الكلي للطيران'],
   ['phys-2', 'think', 'جسم كتلته 5 كغ على سطح أملس تؤثر فيه قوة 20 نيوتن بزاوية 30 درجة، جد التسارع'],
   ['phys-3', 'think', 'A 2 kg block slides down a 30 degree incline with friction coefficient 0.2. Find its acceleration.'],
-  ['phys-4', 'think', 'ليش بنشوف البرق قبل ما نسمع صوت الرعد؟'],
+  ['chat-5', 'chat', 'ليش بنشوف البرق قبل ما نسمع صوت الرعد؟'],
   ['circ-1', 'think', 'دارة فيها مقاومتان 4 اوم و6 اوم على التوالي مع بطارية 12 فولت، جد التيار والجهد على كل مقاومة'],
   ['circ-2', 'think', 'مقاومتان 6 و3 اوم على التوازي وموصولتان مع مقاومة 2 اوم على التوالي والبطارية 10 فولت، جد التيار الكلي'],
   ['circ-3', 'think', 'Find the equivalent resistance of 10, 20 and 30 ohm resistors in parallel, then the current from a 9 V source.'],
@@ -74,7 +74,9 @@ const CASES = [
   ['do-2', 'do', 'اعملي نظام غذائي لمدة اسبوع، وزني 85 كغ وطولي 175 وبدي انزل 5 كغ، ما عندي حساسية'],
   // nothing special
   ['chat-1', 'chat', 'شو رايك اروح ادرس هندسة ولا طب؟'],
-  ['chat-2', 'chat', 'اشرحلي شو هو الاحتباس الحراري ببساطة']
+  ['chat-2', 'chat', 'اشرحلي شو هو الاحتباس الحراري ببساطة'],
+  ['chat-3', 'chat', 'hey, thanks for the help earlier'],
+  ['chat-4', 'chat', 'what is the capital of France?']
 ];
 
 let port;
@@ -165,7 +167,8 @@ const ids = (rows) => rows.map((r) => r.id).join(', ');
 function assertClassification({ rows, max }) {
   const think = by(rows, 'think'), live = by(rows, 'live');
   console.log('\nStudents: a worked problem in the default (Normal) mode');
-  check('every one is first sent to the fast model (gpt-oss-20b)', () => assert.deepStrictEqual(think.filter((r) => r.model !== FLASH).map((r) => r.id), [], `sent to the larger model: ${ids(think.filter((r) => r.model !== FLASH))}`));
+  check('every one is first sent to the larger model (gpt-oss-120b), as a hard question is', () => assert.deepStrictEqual(think.filter((r) => r.model !== TEXT).map((r) => r.id), [], `sent to the fast model: ${ids(think.filter((r) => r.model !== TEXT))}`));
+  check('control: easy chit-chat and a plain fact still go to the fast model', () => assert.deepStrictEqual(by(rows, 'chat').filter((r) => r.model !== FLASH).map((r) => r.id), []));
   check('control: Max sends the same questions to the larger model, so the model is a decision and not a constant', () => assert.ok(by(max, 'think').every((r) => r.model === TEXT)));
   check('none is at low effort: low reasoning is not the cause for these', () => assert.deepStrictEqual(think.filter((r) => r.effort === 'low').map((r) => r.id), []));
   check('"الدالة" in a calculus question brings the code playbook (calc-1, calc-2, calc-4)', () => assert.deepStrictEqual(think.filter((r) => r.playbooks.includes('code')).map((r) => r.id), ['calc-1', 'calc-2', 'calc-4']));

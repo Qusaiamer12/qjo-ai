@@ -348,7 +348,7 @@ async function pipeline(messages, want, label) {
   await pipeline(after(PY, 'make it shorter'), 'or-code/default', 'and so is a follow-up to it');
   for (const text of ['شو عاصمة اليابان؟', 'أنا متوتر من الامتحان بكرا']) await pipeline(after(PY, text), 'cb-flash/low', `${text} after it: Flash, thinking lightly`);
   await pipeline(after('ارسملي الدالة y = x^2'), 'cb-flash/low', 'ارسملي الدالة y = x^2: Flash');
-  await pipeline(after('solve the integral of x*sin(x) dx'), 'cb-flash/default', 'English math: Flash, thinking');
+  await pipeline(after('solve the integral of x*sin(x) dx'), 'or-text/default', 'English math: the larger model first (a worked problem)');
 
   console.log('\n========================================');
   console.log(`${pass} passed, ${fail} failed`);

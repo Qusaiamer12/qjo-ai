@@ -26,6 +26,7 @@ const { languageOfText } = require('../../public/domain/language');
 const { ownWords } = require('../../public/domain/ownWords');
 const { siteInConversation } = require('../../public/domain/siteRequest');
 const { questionsAsked } = require('../agents/requestSignals');
+const { workedProblem } = require('./workedProblem');
 
 const CAPSULES = /(?:^|\n+)Task-specific skill capsules:\n[\s\S]*?(?=\n\n|$)/;
 // The page and the server both build this note; the server's is the one kept.
@@ -143,13 +144,12 @@ function thinkingNeed(messages) {
 }
 
 /**
- * Whether the larger model writes this answer first: a hard question, or a
- * site. A whole page is where the larger model's design shows, and Groq gives
- * gpt-oss-120b the same minute as the 20b.
+ * Whether the larger model writes this answer first: a hard question, a worked
+ * problem (workedProblem.js) or a site; Groq gives it the same minute as the 20b.
  * @param {Array<{role: string, content: any}>} messages
  */
 function largerModelFirst(messages) {
-  return thinkingNeed(messages).hard || siteRequested(messages);
+  return thinkingNeed(messages).hard || siteRequested(messages) || workedProblem(messages);
 }
 
 /**

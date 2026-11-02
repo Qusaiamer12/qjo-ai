@@ -28,7 +28,7 @@ A chat message takes this path (src/routes/chat.js is the caller):
    (math, code, research, reasoning, ...), both in RoutingEngine.js.
 4. `callAgent` picks the pipeline: code intent -> code; Max or `largerModelFirst` (thinkingNeed
    hard: a puzzle, 600+ chars, two of why/compare/decide/numbers/long, or a site) -> larger models;
-   else flash. The page's Normal sends gpt-oss-20b as the explicit model, kept unless the question
+   else flash. `largerModelFirst` also takes a worked problem (workedProblem.js: mathAsked, calculus words, or the `problem` playbook). The page's Normal sends gpt-oss-20b as the explicit model, kept unless the question
    is hard. Greetings take the lite track.
 5. `reasoningEffort` (promptLayout.js): Normal is `low` unless math intent, a thinking intent
    (code, math, reasoning, research, file) or thinkingNeed; Max keeps the default (medium).
@@ -39,7 +39,7 @@ true tokens: `node tests/browser/measure-request.js`.
 
 ## Weak spots I know of
 
-- Worked student problems go to the 20b in Normal (11 of 11 invented): only "hard" earns the 120b.
+- Conceptual "why" questions (lightning before thunder) are not worked problems: 20b, default effort.
 - Facts that change run on 20b at low effort with search left to the model (6 of 6 invented).
 - "الدالة" sets the code playbook and overlay on calculus (3 of 4; +700 tokens). No diet playbook.
 - Circuits are intent `general`, not math (mathAsked misses them); they rely on the `problem` playbook.
@@ -52,9 +52,11 @@ true tokens: `node tests/browser/measure-request.js`.
   3.6k (plain) to 4.6k (calculus with code playbook) estimated tokens (chars/3.5, Arabic under-counted).
   Mutations: `largerModelFirst` always true -> 2 red; "دالة" removed from CODE_WORDS -> 2 red.
 
+- 2026-11-02, after item 15: 10 of 10 worked problems go to gpt-oss-120b in Normal; chat/plain facts (4 cases) stay on 20b. Mutation (drop workedProblem) -> 1 red.
+
 ## Next improvements
 
-1. Backlog 15: worked problems to the larger model (students, 21 of 50 wrong).
+1. (done) Backlog 15.
 2. Backlog 16: facts that change get default effort and a forced first search (sport, 14).
 3. Backlog 17: "الدالة" is not code; diet-plan playbook.
 4. Run the 24 questions once with a key and score them: how often 20b is actually wrong.
