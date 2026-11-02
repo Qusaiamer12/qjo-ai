@@ -10,6 +10,7 @@ const { withTurnContext, reasoningEffort, thinkingNeed, largerModelFirst, siteRe
 const { z } = require('zod');
 const { ownWords } = require('../../public/domain/ownWords');
 const { bounded } = require('../../public/domain/topicWords'); // a message as a classifier reads it: 2,000 + 500 characters
+const { liveSearchQuery, searchFirstRound } = require('./liveFacts');
 const { intentWindow, hardCodeSignal, codeAsked, mathAsked, words } = require('./requestSignals');
 
 // ── Zod Schema ──
@@ -89,11 +90,6 @@ function isArabicHeavyText(text) {
   return arabicChars > 60 && arabicChars > t.length * 0.05;
 }
 
-// Does this message plausibly need fresh/current info? Decides whether the
-// web_search tool schema is worth attaching (the model itself then decides).
-// Wide net: comparisons, trophies/scores, prices, device/product names,
-// versions and recent years — these are exactly the questions that used to
-// get confident-but-stale memory answers (e.g. trophy counts from 2023).
 // ── Routing Decision Validation ──
 function validateRoutingDecision(raw) {
   const parsed = RoutingDecisionSchema.safeParse(raw);
@@ -296,7 +292,7 @@ function createRoutingEngine(deps) {
 
   // Runs a chain of [provider, slot] attempts with a shared deadline. A
   // provider failure (including timeout) simply advances the chain.
-  async function runChain(chain, params, { withTools = false, originalQuestion = '' } = {}) {
+  async function runChain(chain, params, { withTools = false, originalQuestion = '', firstSearch = null } = {}) {
     const list = attempts(chain);
     if (!list.length) return { ok: false, status: 501, error: 'No provider configured.' };
     let last = null;
@@ -307,7 +303,7 @@ function createRoutingEngine(deps) {
         if (remaining < 2500) break;
         params.timeoutMs = Math.min(params.maxPerProviderMs || 12000, remaining - 1000);
       }
-      let res = await tryProvider(provider, slot, params);
+      let res = firstSearch ? searchFirstRound(firstSearch) : await tryProvider(provider, slot, params); // a changing fact: the search comes first
 
       // One quick retry for transient failures (5xx / gateway timeouts) before
       // giving up on this provider entirely. Free aggregators like llm7 and
@@ -481,7 +477,9 @@ function createRoutingEngine(deps) {
       requestedTemp: temperature
     });
 
-    const base = { messages, turnContext, temperature: effectiveTemperature, max_tokens, frequency_penalty, presence_penalty, onChunk, onReasoning, onToolCall, onToolResult, deadlineMs, signal, reasoning_effort: reasoningEffort({ mode: normMode, intent: route.intent, mathIntent: route.mathIntent, thought: thinkingNeed(messages), site: siteRequested(messages) }) };
+    // A fact that changes is searched by the server before the model answers (liveFacts.js).
+    const liveQuery = searchService && useTools !== false && !hasImages && !route.hasSearchContext ? liveSearchQuery(messages) : null;
+    const base = { messages, turnContext, temperature: effectiveTemperature, max_tokens, frequency_penalty, presence_penalty, onChunk, onReasoning, onToolCall, onToolResult, deadlineMs, signal, reasoning_effort: reasoningEffort({ mode: normMode, intent: route.intent, mathIntent: route.mathIntent, thought: thinkingNeed(messages), site: siteRequested(messages), live: Boolean(liveQuery) }) };
 
     // Tool attachment policy (never for images):
     //  • calculator on every turn with tools: the tool list opens the request,
@@ -552,7 +550,7 @@ function createRoutingEngine(deps) {
       ...base, messages: hasImages ? withoutImages(messages) : messages, // a model that cannot see refuses pictures
       tools: hasImages ? undefined : tools,
       maxPerProviderMs: normMode === 'flash' ? 18000 : 25000
-    }, { withTools: Boolean(tools), originalQuestion });
+    }, { withTools: Boolean(tools), originalQuestion, firstSearch: tools ? liveQuery : null });
   }
 
   // Carrying a cut-off answer on, and joining the rest to it: continuation.js.

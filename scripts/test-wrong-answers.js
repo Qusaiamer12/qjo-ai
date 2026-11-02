@@ -21,6 +21,7 @@ const { createChatPromptBuilder } = require('../src/services/systemPrompt');
 const { createLlmService } = require('../src/services/llmService');
 const { createRoutingEngine, classifyQjoRequest } = require('../src/agents/RoutingEngine');
 const { detectNeeds } = require('../src/services/playbooks');
+const { asksChangingFact } = require('../src/agents/liveFacts');
 
 const calls = [];
 const provider = http.createServer((req, res) => {
@@ -69,6 +70,20 @@ const CASES = [
   ['live-4', 'live', 'مين هداف الدوري الاردني هذا الموسم؟'],
   ['live-5', 'live', 'مين رئيس وزراء بريطانيا الان؟'],
   ['live-6', 'live', 'what is the latest iPhone and how much does it cost'],
+  ['live-7', 'live', 'سعر الذهب اليوم في الاردن'],
+  ['live-8', 'live', 'شو نتيجة مباراة الوحدات والفيصلي'],
+  ['live-9', 'live', 'مين فاز امبارح بمباراة الاهلي؟'],
+  ['live-10', 'live', 'آخر أخبار الطقس في عمان'],
+  ['live-11', 'live', 'Who is the president of Brazil?'],
+  ['live-12', 'live', 'what is the bitcoin price right now'],
+  // near-misses: they mention a president, a result, today, the latest, and must not search
+  ['near-1', 'near', 'what is a president and what does a president do'],
+  ['near-2', 'near', 'who won the 2010 World Cup'],
+  ['near-3', 'near', 'اشرح لي معنى كلمة مدرب'],
+  ['near-4', 'near', 'solve x^2 - 5x + 6 = 0 today'],
+  ['near-5', 'near', 'what is the current in a series circuit with a 12 V battery'],
+  ['near-6', 'near', 'من هو أول رئيس للولايات المتحدة؟'],
+  ['near-7', 'near', 'write me a poem about the latest chapter of my life'],
   // asks questions instead of the task (about 21): the details are in the message
   ['do-1', 'do', 'اكتبلي سيرة ذاتية، اسمي سامر، محاسب، خبرة 5 سنوات بشركة تجارية، بكالوريوس محاسبة من جامعة اليرموك، بتقن اكسل'],
   ['do-2', 'do', 'اعملي نظام غذائي لمدة اسبوع، وزني 85 كغ وطولي 175 وبدي انزل 5 كغ، ما عندي حساسية'],
@@ -119,7 +134,7 @@ function causes(need, f) {
     if (f.effort === 'low') out.push('low reasoning');
     if (f.playbooks.includes('code') && !/code|كود|برمج|python|بايثون/i.test(f.text)) out.push('playbook wrong (code for a sum)');
   }
-  if (need === 'live') out.push(f.search ? 'search offered, left to the model' : 'no search offered');
+  if (need === 'live') out.push(f.searchedFirst ? 'searched first by the server' : (f.search ? 'search offered, left to the model' : 'no search offered'));
   if (need === 'figure' && !f.playbooks.includes('mathplot')) out.push('playbook missing');
   if (need === 'do' && !f.playbooks.length) out.push('no playbook for the task');
   return out;
@@ -136,6 +151,8 @@ async function measure(id, need, text, mode = 'normal') {
     model: body.model,
     effort: body.reasoning_effort || 'default', // gpt-oss reasons at medium unless told
     search: (body.tools || []).some((t) => (t.function || t).name === 'web_search'),
+    // the server ran web_search before this first model call: the assistant turn that asked for it, and its result
+    searchedFirst: body.messages.some((m) => m.role === 'assistant' && (m.tool_calls || []).some((c) => c.function.name === 'web_search')) && body.messages.some((m) => m.role === 'tool'),
     forced: Boolean(body.tool_choice) && body.tool_choice !== 'auto', // a search the model must make
     intent: classifyQjoRequest({ messages: msgs, mode }).intent,
     playbooks: detectNeeds(msgs).playbooks,
@@ -188,9 +205,26 @@ function assertClassification({ rows, max }) {
   check('a function to plot gets the mathplot playbook (positive control: the playbook is chosen when asked for)', () => assert.deepStrictEqual(by(rows, 'figure').filter((r) => !r.playbooks.includes('mathplot')).map((r) => r.id), []));
   console.log('\nFacts that change (sport, office-holders, "latest")');
   check('web_search is offered on every one', () => assert.deepStrictEqual(live.filter((r) => !r.search).map((r) => r.id), []));
-  check('every one is at low reasoning effort on the fast model: it is not thought of as needing thought', () => assert.deepStrictEqual(live.filter((r) => r.effort !== 'low' || r.model !== FLASH).map((r) => r.id), []));
-  check('nothing makes the model search: no tool_choice, and no turn text names a search for them', () => assert.ok(live.every((r) => !r.forced)));
-  check('Max is no better: default effort, search still left to the model', () => assert.ok(by(max, 'live').every((r) => r.effort === 'default' && r.search && !r.forced)));
+  check('every one is searched by the server before the model answers (a search call and its result are in the first request)', () => assert.deepStrictEqual(live.filter((r) => !r.searchedFirst).map((r) => r.id), []));
+  check('every one is at the default reasoning effort, not low', () => assert.deepStrictEqual(live.filter((r) => r.effort !== 'default').map((r) => r.id), []));
+  check('there are 12 of them, 6 in Arabic (a count that cannot drift to nothing)', () => assert.ok(live.length >= 12 && live.filter((r) => /[\u0600-\u06FF]/.test(r.text)).length >= 6));
+  check('Max searches first too, at default effort', () => assert.ok(by(max, 'live').every((r) => r.effort === 'default' && r.search && r.searchedFirst)));
+  console.log('\nNear-misses: a definition, history, maths and a poem do not search');
+  check('none is searched first (their model and effort are the old ones: maths still thinks, the rest are low)', () => assert.deepStrictEqual(by(rows, 'near').filter((r) => r.searchedFirst).map((r) => r.id), []));
+  check('control: web_search is still offered to them, so the model can choose', () => assert.ok(by(rows, 'near').every((r) => r.search)));
+  check('control: chit-chat is not searched either', () => assert.ok(by(rows, 'chat').every((r) => !r.searchedFirst)));
+  console.log('\nThe decision itself (liveFacts.js), message by message');
+  for (const m of ['مين رئيس فرنسا؟', 'سعر الدولار اليوم؟', 'بالدوري الانجليزي شو ترتيب ليفربول هلا؟', 'who is the coach of Real Madrid?', 'What is the weather in Amman tomorrow?']) {
+    check(`searches: ${m}`, () => assert.ok(asksChangingFact(m)));
+  }
+  for (const m of ['ما الفرق بين الرئيس والوزير؟', 'اليوم تعلمت الجمع، اشرحه', 'من كان رئيس الوزراء في 1990؟', 'who was the president in 1990?', 'The final answer is 4, check my work', 'my manager is mean to me, advice?', 'how to find the version of node installed', 'احسب الان قيمة التكامل من 0 الى 1', 'ما هو تعريف الملك']) {
+    check(`does not search: ${m}`, () => assert.ok(!asksChangingFact(m)));
+  }
+  check('a 200k-character paste with no match is judged in linear time (under 300 ms), Arabic and English', () => {
+    const start = Date.now();
+    asksChangingFact('a '.repeat(100000)); asksChangingFact('مرحبا '.repeat(40000)); asksChangingFact('x'.repeat(200000));
+    assert.ok(Date.now() - start < 300, `took ${Date.now() - start} ms`);
+  });
   console.log('\nThe task, with the details in the message');
   check('a CV gets its playbook (control)', () => assert.ok(rows.find((r) => r.id === 'do-1').playbooks.includes('cv')));
   check('a diet plan gets the diet playbook', () => assert.deepStrictEqual(rows.find((r) => r.id === 'do-2').playbooks, ['diet']));
@@ -211,7 +245,7 @@ function assertClassification({ rows, max }) {
 }
 
 const table = ({ rows }) => {
-  const kinds = { think: 'a worked problem', live: 'a fact that changes', figure: 'a figure', do: 'the task itself', chat: 'nothing special' };
+  const kinds = { near: 'a near-miss (no search)', think: 'a worked problem', live: 'a fact that changes', figure: 'a figure', do: 'the task itself', chat: 'nothing special' };
   const head = '| id | needs | model | effort | search offered | intent | playbooks | tokens | cause |\n|---|---|---|---|---|---|---|---|---|';
   return `${head}\n${rows.map((r) => `| ${r.id} | ${kinds[r.need]} | ${r.model.split('/')[1]} | ${r.effort} | ${r.search ? 'yes' : 'no'} | ${r.intent} | ${r.playbooks.join(', ') || '-'} | ${r.tokens} | ${r.causes.join('; ') || '-'} |`).join('\n')}`;
 };

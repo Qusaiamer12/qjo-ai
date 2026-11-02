@@ -104,12 +104,12 @@ const THINKING_INTENTS = new Set(['code', 'math', 'reasoning', 'research', 'file
  * A question that needs thought (thinkingNeed) keeps it too. A site in Flash
  * thinks lightly: on Groq the reasoning is written inside the answer room a
  * minute allows, and a page needs that room for itself.
- * @param {{mode?: string, intent?: string, mathIntent?: boolean, thought?: {needs: boolean}, site?: boolean}} [route]
+ * @param {{mode?: string, intent?: string, mathIntent?: boolean, thought?: {needs: boolean}, site?: boolean, live?: boolean}} [route] live: a fact that changes, searched first (liveFacts.js), is read at the default effort
  * @returns {'low' | undefined}
  */
-function reasoningEffort({ mode, intent, mathIntent, thought, site } = {}) {
+function reasoningEffort({ mode, intent, mathIntent, thought, site, live } = {}) {
   if (mode === 'flash' && site) return 'low';
-  if (mode !== 'flash' || mathIntent || THINKING_INTENTS.has(String(intent)) || (thought && thought.needs)) return undefined;
+  if (mode !== 'flash' || live || mathIntent || THINKING_INTENTS.has(String(intent)) || (thought && thought.needs)) return undefined;
   return 'low';
 }
 
