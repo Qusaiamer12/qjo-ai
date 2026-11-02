@@ -1,0 +1,11 @@
+{
+  "note": "The shifts' window on the office. A shift cannot write the office's database (it needs a person to approve the tool, and nobody is there), so it writes here and pushes; the owner's session copies each change into the office within a minute or two. Only the fields a shift sets are copied.",
+  "updatedAt": "2026-11-02T06:35:00Z",
+  "staff": {},
+  "schedule": {},
+  "budget": {},
+  "ledger": [
+    { "session": "281e4aad-3bdd-59c7-b9bc-42230b1c3d93", "at": "2026-11-01T21:17:47Z", "units": 4.5 }
+  ],
+  "approvals": {}
+}
