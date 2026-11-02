@@ -54,6 +54,7 @@ owner's readings calibrated them once:
 | 2026-11-02 | 5% | 23% | new session (00:10–05:10), one employee (frontend) running |
 | 2026-11-02 | 15% | 24% | volunteered. The meter had said 13% / 24%: 6.2 units moved the session 10 points, so 0.65 units a point from here (it leans high) |
 | 2026-11-02 | 24% | 26% | volunteered. The meter had said 23% / 25%; the audit gave 0.58 units a session point and 5.0 a weekly point over the day, so both were moved there |
+| 2026-11-02 | 36% | 33% | volunteered, 09:47, with two shifts running in their own containers. The meter said 20% / 30%: it sees a shift's spend only when the shift writes the ledger at its end. A running shift is the gap; the stop line's margin covers it, and each reading resets the baseline |
 
 **Lesson from the overrun:** no reading was taken between start and finish.
 Four employees at once spent the session's share in one go. From now on, at
