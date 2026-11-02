@@ -318,7 +318,12 @@
     startersPlan: 'A four-week workout plan for beginners\nPlan my day: 8 hours of work, study and the gym\nA plan to launch a small online coffee business\nA week of healthy meals on a tight budget\nA five-day trip to Istanbul',
     dropFiles: 'Drop files to attach', exportChatsTitle: 'Download my chats', exportChatsDesc: 'Save every chat in your account as one JSON file.', exportChatsBtn: 'Download', exportChatsProgress: 'Preparing your chats… {done}/{total}', exportChatsDone: 'Done — {count} chats downloaded.', exportChatsFailed: 'Couldn\'t download your chats. Check your connection and try again.', exportChatsSignIn: 'Sign in first to download your chats.', exportChatsNone: 'You have no chats to download yet.',
     reasoningSeconds: '{n}s',
-    reasoningThoughtFor: 'Thought for {time}'
+    reasoningThoughtFor: 'Thought for {time}',
+    reasoningLabel: 'Reasoning',
+    reasoningLabelLive: 'Reasoning...',
+    reasoningCompleted: 'Completed',
+    reasoningToggle: 'Toggle reasoning',
+    reasoningFallbackStep: 'Analyzing query context...'
   });
   Object.assign(CATALOG.ar, {
     menuLabel: "القائمة",
@@ -578,7 +583,12 @@
     startersPlan: 'خطة تمارين لأربعة أسابيع للمبتدئين\nرتّبلي يومي: شغل 8 ساعات ودراسة ونادي\nخطة لإطلاق مشروع صغير لبيع القهوة أونلاين\nجدول وجبات صحية لأسبوع بميزانية محدودة\nخطة سفر 5 أيام إلى إسطنبول',
     dropFiles: 'أفلت الملفات هنا لإرفاقها', exportChatsTitle: 'تنزيل محادثاتي', exportChatsDesc: 'احفظ كل محادثات حسابك في ملف JSON واحد.', exportChatsBtn: 'تنزيل', exportChatsProgress: 'بجهّز محادثاتك… {done}/{total}', exportChatsDone: 'تم — نزّلت {count} محادثة.', exportChatsFailed: 'تعذر تنزيل محادثاتك. تحقق من الاتصال وجرّب مرة ثانية.', exportChatsSignIn: 'سجّل دخولك أولًا لتنزيل محادثاتك.', exportChatsNone: 'ما عندك محادثات لتنزيلها بعد.',
     reasoningSeconds: '{n} ث',
-    reasoningThoughtFor: 'تم التفكير في {time}'
+    reasoningThoughtFor: 'تم التفكير في {time}',
+    reasoningLabel: 'مسار التفكير',
+    reasoningLabelLive: 'مسار التفكير...',
+    reasoningCompleted: 'اكتمل',
+    reasoningToggle: 'إظهار مسار التفكير أو إخفاؤه',
+    reasoningFallbackStep: 'تحليل سياق السؤال...'
   });
 
   /**

@@ -11,6 +11,7 @@
 // reason (or search), must find the card — a probe that finds no card
 // anywhere would pass every "no card" case.
 const { launchBrowser, devices, BASE_URL } = require('./harness');
+const { useFakeFirebase } = require('./fakeFirebase');
 
 let pass = 0, fail = 0;
 const ok = (c, m, d) => { c ? pass++ : fail++; console.log(`${c ? '✅' : '❌'} ${m}`); if (!c && d !== undefined) console.log('   ', JSON.stringify(d).slice(0, 600)); };
@@ -140,6 +141,38 @@ async function run() {
     const c = await card(page);
     ok(c.cards === 1 && c.steps.some((s) => /Searching the web/.test(s)), 'a search shows its step in the card', c);
     ok(c.timer && !/Thought for/.test(c.timer) && /^\d+\.\ds$/.test(c.timer), `but the card does not say "Thought for" when nothing was thought (${c.timer})`, c);
+    await ctx.close();
+  }
+
+  // ── 6. The same card, from a saved chat opened again, speaks the page's language ──
+  // The live card was translated and the saved one was not: opened again in
+  // Arabic it read "Reasoning" and "Completed". The control is the live card
+  // of the same answer, which must read Arabic before the chat is reopened.
+  for (const lang of ['ar', 'en']) {
+    const reply = body(frame('reasoning', { text: 'First I compare the two options.' }), frame('chunk', { text: `Saved answer. ${DONE}` }));
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: lang === 'ar' ? 'ar-JO' : 'en-US' });
+    const page = await ctx.newPage();
+    await useFakeFirebase(page);
+    await page.route('**/api/chat', (route) => route.fulfill({ status: 200, contentType: 'text/event-stream', body: reply }));
+    await page.addInitScript(`try { localStorage.setItem('qjo_language', '${lang}'); } catch (_) {}`);
+    await page.goto(BASE_URL + '/', { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(1500);
+    await page.evaluate(() => window.__signIn());
+    await page.waitForTimeout(1200);
+    await send(page, 'which one?');
+    await finished(page);
+    await page.waitForTimeout(800);
+    const live = await card(page);
+    const words = lang === 'ar' ? { label: 'مسار التفكير', timer: /^تم التفكير في / } : { label: 'Reasoning', timer: /^Thought for / };
+    ok(live.cards === 1 && live.label === words.label && words.timer.test(live.timer || ''), `${lang}: control — the live card reads in the page's language ("${live.label}", "${live.timer}")`, live);
+    await page.click('#newChatBtn');
+    await page.waitForTimeout(600);
+    await page.click('.chat-item, .chat-row, [data-chat-id]');
+    await page.waitForTimeout(1200);
+    const again = await card(page);
+    ok(again.cards === 1 && again.text.includes('Saved answer'), `${lang}: the saved chat opened again shows the card and its answer`, again);
+    ok(again.label === words.label, `${lang}: the saved card's label is "${words.label}" ("${again.label}")`, again);
+    ok(again.timer === (lang === 'ar' ? 'اكتمل' : 'Completed'), `${lang}: its timer is in the page's language ("${again.timer}")`, again);
     await ctx.close();
   }
 

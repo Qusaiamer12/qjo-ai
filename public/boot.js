@@ -31,6 +31,7 @@
     ['keyboard on screen', () => window.QjoUI && window.QjoUI.keyboardWatch],
     ['streaming blocks', () => window.QjoDomain && window.QjoDomain.streamBlocks],
     ['history window', () => window.QjoDomain && window.QjoDomain.historyWindow],
+    ['reasoning card', () => window.QjoDomain && window.QjoDomain.reasoningCard],
     ['code sandbox', () => window.QjoUI && window.QjoUI.sandbox],
     ['code previews', () => window.QjoDomain && window.QjoDomain.codeProject],
     ['code studio', () => window.QjoUI && window.QjoUI.createCodeStudio],

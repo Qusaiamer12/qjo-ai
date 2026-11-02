@@ -1387,37 +1387,7 @@ const QJO_FRONTEND_VERSION = 'qjo-premium-lively-v2-2026-09-02-1';
       });
     }
 
-    function renderReasoningCardHtml(reasoningText, isDone = true, elapsed = '') {
-      const rawLines = String(reasoningText || '').split(/\n+/).map(l => l.trim()).filter(Boolean);
-      let stepsHtml = '';
-      for (const line of rawLines) {
-        const isTool = /^(✓|used|searched|تم استخدام|تم البحث)/i.test(line);
-        stepsHtml += `<div class="qjo-reasoning-step${isTool ? ' tool-step' : ''}">
-          <span class="qjo-step-dot"></span>
-          ${isTool ? '<span class="tool-check">✓</span>' : ''}
-          <span>${escapeHtml(line.replace(/^[✓•\-\*]\s*/, ''))}</span>
-        </div>`;
-      }
-      return `
-        <div class="qjo-reasoning-card${isDone ? ' collapsed' : ''}">
-          <div class="qjo-reasoning-header">
-            <div class="qjo-reasoning-title">
-              ${!isDone ? '<span class="qjo-reasoning-pulse"></span>' : ''}
-              <span class="qjo-reasoning-label">${isDone ? 'Reasoning' : 'Reasoning...'}</span>
-              <span class="qjo-reasoning-timer">${isDone ? (elapsed ? `Thought for ${elapsed}` : 'Completed') : (elapsed || '0.1s')}</span>
-            </div>
-            <button type="button" class="qjo-reasoning-toggle" aria-label="Toggle Reasoning">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
-            </button>
-          </div>
-          <div class="qjo-reasoning-body">
-            <div class="qjo-reasoning-timeline">
-              ${stepsHtml || '<div class="qjo-reasoning-step"><span class="qjo-step-dot"></span><span>Analyzing query context...</span></div>'}
-            </div>
-          </div>
-        </div>
-      `;
-    }
+    const renderReasoningCardHtml = (text, isDone = true, elapsed = '') => QjoDomain.reasoningCard.renderReasoningCardHtml({ text, isDone, elapsed, t, escapeHtml });
 
     function attachReasoningToggle(container) {
       const card = container.querySelector('.qjo-reasoning-card');
