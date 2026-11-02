@@ -1,6 +1,6 @@
 {
   "note": "The shifts' window on the office. A shift cannot write the office's database (it needs a person to approve the tool, and nobody is there), so it writes here and pushes; the owner's session copies each change into the office within a minute or two. Only the fields a shift sets are copied.",
-  "updatedAt": "2026-11-02T11:13:33.474Z",
+  "updatedAt": "2026-11-02T11:13:50.770Z",
   "staff": {
     "backend": {
       "status": "idle",
@@ -25,8 +25,8 @@
       "next": "حفظ مدة التفكير وترجمة بقية النصوص المضمّنة"
     },
     "data-quality": {
-      "status": "idle",
-      "task": "",
+      "status": "working",
+      "task": "البند 17: كلمة الدالة بالرياضيات مش كود، وخطة الحمية",
       "model": "sonnet",
       "lastDelivery": {
         "item": 15,
@@ -44,8 +44,10 @@
       "next": "محاكاة جلسة كاملة بحدود Groq"
     },
     "reviewer": {
-      "status": "idle",
-      "next": "مراجعة آخر الدمجات"
+      "status": "working",
+      "next": "مراجعة آخر الدمجات",
+      "task": "مراجعة دمجات اليوم: 6 و7 و2 و8 و15، وكسر اختبار من كل واحد",
+      "model": "sonnet"
     }
   },
   "schedule": {
