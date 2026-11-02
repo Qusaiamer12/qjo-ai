@@ -41,7 +41,8 @@ true tokens: `node tests/browser/measure-request.js`.
 
 - Conceptual "why" questions (lightning before thunder) are not worked problems: 20b, default effort.
 - Facts that change run on 20b at low effort with search left to the model (6 of 6 invented).
-- "الدالة" sets the code playbook and overlay on calculus (3 of 4; +700 tokens). No diet playbook.
+- English "function" still sets code on a calculus question ("derivative of the function f(x)"): CODE_WORDS `\bfunction\b`, not yet guarded.
+- The diet playbook is matched on words (diet, calories, سعرة, نظام غذائي...); "what should I eat" is not.
 - Circuits are intent `general`, not math (mathAsked misses them); they rely on the `problem` playbook.
 - Every answer's wrongness is unknown without a key: routing is measured, answers are not.
 
@@ -54,9 +55,14 @@ true tokens: `node tests/browser/measure-request.js`.
 
 - 2026-11-02, after item 15: 10 of 10 worked problems go to gpt-oss-120b in Normal; chat/plain facts (4 cases) stay on 20b. Mutation (drop workedProblem) -> 1 red.
 
+- 2026-11-02, after item 17: calc-1/2/4 request 4566-4572 -> 3832-3838 tokens (-734), no code playbook or overlay; do-2 (diet) gets the `diet` playbook (+190 tokens, only on those messages). "دالة" is code only as "اكتب/اعمل/سوي (لي) دالة" or "دالة بايثون/جافا/...". Mutations: "دالة" back in CODE_WORDS -> 5 red; سعرة words removed -> 1 red (after adding a calories-only case; the first test was blind, other words matched).
+
 ## Next improvements
 
 1. (done) Backlog 15.
 2. Backlog 16: facts that change get default effort and a forced first search (sport, 14).
-3. Backlog 17: "الدالة" is not code; diet-plan playbook.
+3. (done) Backlog 17.
+3b. English "function" in a calculus question still brings code (same fix, with a maths guard).
+
+Lesson: a test message matching two rules cannot show either is needed; give each rule a message only it matches. Never run bare `git stash`.
 4. Run the 24 questions once with a key and score them: how often 20b is actually wrong.
