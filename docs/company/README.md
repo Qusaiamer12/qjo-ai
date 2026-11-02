@@ -176,6 +176,9 @@ from a third party is installed without the owner's approval**.
 
 ## Levels
 
+The monthly league, comparisons with the best assistants, coaching and
+replacement: `performance-review.md`.
+
 Beginner → Practised → Professional → Expert → Legend.
 
 - Points for work accepted on its first review, a green CI run after merge, and
