@@ -42,6 +42,10 @@ or the site down always first.
 | 26 | frontend | `phone-ux.test.js` scroll controls flaky in the container (about 5 of 7 runs red, with or without the change) | ux 2026-11-02 | 3×2×1.0÷1 = 6 |
 | 27 | data-quality | "latest version of X" no longer searches first (version/release dropped as topic words in item 16): a pattern the study veto cannot catch | item 16 review | 2×4×0.8÷1 = 6.4 |
 | 28 | performance | `test:regex-cost` parses with `acorn`, which comes only through eslint and is not in package.json; regexes built inside functions are counted, not timed; `src/services` and `src/search` not yet covered. Listing acorn is the owner's call (approvals) | item 22 | 3×2×0.8÷1 = 4.8 |
+| 29 | backend | A PDF of lecture slides whose pages are pictures gives almost no text (8 pages, a few words each), and Qjo summarises the few words as if it had read the file. Read image-only pages with the vision model, or say plainly which pages could not be read | owner's chat 2026-11-02: a robotics lecture; students upload slides constantly | 4×4×1.0÷3 = 5.3 |
+| 30 | data-quality | "حلل أقوى" / "غلط" after an answer returns the same answer word for word (twice in one chat). A request to improve or correct must give a different, deeper answer: detect an identical reply and redo it, and for "wrong" search again | same chat | 4×3×1.0÷2 = 6 |
+| 31 | data-quality | "هات الأسئلة الموجودة فيه" invented generic questions that are not in the file. Questions and examples come from the file's text, quoted with their page, or the answer says none were found | same chat | 4×4×0.8÷2 = 6.4 |
+| 32 | data-quality | Dialect: "كيفك" answered in formal Arabic, and "صح" echoed back as "صح". Answer in the register the person wrote in; a one-word confirmation gets a short useful reply, not an echo | same chat; strategy roadmap 3 | 5×2×1.0÷2 = 5 |
 
 ## Standing hunts (when a role has nothing open)
 

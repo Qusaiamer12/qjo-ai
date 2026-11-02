@@ -66,7 +66,7 @@ manager whose predictions keep missing changes how it decides.
 | Date | Decision | Expected | Check on | Result |
 |---|---|---|---|---|
 | 2026-11-02 | Worked student problems go to the larger model (95e26fd) | student "correct" up on the live set | 2026-11-09 | |
-| 2026-11-02 | Facts that change are searched by the server first (item 16) | sport and "latest" answers right | 2026-11-09 | |
+| 2026-11-02 | Facts that change are searched by the server first (item 16) | sport and "latest" answers right | 2026-11-09 | First check 2026-11-02 17:40, live: the La Liga table that the owner's chat had invented (78 points in November, a team that does not exist) now comes searched and plausible (27 points after 11 rounds); "wrong" now searches again and fetches the official table. Team names came in English in an Arabic answer |
 | 2026-11-02 | Shift manager on Opus, employees on sonnet/haiku | fewer send-backs, more items a shift | 2026-11-09 | |
 | 2026-11-02 | At most 3 weekly points a shift until the reset | no stop line crossed | 2026-11-04 | |
 
