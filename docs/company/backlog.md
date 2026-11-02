@@ -46,6 +46,7 @@ or the site down always first.
 | 30 | data-quality | "حلل أقوى" / "غلط" after an answer returns the same answer word for word (twice in one chat). A request to improve or correct must give a different, deeper answer: detect an identical reply and redo it, and for "wrong" search again | same chat | 4×3×1.0÷2 = 6 |
 | 31 | data-quality | "هات الأسئلة الموجودة فيه" invented generic questions that are not in the file. Questions and examples come from the file's text, quoted with their page, or the answer says none were found | same chat | 4×4×0.8÷2 = 6.4 |
 | 32 | data-quality | Dialect: "كيفك" answered in formal Arabic, and "صح" echoed back as "صح". Answer in the register the person wrote in; a one-word confirmation gets a short useful reply, not an echo | same chat; strategy roadmap 3 | 5×2×1.0÷2 = 5 |
+| 33 | data-quality | The daily number: 12 fixed invented student questions (maths, physics, circuits, programming, a report, a CV; half in Levantine Arabic) in `evals/student-daily.json`, asked of the live Qjo once a day with `ask-qjo.js`, scored on the baseline's rubric, the score kept in quality-baseline.md and shown in the office (meta/budget.qualityScore). First item of 2026-11-03 | emergency meeting: progress must be a number | 5×4×1.0÷2 = 10 |
 
 ## Standing hunts (when a role has nothing open)
 
