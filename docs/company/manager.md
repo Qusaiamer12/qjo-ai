@@ -123,3 +123,24 @@ moments were all of one kind: saying something was so without looking.
   shift's first move written down.
 - **Review what Sonnet shifts merged.** Once a day the manager or the
   reviewer reads every merge on main and tries to break one of its tests.
+
+## Talking to Qjo, and looking outside (2026-11-02)
+
+- **The manager talks to Qjo itself.** `node .claude/company/ask-qjo.js
+  questions.json --out answers.json` asks the live Qjo (its own keys; none
+  here) up to 12 invented questions, 6 seconds apart. After every change
+  that touches answers, the change's owner asks the questions it should fix
+  and the ones it must not break, and the answers are scored before the
+  item is closed: "fixed" means the live Qjo answers better, not only that
+  a test passes. Answers stay in scratch; only scores are committed.
+- **Scouting.** Every shift's manager, and every employee whose backlog and
+  notebook are empty, spends part of its turn on the web and on GitHub
+  looking for what would improve its part, and writes each find in
+  `scouting.md`. The manager adopts what it can build itself; anything that
+  installs or copies third-party code goes to the owner.
+- **Development, not only repair.** At least one item a week is a new
+  capability for the first segment (students), chosen by the manager from
+  the quality baseline, scouting and what the live Qjo gets wrong, and
+  measured on the live Qjo before and after.
+- **The shift's manager runs on Opus**: its decisions and reviews are the
+  company's quality; the employees who do the work stay on sonnet or haiku.

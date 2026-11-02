@@ -87,7 +87,7 @@ share; `maxTurns` in its file is the hard stop.
 
 | Employee | Units a window | About | maxTurns |
 |---|---|---|---|
-| Manager (shifts) | 6 | 10 points | — |
+| Manager (shifts, on Opus) | 6 | 10 points | — |
 | Backend, frontend, data quality | 6 each | 10 points each | 60 |
 | UX, performance, reviewer | 3.6 each | 6 points each | 36 |
 | Accountant | 0.6 | 1 point | 10 |
