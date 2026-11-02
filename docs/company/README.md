@@ -116,7 +116,11 @@ Qjo's answers or hunt for the defect nobody has found yet.
 - **The backlog** (`backlog.md`) holds the open items per role, and each
   role's standing hunt for when it has none. What a hunt finds becomes an item.
 - **Shifts** run on their own, Saturday to Thursday, as fresh sessions (a
-  fresh context is far cheaper than the manager's long one), four a day:
+  fresh context is far cheaper than the manager's long one), four a day. A
+  scheduled task wakes the owner's session, which starts each shift as a new
+  session with the repository attached (`.claude/company/shift-prompt.md`):
+  a scheduled session of its own has no push access, and the first night
+  shift's work was lost with its container. The times:
   02:07, 07:07, 12:07 and 21:07 Amman. Nobody has to say "start": the office
   shows the clock, the shift at work, and how long until the next one
   (`meta/schedule`). Each shift:
