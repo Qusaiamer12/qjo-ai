@@ -1,6 +1,6 @@
 {
   "note": "The shifts' window on the office. A shift cannot write the office's database (it needs a person to approve the tool, and nobody is there), so it writes here and pushes; the owner's session copies each change into the office within a minute or two. Only the fields a shift sets are copied.",
-  "updatedAt": "2026-11-02T06:42:18.790Z",
+  "updatedAt": "2026-11-02T06:46:16.135Z",
   "staff": {
     "backend": {
       "status": "idle",
@@ -11,11 +11,21 @@
         "commit": "30cad06",
         "at": "2026-11-02T06:42:09.487Z"
       }
+    },
+    "frontend": {
+      "status": "working",
+      "task": "بطاقة التفكير في المحادثة المحفوظة بالعربي",
+      "model": "sonnet"
+    },
+    "data-quality": {
+      "status": "working",
+      "task": "تصنيف الإجابات الخاطئة حسب السبب",
+      "model": "sonnet"
     }
   },
   "schedule": {
-    "running": false,
-    "runningSince": "2026-11-02T06:33:37.907Z",
+    "running": true,
+    "runningSince": "2026-11-02T06:46:05.416Z",
     "runningWho": "المناوبة",
     "lastShiftEnded": "2026-11-02T06:42:09.487Z",
     "lastShiftSummary": "أُغلق البندان 6 و7: الفشل ما عاد يُحفظ كجواب، وردّ وسم الأداة الخام يُعاد؛ كله على main."
