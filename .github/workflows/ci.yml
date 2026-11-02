@@ -134,6 +134,12 @@ jobs:
       - name: Language suite (English-first, Arabic retained)
         run: npm run test:language
 
+      # Every regex that reads a person's or a model's text, timed on 200k
+      # characters of adversarial input (a lookahead once took 46 s). A
+      # deliberately quadratic control must be reported over budget.
+      - name: Regex cost suite
+        run: npm run test:regex-cost
+
       # The route over real HTTP: keep-alives while the answer is prepared, an
       # error event when something throws mid-stream, and a sources-only
       # fallback that is never cached.
