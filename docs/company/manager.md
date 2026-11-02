@@ -13,6 +13,8 @@ not review code: every handover goes to the reviewer (`reviewer.md`), the
 company's gate, which returns pass or findings; the manager merges what
 passes and sends back what does not, with the reviewer's findings.
 
+The manager improves its own part, the company, every shift: one improvement and one lesson, kept in `desks/manager.md`.
+
 ## Authority
 
 **Full discretion (the owner, 2026-11-02):** the manager takes every decision
