@@ -36,6 +36,34 @@ async function test(name, fn) {
     assert.strictEqual(r.fullText, 'Hi');
     assert.strictEqual(r.finishReason, 'stop');
   });
+  // A tool call written as text, or reasoning with no answer, is no answer.
+  const think = (t) => JSON.stringify({ choices: [{ delta: { reasoning_content: t } }] });
+  const split = (text, n) => text.match(new RegExp(`[\\s\\S]{1,${n}}`, 'g'));
+  for (const markup of ['<tool_call>{"name":"web_search","arguments":{"q":"x"}}</tool_call>', '<function=web_search>{"q":"x"}</function>', '<|python_tag|>web_search(q="x")']) {
+    await test(`only ${markup.slice(0, 16)}... delivers nothing, however it is split`, async () => {
+      for (const n of [3, 7, 1000]) {
+        const got = [];
+        const r = await consumeStream(responseOf([...split(markup, n).map(delta), '[DONE]']), (c) => got.push(c));
+        assert.strictEqual(r.fullText.trim(), '', `split ${n}: ${JSON.stringify(r.fullText)}`);
+        assert.deepStrictEqual(got, [], `split ${n}: the page was shown ${JSON.stringify(got)}`);
+      }
+    });
+  }
+  await test('real words around a raw tool call are kept, the call is not', async () => {
+    const r = await consumeStream(responseOf([delta('Let me check. <tool_'), delta('call>{"a":1}</tool_call> Done.'), '[DONE]']), () => {});
+    assert.strictEqual(r.fullText, 'Let me check.  Done.');
+  });
+  await test('reasoning alone leaves the answer empty', async () => {
+    const r = await consumeStream(responseOf([think('thinking...'), JSON.stringify({ choices: [{ delta: {}, finish_reason: 'stop' }] }), '[DONE]']), () => {});
+    assert.strictEqual(r.fullText, '');
+  });
+  await test('a JSON body that is only a raw tool call has no answer', async () => {
+    const { readAnswerBody } = require('../src/services/providerResponse');
+    const attempt = { rearm() {}, done() {}, wasExternal: () => false, timedOut: () => false };
+    const body = { choices: [{ message: { content: '<tool_call>{"name":"x"}</tool_call>' }, finish_reason: 'stop' }] };
+    const out = await readAnswerBody({ response: { json: async () => body }, attempt, provider: 'p', model: 'm', timeLeft: () => 5000 });
+    assert.strictEqual(out.result.answer, '');
+  });
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 })();

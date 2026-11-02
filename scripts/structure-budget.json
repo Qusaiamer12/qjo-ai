@@ -68,7 +68,7 @@
   "src/services/arabicPrompt.js": 116,
   "src/services/exportService.js": 723,
   "src/services/llmService.js": 252,
-  "src/services/providerResponse.js": 357,
+  "src/services/providerResponse.js": 381,
   "src/services/providerLimits.js": 246,
   "src/services/keyPool.js": 237,
   "src/services/playbooks.js": 420,

@@ -8,6 +8,8 @@
 // provider that sent headers and then nothing held the request forever.
 'use strict';
 
+const { RAW_OPEN_TAGS, findRawToolOpen, stripRawToolMarkup } = require('./rawToolMarkup');
+
 // A stream is judged by silence, not by length. Before it produces anything
 // it has the caller's deadline; once text, reasoning or a tool call is
 // flowing, only a gap this long ends it — a long answer being written is never
@@ -36,7 +38,7 @@ function normalizeProviderFinishReason(provider, raw) {
 // The previous guard only covered partial OPENING tags, so a split "</think>"
 // was never recognised: the closing tag leaked into the reasoning channel and
 // every token after it followed, leaving the answer itself empty.
-const STREAM_CONTROL_TAGS = ['<think>', '</think>', '<minimax:tool_call>', '</minimax:tool_call>'];
+const STREAM_CONTROL_TAGS = ['<think>', '</think>', '<minimax:tool_call>', '</minimax:tool_call>', ...RAW_OPEN_TAGS];
 const LONGEST_CONTROL_TAG = Math.max(...STREAM_CONTROL_TAGS.map(t => t.length));
 
 // True when `buffer` ends with a PROPER prefix of a control tag (a complete
@@ -72,6 +74,8 @@ async function consumeStream(response, onChunk, signal, onReasoning, onActivity)
   let contentBuffer = '';
   let insideMinimax = false;
   let insideThink = false;
+  // The closing tag of a raw tool call being swallowed; '' means to the end.
+  let rawClose = null;
 
   function processContentBuffer(forceFlush = false) {
     if (!contentBuffer) return;
@@ -147,6 +151,25 @@ async function consumeStream(response, onChunk, signal, onReasoning, onActivity)
       return;
     }
     
+    // A tool call written as text is not an answer: cut it out unseen.
+    if (rawClose === null) {
+      const hit = findRawToolOpen(contentBuffer);
+      if (hit) {
+        const before = contentBuffer.slice(0, hit.index);
+        if (before) { fullText += before; chunksDelivered++; if (onChunk) onChunk(before); }
+        contentBuffer = contentBuffer.slice(hit.index + hit.open.length);
+        rawClose = hit.close;
+      }
+    }
+    if (rawClose !== null) {
+      if (rawClose && contentBuffer.includes(rawClose)) {
+        contentBuffer = contentBuffer.slice(contentBuffer.indexOf(rawClose) + rawClose.length);
+        rawClose = null;
+        processContentBuffer(forceFlush);
+      } else if (forceFlush) contentBuffer = '';
+      return;
+    }
+
     fullText += contentBuffer;
     chunksDelivered++;
     if (onChunk) onChunk(contentBuffer);
@@ -329,6 +352,7 @@ async function readJsonBody({ response, attempt, provider, model, timeLeft }) {
   }
   attempt.done();
   const message = data?.choices?.[0]?.message || {};
+  if (typeof message.content === 'string') message.content = stripRawToolMarkup(message.content);
   return {
     keyFailure: null,
     result: {

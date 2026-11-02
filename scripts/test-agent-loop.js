@@ -206,6 +206,22 @@ const ask = (engine, extra = {}) => engine.callAgent({
       `a caller-set 30s budget was stretched to ${callerBudget.remaining}ms`);
   });
 
+  console.log('\nA reply with no answer in it is a failure, never a result:');
+
+  await test('a blank reply moves to the next provider, which answers', async () => {
+    const { engine, rounds } = engineWith([{ answer: '  \n' }, { answer: 'الجواب الحقيقي.' }]);
+    const res = await ask(engine, { useTools: false });
+    assert.strictEqual(res.ok, true);
+    assert.ok(res.answer.includes('الجواب'), 'got: ' + JSON.stringify(res.answer));
+    assert.ok(rounds() >= 2, 'the blank reply was accepted without a retry');
+  });
+
+  await test('when every provider is blank the result is a failure the page can show', async () => {
+    const { engine } = engineWith([{ answer: '' }]);
+    const res = await ask(engine, { useTools: false });
+    assert.strictEqual(res.ok, false, 'a blank reply was returned as an answer: ' + JSON.stringify(res.answer));
+  });
+
   console.log('\n========================================');
   console.log(`${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
