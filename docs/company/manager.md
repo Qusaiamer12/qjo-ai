@@ -73,3 +73,25 @@ them, a manager talking with the owner hands out the top item as soon as
 there is budget and an employee free, and never answers "the next shift
 will do it" when it could start now. The one exception is an item a shift
 is already working on (its employee shows working in the office).
+
+## From the library (Claude Code's documentation, 2026-11-02)
+
+- **A cap that holds:** every employee's file sets `maxTurns` (100; the
+  accountant 30). A runaway agent stops and hands back what it has, instead
+  of spending the shift.
+- **Worktrees start from the default branch** (main), not from the
+  manager's branch: main and the working branch are kept equal after every
+  merge, or an employee starts from old code.
+- **Every subagent loads CLAUDE.md.** Its length is paid by every employee
+  on every turn; it is the company's rulebook and stays, but nothing that
+  only one desk needs goes in it: that goes in the desk's notebook.
+- **The office's database tool cannot be pre-approved** for an unattended
+  session (it is not a tool an allow rule names), so shifts write
+  `office.json` and the owner's session copies it. This was found the hard
+  way, twice; it is not a gap in the settings.
+- **The manager's own long session is the largest cost** (each call
+  re-reads all of it). Compacting it between tasks while its cache is warm
+  is the biggest saving available, and only the owner can type `/compact`.
+- **To measure, not adopt yet:** a 1-hour cache for employees
+  (`CLAUDE_CODE_SUBAGENT_PROMPT_CACHE_TTL=1h`) for turns that wait on long
+  browser suites; the Concise output style. The accountant measures both.
