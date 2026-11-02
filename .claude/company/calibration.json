@@ -70,13 +70,13 @@
   ],
   "allowances": {
     "_note": "units per employee per 5-hour window; 0.6 units is about one session point. 59 points in all, under the 60% stop.",
-    "manager": 6,
+    "manager": 4.2,
     "backend": 6,
     "frontend": 6,
     "data-quality": 6,
     "ux": 3.6,
     "performance": 3.6,
-    "reviewer": 3.6,
+    "reviewer": 6,
     "token-officer": 0.6
   }
 }

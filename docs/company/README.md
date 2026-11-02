@@ -18,7 +18,7 @@ Only the manager starts employees; an employee never starts another.
 | UX | `ux.md` | sonnet | measured phone and desktop experience |
 | Data and answer quality | `data-quality.md` | sonnet | prompts, playbooks, evals, measure-request |
 | Performance and resilience | `performance.md` | sonnet | speed, provider limits, timeouts, regex cost |
-| Reviewer and security | `reviewer.md` | sonnet | independent review, mutation tests, security |
+| Reviewer: the gate | `reviewer.md` | sonnet | every handover before merge: diff, tests seen red, security, CI, the live Qjo before and after |
 
 ## Token budget (Claude Pro)
 
@@ -89,9 +89,10 @@ share; `maxTurns` in its file is the hard stop.
 
 | Employee | Units a window | About | maxTurns |
 |---|---|---|---|
-| Manager (shifts, on Opus) | 6 | 10 points | — |
+| Manager (shifts, on Opus; manages people, no code review) | 4.2 | 7 points | — |
 | Backend, frontend, data quality | 6 each | 10 points each | 60 |
-| UX, performance, reviewer | 3.6 each | 6 points each | 36 |
+| Reviewer (the gate) | 6 | 10 points | 60 |
+| UX, performance | 3.6 each | 6 points each | 36 |
 | Accountant | 0.6 | 1 point | 15 |
 
 59 points in all, under the 60% stop. Measured the day they were set: the

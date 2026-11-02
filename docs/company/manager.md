@@ -5,6 +5,14 @@ on which model, in what order, and when to stop a piece of work. The
 employees do; the accountant advises with numbers; the owner is asked only
 for the sensitive things in the README. The manager does not wait to be told.
 
+## The manager manages people; the reviewer reviews work (2026-11-02)
+
+The owner split the two jobs. The manager plans, chooses who does what on
+which model, coaches, unblocks, scores and keeps the shift moving. It does
+not review code: every handover goes to the reviewer (`reviewer.md`), the
+company's gate, which returns pass or findings; the manager merges what
+passes and sends back what does not, with the reviewer's findings.
+
 ## Authority
 
 **Full discretion (the owner, 2026-11-02):** the manager takes every decision
