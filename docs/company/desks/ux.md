@@ -27,6 +27,10 @@ the files that matter and what each does, in at most 25 lines.)
 
 (Date, what was measured, the number. The next turn compares with it.)
 
+## In progress
+
+- 2026-11-02: `tests/browser/student-flow.test.js` on branch `wip/ux` (760ac78), unfinished and never run: one student flow (attach a PDF, ask, read, export) at 360/1280, both themes and languages, with a small-target and low-contrast control. Stopped by the manager at its cap before a result. Next: run it, finish the report, add it to `npm run test:browser`.
+
 ## Next improvements
 
 (Ranked. The manager reads this when the backlog has nothing for this role.)

@@ -1,6 +1,6 @@
 {
   "note": "The shifts' window on the office. A shift cannot write the office's database (it needs a person to approve the tool, and nobody is there), so it writes here and pushes; the owner's session copies each change into the office within a minute or two. Only the fields a shift sets are copied.",
-  "updatedAt": "2026-11-02T11:22:33.579Z",
+  "updatedAt": "2026-11-02T11:39:58.789Z",
   "staff": {
     "backend": {
       "status": "idle",
@@ -25,8 +25,8 @@
       "next": "حفظ مدة التفكير وترجمة بقية النصوص المضمّنة"
     },
     "data-quality": {
-      "status": "working",
-      "task": "البند 16: بحث إلزامي من السيرفر للمعلومات المتغيّرة",
+      "status": "called",
+      "task": "البند 16: رجع من المراجعة — بيبحث لرسائل طلاب عادية (امتحان بكرة)",
       "model": "sonnet",
       "lastDelivery": {
         "item": 17,
@@ -38,14 +38,16 @@
       "monthPoints": 0
     },
     "ux": {
-      "status": "working",
-      "next": "قياس رحلة طالب على الموبايل",
-      "task": "جولة: رحلة طالب على 360 و1280، الثيمين واللغتين",
+      "status": "idle",
+      "next": "إكمال فحص رحلة الطالب (wip/ux)",
+      "task": "",
       "model": "sonnet"
     },
     "performance": {
-      "status": "idle",
-      "next": "محاكاة جلسة كاملة بحدود Groq"
+      "status": "working",
+      "next": "محاكاة جلسة كاملة بحدود Groq",
+      "task": "البند 22: فحص زمن كل regex على نص طويل",
+      "model": "sonnet"
     },
     "reviewer": {
       "status": "idle",
