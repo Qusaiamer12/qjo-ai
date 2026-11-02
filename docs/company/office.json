@@ -1,6 +1,6 @@
 {
   "note": "The shifts' window on the office. A shift cannot write the office's database (it needs a person to approve the tool, and nobody is there), so it writes here and pushes; the owner's session copies each change into the office within a minute or two. Only the fields a shift sets are copied.",
-  "updatedAt": "2026-11-02T06:49:52.088Z",
+  "updatedAt": "2026-11-02T06:50:00.514Z",
   "staff": {
     "backend": {
       "status": "idle",
@@ -18,8 +18,8 @@
       "model": "sonnet"
     },
     "data-quality": {
-      "status": "idle",
-      "task": "",
+      "status": "working",
+      "task": "الأسئلة الحسابية للطلاب إلى النموذج الأكبر",
       "model": "sonnet",
       "lastDelivery": {
         "item": 8,
