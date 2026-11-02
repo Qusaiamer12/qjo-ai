@@ -35,6 +35,16 @@ Every backlog item gets a score, and the highest goes first:
 Ties go to the item that unblocks others, then to the one that teaches the
 company something (a new test, a new measurement).
 
+## Every desk, in turn
+
+Each employee owns a part of Qjo and keeps a notebook on it
+(`desks/<role>.md`): how it works, its weak spots, what was measured, what
+to improve next. The budget allows two at a time, so the desks take turns:
+after the scores, a role that has not worked in the last four shifts goes
+next, with its top backlog item, or else the first of its own "Next
+improvements". So every part of Qjo is improved every day or two, and the
+most valuable work still comes first.
+
 ## Running a shift
 
 1. **Look:** main's CI, the office, the backlog, the accountant's figures,
