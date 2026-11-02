@@ -75,3 +75,5 @@ Lesson: a test message matching two rules cannot show either is needed; give eac
 4. Run the 24 questions once with a key and score them: how often 20b is actually wrong.
 
 Lesson: a boundary written as a character class is only as right as the class: U+0600-06FF holds the Arabic question mark, so probe with real punctuation, not just bare words. Run the old tests against the new default: four e2e scenarios silently changed meaning when their sport question became server-searched.
+
+Review fix (item 16): a student's message with a when-word and a topic word searched ("my final exam is tomorrow", "cost function today"). Topic words narrowed (final only as cup/league final, cost/version/release/manager/coach/king dropped from the when+topic path) and a PERSONAL/study veto added to when+topic only (not to who-holds). Lesson: probe a new detector with the first segment's everyday messages (exam, meeting, learn), not only with topic near-misses.

@@ -27,8 +27,8 @@ const WHEN = new RegExp(
 
 // What: sport, price, news, weather, a product, an election.
 const TOPIC = new RegExp(
-  `\\b(?:matches|match|fixtures?|scores?|scored|standings|league|champions league|world cup|premier league|la liga|nba|nfl|final|top scorer|prices?|cost|exchange rate|gold|bitcoin|crypto|dollar|oil|stocks?|news|weather|forecast|iphone|galaxy|pixel|version|release|election|polls?|president|prime minister|minister|coach|manager|ceo|king)\\b|` +
-  arabic(`مباراة|مباريات|ماتش|نتيجة|نتيج${A}ت|هداف|${A}لدوري|دوري|${A}لكأس|كأس|نهائي|ترتيب|فاز|سعر|${A}سعار|${A}لذهب|${A}لدولار|${A}لدينار|بيتكوين|${A}لنفط|سعر ${A}لصرف|${A}خبار|خبر|${A}لطقس|طقس|${A}يفون|${A}صدار|نسخة|${A}نتخابات|رئيس|وزير|مدرب|ملك|${A}لرئيس|${A}لوزير`),
+  `\\b(?:matches|match|fixtures?|scores?|scored|standings|league|champions league|world cup|premier league|la liga|nba|nfl|(?:cup|league|champions league|europa league) final|top scorer|prices?|how much|exchange rate|gold|bitcoin|crypto|dollar|oil|stocks?|news|weather|forecast|iphone|galaxy|pixel|election|polls?|president|prime minister|minister)\\b|` +
+  arabic(`مباراة|مباريات|ماتش|نتيجة|نتيج${A}ت|هداف|${A}لدوري|دوري|${A}لكأس|كأس|نهائي ${A}لدوري|نهائي ${A}لكأس|نهائي كأس|ترتيب|فاز|سعر|${A}سعار|${A}لذهب|${A}لدولار|${A}لدينار|بيتكوين|${A}لنفط|سعر ${A}لصرف|${A}خبار|خبر|${A}لطقس|طقس|${A}يفون|${A}نتخابات|رئيس|وزير|${A}لرئيس|${A}لوزير`),
   'i'
 );
 
@@ -39,6 +39,14 @@ const OFFICE_AR = `(?:رئيس|رئيس وزراء|رئيس ${A}لوزراء|و�
 const WHO_HOLDS = new RegExp(
   `\\bwho(?:'s| is| are| currently)\\s+(?:the\\s+)?(?:current\\s+|new\\s+)?${OFFICE}\\b|\\b(?:current|new)\\s+${OFFICE}\\s+of\\b|` +
   arabic(`م[ي]?ن|من`) + `\\s+(?:هو\\s+|هي\\s+)?${arabic(OFFICE_AR)}`,
+  'i'
+);
+
+// Study or personal context: "my final exam is tomorrow", "learn the cost function today". It
+// vetoes the when + topic reading; it does not veto "who is the <office>".
+const PERSONAL = new RegExp(
+  `\\b(?:my|i have|i've|i am|i'm|help me|exam|test|quiz|homework|revise|revision|study|studying|learn|explain|teach me|lesson|assignment|meeting|interview|presentation)\\b|` +
+  arabic(`عندي|${A}متحان|${A}ختبار|كويز|واجب|درس|ساعدني|${A}شرح|علمني|${A}تعلم|${A}درس|دراس[ةه]|مذاكر[ةه]|ذاكر|مراجع[ةه]|${A}جتماع|مقابل[ةه]`),
   'i'
 );
 
@@ -58,7 +66,7 @@ function asksChangingFact(text, now = new Date()) {
   if (t.length < 4 || DEFINITION.test(t) || pastYear(t, now)) return false;
   if (WHO_HOLDS.test(t) && !HISTORY.test(t)) return true;
   if (MATCH_RESULT.test(t) && !HISTORY.test(t)) return true;
-  return WHEN.test(t) && TOPIC.test(t) && !HISTORY.test(t);
+  return WHEN.test(t) && TOPIC.test(t) && !HISTORY.test(t) && !PERSONAL.test(t);
 }
 
 function lastUserText(messages) {

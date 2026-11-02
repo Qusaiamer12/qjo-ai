@@ -83,6 +83,10 @@ const CASES = [
   ['near-4', 'near', 'solve x^2 - 5x + 6 = 0 today'],
   ['near-5', 'near', 'what is the current in a series circuit with a 12 V battery'],
   ['near-6', 'near', 'من هو أول رئيس للولايات المتحدة؟'],
+  ['near-8', 'near', 'my final exam is tomorrow, help me revise'],
+  ['near-9', 'near', 'بكرة عندي امتحان نهائي ساعدني'],
+  ['near-10', 'near', 'I have a meeting with my manager today, help me prepare'],
+  ['near-11', 'near', 'today I want to learn the cost function in ML'],
   ['near-7', 'near', 'write me a poem about the latest chapter of my life'],
   // asks questions instead of the task (about 21): the details are in the message
   ['do-1', 'do', 'اكتبلي سيرة ذاتية، اسمي سامر، محاسب، خبرة 5 سنوات بشركة تجارية، بكالوريوس محاسبة من جامعة اليرموك، بتقن اكسل'],
