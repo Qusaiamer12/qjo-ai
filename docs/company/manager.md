@@ -105,3 +105,21 @@ is already working on (its employee shows working in the office).
 - **To measure, not adopt yet:** a 1-hour cache for employees
   (`CLAUDE_CODE_SUBAGENT_PROMPT_CACHE_TTL=1h`) for turns that wait on long
   browser suites; the Concise output style. The accountant measures both.
+
+## The manager's own failings, and the rules they left (2026-11-02)
+
+Most of the company's good ideas that day came from the owner (the clock,
+allowances, desk notebooks, the accountant's role), and the manager's worst
+moments were all of one kind: saying something was so without looking.
+- **Look before saying.** "Running", "stops itself at 60%", "the shift is on
+  it" are said only after checking the session, the office or the meter.
+  The first night shift's work was lost for hours because nobody looked.
+- **Every launch has a check-in.** Starting a shift or an employee comes
+  with a check a few minutes later (`send_later`): is it moving, is it
+  blocked on a permission, did it push.
+- **Lead, don't wait.** Each Sunday the manager writes the next week's
+  direction for Qjo (what to build, for whom, why, how it will be
+  measured) before the owner has to ask, and each shift ends with the next
+  shift's first move written down.
+- **Review what Sonnet shifts merged.** Once a day the manager or the
+  reviewer reads every merge on main and tries to break one of its tests.
