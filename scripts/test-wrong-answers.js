@@ -171,11 +171,19 @@ function assertClassification({ rows, max }) {
   check('control: easy chit-chat and a plain fact still go to the fast model', () => assert.deepStrictEqual(by(rows, 'chat').filter((r) => r.model !== FLASH).map((r) => r.id), []));
   check('control: Max sends the same questions to the larger model, so the model is a decision and not a constant', () => assert.ok(by(max, 'think').every((r) => r.model === TEXT)));
   check('none is at low effort: low reasoning is not the cause for these', () => assert.deepStrictEqual(think.filter((r) => r.effort === 'low').map((r) => r.id), []));
-  check('"الدالة" in a calculus question brings the code playbook (calc-1, calc-2, calc-4)', () => assert.deepStrictEqual(think.filter((r) => r.playbooks.includes('code')).map((r) => r.id), ['calc-1', 'calc-2', 'calc-4']));
-  check('the code playbook makes the request about 700 tokens larger than the same question without it', () => {
-    const withCode = rows.find((r) => r.id === 'calc-2'), without = rows.find((r) => r.id === 'phys-1');
-    assert.ok(withCode.tokens - without.tokens > 500, `${withCode.tokens} against ${without.tokens}`);
+  check('"الدالة" in a calculus question brings no code playbook', () => assert.deepStrictEqual(think.filter((r) => r.playbooks.includes('code')).map((r) => r.id), []));
+  check('a calculus question is no larger than a physics one by the code playbook (it was +700 tokens)', () => {
+    const calc = rows.find((r) => r.id === 'calc-2'), phys = rows.find((r) => r.id === 'phys-1');
+    assert.ok(calc.tokens - phys.tokens < 300, `${calc.tokens} against ${phys.tokens}`);
   });
+  console.log('\n"الدالة" is maths, "دالة" in code is code');
+  const needs = (text) => detectNeeds([{ role: 'user', content: text }]);
+  for (const m of ['اشتق الدالة f(x)=x^2 sin x', 'احسب تكامل الدالة 1/x من 1 إلى e', 'ما مجال الدالة ln(x-2)']) {
+    check(`no code playbook or overlay: ${m}`, () => { const n = needs(m); assert.ok(!n.code && !n.playbooks.includes('code'), JSON.stringify(n.playbooks)); });
+  }
+  for (const m of ['اكتبلي دالة بايثون ترتب قائمة', 'اكتب دالة تعكس النص', 'write a function that reverses a string']) {
+    check(`code (control): ${m}`, () => { const n = needs(m); assert.ok(n.code && n.playbooks.includes('code')); });
+  }
   console.log('\nFigures');
   check('a function to plot gets the mathplot playbook (positive control: the playbook is chosen when asked for)', () => assert.deepStrictEqual(by(rows, 'figure').filter((r) => !r.playbooks.includes('mathplot')).map((r) => r.id), []));
   console.log('\nFacts that change (sport, office-holders, "latest")');
@@ -185,7 +193,10 @@ function assertClassification({ rows, max }) {
   check('Max is no better: default effort, search still left to the model', () => assert.ok(by(max, 'live').every((r) => r.effort === 'default' && r.search && !r.forced)));
   console.log('\nThe task, with the details in the message');
   check('a CV gets its playbook (control)', () => assert.ok(rows.find((r) => r.id === 'do-1').playbooks.includes('cv')));
-  check('a diet plan gets no playbook at all', () => assert.deepStrictEqual(rows.find((r) => r.id === 'do-2').playbooks, []));
+  check('a diet plan gets the diet playbook', () => assert.deepStrictEqual(rows.find((r) => r.id === 'do-2').playbooks, ['diet']));
+  check('a diet plan with details in the message gets the diet playbook', () => assert.ok(needs('بدي خطة أكل أسبوعية 1800 سعرة، نباتي، 3 وجبات').playbooks.includes('diet')));
+  check('calories alone call for it: 2000 سعرة على 4 وجبات', () => assert.ok(needs('وزعلي 2000 سعرة على 4 وجبات باليوم').playbooks.includes('diet')));
+  check('control: a question about a function or a chat gets no diet playbook', () => assert.ok(!needs('ما مجال الدالة ln(x-2)').playbooks.includes('diet') && !needs('كيفك اليوم؟').playbooks.includes('diet')));
   console.log(`\n${pass} passed, ${fail} failed`);
   return fail === 0;
 }

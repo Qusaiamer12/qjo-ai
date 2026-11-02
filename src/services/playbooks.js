@@ -214,6 +214,15 @@ LITERARY CRAFTSMANSHIP, GRAMMAR & TEXT RESTRUCTURING
   • Hyper-practical: Offer exactly ONE cohesive recipe doable in under 30 minutes based strictly on the user's available ingredients.
   • Explicitly list practical substitutes for common missing ingredients.`
   },
+  diet: {
+    match: /\bdiet\b|meal plan|calorie|kcal|نظام غذائي|نظام الأكل|نظام الاكل|خطة (?:أكل|اكل|غذائية|وجبات)|رجيم|دايت|سعرة|سعرات|سعر حراري/i,
+    en: `
+- DIET & MEAL PLANS:
+  • A plan with numbers in it (calories, meals a day, a week, weight, diet type) is DONE, not asked about: when the person gave the details, write the plan itself in this answer. Never reply with questions only.
+  • Lay it out as a table, one row per day (or a repeating day), a column per meal, with portions and the calories of each meal; end with the day's total next to the target.
+  • Fill a missing detail with a stated assumption ("assuming no allergies") and ask at most one optional question after the plan.
+  • Add one line that this is general guidance, not a medical prescription, only if a condition is mentioned.`
+  },
   venting: {
     match: /\b(sad|depress|anxious|anxiety|stressed|burn ?out|lonely|upset|heartbroken|crying|grief)\w*|\bvent(?:ing)?\b|زعلان|حزين|مضايق|مكتئب|اكتئاب|قلقان|متوتر|تعبان|مخنوق|طفشان|(?<![\u0621-\u065F\u0671-\u06D3])وحيدة?(?![\u0621-\u065F\u0671-\u06D3])|ابكي|أبكي|فضفض|مقهور|محبط|خذلني|انفصلنا|ضغط نفسي/i,
     en: `
@@ -306,7 +315,7 @@ LITERARY CRAFTSMANSHIP, GRAMMAR & TEXT RESTRUCTURING
 const BANTER = /فنان|وحش|كفو|يسعد|بحبك|بنحبك|أحبك|احبك|الهمة|الأخبار|الاخبار|أفضل|افضل|أحسن|احسن|رأيك|رايك|بتتوقع|يفوز/;
 const SOCIAL = ['apology', 'subtext', 'excuses'];
 const QUESTION_START = /^(?:what|who|whom|whose|where|when|why|how|which|is|are|was|were|do|does|did|can|could|should|would|will|tell me|explain)\b|^(?:شو|ايش|إيش|وش|مين|من هو|من هي|وين|أين|اين|متى|امتى|إمتى|ليش|لماذا|ليه|كيف|كيفك|قديش|كم|هل|ما هو|ما هي|ماذا|اشرح|احكيلي|خبرني)(?![\u0621-\u065F\u0671-\u06D3])/i;
-const CODE_WORDS = /```|\bfunction\b|\bconst\b|\bclass\b|\bimport\b|stack trace|traceback|compile|debug|refactor|npm |yarn |pip |docker|regex|api\b|sdk\b|react|node\.js|typescript|javascript|python|java\b|sql\b|كود|بايثون|برمج|برمجة|دالة|كلاس|مكتبة|خطأ برمجي|صحح الكود|اكتب لي برنامج|تطبيق ويب/i;
+const CODE_WORDS = /```|\bfunction\b|\bconst\b|\bclass\b|\bimport\b|stack trace|traceback|compile|debug|refactor|npm |yarn |pip |docker|regex|api\b|sdk\b|react|node\.js|typescript|javascript|python|java\b|sql\b|كود|بايثون|برمج|برمجة|(?:اكتب|اكتبي|اكتبلي|اكتب لي|اعمل|اعملي|سوي|برمجلي|ابني)\s+(?:لي\s+)?(?:ال)?دالة|دالة\s+(?:ب|في\s+|بلغة\s+)?(?:جافا|بايثون|python|js|c\+\+|php|sql)|كلاس|مكتبة|خطأ برمجي|صحح الكود|اكتب لي برنامج|تطبيق ويب/i;
 // An attached file the page names (app.js's attachment context) that is code.
 const CODE_FILE = /^Attachment Index \d+: .+\.(?:[cm]?jsx?|tsx?|py|ipynb|java|kt|swift|c|cc|cpp|h|hpp|cs|go|rb|php|rs|dart|sql|sh|ps1|html?|css|scss|vue|svelte)$/im;
 
