@@ -27,12 +27,12 @@ function audit({ tapMin }) {
     const r = el.getBoundingClientRect();
     if (!r.width || !r.height) continue;
     // Seen: not parked off to the side (the sidebar drawer) or above the page.
-    if (r.right <= 0 || r.left >= innerWidth || r.bottom <= 0 || r.top >= innerHeight) continue;
+    if (r.right <= 0 || r.left >= window.innerWidth || r.bottom <= 0 || r.top >= window.innerHeight) continue;
     const name = el.id ? '#' + el.id : el.tagName.toLowerCase() + (el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : '');
     rects.push({ name, w: Math.round(r.width), h: Math.round(r.height), left: Math.round(r.left), right: Math.round(r.right) });
   }
   const small = tapMin ? rects.filter((r) => r.w < tapMin || r.h < tapMin) : [];
-  const outside = rects.filter((r) => r.left < -1 || r.right > innerWidth + 1);
+  const outside = rects.filter((r) => r.left < -1 || r.right > window.innerWidth + 1);
   const box = (sel) => { const e = document.querySelector(sel); return e ? { sw: e.scrollWidth, cw: e.clientWidth } : null; };
   return {
     count: rects.length, small, outside,
