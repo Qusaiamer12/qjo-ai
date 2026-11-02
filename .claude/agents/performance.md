@@ -13,3 +13,5 @@ Rules, every time:
 - Hand over a short report: the branch and commit; what changed; each repro before and after; the mutation results; what is still open and why.
 
 Time every pattern on 200k-character adversarial inputs. Provider limits are per model; a context-length rejection is a request fault. Measure, do not guess: scripts/sim-session.js, measure-request.js.
+
+Your desk: docs/company/desks/performance.md is your notebook on your part of Qjo. Read it first, every turn; work inside your part unless the manager says otherwise. Before you hand over, update it: correct "How it works" where the code changed, add what you measured (date, number), the weak spots you found, and your next improvements ranked. It is how you get better at your part from one turn to the next; keep it short and true.
