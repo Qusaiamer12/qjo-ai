@@ -1,0 +1,526 @@
+<title>مكتب Qjo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: the office seen from above, as a game map — rooms along the top, the open floor and the lounge below; the budget above it and the approvals beside it. */
+:root {
+  --bg: #eef0ec; --floor: #e2e6df; --tile: #d8ddd5; --wall: #9aa59c; --room: #f4f6f2; --desk: #c9a97c; --desk-top: #ddc29a;
+  --ink: #1d2320; --ink-2: #57605a; --line: #cfd4cc; --card: #ffffff;
+  --lamp: #f2a516; --lamp-glow: rgba(242,165,22,.35); --blocked: #d4483b; --ok: #2f8a57; --accent: #2c5d4a; --book: #7a4fb0; --sofa: #5b7fa6; --plant: #4f9a62;
+  --display: "IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif; --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121614; --floor: #1b211d; --tile: #222a25; --wall: #4a564e; --room: #202722; --desk: #6e5536; --desk-top: #85694a;
+  --ink: #e8ece6; --ink-2: #a3ada4; --line: #333c35; --card: #1d2420;
+  --lamp: #ffbe3d; --lamp-glow: rgba(255,190,61,.3); --blocked: #f06b5d; --ok: #5cc28a; --accent: #8fd1b3; --book: #b08be0; --sofa: #7ea2c9; --plant: #6cc285; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #121614; --floor: #1b211d; --tile: #222a25; --wall: #4a564e; --room: #202722; --desk: #6e5536; --desk-top: #85694a;
+  --ink: #e8ece6; --ink-2: #a3ada4; --line: #333c35; --card: #1d2420;
+  --lamp: #ffbe3d; --lamp-glow: rgba(255,190,61,.3); --blocked: #f06b5d; --ok: #5cc28a; --accent: #8fd1b3; --book: #b08be0; --sofa: #7ea2c9; --plant: #6cc285; color-scheme: dark }
+body { background: var(--bg); color: var(--ink); font-family: var(--display); font-size: 15px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 18px 40px; }
+.wrap { max-width: 1200px; margin: 0 auto; display: grid; gap: 16px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; }
+h1 { margin: 0; font-size: 26px; }
+h2 { margin: 0; font-size: 17px; }
+.sub, .note { color: var(--ink-2); font-size: 13px; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.budget { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.meter { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; display: grid; gap: 6px; }
+.meter b { font-size: 13px; color: var(--ink-2); font-weight: 500; }
+.bar { position: relative; height: 10px; background: var(--floor); border-radius: 99px; overflow: hidden; }
+.bar i { position: absolute; inset-block: 0; inset-inline-start: 0; background: var(--accent); border-radius: 99px; transition: width .9s ease; }
+.meter.fresh { box-shadow: 0 0 0 2px var(--accent); transition: box-shadow .4s; }
+@media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
+.bar .cap { position: absolute; inset-block: -3px; width: 2px; background: var(--blocked); }
+.meter small { color: var(--ink-2); font-size: 12px; }
+.off { background: var(--floor); border: 1px dashed var(--line); border-radius: 10px; padding: 10px 14px; color: var(--ink-2); font-size: 13px; }
+main { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
+@media (max-width: 960px) { main { grid-template-columns: minmax(0, 1fr); } }
+.stage { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+canvas { display: block; width: 100%; height: auto; touch-action: manipulation; cursor: pointer; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 10px 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--ink-2); }
+.legend span::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-inline-end: 5px; background: var(--c); vertical-align: 0; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 8px; }
+.who { display: flex; align-items: center; gap: 10px; }
+.dot { width: 14px; height: 14px; border-radius: 50%; flex: none; }
+.name { font-weight: 700; font-size: 16px; }
+.role { color: var(--ink-2); font-size: 12.5px; }
+.pill { font-size: 12px; padding: 1px 9px; border-radius: 99px; background: var(--floor); color: var(--ink-2); margin-inline-start: auto; white-space: nowrap; }
+.task { font-size: 14px; overflow-wrap: anywhere; }
+.facts { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-size: 12.5px; color: var(--ink-2); margin: 0; }
+.facts dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
+.level { display: flex; gap: 3px; align-items: center; font-size: 12px; color: var(--ink-2); }
+.level span { width: 16px; height: 4px; border-radius: 2px; background: var(--line); }
+.level span.on { background: var(--accent); }
+aside { display: grid; gap: 12px; }
+.ask { border-top: 1px solid var(--line); padding-top: 10px; display: grid; gap: 6px; }
+.ask:first-child { border-top: 0; padding-top: 0; }
+.ask p { margin: 0; font-size: 13.5px; color: var(--ink-2); overflow-wrap: anywhere; }
+.btns { display: flex; gap: 8px; flex-wrap: wrap; }
+button { font: inherit; font-size: 14px; border-radius: 8px; padding: 8px 14px; min-height: 40px; cursor: pointer; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+button.yes { background: var(--ok); border-color: var(--ok); color: #fff; }
+button:focus-visible, canvas:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:disabled { opacity: .55; cursor: progress; }
+.done { font-size: 12.5px; color: var(--ink-2); }
+.empty { color: var(--ink-2); font-size: 13.5px; margin: 0; }
+.roster { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.roster button { display: flex; align-items: center; gap: 8px; text-align: start; padding: 8px 10px; min-width: 0; }
+.roster button span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+</style>
+
+<div class="wrap" dir="rtl" lang="ar">
+  <header>
+    <h1>مكتب Qjo</h1>
+    <span class="sub" id="stamp">بيتحمّل…</span>
+  </header>
+
+  <section class="budget" aria-label="الميزانية">
+    <div class="meter"><b>حد الجلسة (5 ساعات)</b><div class="bar"><i id="sBar"></i><span class="cap" id="sCap"></span></div><small id="sTxt">—</small></div>
+    <div class="meter"><b>الحد الأسبوعي</b><div class="bar"><i id="wBar"></i><span class="cap" id="wCap"></span></div><small id="wTxt">—</small></div>
+    <div class="meter" id="clockBox"><b>ساعة الدوام · عمّان</b><div id="clock" class="num" style="font-size:22px;font-weight:700">—</div><small id="shiftTxt">—</small></div>
+    <div class="meter"><b>صرف الشركة اليوم</b><div class="bar"><i id="dBar"></i></div><small id="dTxt" class="num">—</small></div>
+  </section>
+  <div class="off" id="offDay" hidden>اليوم الجمعة: الشركة بعطلة، كلهم بالاستراحة وما في توكنز.</div>
+
+  <main>
+    <section aria-label="خريطة المكتب">
+      <div class="stage">
+        <canvas id="map" width="1280" height="900" tabindex="0" aria-label="خريطة المكتب: كبسة على أي موظف بتفتح تفاصيله"></canvas>
+        <div class="legend">
+          <span style="--c: var(--lamp)">شغّال على مكتبه</span>
+          <span style="--c: #9aa3b2">فاضي بالاستراحة</span>
+          <span style="--c: var(--book)">بيتعلّم بالمكتبة</span>
+          <span style="--c: var(--accent)">بيسلّم للمدير، أو المدير ناداه</span>
+          <span style="--c: var(--blocked)">مستني منك</span>
+        </div>
+      </div>
+    </section>
+    <aside>
+      <div class="card" id="detail" aria-live="polite"><p class="empty">كبسة على أي موظف بالخريطة بتطلع تفاصيله هون.</p></div>
+      <div class="roster" id="roster" aria-label="الموظفين"></div>
+      <h2>الموافقات</h2>
+      <div class="card" id="tray"><p class="empty">ما في إشي مستني موافقتك.</p></div>
+      <p class="note">بيوصلك هون الحساس بس: مفاتيح وأسرار، تركيب كود من طرف ثالث، مسح بيانات، تغيير بالأمان، أو صرف فوق الميزانية. الباقي بيوافق عليه المدير وبيبيّن تحت.</p>
+    </aside>
+  </main>
+</div>
+
+<script>
+const LEVELS = ['مبتدئ', 'متمرّس', 'محترف', 'خبير', 'أسطورة'];
+const STATES = { working: 'شغّال', idle: 'بالدور', blocked: 'مستني منك', learning: 'بيتعلّم', meeting: 'بالاجتماع', handover: 'سلّم وبستنى المراجعة', called: 'المدير ناداه', reviewing: 'بيراجع' };
+const SHIRTS = ['#2c5d4a', '#c0612b', '#3d6fb5', '#9a3f7a', '#5b8a2f', '#b58a1f', '#6a54b8', '#2f8a8a'];
+const $ = (id) => document.getElementById(id);
+const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+const pct = (v) => Math.max(0, Math.min(100, Number(v) || 0));
+const when = (iso) => { try { return new Date(iso).toLocaleString('ar-JO', { timeZone: 'Asia/Amman', weekday: 'short', hour: 'numeric', minute: '2-digit' }); } catch (_) { return ''; } };
+const isFriday = () => { try { return new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Amman', weekday: 'short' }).format(new Date()) === 'Fri'; } catch (_) { return false; } };
+const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+$('offDay').hidden = !isFriday();
+
+// ── The map: a small city seen from above (1280 × 900 world units) ──
+const W = 1280, H = 900;
+const ROAD = 34; // road half-width
+const COLS = [30, 330, 690, 990], CW = 260;
+const ROWS = [200, 480], RH = 230;
+const VROAD = 640; // the main north–south road, between the second and third columns
+const ROOMS = {
+  manager: { label: 'مكتب المدير', x: 470, y: 18, w: 340, h: 130, floor: 'stone' },
+  backend: { label: 'غرفة الباك إند', x: COLS[0], y: ROWS[0], w: CW, h: RH, floor: 'wood' },
+  frontend: { label: 'غرفة الفرونت إند', x: COLS[1], y: ROWS[0], w: CW, h: RH, floor: 'dark' },
+  library: { label: 'مكتبة GitHub', x: COLS[2], y: ROWS[0], w: CW, h: RH, floor: 'wood' },
+  meeting: { label: 'غرفة الاجتماعات', x: COLS[3], y: ROWS[0], w: CW, h: RH, floor: 'wood' },
+  ux: { label: 'غرفة تجربة المستخدم', x: COLS[0], y: ROWS[1], w: CW, h: RH, floor: 'dark' },
+  'data-quality': { label: 'غرفة الداتا والجودة', x: COLS[1], y: ROWS[1], w: CW, h: RH, floor: 'wood' },
+  performance: { label: 'غرفة الأداء', x: COLS[2], y: ROWS[1], w: CW, h: RH, floor: 'dark' },
+  reviewer: { label: 'غرفة المراجعة والأمان', x: COLS[3], y: ROWS[1], w: CW, h: RH, floor: 'wood' },
+  'token-officer': { label: 'مسؤول التوكنز', x: COLS[0], y: 760, w: 300, h: 120, floor: 'dark' },
+  lounge: { label: 'الاستراحة', x: COLS[2], y: 760, w: 560, h: 120, floor: 'wood' }
+};
+// Street names along the horizontal roads, like districts.
+const STREETS = [{ y: 172, text: 'شارع الإدارة' }, { y: 452, text: 'شارع الهندسة' }, { y: 732, text: 'شارع الجودة' }];
+const doorOf = (r) => ({ x: r.x + r.w / 2, y: r.y > 100 ? r.y : r.y + r.h });
+const streetY = (r) => (r.y > 100 ? r.y - 28 : r.y + r.h + 26);
+const deskIn = (r) => ({ x: r.x + r.w / 2, y: r.y + r.h / 2 + 18 });
+const seatsIn = (r, n, rowY) => Array.from({ length: n }, (_, i) => ({ x: r.x + 40 + (i % 4) * ((r.w - 80) / 3), y: r.y + (rowY || 0) + 70 + Math.floor(i / 4) * 60 }));
+
+const canvas = $('map'), ctx = canvas.getContext('2d');
+canvas.width = W; canvas.height = H;
+let colors = {};
+const readColors = () => { const cs = getComputedStyle(document.documentElement); colors = Object.fromEntries(['ink', 'ink-2', 'lamp', 'lamp-glow', 'blocked', 'accent', 'book', 'card'].map((k) => [k, cs.getPropertyValue('--' + k).trim()])); };
+readColors();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readColors);
+new MutationObserver(readColors).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+const CITY = { grass: '#3f7d3a', grass2: '#4a8a43', road: '#2b3445', line: '#e8b923', side: '#57627a', wood: '#a8713f', wood2: '#94622f', dark: '#2f3a52', dark2: '#283247', stone: '#596273', stone2: '#4d5666', wall: '#1f2635', plate: '#1b2130', plateText: '#f3efe2', desk: '#7a4a24', deskTop: '#9a6437', screen: '#0f1726', tree: '#2f6b33', trunk: '#5b3a1e', lampPost: '#c9cfd8', bubble: '#ffffff', bubbleText: '#1d2320', robot: '#eef1f5', robotEye: '#2a6fdb', rug: '#2f4f8a' };
+function fitCanvas() {
+  const ratio = Math.min(2, window.devicePixelRatio || 1);
+  const shown = canvas.getBoundingClientRect().width || W;
+  canvas.width = Math.round(shown * ratio); canvas.height = Math.round(shown * ratio * H / W);
+  ctx.setTransform(canvas.width / W, 0, 0, canvas.height / H, 0, 0);
+}
+new ResizeObserver(fitCanvas).observe(canvas);
+
+// ── People: where each one goes, and the streets they take ──
+const people = new Map();
+const inbox = new Set();
+let selected = null;
+function target(p, i) {
+  const status = isFriday() ? 'idle' : p.status;
+  const own = ROOMS[p.id];
+  if (p.id === 'manager') return status === 'meeting' ? { ...seatsIn(ROOMS.meeting, 8)[7] } : status === 'learning' ? seatsIn(ROOMS.library, 8)[7] : { x: 640, y: 92 };
+  if (status === 'working' || status === 'reviewing') return own ? deskIn(own) : { x: 640, y: 92 };
+  if (status === 'learning') return seatsIn(ROOMS.library, 8)[i % 8];
+  if (status === 'meeting') return seatsIn(ROOMS.meeting, 8)[i % 7];
+  if (status === 'handover') return p.delivered ? (own ? { ...deskIn(own), waiting: true } : { x: 640, y: 120 }) : { x: 560 + (i % 5) * 40, y: 118, deliver: true };
+  if (status === 'called') return { x: 560 + (i % 5) * 40, y: 118 };
+  if (status === 'blocked') return { x: 600 + (i % 4) * 26, y: 172 };
+  // Between turns an employee waits at its own desk with its next job named;
+  // the lounge is for Friday.
+  // During a shift, an employee waiting its turn waits at its desk; between
+  // shifts nobody is at work, so they are in the lounge until the next one.
+  if (status === 'idle' && !isFriday() && own && shiftOn()) return { ...deskIn(own), queued: true };
+  const lounge = ROOMS.lounge;
+  return { x: lounge.x + 50 + (i % 8) * 64, y: lounge.y + 70, wander: true };
+}
+const roomAt = (pt) => Object.values(ROOMS).find((r) => pt.x >= r.x - 2 && pt.x <= r.x + r.w + 2 && pt.y >= r.y - 2 && pt.y <= r.y + r.h + 2);
+function pathTo(from, to) {
+  const a = roomAt(from), b = roomAt(to);
+  if (a && b && a === b) return [to];
+  const pts = [];
+  const leaveY = a ? streetY(a) : from.y;
+  if (a) pts.push(doorOf(a), { x: doorOf(a).x, y: leaveY });
+  const enterY = b ? streetY(b) : to.y;
+  if (Math.abs(leaveY - enterY) > 4) pts.push({ x: VROAD, y: leaveY }, { x: VROAD, y: enterY });
+  if (b) pts.push({ x: doorOf(b).x, y: enterY }, doorOf(b));
+  pts.push(to);
+  return pts;
+}
+function retarget(me) {
+  const goal = target(me, me.i);
+  if (me.goal && me.goal.x === goal.x && me.goal.y === goal.y) return;
+  me.goal = goal; me.path = calm ? [] : pathTo(me, goal); if (calm) { me.x = goal.x; me.y = goal.y; }
+}
+function place(list) {
+  list.forEach((p, i) => {
+    const goal = target(p, i);
+    let me = people.get(p.id);
+    if (!me) { me = { ...p, i, x: goal.x, y: goal.y, path: [], goal, phase: Math.random() * 6, shirt: SHIRTS[i % SHIRTS.length], vx: 0, vy: 0, face: 1, dwell: 0, look: 0, delivered: false }; people.set(p.id, me); if (goal.deliver) { me.delivered = true; retarget(me); me.x = me.goal.x; me.y = me.goal.y; me.path = []; } }
+    else {
+      // Nobody goes from work straight to a break: if the record skips the
+      // hand-over, the page walks it to the manager first, then to the break.
+      const was = me.status;
+      let status = p.status;
+      if (status === 'idle' && (was === 'working' || was === 'called' || (was === 'handover' && me.thenIdle))) me.thenIdle = true;
+      else me.thenIdle = false;
+      if (me.thenIdle) status = 'handover';
+      if (was !== status) { me.delivered = false; me.dwell = 0; }
+      Object.assign(me, p, { i, status, delivered: me.delivered });
+      retarget(me);
+    }
+  });
+  for (const id of [...people.keys()]) if (!list.some((p) => p.id === id)) people.delete(id);
+}
+
+// ── Drawing the city ──
+function rect(x, y, w, h, fill, r = 4) { ctx.fillStyle = fill; ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fill(); }
+function text(t, x, y, size, color, weight = 600, align = 'center') { ctx.font = `${weight} ${size}px "IBM Plex Sans Arabic", Tahoma, sans-serif`; ctx.fillStyle = color; ctx.textAlign = align; ctx.direction = 'rtl'; ctx.fillText(t, x, y); }
+function plate(t, x, y) { ctx.font = '700 13px "IBM Plex Sans Arabic", Tahoma, sans-serif'; const w = ctx.measureText(t).width + 18; rect(x - w / 2, y - 14, w, 22, CITY.plate, 11); text(t, x, y + 2, 13, CITY.plateText, 700); }
+function floorOf(r) {
+  const [a, b] = r.floor === 'wood' ? [CITY.wood, CITY.wood2] : r.floor === 'stone' ? [CITY.stone, CITY.stone2] : [CITY.dark, CITY.dark2];
+  rect(r.x, r.y, r.w, r.h, a, 6);
+  ctx.save(); ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, 6); ctx.clip();
+  ctx.fillStyle = b;
+  for (let yy = r.y; yy < r.y + r.h; yy += 14) ctx.fillRect(r.x, yy, r.w, 1.5);
+  ctx.restore();
+  ctx.strokeStyle = CITY.wall; ctx.lineWidth = 5; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, 6); ctx.stroke();
+  const d = doorOf(r); rect(d.x - 18, d.y - 4, 36, 8, r.floor === 'wood' ? CITY.wood : CITY.dark, 2);
+}
+function drawCity(t) {
+  ctx.fillStyle = CITY.grass; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = CITY.grass2; for (let i = 0; i < 160; i++) { const gx = (i * 97) % W, gy = (i * 53) % H; ctx.fillRect(gx, gy, 3, 3); }
+  // roads: three east–west streets and the main road
+  for (const s of STREETS) { rect(0, s.y - ROAD / 2 - 6, W, ROAD + 12, CITY.side, 0); rect(0, s.y - ROAD / 2, W, ROAD, CITY.road, 0);
+    ctx.fillStyle = CITY.line; for (let x = 10; x < W; x += 36) ctx.fillRect(x, s.y - 1.5, 18, 3); }
+  rect(VROAD - ROAD / 2 - 6, 140, ROAD + 12, H - 140, CITY.side, 0); rect(VROAD - ROAD / 2, 140, ROAD, H - 140, CITY.road, 0);
+  ctx.fillStyle = CITY.line; for (let y = 150; y < H; y += 36) ctx.fillRect(VROAD - 1.5, y, 3, 18);
+  for (const s of STREETS) { ctx.font = '700 12px "IBM Plex Sans Arabic", Tahoma, sans-serif'; const w = ctx.measureText(s.text).width + 14; rect(140 - w / 2, s.y - 10, w, 20, CITY.plate, 10); text(s.text, 140, s.y + 4, 12, CITY.plateText, 700); }
+  // trees and street lamps on the grass
+  for (const [tx, ty] of [[300, 40], [330, 110], [960, 50], [1200, 90], [1240, 300], [20, 470], [1250, 600], [310, 820], [640, 870]]) {
+    rect(tx - 2, ty + 6, 4, 8, CITY.trunk, 1); ctx.fillStyle = CITY.tree; ctx.beginPath(); ctx.arc(tx, ty, 11, 0, 7); ctx.fill(); }
+  for (let x = 60; x < W; x += 220) for (const s of STREETS) { rect(x - 1.5, s.y - ROAD / 2 - 22, 3, 16, CITY.lampPost, 1);
+    ctx.fillStyle = colors['lamp-glow']; ctx.beginPath(); ctx.arc(x, s.y - ROAD / 2 - 22, 6 + Math.sin(t / 900 + x) * 1, 0, 7); ctx.fill(); }
+  // rooms
+  for (const [id, r] of Object.entries(ROOMS)) {
+    floorOf(r);
+    if (id === 'library') for (let k = 0; k < 4; k++) { rect(r.x + 14 + k * 60, r.y + 14, 52, 26, '#3b2a1c', 3); for (let b = 0; b < 8; b++) rect(r.x + 17 + k * 60 + b * 6, r.y + 17, 4, 20, ['#c0612b', '#3d6fb5', '#e8b923', '#7a4fb0'][(b + k) % 4], 1); }
+    if (id === 'library') { rect(r.x + 50, r.y + 90, r.w - 100, 90, CITY.rug, 6); }
+    if (id === 'meeting') { rect(r.x + 30, r.y + 80, r.w - 60, 70, CITY.rug, 8); rect(r.x + 50, r.y + 100, r.w - 100, 30, CITY.deskTop, 6); }
+    if (id === 'lounge') { rect(r.x + 30, r.y + 80, 200, 26, '#5b7fa6', 10); rect(r.x + r.w - 60, r.y + 30, 26, 40, '#1f2635', 4); rect(r.x + r.w - 55, r.y + 36, 16, 10, colors.lamp, 2); }
+    if (ROOMS[id] && !['library', 'meeting', 'lounge'].includes(id)) {
+      const d = id === 'manager' ? { x: 640, y: 70 } : deskIn(r);
+      rect(d.x - 46, d.y - 28, 92, 26, CITY.desk, 4); rect(d.x - 42, d.y - 26, 84, 8, CITY.deskTop, 3);
+      const owner = id === 'manager' ? people.get('manager') : people.get(id);
+      const on = owner && (owner.status === 'working' || owner.status === 'reviewing') && !owner.path.length;
+      if (on) { ctx.fillStyle = colors['lamp-glow']; ctx.beginPath(); ctx.arc(d.x, d.y - 24, 34, 0, 7); ctx.fill(); }
+      rect(d.x - 18, d.y - 46, 36, 22, on ? CITY.screen : '#39445a', 3);
+      if (on) for (let l = 0; l < 3; l++) rect(d.x - 14, d.y - 42 + l * 6, 6 + ((t / 80 + l * 9) % 22), 2.5, l === 1 ? '#5cc28a' : colors.lamp, 1);
+      rect(r.x + 20, r.y + r.h - 34, r.w - 40, 16, id === 'manager' ? '#3d4a63' : CITY.rug, 4);
+    }
+    plate(r.label, r.x + r.w / 2, id === 'manager' ? r.y + 2 : r.y + 20);
+  }
+}
+function bubble(t, x, y) {
+  ctx.font = '600 12px "IBM Plex Sans Arabic", Tahoma, sans-serif';
+  const shown = t.length > 26 ? t.slice(0, 25) + '…' : t;
+  const w = ctx.measureText(shown).width + 16;
+  rect(x - w / 2, y - 22, w, 22, CITY.bubble, 11);
+  ctx.fillStyle = CITY.bubble; ctx.beginPath(); ctx.moveTo(x - 5, y); ctx.lineTo(x + 5, y); ctx.lineTo(x, y + 6); ctx.fill();
+  text(shown, x, y - 7, 12, CITY.bubbleText, 600);
+}
+function drawRobot(p, t) {
+  ctx.save(); ctx.translate(p.x, p.y); ctx.scale(1.35, 1.35); ctx.translate(-p.x, -p.y);
+  drawRobotBody(p, t);
+  ctx.restore();
+}
+function drawRobotBody(p, t) {
+  const walking = p.path.length > 0;
+  const bob = walking ? Math.sin(t / 80 + p.phase) * 2 : Math.sin(t / 700 + p.phase) * 0.6;
+  const x = p.x, y = p.y + bob;
+  ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(x, p.y + 14, 11, 4, 0, 0, 7); ctx.fill();
+  if (walking) { const s = Math.sin(t / 80 + p.phase) * 3; rect(x - 7, y + 6 + s, 5, 8, '#9aa3b2', 2); rect(x + 2, y + 6 - s, 5, 8, '#9aa3b2', 2); }
+  rect(x - 10, y - 6, 20, 16, CITY.robot, 5);
+  rect(x - 9, y - 22, 18, 15, CITY.robot, 5);
+  rect(x - 6, y - 18, 12, 6, '#1f2635', 3);
+  const blink = Math.sin(t / 1300 + p.phase * 3) > 0.97;
+  const gaze = walking ? p.face * 1.5 : (p.look ? Math.sin(t / 400) * 1.5 : 0);
+  if (!blink) { rect(x - 4.5 + gaze, y - 17, 3, 3, CITY.robotEye, 1); rect(x + 1.5 + gaze, y - 17, 3, 3, CITY.robotEye, 1); }
+  rect(x - 1, y - 28, 2, 6, '#9aa3b2', 1);
+  const status = isFriday() ? 'idle' : p.status;
+  ctx.fillStyle = status === 'working' ? colors.lamp : status === 'blocked' ? colors.blocked : status === 'learning' ? colors.book : '#9aa3b2';
+  ctx.beginPath(); ctx.arc(x, y - 29, 2.6 + (status === 'working' && !calm ? Math.abs(Math.sin(t / 250)) : 0), 0, 7); ctx.fill();
+  const thinking = Math.sin(t / 3100 + p.phase * 2) > 0.8;
+  if (!walking && (status === 'working' || status === 'reviewing') && !calm && !thinking) { const k = Math.sin(t / 60 + p.phase) * 2; rect(x - 14, y - 2 + k, 5, 4, CITY.robot, 2); rect(x + 9, y - 2 - k, 5, 4, CITY.robot, 2); }
+  if (status === 'handover' && !p.delivered) { rect(x + 8 * p.face - 5, y - 4, 11, 14, '#ffffff', 1); ctx.fillStyle = '#9aa3b2'; for (let l = 0; l < 3; l++) ctx.fillRect(x + 8 * p.face - 3, y - 1 + l * 3.5, 7, 1.2); }
+  if (status === 'blocked') text('!', x + 14, y - 26 - (calm ? 0 : Math.abs(Math.sin(t / 300)) * 4), 18, colors.blocked, 800);
+  // name plate under, speech bubble over
+  ctx.font = '700 11px "IBM Plex Sans Arabic", Tahoma, sans-serif';
+  const tag = p.name || p.id, tw = ctx.measureText(tag).width + 12;
+  rect(x - tw / 2, y + 16, tw, 17, selected === p.id ? colors.accent : '#e8b923', 8);
+  text(tag, x, y + 28, 11, '#1d2320', 700);
+  const says = walking ? (status === 'handover' ? (p.delivered ? 'سلّمت ✓ راجع على غرفتي' : 'رايح أسلّم شغلي') : status === 'called' ? 'المدير ناداني' : status === 'learning' ? 'رايح عالمكتبة' : status === 'meeting' ? 'رايح عالاجتماع' : '') :
+    status === 'blocked' ? 'مستني موافقتك' : status === 'handover' ? (p.delivered ? 'سلّمت ✓ بستنى المراجعة' : 'هاي شغلي يا مدير') : status === 'called' ? 'شو بدك أصلّح؟' :
+    status === 'idle' ? (p.id === 'manager' ? '' : isFriday() ? 'استراحة ☕' : !shiftOn() ? 'خارج الدوام' : (p.next ? 'دوري الجاي: ' + p.next : 'بالدور')) : (thinking && status === 'working' ? 'بفكّر…' : (p.task || ''));
+  if (says) bubble(says, x, y - 36);
+}
+function step(p, dt) {
+  // keep a little apart from anyone standing too close
+  for (const o of people.values()) {
+    if (o === p) continue;
+    const dx = p.x - o.x, dy = p.y - o.y, d = Math.hypot(dx, dy);
+    if (d > 0.01 && d < 22 && p.path.length) { p.x += dx / d * 0.04 * dt; p.y += dy / d * 0.02 * dt; }
+  }
+  if (!p.path.length && p.goal.deliver && !p.delivered) {
+    p.dwell += dt;
+    if (p.dwell > 1800) {
+      p.delivered = true; p.dwell = 0;
+      if (p.thenIdle) { p.thenIdle = false; p.status = 'idle'; p.delivered = false; } else inbox.add(p.id);
+      retarget(p);
+    }
+  }
+  if (!p.path.length) {
+    p.look = Math.sin(performance.now() / 2600 + p.phase * 4) > 0.75 ? 1 : 0;
+    if (p.goal.wander && !calm && !isFriday() && Math.random() < dt / 9000) {
+      const r = ROOMS.lounge; p.path = [{ x: r.x + 40 + Math.random() * (r.w - 80), y: r.y + 55 + Math.random() * 40 }];
+    }
+    return;
+  }
+  const next = p.path[0];
+  const dx = next.x - p.x, dy = next.y - p.y, dist = Math.hypot(dx, dy);
+  // speed up from a stop, slow down into the last step
+  const remaining = p.path.length === 1 ? dist : 999;
+  const top = 0.12, want = Math.min(top, remaining / 260 + 0.025);
+  p.speed = Math.min(want, (p.speed || 0) + 0.0004 * dt);
+  const stride = p.speed * dt;
+  if (Math.abs(dx) > 1) p.face = dx > 0 ? 1 : -1;
+  if (dist <= stride) { p.x = next.x; p.y = next.y; p.path.shift(); if (!p.path.length) p.speed = 0; } else { p.x += dx / dist * stride; p.y += dy / dist * stride; }
+}
+function drawInbox() {
+  const waiting = [...people.values()].filter((p) => p.status === 'handover' && p.delivered).length;
+  rect(700, 52, 40, 30, '#3a2a1a', 4);
+  for (let k = 0; k < Math.min(waiting, 6); k++) rect(704 + k, 66 - k * 3, 30, 12, '#ffffff', 1);
+  if (waiting) { rect(726, 40, 22, 18, colors.blocked, 9); text(String(waiting), 737, 53, 12, '#ffffff', 800); }
+}
+function hud() {
+  rect(14, 14, 96, 34, '#11151d', 17);
+  ctx.fillStyle = '#e5484d'; ctx.beginPath(); ctx.arc(36, 31, 7 + (calm ? 0 : Math.abs(Math.sin(performance.now() / 500))), 0, 7); ctx.fill();
+  text('LIVE', 78, 37, 15, '#ffffff', 800);
+  const busy = [...people.values()].filter((p) => !isFriday() && p.status !== 'idle').length;
+  rect(W - 120, 14, 106, 56, '#c99a2e', 12);
+  text(String(busy), W - 67, 52, 30, '#1d2320', 800);
+  text('شغّالين', W - 67, 66, 11, '#1d2320', 700);
+}
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(50, now - last); last = now;
+  for (const p of people.values()) step(p, dt);
+  drawCity(now);
+  drawInbox();
+  [...people.values()].sort((a, b) => a.y - b.y).forEach((p) => drawRobot(p, now));
+  hud();
+  if (!people.size) text('الموظفين بيوصلوا أول ما المدير يرتّب المكاتب.', W / 2, H / 2, 18, '#ffffff');
+  requestAnimationFrame(frame);
+}
+fitCanvas();
+requestAnimationFrame(frame);
+
+// ── Picking someone ──
+function showDetail(id) {
+  selected = id;
+  const box = $('detail'); box.replaceChildren();
+  const p = people.get(id); if (!p) { box.append(el('p', 'empty', 'كبسة على أي موظف بالخريطة بتطلع تفاصيله هون.')); return; }
+  const who = el('div', 'who'); const dot = el('span', 'dot'); dot.style.background = p.shirt;
+  const names = el('div'); names.append(el('div', 'name', p.name || p.id), el('div', 'role', [p.role, p.model].filter(Boolean).join(' · ')));
+  who.append(dot, names, el('span', 'pill', STATES[p.status] || STATES.idle));
+  const lv = Math.max(0, Math.min(4, Number(p.level) || 0));
+  const level = el('div', 'level'); for (let i = 0; i < 5; i++) level.append(el('span', i <= lv ? 'on' : ''));
+  level.append(el('b', null, ' ' + LEVELS[lv] + (p.points != null ? ` · ${p.points} نقطة` : '')));
+  const facts = el('dl', 'facts');
+  const fact = (k, v) => { if (v == null || v === '') return; facts.append(el('dt', null, k), el('dd', null, String(v))); };
+  // The month's league: every employee but the manager, by this month's points.
+  const league = [...people.values()].filter((o) => o.id !== 'manager')
+    .sort((a, b) => (Number(b.monthPoints ?? b.points) || 0) - (Number(a.monthPoints ?? a.points) || 0));
+  const rank = league.findIndex((o) => o.id === p.id);
+  if (rank >= 0) fact('ترتيب الشهر', `${rank === 0 ? '🏆 ' : rank === league.length - 1 ? '⚠️ ' : ''}${rank + 1} من ${league.length} · ${Number(p.monthPoints ?? p.points) || 0} نقطة`);
+  fact('آخر تسليم', p.lastDelivery);
+  fact('تقييم المدير', p.rating != null ? '★'.repeat(Math.max(0, Math.min(5, Number(p.rating) || 0))) + ` (${p.rating}/5)` : null);
+  fact('توكنز اليوم', p.tokensToday != null ? Number(p.tokensToday).toLocaleString('en') : null);
+  box.append(who, el('div', 'task', p.task || (p.status === 'idle' ? (p.next ? 'الجاي: ' + p.next : 'بالدور') : '')), level, facts);
+}
+canvas.addEventListener('click', (e) => {
+  const r = canvas.getBoundingClientRect();
+  const x = (e.clientX - r.left) * W / r.width, y = (e.clientY - r.top) * H / r.height;
+  let best = null, dist = 34;
+  for (const p of people.values()) { const d = Math.hypot(p.x - x, p.y - 4 - y); if (d < dist) { dist = d; best = p.id; } }
+  if (best) showDetail(best);
+});
+function renderRoster() {
+  const box = $('roster'); box.replaceChildren();
+  for (const p of [...people.values()].sort((a, b) => a.i - b.i)) {
+    const b = el('button'); b.id = 'pick-' + p.id; b.type = 'button';
+    const dot = el('span', 'dot'); dot.style.background = p.status === 'blocked' ? colors.blocked : p.status === 'working' ? colors.lamp : p.shirt;
+    b.append(dot, el('span', null, `${p.name || p.id} · ${STATES[p.status] || STATES.idle}`));
+    b.addEventListener('click', () => showDetail(p.id));
+    box.append(b);
+  }
+}
+
+// ── Budget and approvals ──
+function meter(bar, cap, txt, used, limit, stop, extra) {
+  const box = $(bar).closest('.meter');
+  if (box.dataset.used !== undefined && box.dataset.used !== String(pct(used))) { box.classList.add('fresh'); setTimeout(() => box.classList.remove('fresh'), 1600); }
+  box.dataset.used = String(pct(used));
+  $(bar).style.width = pct(used) + '%';
+  if (cap) $(cap).style.insetInlineStart = pct(stop) + '%';
+  $(txt).textContent = `${pct(used)}% · الشركة بتوقف عند ${stop}% (حدها ${limit}%)${extra ? ' · ' + extra : ''}`;
+}
+// "5 دقايق" / "2س 14د": how long ago, or how long until.
+function span(ms) {
+  const m = Math.max(0, Math.round(ms / 60000));
+  if (m < 1) return 'هلأ';
+  if (m < 60) return `${m} د`;
+  const h = Math.floor(m / 60);
+  return h < 48 ? `${h}س ${m % 60}د` : `${Math.floor(h / 24)} يوم ${h % 24}س`;
+}
+// The shift clock: meta/schedule holds the hours (Amman), and whether a shift
+// is at work. Jordan keeps UTC+3 all year.
+const AMMAN = 3 * 3600e3;
+let schedule = null;
+// A shift is on while meta/schedule says so (and for at most 3 hours, in case
+// a shift ended without saying).
+function shiftOn() {
+  return Boolean(schedule && schedule.running && Date.now() - Date.parse(schedule.runningSince || 0) < 3 * 3600e3);
+}
+function nextShift(s, now) {
+  for (let k = 0; k < 8 * 24; k++) {
+    const local = new Date(now + AMMAN + k * 3600e3);
+    local.setUTCMinutes(s.minute || 0, 0, 0);
+    const at = local.getTime() - AMMAN;
+    if (at > now && (s.hours || []).includes(local.getUTCHours()) && (s.days || []).includes(local.getUTCDay())) return at;
+  }
+  return null;
+}
+function renderClock() {
+  const now = Date.now();
+  $('clock').textContent = new Date(now).toLocaleTimeString('ar-JO', { timeZone: 'Asia/Amman', hour: 'numeric', minute: '2-digit' });
+  const s = schedule;
+  if (!s) { $('shiftTxt').textContent = 'جدول المناوبات مش واصل'; return; }
+  const since = s.runningSince ? Date.parse(s.runningSince) : 0;
+  const working = s.running && now - since < 3 * 3600e3;
+  $('clockBox').classList.toggle('fresh', Boolean(working));
+  const next = nextShift(s, now);
+  const parts = [];
+  if (working) parts.push(`المناوبة شغّالة من ${span(now - since)}${s.runningWho ? ' · ' + s.runningWho : ''}`);
+  else if (new Date(now + AMMAN).getUTCDay() === 5) parts.push('اليوم جمعة: ما في دوام');
+  if (next) parts.push(`${working ? 'اللي بعدها' : 'المناوبة الجاية'} بعد ${span(next - now)} (${new Date(next).toLocaleTimeString('ar-JO', { timeZone: 'Asia/Amman', weekday: 'short', hour: 'numeric', minute: '2-digit' })})`);
+  if (!working && s.lastShiftSummary) parts.push('آخر مناوبة: ' + s.lastShiftSummary);
+  $('shiftTxt').textContent = parts.join(' · ');
+}
+let lastBudget = null;
+function renderBudget(b) {
+  if (b) lastBudget = b; else b = lastBudget;
+  if (!b) return;
+  const now = Date.now();
+  const ago = b.readAt ? (now - Date.parse(b.readAt) < 60000 ? 'قُرئ هلأ' : `قُرئ قبل ${span(now - Date.parse(b.readAt))}`) : '';
+  const resets = (iso) => iso && Date.parse(iso) > now ? `بيتصفّر بعد ${span(Date.parse(iso) - now)}` : '';
+  meter('sBar', 'sCap', 'sTxt', b.sessionPct, b.companySessionCap ?? 70, b.stopSession ?? 60, [ago, resets(b.sessionResets)].filter(Boolean).join(' · '));
+  meter('wBar', 'wCap', 'wTxt', b.weeklyPct, b.companyWeeklyCap ?? 65, b.stopWeekly ?? 55, resets(b.weeklyResets));
+  const spent = Number(b.spentTodayTokens) || 0, share = Number(b.dayShareTokens) || 0;
+  $('dBar').style.width = (share ? pct(spent / share * 100) : 0) + '%';
+  $('dTxt').textContent = share ? `${spent.toLocaleString('en')} من ${share.toLocaleString('en')} توكن` : `${spent.toLocaleString('en')} توكن · الحصة اليومية بتنحسب بعد كم قراءة`;
+}
+let db = null;
+async function decide(ref, status, buttons) {
+  buttons.forEach((b) => { b.disabled = true; });
+  try { await ref.update({ status, decidedAt: new Date().toISOString() }); }
+  catch (e) { buttons.forEach((b) => { b.disabled = false; }); const p = el('p', 'empty', e && e.code === 'permission_denied' ? 'ما عندك صلاحية تقرر هون.' : 'ما انحفظ القرار، جرّب مرة ثانية.'); $('tray').prepend(p); setTimeout(() => p.remove(), 4000); }
+}
+function renderApprovals(docs) {
+  const tray = $('tray'); tray.replaceChildren();
+  const pending = docs.filter((d) => (d.data() || {}).status === 'pending');
+  if (!pending.length) tray.append(el('p', 'empty', 'ما في إشي مستني موافقتك.'));
+  for (const d of pending) {
+    const a = d.data() || {};
+    const box = el('div', 'ask');
+    box.append(el('strong', null, a.title || 'طلب'), el('p', null, a.detail || ''), el('span', 'note', [a.from, a.createdAt ? when(a.createdAt) : ''].filter(Boolean).join(' · ')));
+    const yes = el('button', 'yes', 'موافق'), no = el('button', null, 'رافض'); yes.id = 'yes-' + d.id; no.id = 'no-' + d.id;
+    const ref = db.collection('approvals').doc(d.id);
+    yes.addEventListener('click', () => decide(ref, 'approved', [yes, no]));
+    no.addEventListener('click', () => decide(ref, 'refused', [yes, no]));
+    const btns = el('div', 'btns'); btns.append(yes, no); box.append(btns); tray.append(box);
+  }
+  for (const d of docs.filter((x) => (x.data() || {}).status !== 'pending').slice(0, 5)) {
+    const a = d.data() || {}, mgr = a.decidedBy === 'manager';
+    tray.append(el('div', 'done', `${a.status === 'approved' ? (mgr ? '✓ وافق المدير' : '✓ وافقت') : (mgr ? '✗ رفض المدير' : '✗ رفضت')}: ${a.title || ''}`));
+  }
+}
+
+(async () => {
+  const timer = setTimeout(() => { $('stamp').textContent = 'ما قدرت أوصل للبيانات هلأ.'; }, 10000);
+  db = window.claude ? await window.claude.use('db') : null;
+  if (!db) { clearTimeout(timer); $('stamp').textContent = 'سجّل دخولك لتشوف المكتب.'; return; }
+  const fail = () => { clearTimeout(timer); $('stamp').textContent = 'انقطع الاتصال بالبيانات، افتح الصفحة من جديد.'; };
+  db.collection('staff').orderBy('order').onSnapshot((snap) => {
+    clearTimeout(timer);
+    place(snap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) })));
+    renderRoster();
+    if (selected) showDetail(selected);
+    $('stamp').textContent = 'محدّث ' + when(new Date().toISOString());
+  }, fail);
+  db.collection('approvals').orderBy('createdAt', 'desc').limit(30).onSnapshot((snap) => renderApprovals(snap.docs), fail);
+  db.doc('meta/budget').onSnapshot((snap) => renderBudget(snap.exists ? snap.data() : null), fail);
+  setInterval(() => renderBudget(null), 30000);
+  db.doc('meta/schedule').onSnapshot((snap) => { schedule = snap.exists ? snap.data() : null; renderClock(); for (const p of people.values()) retarget(p); }, fail);
+  setInterval(renderClock, 15000);
+})();
+</script>

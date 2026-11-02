@@ -129,6 +129,11 @@ moments were all of one kind: saying something was so without looking.
 - **Look before saying.** "Running", "stops itself at 60%", "the shift is on
   it" are said only after checking the session, the office or the meter.
   The first night shift's work was lost for hours because nobody looked.
+- **The office is checked in a real browser before every publish**
+  (`node .claude/company/office/check-office.js`): where each person
+  stands on and off shift, no page errors. Twice the owner found the office
+  showing something untrue (the accountant at the door, idle staff at their
+  desks between shifts) because the page was only syntax-checked.
 - **Every launch has a check-in.** Starting a shift or an employee comes
   with a check a few minutes later (`send_later`): is it moving, is it
   blocked on a permission, did it push.
