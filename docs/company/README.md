@@ -139,7 +139,8 @@ Qjo's answers or hunt for the defect nobody has found yet.
   role's standing hunt for when it has none. What a hunt finds becomes an item.
 - **Shifts** run on their own, Saturday to Thursday, as fresh sessions (a
   fresh context is far cheaper than the manager's long one), four a day. A
-  scheduled task wakes the owner's session, which starts each shift as a new
+  scheduled task wakes the owner's session (a scheduled session of its own
+  has no add_repo and no push access: tried 2026-11-02 12:07), which starts each shift as a new
   session with the repository attached (`.claude/company/shift-prompt.md`):
   a scheduled session of its own has no push access, and the first night
   shift's work was lost with its container. The times:
